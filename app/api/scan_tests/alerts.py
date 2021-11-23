@@ -220,7 +220,7 @@ def automation_phone(phone_number=None, automation_id=None, scan_or_test_id=None
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
 
-        body = f'Hi there,\n\n{pre_content}{content}'
+        body = f'Hi there,\n\n{pre_content}{content}\n{object_url}'
 
         account_sid = os.environ.get("TWILIO_SID")
         auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
