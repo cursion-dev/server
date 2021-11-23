@@ -64,7 +64,7 @@ class RegistrationViewSet(ModelViewSet, TokenObtainPairView):
             "user": serializer.data,
             "refresh": res["refresh"],
             "token": res["access"],
-            "api_token": api_token,
+            "api_token": api_token.key,
         }, status=status.HTTP_201_CREATED)
 
 
