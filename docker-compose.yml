@@ -17,15 +17,15 @@ services:
              python3 manage.py runserver 0.0.0.0:8000"
     env_file:
       - ./env/.env.dev
-    # depends_on:
-      # - db
+    depends_on:
+      - db
 
-  # db:
-  #   image: postgres:10-alpine
-  #   env_file:
-  #     - ./env/.env.dev
-  #   volumes: 
-  #     - pgdata:/var/lib/postgresql/data
+  db:
+    image: postgres:10-alpine
+    env_file:
+      - ./env/.env.dev
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
   redis:
     image: redis:alpine
   celery:
@@ -38,8 +38,8 @@ services:
     env_file:
       - ./env/.env.dev
     depends_on:
-      # - db
+      - db
       - redis
       - app
-# volumes:
-  # pgdata:
+volumes:
+  pgdata:
