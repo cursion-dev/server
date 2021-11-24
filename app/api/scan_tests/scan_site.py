@@ -25,19 +25,21 @@ class ScanSite():
         html = self.driver.page_source
         logs = self.driver.get_log('browser')
         self.driver.quit()
-        scores = Lighthouse(self.site).scores()
+        lh_data = Lighthouse(self.site).get_data()
 
 
         if self.scan:
             self.scan.html = html
             self.scan.logs = logs
-            self.scan.scores = scores
+            self.scan.scores = lh_data["scores"]
+            self.scan.audits = lh_data["audits"]
             self.scan.save()
             first_scan = self.scan
         else:
             first_scan = Scan.objects.create(
                 site=self.site, html=html, 
-                logs=logs, scores=scores
+                logs=logs, scores=lh_data["scores"],
+                audits=lh_data["audits"]
             )
 
         self.update_site_info(first_scan)
@@ -55,11 +57,12 @@ class ScanSite():
         html = self.driver.page_source
         logs = self.driver.get_log('browser')
         self.driver.quit()
-        scores = Lighthouse(self.site).scores()
+        lh_data = Lighthouse(self.site).get_data()
 
         second_scan = Scan.objects.create(
             site=self.site, paired_scan=first_scan,
-            html=html, logs=logs, scores=scores
+            html=html, logs=logs, scores=lh_data['scores'],
+            audits=lh_data['audits']
         )
         second_scan.save()
 

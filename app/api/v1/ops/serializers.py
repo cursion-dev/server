@@ -39,7 +39,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
-            'html', 'logs', 'scores'
+            'html', 'logs', 'scores', 'audits'
         ]
 
 

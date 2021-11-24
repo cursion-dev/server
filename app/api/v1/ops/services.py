@@ -281,7 +281,7 @@ def delete_test(request, id):
 
 
 
-def create_scan(request, delay=True):
+def create_scan(request, delay=False):
 
     site_id = request.data['site_id']
     user = request.user

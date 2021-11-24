@@ -48,6 +48,17 @@ def get_scores_delta_default():
 
 
 
+def get_audits_default():
+    audits_default = {
+        "seo": [], 
+        "performance": [], 
+        "accessibility": [], 
+        "best-practices": []
+    }
+    return audits_default
+
+
+
 def get_expressions_default():
     expressions_default = {
        'list': [
@@ -111,6 +122,7 @@ class Scan(models.Model):
     html = models.TextField(serialize=True, null=True, blank=True)
     logs = models.JSONField(serialize=True, null=True, blank=True)
     scores = models.JSONField(serialize=True, null=True, blank=True)
+    audits = models.JSONField(serialize=True, null=True, blank=True, default=get_audits_default)
 
     def __str__(self):
         return f'{self.site.site_url}__scan'
