@@ -295,7 +295,10 @@ class Test():
         num_html_ratio = delta_html_data['num_html_ratio']
         num_logs_ratio = delta_logs_data['num_logs_ratio']
         delta_scores_avg_diff = delta_scores_data['average_diff']
-        delta_scores = (100 + delta_scores_avg_diff)/100
+        if delta_scores_avg_diff != None:
+            delta_scores = (100 + delta_scores_avg_diff)/100
+        else:
+            delta_scores = 0
         micro_diff_score = self.html_micro_diff_score(
             delta_html_data['post_micro_delta']['delta_parsed_diff']
             )
@@ -305,7 +308,7 @@ class Test():
         num_html_w = 1
         micro_diff_w = 2
         
-        if delta_scores_avg_diff > 0:
+        if delta_scores_avg_diff > 0 or delta_scores_avg_diff == None:
             delta_scores_w = 0
         else:
             delta_scores_w = 1
