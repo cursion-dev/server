@@ -56,7 +56,7 @@ def check_account(request):
         else:
             return False
     else:
-        return False
+        return True
 
 
 
@@ -71,8 +71,12 @@ def create_site(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    account = Account.objects.get(user=user)
-    if sites.count() >= account.max_sites:
+    try:
+        max_sites = Account.objects.get(user=user).max_sites
+    except:
+        max_sites = 1
+
+    if sites.count() >= max_sites:
         data = {'reason': 'maximum number of sites reached',}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
