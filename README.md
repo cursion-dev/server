@@ -1,10 +1,10 @@
-# Scanerr API (test-repo)
+# Scanerr Server (API repo)
 
 [![Build Status](http://img.shields.io/travis/badges/badgerbadgerbadger.svg?style=flat-square)](https://api.scanerr.io)
 
-This is the test repo for the Scanerr API, an error detection service designed to run front-end tests on web-apps and sites. This service is fully dockertized for local dev/testing as well as deployed environments. 
+This is the server repo for the Scanerr API, an error detection service designed to run front-end tests on web-apps and sites. This service is fully dockertized for local dev/testing as well as deployed environments. 
 
-> This software is only intended for internal white-label use and is not licensed for redristibution or modification. 
+> This software is only intended for internal white-label use and is not licensed for redristibution. See LICENSE for more information.
 
 
 Copyright © Scanerr 2021
@@ -34,6 +34,8 @@ Prior to running locally, configure all env's located in the /env directory. **F
 - passwords
 - usernames
 - allowed hosts
+- external API services and keys
+- domain names (server and client)
 
 &nbsp;
  
@@ -87,7 +89,7 @@ $ ssh root@your_server_ip
 $ cd ~
 $ mkdir app
 $ cd app
-$ git clone https://github.com/Scanerr-io/api-test.git
+$ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
