@@ -1,15 +1,14 @@
-from .driver_init import driver_init
-from selenium import webdriver
+from .driver import driver_init
 from ..models import Site, Scan, Test
-from selenium.webdriver.chrome.options import Options
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
+from .image import Image
 import time, os, sys, json
 
 
 
-class ScanSite():
+class Scanner():
 
     def __init__(self, site=None, scan=None):
         if site == None and scan != None:
@@ -24,6 +23,7 @@ class ScanSite():
         time.sleep(5)
         html = self.driver.page_source
         logs = self.driver.get_log('browser')
+        images = Image().scan(site=self.site, driver=self.driver)
         self.driver.quit()
         lh_data = Lighthouse(self.site).get_data()
 
@@ -31,6 +31,7 @@ class ScanSite():
         if self.scan:
             self.scan.html = html
             self.scan.logs = logs
+            self.scan.images = images
             self.scan.scores = lh_data["scores"]
             self.scan.audits = lh_data["audits"]
             self.scan.save()
@@ -39,7 +40,7 @@ class ScanSite():
             first_scan = Scan.objects.create(
                 site=self.site, html=html, 
                 logs=logs, scores=lh_data["scores"],
-                audits=lh_data["audits"]
+                audits=lh_data["audits"], images=images
             )
 
         self.update_site_info(first_scan)
@@ -56,13 +57,14 @@ class ScanSite():
         time.sleep(5)
         html = self.driver.page_source
         logs = self.driver.get_log('browser')
+        images = Image().scan(site=self.site, driver=self.driver)
         self.driver.quit()
         lh_data = Lighthouse(self.site).get_data()
 
         second_scan = Scan.objects.create(
             site=self.site, paired_scan=first_scan,
             html=html, logs=logs, scores=lh_data['scores'],
-            audits=lh_data['audits']
+            audits=lh_data['audits'], images=images
         )
         second_scan.save()
 

@@ -1,4 +1,4 @@
-import json, datetime
+import json, datetime, boto3
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from ...models import (Test, Site, Scan, Log, Automation)
@@ -11,11 +11,12 @@ from .serializers import (
     SmallScanSerializer,
     )
 from rest_framework.pagination import LimitOffsetPagination
-from django.urls import resolve
-from ...scan_tests.scan_site import ScanSite
-from ...scan_tests.lighthouse import Lighthouse
-from ...scan_tests.tester import Test as T
-from ...tasks import (create_site_bg, create_scan_bg, create_test_bg)
+from ...utils.scanner import Scanner as S
+from ...utils.tester import Tester as T
+from ...tasks import (
+    create_site_bg, create_scan_bg, create_test_bg,
+    delete_site_s3_bg
+    )
 
 
 
@@ -94,7 +95,7 @@ def create_site(request, delay=False):
         if delay == True:
             create_site_bg.delay(site.id)
         else:
-            ScanSite(site=site).first_scan()
+            S(site=site).first_scan()
 
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)
@@ -140,6 +141,10 @@ def delete_site(request, id):
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
+    # remove s3 objects
+    delete_site_s3_bg.delay(site_id=id)
+    
+    # remove site
     site.delete()
 
     data = {'message': 'Site has been deleted',}
@@ -173,7 +178,7 @@ def create_test(request, delay=False):
         return Response(data, status=status.HTTP_201_CREATED)
     else:
         test = Test.objects.create(site=site)
-        new_scan = ScanSite(site=site)
+        new_scan = S(site=site)
         post_scan = new_scan.second_scan()
         pre_scan = post_scan.paired_scan
         pre_scan.paired_scan = post_scan
@@ -309,7 +314,7 @@ def create_scan(request, delay=False):
         return Response(data, status=status.HTTP_201_CREATED)
     else:
         created_scan = Scan.objects.create(site=site)
-        updated_scan = ScanSite(scan=created_scan).first_scan()
+        updated_scan = S(scan=created_scan).first_scan()
         
         serializer_context = {'request': request,}
         serialized = ScanSerializer(updated_scan, context=serializer_context)

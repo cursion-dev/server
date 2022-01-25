@@ -1,7 +1,5 @@
-from ...scan_tests.driver_init import driver_init
+from ...utils.driver import driver_init
 from django.core.management.base import BaseCommand
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 import time, os, sys
 
 # testing selenium, chromedriver, and chromium installation and configs

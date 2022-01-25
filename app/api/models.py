@@ -102,6 +102,8 @@ def get_slack_default():
 
 
 
+
+
 class Site(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -121,6 +123,7 @@ class Scan(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     html = models.TextField(serialize=True, null=True, blank=True)
     logs = models.JSONField(serialize=True, null=True, blank=True)
+    images = models.JSONField(serialize=True, null=True, blank=True)
     scores = models.JSONField(serialize=True, null=True, blank=True)
     audits = models.JSONField(serialize=True, null=True, blank=True, default=get_audits_default)
 
@@ -141,6 +144,7 @@ class Test(models.Model):
     html_delta = models.JSONField(serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     scores_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_delta_default)
+    images_delta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.site.site_url}__test'

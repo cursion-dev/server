@@ -7,7 +7,7 @@ from django.forms.models import model_to_dict
 
 class Lighthouse():
 
-    """Initialized Google's Lighthouse CLI and runs an audit of the site"""
+    """Initializes Google's Lighthouse CLI and runs an audit of the site"""
 
 
     def __init__(self, site=None):
@@ -17,7 +17,7 @@ class Lighthouse():
     def init_audit(self):
         proc = subprocess.Popen([
                 'lighthouse', 
-                '--config-path=api/scan_tests/custom-config.js',
+                '--config-path=api/utils/custom-config.js',
                 '--quiet',
                 self.site.site_url, 
                 '--chrome-flags="--no-sandbox --headless"', 
@@ -51,7 +51,7 @@ class Lighthouse():
                     "best-practices": [],
                 }
 
-                # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` list
+                # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` obj
                 for cat in audits:
                     cat_audits = stdout_json["categories"][cat]["auditRefs"]
                     for a in cat_audits:

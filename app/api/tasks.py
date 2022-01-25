@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 from celery.utils.log import get_task_logger
 from celery import shared_task
 from .v1.ops.tasks import (create_site_task, 
-    create_scan_task, create_test_task
+    create_scan_task, create_test_task, delete_site_s3
 )
 from .models import Log
 from django.contrib.auth.models import User
@@ -26,6 +26,12 @@ def create_scan_bg(site_id, automation_id=None):
 def create_test_bg(site_id, automation_id=None):
     create_test_task(site_id, automation_id)
     logger.info('Created new test of site')
+    
+
+@shared_task
+def delete_site_s3_bg(site_id):
+    delete_site_s3(site_id)
+    logger.info('Deleted site s3 objects')
 
 
 @shared_task

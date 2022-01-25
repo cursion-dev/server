@@ -1,6 +1,6 @@
-app/api/scan_tests/testing_stuff.py
+app/api/utils/testing_stuff.py
 app/data*
-app/api/scan_tests/__pycache__/tester.cpython-38.pyc
+app/api/utils/__pycache__/tester.cpython-38.pyc
 .DS_Store
 *__pycache__*
 db.sqlite3
@@ -14,3 +14,5 @@ env/.env.staging
 env/.env.dev
 env/.env.prod
 env/.env.prod.db
+app/api/migrations/0001_initial.py
+app/api/migrations/0002_auto_20220112_2212.py

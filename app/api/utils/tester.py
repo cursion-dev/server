@@ -2,10 +2,11 @@ from ..models import Site, Scan, Test
 import time, os, sys, json, random, string, re
 from difflib import SequenceMatcher, HtmlDiff
 from datetime import datetime
+from .image import Image
 
 
 
-class Test():
+class Tester():
 
     def __init__(self, test):
         self.test = test
@@ -235,6 +236,8 @@ class Test():
 
 
 
+
+
     def delta_scores(self):
         try:
             pre_seo = int(self.test.pre_scan.scores['seo'])
@@ -292,6 +295,7 @@ class Test():
         delta_html_data = self.delta_html()
         delta_logs_data = self.delta_logs()
         delta_scores_data = self.delta_scores()
+        images_data = Image().test(test=self.test)
         num_html_ratio = delta_html_data['num_html_ratio']
         num_logs_ratio = delta_logs_data['num_logs_ratio']
         delta_scores_avg_diff = delta_scores_data['average_diff']
@@ -303,12 +307,14 @@ class Test():
             delta_html_data['post_micro_delta']['delta_parsed_diff']
             )
         html_score_w = 1
-        logs_score_w = 1
+        logs_score_w = .5
         num_logs_w = 2
         num_html_w = 1
         micro_diff_w = 2
         
-        if delta_scores_avg_diff > 0 or delta_scores_avg_diff == None:
+        if delta_scores_avg_diff == None:
+            delta_scores_w = 0
+        elif delta_scores_avg_diff > 0:
             delta_scores_w = 0
         else:
             delta_scores_w = 1
@@ -352,6 +358,7 @@ class Test():
         self.test.logs_delta = logs_delta_context
         self.test.score = score
         self.test.scores_delta = delta_scores_data
+        self.test.images_delta = images_data
         self.test.save()
 
         self.update_site_info(self.test)

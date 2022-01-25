@@ -39,7 +39,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
-            'html', 'logs', 'scores', 'audits'
+            'html', 'logs', 'scores', 'audits', 'images'
         ]
 
 
@@ -64,7 +64,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
-        'scores_delta'
+        'scores_delta', 'images_delta'
         ]
 
 

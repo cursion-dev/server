@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_celery_beat',
     'markdownify.apps.MarkdownifyConfig',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -190,8 +191,39 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+# STATIC_URL = '/static/'
+# STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+# remote storage settings 
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# Used to authenticate with S3 using 'django-stores' pypi package and 'boto3'
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+
+# Configure which endpoint to send files to, and retrieve files from.
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
+AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
+AWS_S3_ENDPOINT_PATH = os.environ.get('AWS_S3_ENDPOINT_PATH')
+AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
+AWS_S3_URL_PATH = os.environ.get('AWS_S3_URL_PATH')
+STORAGE_DOMAIN = os.environ.get('STORAGE_DOMAIN')
+AWS_LOCATION = os.environ.get('AWS_LOCATION')
+AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL')
+
+# General optimization for faster delivery
+AWS_IS_GZIPPED = True
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+
+STATIC_ROOT = 'static'
+MEDIA_ROOT = 'media'
+STATIC_URL = f"https://{AWS_S3_ENDPOINT_URL}/{STATIC_ROOT}/"
+MEDIA_URL = f"https://{AWS_S3_ENDPOINT_URL}/{MEDIA_ROOT}/"
+
 
 
 
