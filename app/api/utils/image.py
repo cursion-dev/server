@@ -74,7 +74,12 @@ class Image():
                 pic_id = uuid.uuid4()
                 
                 # waiting for network requests to resolve
-                driver_wait(driver=driver, interval=5, max_wait_time=30)
+                driver_wait(
+                    driver=driver, 
+                    interval=5, 
+                    max_wait_time=60, 
+                    min_wait_time=10
+                )
 
                 # get screenshot
                 driver.save_screenshot(f'{pic_id}.png')

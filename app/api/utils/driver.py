@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from selenium.webdriver import ActionChains
 import time, os, numpy, json
 
 
@@ -41,9 +42,11 @@ def driver_init():
 
 
 
-def driver_wait(driver, interval=5, max_wait_time=30):
+def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     """
     Pauses the driver until all network requests have been resolved
+
+    --> Adding mouse interaction to load WP plugin rendered content
 
     returns once driver determines that all request have resolved or 
     total wait time exceeds max_wait_time <int>
@@ -67,8 +70,21 @@ def driver_wait(driver, interval=5, max_wait_time=30):
         return r_list
 
 
+    def interact_with_page(driver):
+        # simulate mouse movement and click on <body> tag
+        body_tag = driver.find_elements_by_tag_name('body')[0]
+        action = ActionChains(driver)
+        action.move_to_element(body_tag).click().perform()
+        return
+
+
     resolved = False
     wait_time = 0
+
+    # actions before comparing network logs
+    interact_with_page(driver)
+    time.sleep(min_wait_time)
+
     while not resolved and wait_time < max_wait_time:
         # get first set of logs
         list_one = get_request_list(driver=driver)
@@ -82,6 +98,6 @@ def driver_wait(driver, interval=5, max_wait_time=30):
         # check if logs are equal
         resolved = numpy.array_equal(list_one, list_two)
         
-        wait_time += 5
+        wait_time += interval
 
     return
