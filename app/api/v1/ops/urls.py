@@ -5,6 +5,7 @@ from . import views as views
 urlpatterns = [
     path('site', views.Sites.as_view(), name='site'),
     path('site/<uuid:id>', views.SiteDetail.as_view(), name='site-detail'),
+    path('site/<uuid:id>/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'),
     path('site/delay', views.SiteDelay.as_view(), name='site-delay'),
     path('scan', views.Scans.as_view(), name='scan'),
     path('scan/<uuid:id>', views.ScanDetail.as_view(), name='scan-detail'),

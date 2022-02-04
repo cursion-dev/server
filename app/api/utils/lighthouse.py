@@ -96,7 +96,7 @@ class Lighthouse():
                 "seo": [],
                 "accessibility": [],
                 "performance": [],
-                "best_practices": [],
+                "best-practices": [],
             }
 
             data = {

@@ -6,10 +6,40 @@ import os, operator, json, requests, uuid
 from django.utils.html import strip_tags
 from django.contrib.auth.models import User
 from rest_framework.response import Response
-from ..models import (Schedule, Automation, Test, Scan, Site, Account)
+from ..models import *
 from twilio.rest import Client
 from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
+
+
+
+
+
+def create_exp_str(item, automation):
+
+    exp_list = []
+    for e in automation.expressions:
+        if 'test_score' in e['data_type']:
+            data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
+        elif 'current_average' in e['data_type']:
+            data_type = 'Health:\t'+str(item.lighthouse_delta["scores"]["current_average"])+'\n\t'
+        elif 'seo_delta' in e['data_type']:
+            data_type = 'SEO Delta:\t'+str(item.lighthouse_delta["scores"]["seo_delta"])+'\n\t'
+        elif 'best_practices_delta' in e['data_type']:
+            data_type = 'Best Practicies Delta:\t'+str(item.lighthouse_delta["scores"]["best_practices_delta"])+'\n\t'
+        elif 'performance_delta' in e['data_type']:
+            data_type = 'Performance Delta:\t'+str(item.lighthouse_delta["scores"]["performance_delta"])+'\n\t'
+        elif 'images_score' in e['data_type']:
+            data_type = ' Avg Image Score:\t'+str(item.images_delta["average_score"])+'\n\t'
+        elif 'logs' in e['data_type']:
+            data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
+        elif 'health' in e['data_type']:
+            data_type = 'Health:\t'+str(item.lighthouse["scores"]["average"])+'\n\t'
+        exp_list.append(data_type)
+
+    exp_str = ('\t'+''.join(exp_list))
+    return exp_str
+
 
 
 
@@ -31,25 +61,7 @@ def automation_email(email=None, automation_id=None, scan_or_test_id=None):
             except:
                 return {'success': False}
 
-        exp_list = []
-        for e in automation.expressions:
-            if 'test_score' in e['data_type']:
-                data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
-            elif 'current_average' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores_delta["current_average"])+'\n\t'
-            elif 'seo_delta' in e['data_type']:
-                data_type = 'SEO Delta:\t'+str(item.scores_delta["seo_delta"])+'\n\t'
-            elif 'best_practices_delta' in e['data_type']:
-                data_type = 'Best Practicies Delta:\t'+str(item.scores_delta["best_practices_delta"])+'\n\t'
-            elif 'performance_delta' in e['data_type']:
-                data_type = 'Performance Delta:\t'+str(item.scores_delta["performance_delta"])+'\n\t'
-            elif 'logs' in e['data_type']:
-                data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
-            elif 'health' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores["average"])+'\n\t'
-            exp_list.append(data_type)
-
-        exp_str = ('\t'+''.join(exp_list))
+        exp_str = create_exp_str(item=item, automation=automation)
 
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
         subject = f'Alert for {site.site_url}'
@@ -134,17 +146,17 @@ def automation_webhook(
             if 'test_score' == json_data[key]:
                 json_data[key] = item.score
             elif 'current_average' == json_data[key]:
-                json_data[key] = item.scores_delta["current_average"]
+                json_data[key] = item.lighthouse_delta["scores"]["current_average"]
             elif 'seo_delta' == json_data[key]:
-                json_data[key] = item.scores_delta["seo_delta"]
+                json_data[key] = item.lighthouse_delta["scores"]["seo_delta"]
             elif 'best_practices_delta' == json_data[key]:
-                json_data[key] = item.scores_delta["best_practices_delta"]
+                json_data[key] = item.lighthouse_delta["scores"]["best_practices_delta"]
             elif 'performance_delta' == json_data[key]:
-                json_data[key] = item.scores_delta["performance_delta"]
+                json_data[key] = item.lighthouse_delta["scores"]["performance_delta"]
             elif 'logs' == json_data[key]:
                 json_data[key] = len(item.logs)
             elif 'health' == json_data[key]:
-                json_data[key] = item.scores["average"]
+                json_data[key] = item.lighthouse["scores"]["average"]
             
             get_list.append(f'{key}={json_data[key]}&')
 
@@ -190,25 +202,7 @@ def automation_phone(phone_number=None, automation_id=None, scan_or_test_id=None
             except:
                 return {'success': False}
 
-        exp_list = []
-        for e in automation.expressions:
-            if 'test_score' in e['data_type']:
-                data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
-            elif 'current_average' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores_delta["current_average"])+'\n\t'
-            elif 'seo_delta' in e['data_type']:
-                data_type = 'SEO Delta:\t'+str(item.scores_delta["seo_delta"])+'\n\t'
-            elif 'best_practices_delta' in e['data_type']:
-                data_type = 'Best Practicies Delta:\t'+str(item.scores_delta["best_practices_delta"])+'\n\t'
-            elif 'performance_delta' in e['data_type']:
-                data_type = 'Performance Delta:\t'+str(item.scores_delta["performance_delta"])+'\n\t'
-            elif 'logs' in e['data_type']:
-                data_type = '# Error Logs:\t'+str(len(item.logs))+'\n\t'
-            elif 'health' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores["average"])+'\n\t'
-            exp_list.append(data_type)
-
-        exp_str = ''.join(exp_list)
+        exp_str = create_exp_str(item=item, automation=automation)
 
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
         pre_content = (
@@ -263,25 +257,7 @@ def automation_slack(automation_id=None, scan_or_test_id=None):
             except:
                 return {'success': False}
 
-        exp_list = []
-        for e in automation.expressions:
-            if 'test_score' in e['data_type']:
-                data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
-            elif 'current_average' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores_delta["current_average"])+'\n\t'
-            elif 'seo_delta' in e['data_type']:
-                data_type = 'SEO Delta:\t'+str(item.scores_delta["seo_delta"])+'\n\t'
-            elif 'best_practices_delta' in e['data_type']:
-                data_type = 'Best Practicies Delta:\t'+str(item.scores_delta["best_practices_delta"])+'\n\t'
-            elif 'performance_delta' in e['data_type']:
-                data_type = 'Performance Delta:\t'+str(item.scores_delta["performance_delta"])+'\n\t'
-            elif 'logs' in e['data_type']:
-                data_type = '# Error Logs:\t'+str(len(item.logs))+'\n\t'
-            elif 'health' in e['data_type']:
-                data_type = 'Health:\t'+str(item.scores["average"])+'\n\t'
-            exp_list.append(data_type)
-
-        exp_str = ''.join(exp_list)
+        exp_str = create_exp_str(item=item, automation=automation)
 
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
         pre_content = (

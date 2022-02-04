@@ -13,30 +13,61 @@ def create_site_task(site_id):
     return site
 
 
-def create_scan_task(site_id, automation_id=None):
+def create_scan_task(
+        site_id, 
+        automation_id=None, 
+        configs=None
+    ):
     site = Site.objects.get(id=site_id)
     created_scan = Scan.objects.create(site=site)
-    scan = S(scan=created_scan).first_scan()
+    scan = S(scan=created_scan, configs=configs).first_scan()
     if automation_id:
         automation(automation_id, scan.id)
     return scan
 
 
-def create_test_task(site_id, automation_id=None):
+
+
+def create_test_task(
+        site_id, 
+        automation_id=None, 
+        configs=None, 
+        type=['full'],
+        index=None,
+        pre_scan=None,
+        post_scan=None,
+    ):
     site = Site.objects.get(id=site_id)
-    created_test = Test.objects.create(site=site)
-    new_scan = S(site=site)
-    post_scan = new_scan.second_scan()
-    pre_scan = post_scan.paired_scan
+
+    if not pre_scan and not post_scan:
+        new_scan = S(site=site, configs=configs)
+        post_scan = new_scan.second_scan()
+        pre_scan = post_scan.paired_scan
+
+    if not post_scan and pre_scan:
+        pre_scan = Scan.objects.get(id=pre_scan)
+        post_scan = S(site=site, scan=pre_scan, configs=configs).second_scan()
+
+    # updating parired scans
     pre_scan.paired_scan = post_scan
+    post_scan.paried_scan = pre_scan
     pre_scan.save()
-    created_test.pre_scan = pre_scan
-    created_test.post_scan = post_scan
-    created_test.save()
-    test = T(test=created_test).run_full_test()
+    post_scan.save()
+
+    # creating new test object
+    created_test = Test.objects.create(
+        site=site, 
+        type=type,
+        pre_scan=pre_scan,
+        post_scan=post_scan,
+    )
+    
+    test = T(test=created_test).run_test(index=index)
     if automation_id:
         automation(automation_id, test.id)
     return test
+
+
 
 
 def delete_site_s3(site_id):

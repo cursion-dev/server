@@ -238,16 +238,16 @@ class Tester():
 
 
 
-    def delta_scores(self):
+    def delta_lighthouse(self):
         try:
-            pre_seo = int(self.test.pre_scan.scores['seo'])
-            pre_accessibility = int(self.test.pre_scan.scores['accessibility'])
-            pre_performance = int(self.test.pre_scan.scores['performance'])
-            pre_best_practices = int(self.test.pre_scan.scores['best_practices'])
-            post_seo = int(self.test.post_scan.scores['seo'])
-            post_accessibility = int(self.test.post_scan.scores['accessibility'])
-            post_performance = int(self.test.post_scan.scores['performance'])
-            post_best_practices = int(self.test.post_scan.scores['best_practices'])
+            pre_seo = int(self.test.pre_scan.lighthouse["scores"]['seo'])
+            pre_accessibility = int(self.test.pre_scan.lighthouse["scores"]['accessibility'])
+            pre_performance = int(self.test.pre_scan.lighthouse["scores"]['performance'])
+            pre_best_practices = int(self.test.pre_scan.lighthouse["scores"]['best_practices'])
+            post_seo = int(self.test.post_scan.lighthouse["scores"]['seo'])
+            post_accessibility = int(self.test.post_scan.lighthouse["scores"]['accessibility'])
+            post_performance = int(self.test.post_scan.lighthouse["scores"]['performance'])
+            post_best_practices = int(self.test.post_scan.lighthouse["scores"]['best_practices'])
 
             seo_delta = post_seo - pre_seo
             accessibility_delta = post_accessibility - pre_accessibility 
@@ -255,25 +255,30 @@ class Tester():
             best_practices_delta = post_best_practices - pre_best_practices
             current_average = (post_seo + post_accessibility + post_best_practices + post_performance)/4
             old_average = (pre_seo + pre_accessibility + pre_best_practices + pre_performance)/4
-            average_diff = current_average - old_average 
+            average_delta = current_average - old_average 
         except:
             seo_delta = None
             accessibility_delta = None 
             performance_delta = None
             best_practices_delta = None
             current_average = None
-            average_diff = None
+            average_delta = None
 
         data = {
-            "seo_delta": seo_delta,
-            "accessibility_delta": accessibility_delta,
-            "performance_delta": performance_delta,
-            "best_practices_delta": best_practices_delta,
-            "current_average": current_average,
-            "average_diff": average_diff,
+            "scores": {
+                "seo_delta": seo_delta,
+                "accessibility_delta": accessibility_delta,
+                "performance_delta": performance_delta,
+                "best_practices_delta": best_practices_delta,
+                "current_average": current_average,
+                "average_delta": average_delta,
+            }
         }
 
         return data
+
+
+
 
 
 
@@ -289,39 +294,111 @@ class Tester():
 
 
 
-    def run_full_test(self):
-        html_score = self.compare_html()
-        logs_score = self.compare_logs()
-        delta_html_data = self.delta_html()
-        delta_logs_data = self.delta_logs()
-        delta_scores_data = self.delta_scores()
-        images_data = Image().test(test=self.test)
-        num_html_ratio = delta_html_data['num_html_ratio']
-        num_logs_ratio = delta_logs_data['num_logs_ratio']
-        delta_scores_avg_diff = delta_scores_data['average_diff']
-        if delta_scores_avg_diff != None:
-            delta_scores = (100 + delta_scores_avg_diff)/100
-        else:
-            delta_scores = 0
-        micro_diff_score = self.html_micro_diff_score(
-            delta_html_data['post_micro_delta']['delta_parsed_diff']
-            )
-        html_score_w = 1
-        logs_score_w = .5
-        num_logs_w = 2
-        num_html_w = 1
-        micro_diff_w = 2
+
+
+
+
+
+    def run_test(self, index=None):
+
+        # default scores 
+        html_score = 0
+        num_html_ratio = 0
+        micro_diff_score = 0
+        logs_score = 0
+        num_logs_ratio = 0
+        lighthouse_score = 0
+        images_score = 0
+
+        # default weights
+        html_score_w = 0
+        num_html_w = 0
+        micro_diff_w = 0
+        logs_score_w = 0
+        num_logs_w = 0
+        delta_lh_w = 0
+        images_w = 0
+
+        # default data
+        html_delta_context = None
+        logs_delta_context = None
+        lighthouse_data = None
+        images_data = None
+
+
+
+        if 'html' in self.test.type or 'full' in self.test.type:
+            # scores
+            html_score = self.compare_html()
+            delta_html_data = self.delta_html()
+            num_html_ratio = delta_html_data['num_html_ratio']
+            micro_diff_score = self.html_micro_diff_score(
+                    delta_html_data['post_micro_delta']['delta_parsed_diff']
+                )
+            
+            # weights
+            html_score_w = 1
+            num_html_w = 1
+            micro_diff_w = 2
+            
+            # data
+            html_delta_context = {
+                "pre_html_delta": delta_html_data['delta_html_pre'],
+                "post_html_delta": delta_html_data['delta_html_post'],
+                "pre_micro_delta": delta_html_data['pre_micro_delta'],
+                "post_micro_delta": delta_html_data['post_micro_delta'],
+            }
         
-        if delta_scores_avg_diff == None:
-            delta_scores_w = 0
-        elif delta_scores_avg_diff > 0:
-            delta_scores_w = 0
-        else:
-            delta_scores_w = 1
+        
+
+        if 'logs' in self.test.type or 'full' in self.test.type:
+            # scores
+            logs_score = self.compare_logs()
+            delta_logs_data = self.delta_logs()
+            num_logs_ratio = delta_logs_data['num_logs_ratio']
+            
+            # weights
+            logs_score_w = .5
+            num_logs_w = 2
+
+            # data
+            logs_delta_context = {
+                "pre_logs_delta": delta_logs_data['delta_logs_pre'],
+                "post_logs_delta": delta_logs_data['delta_logs_post'],
+            }
+
+
+
+        if 'lighthouse' in self.test.type or 'full' in self.test.type:
+            # scores & data
+            lighthouse_data = self.delta_lighthouse()
+            lighthouse_avg = lighthouse_data['scores']['average_delta']
+            if lighthouse_avg != None:
+                lighthouse_score = (100 + lighthouse_avg)/100
+            
+            # weights
+            if lighthouse_score == None:
+                delta_lh_w = 0
+            elif lighthouse_score > 0:
+                delta_lh_w = 0
+            else:
+                delta_lh_w = 1
+
+
+        if 'vrt' in self.test.type or 'full' in self.test.type:
+            # scores & data
+            images_data = Image().test(test=self.test, index=index)
+            images_score = images_data['average_score'] / 100
+            
+            # weights
+            images_w = 2
+        
+        
 
         total_w = (
             html_score_w + logs_score_w + num_html_w 
-            + num_logs_w + delta_scores_w + micro_diff_w
+            + num_logs_w + delta_lh_w + micro_diff_w
+            + images_w
         )
         
         
@@ -330,35 +407,28 @@ class Tester():
             (logs_score * logs_score_w) + 
             (num_logs_ratio * num_logs_w) + 
             (num_html_ratio * num_html_w) +
-            (delta_scores * delta_scores_w) + 
-            (micro_diff_score * micro_diff_w)
+            (lighthouse_score * delta_lh_w) + 
+            (micro_diff_score * micro_diff_w) +
+            (images_score * images_w)
         ) / total_w) * 100
 
+        
         print(
             "Formula was --> ((" + str(html_score*html_score_w) + " + " 
             + str(logs_score*logs_score_w) + " + " + str(num_logs_ratio*num_logs_w) + " + " 
-            + str(num_html_ratio*num_html_w) +  " + " + str(delta_scores*delta_scores_w) + 
-            " + " + str(micro_diff_score*micro_diff_w) + ") / " + str(total_w) +  ") * 100 ===> " + str(score)
-         )
+            + str(num_html_ratio*num_html_w) +  " + " + str(lighthouse_score*delta_lh_w) + 
+            " + " + str(micro_diff_score*micro_diff_w) + " + " + str(images_score * images_w)+
+            ") / " + str(total_w) + ") * 100 ===> " + str(score)
+        )
 
-        html_delta_context = {
-            "pre_html_delta": delta_html_data['delta_html_pre'],
-            "post_html_delta": delta_html_data['delta_html_post'],
-            "pre_micro_delta": delta_html_data['pre_micro_delta'],
-            "post_micro_delta": delta_html_data['post_micro_delta'],
-        }
-
-        logs_delta_context = {
-            "pre_logs_delta": delta_logs_data['delta_logs_pre'],
-            "post_logs_delta": delta_logs_data['delta_logs_post'],
-        }
 
         self.test.time_completed = datetime.now()
         self.test.html_delta = html_delta_context
         self.test.logs_delta = logs_delta_context
-        self.test.score = score
-        self.test.scores_delta = delta_scores_data
+        self.test.lighthouse_delta = lighthouse_data
         self.test.images_delta = images_data
+        self.test.score = score
+
         self.test.save()
 
         self.update_site_info(self.test)

@@ -1,22 +1,16 @@
-import json, datetime, boto3
+import json, boto3
+from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
-from ...models import (Test, Site, Scan, Log, Automation)
+from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
-from ...models import (Test, Site, Scan, Log, Schedule, Account)
-from .serializers import (
-    SiteSerializer, TestSerializer, ScanSerializer, LogSerializer, 
-    ScheduleSerializer, AutomationSerializer, SmallTestSerializer, 
-    SmallScanSerializer,
-    )
+from .serializers import *
 from rest_framework.pagination import LimitOffsetPagination
 from ...utils.scanner import Scanner as S
 from ...utils.tester import Tester as T
-from ...tasks import (
-    create_site_bg, create_scan_bg, create_test_bg,
-    delete_site_s3_bg
-    )
+from ...tasks import *
+from ...utils.image import Image as I
 
 
 
@@ -106,6 +100,24 @@ def create_site(request, delay=False):
 
 
 
+def create_site_screenshot(request, id):
+    user = request.user
+    site = Site.objects.get(id=id)
+
+    if site.user != user:
+        data = {'reason': 'you cannot retrieve a screenshot of a site you do not own',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    
+    configs = request.data.get('configs', None)
+
+    data = I().screenshot(site=site, configs=configs)
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
 def get_sites(request):
     site_id = request.query_params.get('site_id')
     user = request.user
@@ -167,27 +179,74 @@ def create_test(request, delay=False):
     user = request.user
     site = Site.objects.get(id=site_id, )
     if site.user != user:
-        data = {'reason': 'you cannot create a Test of a Site you do not own',}
+        data = {'reason': 'you cannot create a Test of a Site you do not own'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+
+    # get data from request
+    configs = request.data.get('configs', None)
+    pre_scan_id = request.data.get('pre_scan', None)
+    post_scan_id = request.data.get('post_scan', None)
+    index = request.data.get('index', None)
+    test_type = request.data.get('type', ['full'])
+    pre_scan = None
+    post_scan = None
+    
+    if not configs:
+        configs = {
+            'window_size': '1920,1080',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 60,
+        }
+
+    
+    if pre_scan_id:
+        pre_scan = Scan.objects.get(id=pre_scan_id)
+    if post_scan_id:
+        post_scan = Scan.objects.get(id=post_scan_id)
+
+
     
     if delay == True:
-        create_test_bg.delay(site.id)
+        create_test_bg.delay(
+            site_id=site.id,
+            configs=configs,
+            type=test_type,
+            index=index,
+            pre_scan=pre_scan_id, 
+            post_scan=post_scan_id
+        )
         data = {'message': 'test is being created in the background'}
         record_api_call(request, data, '201')
         return Response(data, status=status.HTTP_201_CREATED)
+    
     else:
-        test = Test.objects.create(site=site)
-        new_scan = S(site=site)
-        post_scan = new_scan.second_scan()
-        pre_scan = post_scan.paired_scan
-        pre_scan.paired_scan = post_scan
-        pre_scan.save()
-        test.pre_scan = pre_scan
-        test.post_scan = post_scan
-        test.save()
+        if not pre_scan and not post_scan:
+            new_scan = S(site=site, configs=configs)
+            post_scan = new_scan.second_scan()
+            pre_scan = post_scan.paired_scan
 
-        updated_test = T(test=test).run_full_test()
+        if not post_scan and pre_scan:
+            post_scan = S(site=site, scan=pre_scan, configs=configs).second_scan()
+
+        # updating parired scans
+        pre_scan.paired_scan = post_scan
+        post_scan.paried_scan = pre_scan
+        pre_scan.save()
+        post_scan.save()
+
+        # creating new test object
+        test = Test.objects.create(
+            site=site, 
+            type=test_type,
+            pre_scan=pre_scan,
+            post_scan=post_scan,
+        )
+
+        # running tester
+        updated_test = T(test=test).run_test(index=index)
 
         serializer_context = {'request': request,}
         serialized = TestSerializer(updated_test, context=serializer_context)
@@ -195,6 +254,10 @@ def create_test(request, delay=False):
         record_api_call(request, data, '201')
         response = Response(data, status=status.HTTP_201_CREATED)
         return response 
+
+
+
+
 
 
 
@@ -307,15 +370,25 @@ def create_scan(request, delay=False):
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
+
+    configs = request.data.get('configs', None)
+
+    if not configs:
+        configs = {
+            'window_size': '1920,1080',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 60,
+        }
+
     if delay == True:
-        create_scan_bg.delay(site.id)
+        create_scan_bg.delay(site.id, configs=configs)
         data = {'message': 'scan is being created in the background'}
         record_api_call(request, data, '201')
         return Response(data, status=status.HTTP_201_CREATED)
     else:
         created_scan = Scan.objects.create(site=site)
-        updated_scan = S(scan=created_scan).first_scan()
-        
+        updated_scan = S(scan=created_scan, configs=configs).first_scan()
         serializer_context = {'request': request,}
         serialized = ScanSerializer(updated_scan, context=serializer_context)
         data = serialized.data
@@ -437,24 +510,17 @@ def create_or_update_schedule(request):
     except:
         schedule = None
 
-    try:
-        schedule_status = request.data['status']
-    except:
-        schedule_status = None
-    
-    try:
-        begin_date_raw = request.data['begin_date']
-        time = request.data['time']
-        timezone = request.data['timezone']
-        freq = request.data['frequency']
-        task_type = request.data['task_type']
-    except:
-        pass
 
-    try:
-        schedule_id = request.data['schedule_id']
-    except:
-        schedule_id = None
+    schedule_status = request.data.get('status', None)
+    begin_date_raw = request.data.get('begin_date', None)
+    time = request.data.get('time', None)
+    timezone = request.data.get('timezone', None)
+    freq = request.data.get('frequency', None)
+    task_type = request.data.get('task_type', None)
+    test_type = request.data.get('test_type', None)
+    configs = request.data.get('configs', None)
+    schedule_id = request.data.get('schedule_id', None)
+
     
 
     if schedule_status != None and schedule != None:
@@ -474,20 +540,23 @@ def create_or_update_schedule(request):
             task = 'api.tasks.create_test_bg'
             arguments = {
                 'site_id': str(site.id),
+                'configs': configs, 
+                'type': test_type,
             }
 
         if task_type == 'scan':
             task = 'api.tasks.create_scan_bg'
             arguments = {
                 'site_id': str(site.id),
+                'configs': configs,
             }
 
         format_str = '%m/%d/%Y'
         
         try:
-            begin_date = datetime.datetime.strptime(begin_date_raw, format_str)
+            begin_date = datetime.strptime(begin_date_raw, format_str)
         except:
-            begin_date = datetime.datetime.now()
+            begin_date = datetime.now()
 
         num_day_of_week = begin_date.weekday()
         day = begin_date.strftime("%d")
@@ -518,12 +587,9 @@ def create_or_update_schedule(request):
                 periodic_task.update(
                     crontab=crontab,
                     name=task_name, task=task,
+                    kwargs=json.dumps(arguments),
                 )
                 periodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-            elif PeriodicTask.objects.filter(name=task_name).exists():
-                data = {'reason': 'Task has already be created',}
-                record_api_call(request, data, '401')
-                return Response(data, status=status.HTTP_401_UNAUTHORIZED)
             else:
                 periodic_task = PeriodicTask.objects.create(
                 crontab=crontab, name=task_name, task=task,
@@ -531,11 +597,20 @@ def create_or_update_schedule(request):
             )
 
         else:
+            if PeriodicTask.objects.filter(name=task_name).exists():
+                data = {'reason': 'Task has already be created',}
+                record_api_call(request, data, '401')
+                return Response(data, status=status.HTTP_401_UNAUTHORIZED)
+                
             periodic_task = PeriodicTask.objects.create(
                 crontab=crontab, name=task_name, task=task,
                 kwargs=json.dumps(arguments),
             )
 
+        extras = {
+            "configs": configs,
+            "test_type": test_type,
+        }
         
         if schedule:
             schedule_query = Schedule.objects.filter(id=schedule_id)
@@ -544,6 +619,7 @@ def create_or_update_schedule(request):
                     user=request.user, timezone=timezone,
                     begin_date=begin_date, time=time, frequency=freq,
                     task=task, crontab_id=crontab.id, task_type=task_type,
+                    extras=extras
                 )
                 schedule_new = Schedule.objects.get(id=schedule_id)
         else:
@@ -551,7 +627,8 @@ def create_or_update_schedule(request):
                 user=request.user, site=site, task_type=task_type, timezone=timezone,
                 begin_date=begin_date, time=time, frequency=freq,
                 task=task, crontab_id=crontab.id,
-                periodic_task_id=periodic_task.id, 
+                periodic_task_id=periodic_task.id,
+                extras=extras 
             )
 
     serializer_context = {'request': request,}

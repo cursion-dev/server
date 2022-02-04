@@ -38,24 +38,36 @@ def get_info_default():
 
 def get_scores_delta_default():
     scores_delta_default = {
-        "seo_delta": None, 
-        "current_average": None, 
-        "performance_delta": None, 
-        "accessibility_delta": None, 
-        "best_practices_delta": None
+        "scores": {
+            "seo_delta": None, 
+            "performance_delta": None, 
+            "accessibility_delta": None, 
+            "best-practices_delta": None,
+            "average_delta" : None,
+            "current_average": None, 
+        },
     }
     return scores_delta_default
 
 
 
-def get_audits_default():
-    audits_default = {
-        "seo": [], 
-        "performance": [], 
-        "accessibility": [], 
-        "best-practices": []
+def get_lh_default():
+    lh_default = {
+       "scores": {
+            "seo": None, 
+            "performance": None, 
+            "accessibility": None, 
+            "best_practices": None,
+            "average": None,
+       },
+       "audits": {
+            "seo": [], 
+            "performance": [], 
+            "accessibility": [], 
+            "best-practices": []
+       },
     }
-    return audits_default
+    return lh_default
 
 
 
@@ -124,8 +136,8 @@ class Scan(models.Model):
     html = models.TextField(serialize=True, null=True, blank=True)
     logs = models.JSONField(serialize=True, null=True, blank=True)
     images = models.JSONField(serialize=True, null=True, blank=True)
-    scores = models.JSONField(serialize=True, null=True, blank=True)
-    audits = models.JSONField(serialize=True, null=True, blank=True, default=get_audits_default)
+    lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
+    configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.site.site_url}__scan'
@@ -137,13 +149,13 @@ class Test(models.Model):
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
-    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # (1) html (2) error_logs TODO decide on this attr
+    type = models.JSONField(serialize=True, null=True, blank=True)
     pre_scan = models.ForeignKey(Scan, on_delete=models.CASCADE, serialize=True, null=True, blank=True, related_name='pre_scan')
     post_scan = models.ForeignKey(Scan, on_delete=models.CASCADE, serialize=True, null=True, blank=True, related_name='post_scan')
     score = models.FloatField(serialize=True, null=True, blank=True)
     html_delta = models.JSONField(serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
-    scores_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_delta_default)
+    lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_delta_default)
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
@@ -202,6 +214,7 @@ class Schedule(models.Model):
     crontab_id = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     periodic_task_id = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     status = models.CharField(max_length=100, default='Active', null=True, blank=True, serialize=True)
+    extras = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.site.site_url}__{self.task_type}'

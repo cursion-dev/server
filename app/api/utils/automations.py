@@ -1,12 +1,6 @@
-from ..models import (
-        Automation, Test, Scan, Site, User,
-    )
-from .alerts import (
-        automation_email, automation_webhook,
-        automation_phone, automation_slack, 
-    )
+from ..models import *
+from .alerts import *
 import re, uuid
-
 
 
 
@@ -42,17 +36,20 @@ def automation(automation_id, scan_or_test_id):
         if 'test_score' in expression['data_type']:
             data_type = 'float(test.score)'
         elif 'current_average' in expression['data_type']:
-            data_type = 'float(test.scores_delta["current_average"])'
+            data_type = 'float(test.lighthouse_delta["current_average"])'
         elif 'seo_delta' in expression['data_type']:
-            data_type = 'float(test.scores_delta["seo_delta"])'
+            data_type = 'float(test.lighthouse_delta["seo_delta"])'
         elif 'best_practices_delta' in expression['data_type']:
-            data_type = 'float(test.scores_delta["best_practices_delta"])'
+            data_type = 'float(test.lighthouse_delta["best_practices_delta"])'
         elif 'performance_delta' in expression['data_type']:
-            data_type = 'float(test.scores_delta["performance_delta"])'
+            data_type = 'float(test.lighthouse_delta["performance_delta"])'
+        elif 'images_score' in expression['data_type']:
+            data_type = 'float(test.images_delta["average_score"])'
         elif 'logs' in expression['data_type']:
             data_type = 'len(scan.logs)'
         elif 'health' in expression['data_type']:
-            data_type = 'float(scan.scores["average"])'
+            data_type = 'float(scan.lighthouse["scores"]["average"])'
+        
 
         value = str(float(re.search(r'\d+', str(expression['value'])).group()))
         exp = f'{joiner}{data_type}{operator}{value}'

@@ -5,7 +5,7 @@ import time, os, numpy, json
 
 
 
-def driver_init():
+def driver_init(window_size='1920,1080'):
 
     prefs = {
         'download.prompt_for_download': False,
@@ -13,7 +13,6 @@ def driver_init():
         'safebrowsing.enabled': True
     }
     chrome_path = os.environ.get("CHROMEDRIVER")
-    WINDOW_SIZE = "1920,1080"
     options = webdriver.ChromeOptions()
     options.add_experimental_option('prefs',prefs)
     options.add_argument("start-maximized")
@@ -22,7 +21,7 @@ def driver_init():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-extensions")
-    options.add_argument("--window-size=%s" % WINDOW_SIZE)
+    options.add_argument("--window-size=%s" % window_size)
     options.add_argument("--safebrowsing-disable-download-protection")
     options.add_argument("safebrowsing-disable-extension-blacklist")
     options.add_argument("--disable-gpu")
@@ -72,9 +71,9 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
     def interact_with_page(driver):
         # simulate mouse movement and click on <body> tag
-        body_tag = driver.find_elements_by_tag_name('body')[0]
+        html_tag = driver.find_elements_by_tag_name('html')[0]
         action = ActionChains(driver)
-        action.move_to_element(body_tag).click().perform()
+        action.move_to_element(html_tag).perform()
         return
 
 

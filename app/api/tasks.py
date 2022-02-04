@@ -16,17 +16,45 @@ def create_site_bg(site_id):
     logger.info('Created scan of new site')
 
 
+
 @shared_task
-def create_scan_bg(site_id, automation_id=None):
-    create_scan_task(site_id, automation_id)
+def create_scan_bg(
+        site_id, 
+        automation_id=None, 
+        configs=None,
+    ):
+    create_scan_task(
+        site_id, 
+        automation_id, 
+        configs,
+    )
     logger.info('Created new scan of site')
 
 
+
 @shared_task
-def create_test_bg(site_id, automation_id=None):
-    create_test_task(site_id, automation_id)
+def create_test_bg(
+        site_id, 
+        automation_id=None, 
+        configs=None, 
+        type=['full'],
+        index=None,
+        pre_scan=None,
+        post_scan=None,
+    ):
+    create_test_task(
+        site_id, 
+        automation_id, 
+        configs, 
+        type,
+        index,
+        pre_scan,
+        post_scan
+    )
     logger.info('Created new test of site')
-    
+
+
+
 
 @shared_task
 def delete_site_s3_bg(site_id):

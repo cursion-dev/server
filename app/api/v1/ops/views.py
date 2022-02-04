@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
-from ...models import (Test, Site, Scan, Log, Schedule, Automation)
+from ...models import *
 from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
 from rest_framework.viewsets import ViewSet
@@ -10,18 +10,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.csrf import ensure_csrf_cookie
-from .serializers import (
-    SiteSerializer, TestSerializer, ScanSerializer, LogSerializer, 
-    ScheduleSerializer, AutomationSerializer
-    )
 from rest_framework.pagination import LimitOffsetPagination
-from .services import (
-    record_api_call, create_or_update_schedule, create_test, get_tests, delete_test,
-    create_scan, get_scans, delete_scan, get_logs, create_site, get_sites, delete_site,
-    create_or_update_automation, get_automations, delete_automation, get_schedules,
-    delete_schedule, get_home_stats
-    )
 from django.urls import resolve
+from .serializers import *
+from .services import *
 
 
 
@@ -57,6 +49,15 @@ class SiteDetail(APIView):
 
     def delete(self, request, id):
         response = delete_site(request, id)
+        return response
+
+
+class SiteScreenshot(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+    
+    def get(self, request, id):
+        response = create_site_screenshot(request, id)
         return response
 
 

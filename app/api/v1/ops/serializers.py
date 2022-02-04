@@ -39,7 +39,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
-            'html', 'logs', 'scores', 'audits', 'images'
+            'html', 'logs', 'lighthouse', 'images', 'configs',
         ]
 
 
@@ -50,7 +50,8 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Scan
-        fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 'scores'
+        fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 'lighthouse', 
+            'configs',
         ]
 
         
@@ -64,7 +65,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
-        'scores_delta', 'images_delta'
+        'lighthouse_delta', 'images_delta'
         ]
 
 
@@ -77,7 +78,7 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
-        'pre_scan', 'post_scan', 'score', 'scores_delta'
+        'pre_scan', 'post_scan', 'score', 'lighthouse_delta'
         ]
 
 
@@ -91,7 +92,7 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
         model = Schedule
         fields = ['id', 'site', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
-        'periodic_task_id', 'status', 'automation'
+        'periodic_task_id', 'status', 'automation', 'extras'
         ]
 
 

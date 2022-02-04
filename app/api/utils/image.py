@@ -27,11 +27,15 @@ class Image():
             screenshot in the two scans and records 
             a score out of 100%
 
+
+        def screeshot(site, driver=None) -> grabs single 
+            screenshot of the site and uploads it to s3
+
     """
 
 
 
-    def scan(self, site, driver=None):
+    def scan(self, site, configs, driver=None,):
         """
         Grabs multiple screenshots of the website and uploads 
         them to s3.
@@ -76,9 +80,9 @@ class Image():
                 # waiting for network requests to resolve
                 driver_wait(
                     driver=driver, 
-                    interval=5, 
-                    max_wait_time=60, 
-                    min_wait_time=10
+                    interval=int(configs['interval']),  
+                    min_wait_time=int(configs['min_wait_time']),
+                    max_wait_time=int(configs['max_wait_time']),
                 )
 
                 # get screenshot
@@ -122,7 +126,7 @@ class Image():
 
 
 
-    def test(self, test):
+    def test(self, test, index=None):
         """
         compares each screenshot between the two scans and records 
         a score out of 100%.
@@ -144,10 +148,16 @@ class Image():
         temp_root = os.path.join(settings.BASE_DIR, f'temp/{test.site.id}')
         
         # loop through and download each img in scan and compare it.
+        pre_scan_images = test.pre_scan.images
         img_test_results = []
         scores = []
         i = 0
-        for pre_img_obj in test.pre_scan.images:
+
+        if index is not None:
+            pre_scan_images = [test.pre_scan.images[index]]
+            i = index
+
+        for pre_img_obj in pre_scan_images:
             
             # getting pre_scan image
             pre_img_path = os.path.join(temp_root, f'{pre_img_obj["id"]}.png')
@@ -204,8 +214,79 @@ class Image():
         # averaging scores and storing in images_delta obj
         avg_score = statistics.fmean(scores)
         images_delta = {
-            "average_diff": avg_score,
+            "average_score": avg_score,
             "images": img_test_results,
         }
 
         return images_delta
+
+
+
+
+
+
+
+    def screenshot(self, site, configs=None, driver=None,):
+        """
+        Grabs single screenshot of the website and uploads 
+        it to s3.
+        """
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        if not configs:
+            configs = {
+                "interval": 5,
+                "window_size": "1920,1080",
+                "max_wait_time": 60,
+                "min_wait_time": 10
+            }
+
+        # initialize driver if not passed as param
+        driver_present = True
+        if not driver:
+            driver = driver_init(configs['interval'])
+            driver_present = False
+
+
+        # request site_url 
+        driver.get(site.site_url)
+
+        # wait for site to fully load
+        driver_wait(
+            driver=driver, 
+            interval=int(configs['interval']),  
+            min_wait_time=int(configs['min_wait_time']),
+            max_wait_time=int(configs['max_wait_time']),
+        )
+
+        # grab screenshot
+        pic_id = uuid.uuid4()
+        driver.save_screenshot(f'{pic_id}.png')
+        image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+        remote_path = f'static/sites/{site.id}/{pic_id}.png'
+        root_path = settings.AWS_S3_URL_PATH
+        image_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(image, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+            )
+        # remove local copy
+        os.remove(image)
+
+        # create image obj and add to list
+        img_obj = {
+            "id": str(pic_id),
+            "url": image_url,
+            "path": remote_path,
+        }
+
+        return img_obj
