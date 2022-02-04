@@ -29,13 +29,16 @@ Copyright © Scanerr 2021
 
 ## Environment
 
-Prior to running locally, configure all env's located in the /env directory. **For remote deployment, create all .env's in the deployed environment. Never store actual .env's in a repo.** Things to change:
-- email addresses
-- passwords
-- usernames
-- allowed hosts
-- external API services and keys
-- domain names (server and client)
+Prior to running app, configure all env's located in the /env directory. There are example .env files for both production and local environments marked `.env.dev.example` and `.env.prod.example`. Prior to running the app, be sure to update with your unique keys, domains, passwords, etc, and remove the `.example` extention from the files.  **Never store actual .env's in a repo.** Things to change:
+- high level django configs
+- admin credentials 
+- email credentials
+- database configs
+- stripe keys
+- OAuth keys
+- twilio credentials
+- slack credentials
+- s3 remote storage credentials
 
 &nbsp;
  
