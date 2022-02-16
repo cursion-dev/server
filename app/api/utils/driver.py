@@ -5,7 +5,12 @@ import time, os, numpy, json
 
 
 
-def driver_init(window_size='1920,1080'):
+def driver_init(
+    window_size='1920,1080', 
+    script_timeout=30,
+    load_timeout=30,
+    wait_time=15, 
+    ):
 
     prefs = {
         'download.prompt_for_download': False,
@@ -31,9 +36,9 @@ def driver_init(window_size='1920,1080'):
     caps['goog:loggingPrefs'] = {'performance': 'ALL'}
 
     driver = webdriver.Chrome(executable_path=chrome_path, options=options, desired_capabilities=caps)
-    driver.set_page_load_timeout(60)
-    driver.set_script_timeout(60)
-    driver.implicitly_wait(60)
+    driver.set_page_load_timeout(load_timeout)
+    driver.set_script_timeout(script_timeout)
+    driver.implicitly_wait(wait_time)
 
     
     return driver

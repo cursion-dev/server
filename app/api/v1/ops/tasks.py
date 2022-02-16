@@ -1,6 +1,7 @@
-from ...models import (Test, Site, Scan, Log)
+from ...models import *
 from ...utils.scanner import Scanner as S
 from ...utils.tester import Tester as T
+from ...utils.reporter import Reporter as R
 from ...utils.automations import automation
 import boto3
 from scanerr import settings
@@ -14,12 +15,19 @@ def create_site_task(site_id):
 
 
 def create_scan_task(
-        site_id, 
+        scan_id=None, 
+        site_id=None,
         automation_id=None, 
-        configs=None
+        type=None,
+        configs=None,
     ):
-    site = Site.objects.get(id=site_id)
-    created_scan = Scan.objects.create(site=site)
+    if scan_id is not None:
+        created_scan = Scan.objects.get(id=scan_id)
+    elif site_id is not None:
+        site = Site.objects.get(id=site_id)
+        created_scan = Scan.objects.create(
+            site=site,
+        )
     scan = S(scan=created_scan, configs=configs).first_scan()
     if automation_id:
         automation(automation_id, scan.id)
@@ -29,7 +37,8 @@ def create_scan_task(
 
 
 def create_test_task(
-        site_id, 
+        test_id=None, 
+        site_id=None,
         automation_id=None, 
         configs=None, 
         type=['full'],
@@ -37,7 +46,16 @@ def create_test_task(
         pre_scan=None,
         post_scan=None,
     ):
-    site = Site.objects.get(id=site_id)
+
+    if test_id is not None:
+        created_test = Test.objects.get(id=test_id)
+        site = created_test.site
+    elif site_id is not None:
+        site = Site.objects.get(id=site_id)
+        created_test = Test.objects.create(
+            site=site,
+            type=type,
+        )
 
     if not pre_scan and not post_scan:
         new_scan = S(site=site, configs=configs)
@@ -54,18 +72,44 @@ def create_test_task(
     pre_scan.save()
     post_scan.save()
 
-    # creating new test object
-    created_test = Test.objects.create(
-        site=site, 
-        type=type,
-        pre_scan=pre_scan,
-        post_scan=post_scan,
-    )
+    # updating test object
+    created_test.type = type
+    created_test.pre_scan = pre_scan
+    created_test.post_scan = post_scan
+    created_test.save()
+    
     
     test = T(test=created_test).run_test(index=index)
     if automation_id:
         automation(automation_id, test.id)
     return test
+
+
+
+
+def create_report_task(site_id, automation_id=None):
+    site = Site.objects.get(id=site_id)
+    if Report.objects.filter(site=site).exists():
+       report = Report.objects.filter(site=site).order_by('-time_created')[0]
+    else:
+        info = {
+            "text_color": '#24262d',
+            "background_color": '#e1effd',
+            "highlight_color": '#4283f8',
+        }
+        report = Report.objects.create(
+            user=site.user,
+            site=site,
+            info=info,
+        )
+
+    
+    report = R(report=report).make_test_report()
+    if automation_id:
+        automation(automation_id, report.id)
+    return report
+    
+
 
 
 
@@ -85,3 +129,22 @@ def delete_site_s3(site_id):
 
     return
 
+
+
+def delete_report_s3(report_id):
+    # setup boto3 configurations
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    # get site
+    site = Report.objects.get(id=report_id).site
+
+    # deleting s3 objects
+    bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    bucket.objects.filter(Prefix=str(f'static/sites/{site.id}/{report_id}.pdf')).delete()
+
+    return

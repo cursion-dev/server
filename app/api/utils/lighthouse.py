@@ -1,7 +1,5 @@
-from io import StringIO
-import os, fileinput, glob, subprocess, time, sys, json
+import subprocess, json
 from ..models import Site, Scan
-from django.forms.models import model_to_dict
 
 
 
@@ -25,6 +23,7 @@ class Lighthouse():
                 'json', 
                 ], 
             stdout=subprocess.PIPE,
+            user='app',
         )
         stdout_value = proc.communicate()[0]
         return stdout_value
@@ -58,7 +57,8 @@ class Lighthouse():
                         if int(a["weight"]) > 0:
                             audit = stdout_json["audits"][a["id"]]
                             audits[cat].append(audit)
-
+                # changing audits name of best-practices to best_practices
+                audits['best_practices'] = audits.pop('best-practices')
                 
                 # get scores from each category
                 seo_score = round(stdout_json["categories"]["seo"]["score"] * 100)
@@ -68,12 +68,13 @@ class Lighthouse():
                 average_score = (seo_score + accessibility_score + performance_score + best_practices_score)/4
 
                 scores = {
-                    "seo": str(seo_score),
-                    "accessibility": str(accessibility_score),
-                    "performance": str(performance_score),
-                    "best_practices": str(best_practices_score),
-                    "average": str(average_score),
+                    "seo": seo_score,
+                    "accessibility": accessibility_score,
+                    "performance": performance_score,
+                    "best_practices": best_practices_score,
+                    "average": average_score,
                 }
+
 
                 data = {
                     "scores": scores, 

@@ -5,7 +5,6 @@ from . import views as views
 urlpatterns = [
     path('site', views.Sites.as_view(), name='site'),
     path('site/<uuid:id>', views.SiteDetail.as_view(), name='site-detail'),
-    path('site/<uuid:id>/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'),
     path('site/delay', views.SiteDelay.as_view(), name='site-delay'),
     path('scan', views.Scans.as_view(), name='scan'),
     path('scan/<uuid:id>', views.ScanDetail.as_view(), name='scan-detail'),
@@ -19,5 +18,10 @@ urlpatterns = [
     path('schedule/<uuid:id>', views.ScheduleDetail.as_view(), name='schedule-detail'),
     path('automation', views.Automations.as_view(), name='automation'),
     path('automation/<uuid:id>', views.AutomationDetail.as_view(), name='automation-detail'),
+    path('report', views.Reports.as_view(), name='report'),
+    path('report/<uuid:id>', views.ReportDetail.as_view(), name='report-detail'),
     path('home-stats', views.HomeStats.as_view(), name='home-stats'),
+    path('beta/wordpress/install-plugin', views.WordPressPluginInstall.as_view(), name='install-plugin'),
+    path('beta/site/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'),
+
 ]

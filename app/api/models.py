@@ -11,33 +11,47 @@ import uuid
 def get_info_default():
     info_default = {
             'latest_scan': {
-                'id': '',
-                'time_created': '',
+                'id': None,
+                'time_created': None,
             },
             'latest_test': {
-                'id': '',
-                'time_created': '',
-                'score': ''
+                'id': None,
+                'time_created': None,
+                'score': None
             },
             'lighthouse': {
-                'average': '',
-                'seo': '',  
-                'performance': '', 
-                'accessibility': '', 
-                'best_practices': '',
+                'average': None,
+                'seo': None,  
+                'performance': None, 
+                'accessibility': None, 
+                'best_practices': None,
+            },
+            'yellowlab': {
+                'globalScore': None,
+                'pageWeight': None,
+                'requests': None, 
+                'domComplexity': None, 
+                'javascriptComplexity': None,
+                'badJavascript': None,
+                'jQuery': None,
+                'cssComplexity': None,
+                'badCSS': None,
+                'fonts': None,
+                'serverConfig': None, 
             },
             'status': {
-                'ping': '',
-                'health': '',
+                'ping': None,
+                'health': None,
                 'badge': 'neutral',
+                'score': None,
             },
         }
     return info_default
 
 
 
-def get_scores_delta_default():
-    scores_delta_default = {
+def get_lh_delta_default():
+    lh_delta_default = {
         "scores": {
             "seo_delta": None, 
             "performance_delta": None, 
@@ -47,7 +61,27 @@ def get_scores_delta_default():
             "current_average": None, 
         },
     }
-    return scores_delta_default
+    return lh_delta_default
+
+
+
+def get_yl_delta_default():
+    yl_delta_default = {
+        "scores": {
+            "globalScore_delta": None,
+            "pageWeight_delta": None, 
+            "requests_delta": None, 
+            "domComplexity_delta": None, 
+            "javascriptComplexity_delta": None,
+            "badJavascript_delta": None,
+            "jQuery_delta": None,
+            "cssComplexity_delta": None,
+            "badCSS_delta": None,
+            "fonts_delta": None,
+            "serverConfig_delta": None, 
+        },
+    }
+    return yl_delta_default
 
 
 
@@ -71,6 +105,38 @@ def get_lh_default():
 
 
 
+def get_yl_default():
+    yl_default = {
+       "scores": {
+            "globalScore": None,
+            "pageWeight": None, 
+            "requests": None, 
+            "domComplexity": None, 
+            "javascriptComplexity": None,
+            "badJavascript": None,
+            "jQuery": None,
+            "cssComplexity": None,
+            "badCSS": None,
+            "fonts": None,
+            "serverConfig": None,
+       },
+       "audits": {
+            "pageWeight": [], 
+            "requests": [], 
+            "domComplexity": [], 
+            "javascriptComplexity": [],
+            "badJavascript": [],
+            "jQuery": [],
+            "cssComplexity": [],
+            "badCSS": [],
+            "fonts": [],
+            "serverConfig": [],
+       },
+    }
+    return yl_default
+
+
+
 def get_expressions_default():
     expressions_default = {
        'list': [
@@ -83,6 +149,7 @@ def get_expressions_default():
        ],
     }
     return expressions_default
+
 
 
 def get_actions_default():
@@ -99,6 +166,7 @@ def get_actions_default():
         ],
     }
     return actions_default
+
 
 
 def get_slack_default():
@@ -137,6 +205,7 @@ class Scan(models.Model):
     logs = models.JSONField(serialize=True, null=True, blank=True)
     images = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
+    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default)
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
@@ -155,7 +224,8 @@ class Test(models.Model):
     score = models.FloatField(serialize=True, null=True, blank=True)
     html_delta = models.JSONField(serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
-    lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_delta_default)
+    lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
+    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
@@ -233,6 +303,22 @@ class Automation(models.Model):
 
     def __str__(self):
         return f'{self.name}'
+
+
+
+
+
+class Report(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    path = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    type = models.JSONField(serialize=True, null=True, blank=True) # array of [lighthouse, yellowlab, crux]
+    info = models.JSONField(serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.site.site_url}__report'
     
 
 

@@ -2,15 +2,18 @@ import json, boto3
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
+from django.shortcuts import get_object_or_404
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
+from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
 from ...utils.scanner import Scanner as S
 from ...utils.tester import Tester as T
-from ...tasks import *
 from ...utils.image import Image as I
+from ...utils.reporter import Reporter as R
+from ...utils.wordpress import Wordpress as W
 
 
 
@@ -100,21 +103,7 @@ def create_site(request, delay=False):
 
 
 
-def create_site_screenshot(request, id):
-    user = request.user
-    site = Site.objects.get(id=id)
 
-    if site.user != user:
-        data = {'reason': 'you cannot retrieve a screenshot of a site you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    configs = request.data.get('configs', None)
-
-    data = I().screenshot(site=site, configs=configs)
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
 
 
 
@@ -123,7 +112,7 @@ def get_sites(request):
     user = request.user
 
     if site_id != None:
-        site = Site.objects.get(id=site_id)
+        site = get_object_or_404(Site, pk=site_id)
         if site.user != user:
             data = {'reason': 'you cannot retrieve a Site you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -146,7 +135,7 @@ def get_sites(request):
 
 def delete_site(request, id):
     user = request.user
-    site = Site.objects.get(id=id)
+    site = get_object_or_404(Site, pk=id)
 
     if site.user != user:
         data = {'reason': 'you cannot delete Tests of a Site you do not own',}
@@ -208,17 +197,26 @@ def create_test(request, delay=False):
         post_scan = Scan.objects.get(id=post_scan_id)
 
 
+    # creating test object
+    test = Test.objects.create(
+        site=site,
+        type=test_type,
+    )
+
     
     if delay == True:
         create_test_bg.delay(
-            site_id=site.id,
+            test_id=test.id,
             configs=configs,
             type=test_type,
             index=index,
             pre_scan=pre_scan_id, 
             post_scan=post_scan_id
         )
-        data = {'message': 'test is being created in the background'}
+        data = {
+            'message': 'test is being created in the background',
+            'id': str(test.id),
+        }
         record_api_call(request, data, '201')
         return Response(data, status=status.HTTP_201_CREATED)
     
@@ -237,13 +235,12 @@ def create_test(request, delay=False):
         pre_scan.save()
         post_scan.save()
 
-        # creating new test object
-        test = Test.objects.create(
-            site=site, 
-            type=test_type,
-            pre_scan=pre_scan,
-            post_scan=post_scan,
-        )
+        # updating test object
+        test.type = test_type
+        test.type = test_type
+        test.pre_scan = pre_scan
+        test.post_scan = post_scan
+        test.save()
 
         # running tester
         updated_test = T(test=test).run_test(index=index)
@@ -271,7 +268,7 @@ def get_tests(request):
     small = request.query_params.get('small')
 
     if test_id != None:
-        test = Test.objects.get(id=test_id)
+        test = get_object_or_404(Test, pk=test_id)
 
         if test.site.user != user:
             data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
@@ -333,7 +330,7 @@ def get_tests(request):
 
 
 def delete_test(request, id):
-    test = Test.objects.get(id=id)
+    test = get_object_or_404(Test, pk=id)
     site = test.site
     user = request.user
 
@@ -357,7 +354,7 @@ def create_scan(request, delay=False):
 
     site_id = request.data['site_id']
     user = request.user
-    site = Site.objects.get(id=site_id)
+    site = get_object_or_404(Site, pk=site_id)
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -381,13 +378,18 @@ def create_scan(request, delay=False):
             'max_wait_time': 60,
         }
 
+    # creating scan obj
+    created_scan = Scan.objects.create(site=site)
+
     if delay == True:
-        create_scan_bg.delay(site.id, configs=configs)
-        data = {'message': 'scan is being created in the background'}
+        create_scan_bg.delay(scan_id=created_scan.id, configs=configs)
+        data = {
+            'message': 'scan is being created in the background',
+            'id': str(created_scan.id),
+        }
         record_api_call(request, data, '201')
         return Response(data, status=status.HTTP_201_CREATED)
     else:
-        created_scan = Scan.objects.create(site=site)
         updated_scan = S(scan=created_scan, configs=configs).first_scan()
         serializer_context = {'request': request,}
         serialized = ScanSerializer(updated_scan, context=serializer_context)
@@ -410,7 +412,7 @@ def get_scans(request):
     small = request.query_params.get('small')
 
     if scan_id != None:
-        scan = Scan.objects.get(id=scan_id)
+        scan = get_object_or_404(Scan, pk=scan_id)
 
         if scan.site.user != user:
             data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
@@ -424,7 +426,7 @@ def get_scans(request):
         return Response(data, status=status.HTTP_200_OK)
 
     try:
-        site = Site.objects.get(id=site_id)
+        site = get_object_or_404(Site, pk=site_id)
     except:
         if site_id != None:
             data = {'reason': 'cannot find a site with that id',}
@@ -467,7 +469,7 @@ def get_scans(request):
 
 
 def delete_scan(request, id):
-    scan = Scan.objects.get(id=id)
+    scan = get_object_or_404(Scan, pk=id)
     site = scan.site
     user = request.user
 
@@ -535,13 +537,23 @@ def create_or_update_schedule(request):
         schedule.save()
         # retriving object again to avoid cacheing issues
         schedule_new = Schedule.objects.get(id=request.data['schedule_id'])
+    
+    # if not status change, updating data
     else:
+
+        if Automation.objects.filter(schedule=schedule).exists():
+            automation = Automation.objects.filter(schedule=schedule)[0]
+            auto_id = automation.id
+        else:
+            auto_id = None
+
         if task_type == 'test':
             task = 'api.tasks.create_test_bg'
             arguments = {
                 'site_id': str(site.id),
                 'configs': configs, 
                 'type': test_type,
+                'automation_id': str(auto_id)
             }
 
         if task_type == 'scan':
@@ -549,6 +561,14 @@ def create_or_update_schedule(request):
             arguments = {
                 'site_id': str(site.id),
                 'configs': configs,
+                'automation_id': str(auto_id)
+            }
+
+        if task_type == 'report':
+            task = 'api.tasks.create_report_bg'
+            arguments = {
+                'site_id': str(site.id),
+                'automation_id': str(auto_id)
             }
 
         format_str = '%m/%d/%Y'
@@ -647,7 +667,7 @@ def get_schedules(request):
 
 
     if schedule_id != None:
-        schedule = Schedule.objects.get(id=schedule_id)
+        schedule = get_object_or_404(Schedule, pk=schedule_id)
 
         if schedule.site.user != user or schedule.user != user:
             data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
@@ -662,7 +682,7 @@ def get_schedules(request):
 
 
     try:
-        site = Site.objects.get(id=site_id)
+        site = get_object_or_404(Site, pk=site_id)
     except:
         if site_id != None:
             data = {'reason': 'cannot find a site with that id',}
@@ -694,7 +714,7 @@ def get_schedules(request):
 
 
 def delete_schedule(request, id):
-    schedule = Schedule.objects.get(id=id)
+    schedule = get_object_or_404(Schedule, pk=id)
     task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
     site = schedule.site
     user = request.user
@@ -770,6 +790,8 @@ def create_or_update_automation(request):
         arguments = {
             'site_id': str(schedule.site.id),
             'automation_id': str(automation.id),
+            'configs': json.loads(task.kwargs).get('configs', None), 
+            'type': json.loads(task.kwargs).get('type', None),
         }
         task.kwargs=json.dumps(arguments)
         task.save()
@@ -786,7 +808,7 @@ def get_automations(request):
     automation_id = request.query_params.get('automation_id')
     user = request.user
     if automation_id != None:
-        automation = Automation.objects.get(id=automation_id)
+        automation = get_object_or_404(Automation, pk=automation_id)
         if automation.user != user:
             data = {'reason': 'you cannot retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -808,7 +830,7 @@ def get_automations(request):
 
 
 def delete_automation(request, id):
-    automation = Automation.objects.get(id=id)
+    automation = get_object_or_404(Automation, pk=automation_id)
     
     if automation.user != request.user:
         data = {'reason': 'you cannot delete an automation you do not own',}
@@ -821,6 +843,105 @@ def delete_automation(request, id):
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
+
+
+
+
+
+
+
+
+
+def create_or_update_report(request):
+
+    report_id = request.data.get('report_id', None)
+    site_id = request.data.get('site_id', None)
+    report_type = request.data.get('type', ['full'])
+    text_color = request.data.get('text_color', '#24262d')
+    background_color = request.data.get('background_color', '#e1effd')
+    highlight_color = request.data.get('highlight_color', '#4283f8')
+    site = Site.objects.get(id=site_id)
+
+    info = {
+        "text_color": text_color,
+        "background_color": background_color,
+        "highlight_color": highlight_color,
+    }
+    
+    if report_id:
+        report = get_object_or_404(Report, pk=report_id)
+    else:
+        report = Report.objects.create(
+            user=request.user, site=site
+        )
+
+    # update report data
+    report.info = info
+    report.type = report_type
+    report.save()
+    un_cached_report = Report.objects.get(id=report.id)
+
+
+    # generate report
+    updated_report = R(report=un_cached_report).make_test_report()
+
+
+    serializer_context = {'request': request,}
+    data = ReportSerializer(updated_report, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+
+def get_reports(request):
+    site_id = request.query_params.get('site_id', None)
+    report_id = request.query_params.get('report_id', None)
+
+    if site_id:
+        site = get_object_or_404(Site, pk=site_id)
+        reports = Report.objects.filter(site=site, user=request.user).order_by('-time_created')
+
+    if report_id:
+        reports = get_object_or_404(Report, pk=report_id)
+
+    if site_id is None and report_id is None:
+        reports = Report.objects.filter(user=request.user).order_by('-time_created')
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(reports, request)
+    serializer_context = {'request': request,}
+    serialized = ReportSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+    
+    
+
+
+
+def delete_report(request, id):
+    user = request.user
+    report = get_object_or_404(Report, pk=id)
+
+    if report.user != user:
+        data = {'reason': 'you cannot delete Reports you do not own',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    # remove s3 objects
+    delete_report_s3_bg.delay(report_id=id)
+    
+    # remove report
+    report.delete()
+
+    data = {'message': 'Report has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
 
 
 
@@ -859,6 +980,76 @@ def get_logs(request):
     serialized = LogSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     return response
+
+
+
+
+
+def install_wp_plugin(request):
+    login_url = request.data.get('login_url', None)
+    admin_url = request.data.get('admin_url', None)
+    plugin_name = request.data.get('plugin_name', None)
+    username = request.data.get('username', None)
+    password = request.data.get('password', None)
+    wait_time = request.data.get('wait_time', 15)
+
+    # init wordpress
+    wp = W(
+        login_url=login_url, 
+        admin_url=admin_url,
+        username=username,
+        password=password, 
+        wait_time=wait_time,
+    )
+
+    # login
+    wp_status = wp.login()
+
+    # adjust lang
+    wp_status = wp.begin_lang_check()
+
+    # install plugin
+    wp_status = wp.install_plugin(plugin_name=plugin_name)
+
+    # re adjust lang
+    wp_status = wp.end_lang_check()
+
+    if wp_status: 
+        data = {
+            'status': 'success',
+            'message': 'plugin installed successfully'
+        }
+    else:
+        data = {
+            'status': 'failed',
+            'message': 'plugin installation failed'
+        }
+
+    response = Response(data, status=status.HTTP_200_OK)
+    record_api_call(request, data, '200')
+    return response
+
+
+
+
+
+def create_site_screenshot(request):
+    user = request.user
+    site_id = request.data.get('site_id', None)
+    url = request.data.get('url', None)
+    configs = request.data.get('configs', None)
+    site = None
+
+    if site_id is not None:
+        site = Site.objects.get(id=site_id)
+    
+    data = I().screenshot(site=site, url=url, configs=configs)
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
 
 
 

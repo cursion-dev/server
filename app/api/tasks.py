@@ -2,7 +2,8 @@ from __future__ import absolute_import, unicode_literals
 from celery.utils.log import get_task_logger
 from celery import shared_task
 from .v1.ops.tasks import (create_site_task, 
-    create_scan_task, create_test_task, delete_site_s3
+    create_scan_task, create_test_task, delete_site_s3,
+    create_report_task, delete_report_s3,
 )
 from .models import Log
 from django.contrib.auth.models import User
@@ -19,14 +20,18 @@ def create_site_bg(site_id):
 
 @shared_task
 def create_scan_bg(
-        site_id, 
+        scan_id=None,
+        site_id=None, 
         automation_id=None, 
         configs=None,
+        type=None,
     ):
     create_scan_task(
-        site_id, 
+        scan_id, 
+        site_id,
         automation_id, 
         configs,
+        type,
     )
     logger.info('Created new scan of site')
 
@@ -34,7 +39,8 @@ def create_scan_bg(
 
 @shared_task
 def create_test_bg(
-        site_id, 
+        test_id=None,
+        site_id=None, 
         automation_id=None, 
         configs=None, 
         type=['full'],
@@ -43,6 +49,7 @@ def create_test_bg(
         post_scan=None,
     ):
     create_test_task(
+        test_id,
         site_id, 
         automation_id, 
         configs, 
@@ -53,13 +60,22 @@ def create_test_bg(
     )
     logger.info('Created new test of site')
 
-
+@shared_task
+def create_report_bg(site_id=None, automation_id=None):
+    create_report_task(site_id, automation_id)
+    logger.info('Created new report of site')
 
 
 @shared_task
 def delete_site_s3_bg(site_id):
     delete_site_s3(site_id)
     logger.info('Deleted site s3 objects')
+
+
+@shared_task
+def delete_report_s3_bg(report_id):
+    delete_report_s3(report_id)
+    logger.info('Deleted Report pdf in s3')
 
 
 @shared_task

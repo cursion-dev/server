@@ -1,8 +1,6 @@
 from django.contrib import admin
-from .models import (
-    Site, Test, Scan, Account,
-    Card, Log, Schedule, Automation
-)
+from .models import *
+
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
@@ -28,6 +26,10 @@ class AccountAdmin(admin.ModelAdmin):
 class CardAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'brand', 'last_four')
     search_fields = ('last_four',)
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'time_created', 'user')
 
 @admin.register(Log)
 class LogAdmin(admin.ModelAdmin):

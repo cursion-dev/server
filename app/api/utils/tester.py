@@ -1,6 +1,6 @@
 from ..models import Site, Scan, Test
 import time, os, sys, json, random, string, re
-from difflib import SequenceMatcher, HtmlDiff
+from difflib import SequenceMatcher, HtmlDiff, Differ
 from datetime import datetime
 from .image import Image
 
@@ -97,6 +97,7 @@ class Tester():
         ).ratio()
 
         return html_raw_score
+
 
 
     def compare_logs(self):
@@ -282,17 +283,88 @@ class Tester():
 
 
 
+    def delta_yellowlab(self):
+        try:
+            pre_globalScore = int(self.test.pre_scan.yellowlab["scores"]['globalScore'])
+            pre_pageWeight = int(self.test.pre_scan.yellowlab["scores"]['pageWeight'])
+            pre_requests = int(self.test.pre_scan.yellowlab["scores"]['requests'])
+            pre_domComplexity = int(self.test.pre_scan.yellowlab["scores"]['domComplexity'])
+            pre_javascriptComplexity = int(self.test.pre_scan.yellowlab["scores"]['javascriptComplexity'])
+            pre_badJavascript = int(self.test.pre_scan.yellowlab["scores"]['badJavascript'])
+            pre_jQuery = int(self.test.pre_scan.yellowlab["scores"]['jQuery'])
+            pre_cssComplexity = int(self.test.pre_scan.yellowlab["scores"]['cssComplexity'])
+            pre_badCSS = int(self.test.pre_scan.yellowlab["scores"]['badCSS'])
+            pre_fonts = int(self.test.pre_scan.yellowlab["scores"]['fonts'])
+            pre_serverConfig = int(self.test.pre_scan.yellowlab["scores"]['serverConfig'])
+
+            post_globalScore = int(self.test.post_scan.yellowlab["scores"]['globalScore'])
+            post_pageWeight = int(self.test.post_scan.yellowlab["scores"]['pageWeight'])
+            post_requests = int(self.test.post_scan.yellowlab["scores"]['requests'])
+            post_domComplexity = int(self.test.post_scan.yellowlab["scores"]['domComplexity'])
+            post_javascriptComplexity = int(self.test.post_scan.yellowlab["scores"]['javascriptComplexity'])
+            post_badJavascript = int(self.test.post_scan.yellowlab["scores"]['badJavascript'])
+            post_jQuery = int(self.test.post_scan.yellowlab["scores"]['jQuery'])
+            post_cssComplexity = int(self.test.post_scan.yellowlab["scores"]['cssComplexity'])
+            post_badCSS = int(self.test.post_scan.yellowlab["scores"]['badCSS'])
+            post_fonts = int(self.test.post_scan.yellowlab["scores"]['fonts'])
+            post_serverConfig = int(self.test.post_scan.yellowlab["scores"]['serverConfig'])
+
+            pageWeight_delta = post_pageWeight - pre_pageWeight
+            requests_delta = post_requests - pre_requests
+            domComplexity_delta = post_domComplexity - pre_domComplexity
+            javascriptComplexity_delta = post_javascriptComplexity - pre_javascriptComplexity
+            badJavascript_delta = post_badJavascript - pre_badJavascript
+            jQuery_delta = post_jQuery - pre_jQuery
+            cssComplexity_delta = post_cssComplexity - pre_cssComplexity
+            badCSS_delta = post_badCSS - pre_badCSS
+            fonts_delta = post_fonts - pre_fonts
+            serverConfig_delta = post_serverConfig - pre_serverConfig 
+
+            average_delta = post_globalScore - pre_globalScore 
+
+        except:
+            pageWeight_delta = None
+            requests_delta = None
+            domComplexity_delta = None
+            javascriptComplexity_delta = None
+            badJavascript_delta = None
+            jQuery_delta = None
+            cssComplexity_delta = None
+            badCSS_delta = None
+            fonts_delta = None
+            serverConfig_delta = None 
+            average_delta = None
+
+        data = {
+            "scores": {
+                "pageWeight_delta": pageWeight_delta, 
+                "requests_delta": requests_delta, 
+                "domComplexity_delta": domComplexity_delta, 
+                "javascriptComplexity_delta": javascriptComplexity_delta,
+                "badJavascript_delta": badJavascript_delta,
+                "jQuery_delta": jQuery_delta,
+                "cssComplexity_delta": cssComplexity_delta,
+                "badCSS_delta": badCSS_delta,
+                "fonts_delta": fonts_delta,
+                "serverConfig_delta": serverConfig_delta,
+                "average_delta": average_delta,
+                "current_average": post_globalScore,
+            }
+        }
+
+        return data
+
+
+
     def update_site_info(self, test):
         site = test.site
         site.info['latest_test']['id'] = str(test.id)
         site.info['latest_test']['time_created'] = str(test.time_created)
-        site.info['latest_test']['score'] = str(round(test.score))
+        site.info['latest_test']['score'] = (round(test.score * 100) / 100)
         site.save()
 
         return site
         
-
-
 
 
 
@@ -308,6 +380,7 @@ class Tester():
         logs_score = 0
         num_logs_ratio = 0
         lighthouse_score = 0
+        yellowlab_score = 0
         images_score = 0
 
         # default weights
@@ -317,12 +390,14 @@ class Tester():
         logs_score_w = 0
         num_logs_w = 0
         delta_lh_w = 0
+        delta_yl_w = 0
         images_w = 0
 
         # default data
         html_delta_context = None
         logs_delta_context = None
         lighthouse_data = None
+        yellowlab_data = None
         images_data = None
 
 
@@ -380,9 +455,31 @@ class Tester():
             if lighthouse_score == None:
                 delta_lh_w = 0
             elif lighthouse_score > 0:
-                delta_lh_w = 0
+                delta_lh_w = 1
+                lighthouse_score = 1
             else:
                 delta_lh_w = 1
+
+
+        
+
+        if 'yellowlab' in self.test.type or 'full' in self.test.type:
+            # scores & data
+            yellowlab_data = self.delta_yellowlab()
+            yellowlab_avg = yellowlab_data['scores']['average_delta']
+            if yellowlab_avg != None:
+                yellowlab_score = (100 + yellowlab_avg)/100
+            
+            # weights
+            if yellowlab_score == None:
+                delta_yl_w = 0
+            elif yellowlab_score > 0:
+                delta_yl_w = 1
+                yellowlab_score = 1
+            else:
+                delta_yl_w = 1
+
+
 
 
         if 'vrt' in self.test.type or 'full' in self.test.type:
@@ -398,7 +495,7 @@ class Tester():
         total_w = (
             html_score_w + logs_score_w + num_html_w 
             + num_logs_w + delta_lh_w + micro_diff_w
-            + images_w
+            + images_w + delta_yl_w
         )
         
         
@@ -408,6 +505,7 @@ class Tester():
             (num_logs_ratio * num_logs_w) + 
             (num_html_ratio * num_html_w) +
             (lighthouse_score * delta_lh_w) + 
+            (yellowlab_score * delta_yl_w) +
             (micro_diff_score * micro_diff_w) +
             (images_score * images_w)
         ) / total_w) * 100
@@ -418,7 +516,7 @@ class Tester():
             + str(logs_score*logs_score_w) + " + " + str(num_logs_ratio*num_logs_w) + " + " 
             + str(num_html_ratio*num_html_w) +  " + " + str(lighthouse_score*delta_lh_w) + 
             " + " + str(micro_diff_score*micro_diff_w) + " + " + str(images_score * images_w)+
-            ") / " + str(total_w) + ") * 100 ===> " + str(score)
+            " + " + str(yellowlab_score*delta_yl_w) + ") / " + str(total_w) + ") * 100 ===> " + str(score)
         )
 
 
@@ -426,6 +524,7 @@ class Tester():
         self.test.html_delta = html_delta_context
         self.test.logs_delta = logs_delta_context
         self.test.lighthouse_delta = lighthouse_data
+        self.test.yellowlab_delta = yellowlab_data
         self.test.images_delta = images_data
         self.test.score = score
 

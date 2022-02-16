@@ -3,6 +3,7 @@ from ..models import Site, Scan, Test
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
+from .yellowlab import Yellowlab
 from .image import Image
 import time, os, sys, json
 
@@ -46,6 +47,7 @@ class Scanner():
         images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
         self.driver.quit()
         lh_data = Lighthouse(self.site).get_data()
+        yl_data = Yellowlab(self.site).get_data()
 
 
         if self.scan:
@@ -53,6 +55,7 @@ class Scanner():
             self.scan.logs = logs
             self.scan.images = images
             self.scan.lighthouse = lh_data
+            self.scan.yellowlab = yl_data
             self.scan.configs = self.configs
             self.scan.save()
             first_scan = self.scan
@@ -60,7 +63,8 @@ class Scanner():
             first_scan = Scan.objects.create(
                 site=self.site, html=html, 
                 logs=logs, lighthouse=lh_data,
-                images=images, configs=self.configs
+                images=images, yellowlab=yl_data,
+                configs=self.configs
             )
 
             self.update_site_info(first_scan)
@@ -92,11 +96,13 @@ class Scanner():
         images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
         self.driver.quit()
         lh_data = Lighthouse(self.site).get_data()
+        yl_data = Yellowlab(self.site).get_data()
 
         second_scan = Scan.objects.create(
             site=self.site, paired_scan=first_scan,
             html=html, logs=logs, lighthouse=lh_data,
-            images=images, configs=self.configs
+            images=images, yellowlab=yl_data, 
+            configs=self.configs
         )
         second_scan.save()
 
@@ -110,24 +116,45 @@ class Scanner():
 
     
     def update_site_info(self, scan):
-        if scan.lighthouse['scores']['average'] == None:
-            health = 'No Data'
-            badge = 'neutral'
-        elif float(scan.lighthouse['scores']['average']) >= 75:
-            health = 'Good'
-            badge = 'success'
-        elif 75 > float(scan.lighthouse['scores']['average']) >= 60:
-            health = 'Okay'
-            badge = 'warning'
-        elif 60 > float(scan.lighthouse['scores']['average']):
-            health = 'Poor'
-            badge = 'danger'
+        
+        health = 'No Data'
+        badge = 'neutral'
+        d = 0
+        score = 0
+
+        if scan.lighthouse['scores']['average'] is not None:
+            score += float(scan.lighthouse['scores']['average'])
+            d += 1
+        if scan.yellowlab['scores']['globalScore'] is not None:
+            score += float(scan.yellowlab['scores']['globalScore'])
+            d += 1
+        
+        if score != 0:
+            score = score / d
+    
+            if score >= 75:
+                health = 'Good'
+                badge = 'success'
+            elif 75 > score >= 60:
+                health = 'Okay'
+                badge = 'warning'
+            elif 60 > score:
+                health = 'Poor'
+                badge = 'danger'
+        
+        else:
+            if self.site.info['status']['score'] is not None:
+                score = float(self.site.info['status']['score'])
+            else:
+                score = None
 
         self.site.info['latest_scan']['id'] = str(scan.id)
         self.site.info['latest_scan']['time_created'] = str(scan.time_created)
         self.site.info['lighthouse'] = scan.lighthouse['scores']
+        self.site.info['yellowlab'] = scan.yellowlab['scores']
         self.site.info['status']['health'] = str(health)
         self.site.info['status']['badge'] = str(badge)
+        self.site.info['status']['score'] = score
 
         self.site.save()
 

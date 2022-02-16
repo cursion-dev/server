@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from ...models import *
 from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
@@ -37,7 +38,7 @@ class SiteDetail(APIView):
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        site = Site.objects.get(id=id)
+        site = get_object_or_404(Site, pk=id)
         if site.user != request.user:
             data = {'reason': 'you cannot retrieve a Site you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -51,14 +52,6 @@ class SiteDetail(APIView):
         response = delete_site(request, id)
         return response
 
-
-class SiteScreenshot(APIView):
-    permission_classes = (AllowAny,)
-    http_method_names = ['post',]
-    
-    def get(self, request, id):
-        response = create_site_screenshot(request, id)
-        return response
 
 
 class SiteDelay(APIView):
@@ -91,7 +84,7 @@ class ScanDetail(APIView):
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
-        scan = Scan.objects.get(id=id)
+        scan = get_object_or_404(Scan, pk=id)
         if scan.site.user != request.user:
             data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
             record_api_call(request, data, '403')
@@ -141,7 +134,7 @@ class TestDetail(APIView):
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
-        test = Test.objects.get(id=id)
+        test = get_object_or_404(Test, pk=id)
         if test.site.user != request.user:
             data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
             record_api_call(request, data, '403')
@@ -190,7 +183,7 @@ class ScheduleDetail(APIView):
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        schedule = Schedule.objects.get(id=id)
+        schedule = get_object_or_404(Schedule, pk=id)
         if schedule.site.user != request.user:
             data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
             record_api_call(request, data, '403')
@@ -229,7 +222,7 @@ class AutomationDetail(APIView):
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        automation = Automation.objects.get(id=id)
+        automation = get_object_or_404(Automation, pk=id)
         if automation.user != request.user:
             data = {'reason': 'you cannot retrieve Automations you do not own',}
             record_api_call(request, data, '403')
@@ -249,6 +242,43 @@ class AutomationDetail(APIView):
 
 
 
+class Reports(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_report(request)        
+        return response
+    
+    def get(self, request):
+        response = get_reports(request)
+        return response
+
+
+
+class ReportDetail(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        report = get_object_or_404(Report, pk=id)
+        if report.user != request.user:
+            data = {'reason': 'you cannot retrieve Reports you do not own',}
+            record_api_call(request, data, '403')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer_context = {'request': request,}
+        serialized = ReportSerializer(report, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    def delete(self, request, id):
+        response = delete_report(request, id)        
+        return response
+
+
+
 class Logs(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['get',]
@@ -264,7 +294,7 @@ class LogDetail(APIView):
     http_method_names = ['get',]
 
     def get(self, request, id):
-        log = Log.objects.get(id=id)
+        log = get_object_or_404(Log, pk=id)
         if log.user != request.user:
             data = {'reason': 'you cannot retrieve Logs you do not own',}
             record_api_call(request, data, '403')
@@ -283,4 +313,24 @@ class HomeStats(APIView):
 
     def get(self, request):
         response = get_home_stats(request)
+        return response
+
+
+
+
+class WordPressPluginInstall(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+    
+    def post(self, request):
+        response = install_wp_plugin(request)
+        return response
+
+
+class SiteScreenshot(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+    
+    def post(self, request):
+        response = create_site_screenshot(request)
         return response

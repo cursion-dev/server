@@ -1,4 +1,4 @@
-from ...models import (Test, Site, Scan, Log, Schedule, Automation)
+from ...models import *
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
@@ -39,7 +39,8 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
-            'html', 'logs', 'lighthouse', 'images', 'configs',
+            'html', 'logs', 'lighthouse', 'yellowlab', 'images', 
+            'configs',
         ]
 
 
@@ -50,8 +51,8 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Scan
-        fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 'lighthouse', 
-            'configs',
+        fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 
+        'lighthouse', 'yellowlab', 'configs', 
         ]
 
         
@@ -65,7 +66,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
-        'lighthouse_delta', 'images_delta'
+        'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type',
         ]
 
 
@@ -78,7 +79,8 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
-        'pre_scan', 'post_scan', 'score', 'lighthouse_delta'
+        'pre_scan', 'post_scan', 'score', 'lighthouse_delta', 
+        'yellowlab_delta',
         ]
 
 
@@ -106,4 +108,18 @@ class AutomationSerializer(serializers.HyperlinkedModelSerializer):
         model = Automation
         fields = ['id', 'expressions', 'actions', 'user', 'schedule',
         'time_created', 'name'
+        ]
+
+
+
+
+class ReportSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Report
+        fields = ['id', 'site', 'user', 'time_created', 'type',
+        'path', 'info'
         ]

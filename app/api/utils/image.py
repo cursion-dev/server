@@ -226,7 +226,7 @@ class Image():
 
 
 
-    def screenshot(self, site, configs=None, driver=None,):
+    def screenshot(self, site=None, url=None, configs=None, driver=None,):
         """
         Grabs single screenshot of the website and uploads 
         it to s3.
@@ -249,14 +249,21 @@ class Image():
             }
 
         # initialize driver if not passed as param
-        driver_present = True
         if not driver:
-            driver = driver_init(configs['interval'])
-            driver_present = False
+            driver = driver_init(window_size=configs['window_size'])
 
 
+        # get or create site data
+        if site is None:
+            site_id = uuid.uuid4()
+            site_url = url
+        else:
+            site_id = site.id
+            site_url = site.site_url
+        
         # request site_url 
-        driver.get(site.site_url)
+        driver.get(site_url)
+
 
         # wait for site to fully load
         driver_wait(
@@ -270,7 +277,7 @@ class Image():
         pic_id = uuid.uuid4()
         driver.save_screenshot(f'{pic_id}.png')
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-        remote_path = f'static/sites/{site.id}/{pic_id}.png'
+        remote_path = f'static/sites/{site_id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
