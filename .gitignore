@@ -16,3 +16,4 @@ env/.env.prod
 env/.env.prod.db
 app/static*
 
+app/api/migrations/0001_initial.py
