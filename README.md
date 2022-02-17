@@ -20,6 +20,7 @@ Copyright © Scanerr 2021
   - [Environment](#environment)
   - [Local](#local)
   - [Remote](#remote)
+  - [Scripts](#scripts)
 
 
 &nbsp;
@@ -105,4 +106,18 @@ $ docker-compose -f docker-compose.prod.yml down
 *Spin-down the application and removes the volumes*
 ```shell
 $ docker-compose -f docker-compose.prod.yml down -v
+```
+
+
+&nbsp;
+
+---
+
+&nbsp;
+
+## Scripts
+
+1. ssh into container
+``` shell
+$ docker exec -it <container:id> /bin/sh
 ```
