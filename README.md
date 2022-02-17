@@ -117,7 +117,7 @@ $ docker-compose -f docker-compose.prod.yml down -v
 
 ## Scripts
 
-1. ssh into container
+*ssh into container*
 ``` shell
 $ docker exec -it <container:id> /bin/sh
 ```
