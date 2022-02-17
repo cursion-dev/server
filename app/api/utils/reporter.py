@@ -35,7 +35,7 @@ class Reporter():
         if os.path.exists(os.path.join(settings.BASE_DIR,  f'temp/')):
             self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
         else:
-            os.makedirs(f'{settings.BASE_DIR}temp/')
+            os.makedirs(f'{settings.BASE_DIR}/temp')
             self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
     
         self.page_index = 0
