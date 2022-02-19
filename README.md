@@ -56,7 +56,7 @@ $ pip3 install virtualenv
 $ virtualenv appenv
 $ source appenv/bin/activate
 $ mkdir app
-$ git clone https://github.com/Scanerr-io/api-test.git
+$ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
