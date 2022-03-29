@@ -1,10 +1,11 @@
 version: '3'
-
 services:
+  
   app:
     privileged: true
     build:
       context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
@@ -15,7 +16,8 @@ services:
              python3 manage.py collectstatic --no-input &&
              python3 manage.py wait_for_db &&
              python3 manage.py create_admin &&
-             python3 manage.py driver_test &&
+             python3 manage.py driver_s_test &&
+             python3 manage.py driver_p_test && 
              python3 manage.py runserver 0.0.0.0:8000"
     env_file:
       - ./env/.env.dev
@@ -28,8 +30,10 @@ services:
       - ./env/.env.dev
     volumes: 
       - pgdata:/var/lib/postgresql/data
+  
   redis:
     image: redis:alpine
+  
   celery:
     privileged: true
     restart: always
@@ -44,5 +48,9 @@ services:
       - db
       - redis
       - app
+
 volumes:
   pgdata:
+
+
+  # python3 manage.py driver_p_test &&   python3 manage.py driver_s_test &&
