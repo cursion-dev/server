@@ -60,11 +60,11 @@ $ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
-$ docker-compose up --build
+$ docker compose up --build
 ```
 *Spin-down the application*
 ```shell
-$ docker-compose up down
+$ docker compose up down
 ```
 
 &nbsp;
@@ -97,15 +97,15 @@ $ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
-$ docker-compose -f docker-compose.prod.yml up -d --build
+$ docker compose -f docker-compose.prod.yml up -d --build
 ```
 *Spin-down the application*
 ```shell
-$ docker-compose -f docker-compose.prod.yml down
+$ docker compose -f docker-compose.prod.yml down
 ```
 *Spin-down the application and removes the volumes*
 ```shell
-$ docker-compose -f docker-compose.prod.yml down -v
+$ docker compose -f docker-compose.prod.yml down -v
 ```
 
 
