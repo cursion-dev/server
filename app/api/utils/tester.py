@@ -22,7 +22,7 @@ class Tester():
         pre_scan_html = self.test.pre_scan.html.splitlines()
         post_scan_html = self.test.post_scan.html.splitlines()
 
-        white_list = ['csrfmiddlewaretoken',]
+        white_list = ['csrfmiddlewaretoken', '<!DOCTYPE html>',]
         tags = [
             '<head', '<script', '<div', '<p', '<h1', '<wbr', '<ul', '<tr', '<u', '<title',  
             '<section', '<source', '<style', '<q', '<option', '<nav', '<menu', '<mark', '<map', '<meta', '<keygen', '<link',
@@ -245,23 +245,60 @@ class Tester():
             pre_accessibility = int(self.test.pre_scan.lighthouse["scores"]['accessibility'])
             pre_performance = int(self.test.pre_scan.lighthouse["scores"]['performance'])
             pre_best_practices = int(self.test.pre_scan.lighthouse["scores"]['best_practices'])
+            pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa'])
+            
             post_seo = int(self.test.post_scan.lighthouse["scores"]['seo'])
             post_accessibility = int(self.test.post_scan.lighthouse["scores"]['accessibility'])
             post_performance = int(self.test.post_scan.lighthouse["scores"]['performance'])
             post_best_practices = int(self.test.post_scan.lighthouse["scores"]['best_practices'])
+            post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa'])
+
+            try:
+                pre_crux = int(self.test.pre_scan.lighthouse["scores"]['crux'])
+                post_crux = int(self.test.post_scan.lighthouse["scores"]['crux'])
+                crux_delta = post_crux - pre_crux
+            except:
+                pre_crux = None
+                post_crux = None
+                crux_delta = 0
 
             seo_delta = post_seo - pre_seo
             accessibility_delta = post_accessibility - pre_accessibility 
             performance_delta = post_performance - pre_performance
             best_practices_delta = post_best_practices - pre_best_practices
-            current_average = (post_seo + post_accessibility + post_best_practices + post_performance)/4
-            old_average = (pre_seo + pre_accessibility + pre_best_practices + pre_performance)/4
+            pwa_delta = post_pwa - pre_pwa
+            
+            if post_crux is None:
+                current_average = (
+                    post_seo + post_accessibility + post_best_practices + 
+                    post_performance + post_pwa 
+                )/5
+                
+                old_average = (
+                    pre_seo + pre_accessibility + pre_best_practices + 
+                    pre_performance + pre_pwa 
+                )/5
+            
+            else:
+                current_average = (
+                    post_seo + post_accessibility + post_best_practices + 
+                    post_performance + post_pwa + post_crux
+                )/6
+                
+                old_average = (
+                    pre_seo + pre_accessibility + pre_best_practices + 
+                    pre_performance + pre_pwa + pre_crux
+                )/6
+
             average_delta = current_average - old_average 
+
         except:
             seo_delta = None
             accessibility_delta = None 
             performance_delta = None
             best_practices_delta = None
+            pwa_delta = None
+            crux_delta = None
             current_average = None
             average_delta = None
 
@@ -271,6 +308,8 @@ class Tester():
                 "accessibility_delta": accessibility_delta,
                 "performance_delta": performance_delta,
                 "best_practices_delta": best_practices_delta,
+                "pwa_delta": pwa_delta,
+                "crux_delta": crux_delta,
                 "current_average": current_average,
                 "average_delta": average_delta,
             }
@@ -321,6 +360,7 @@ class Tester():
             serverConfig_delta = post_serverConfig - pre_serverConfig 
 
             average_delta = post_globalScore - pre_globalScore 
+            current_average = post_globalScore
 
         except:
             pageWeight_delta = None
@@ -334,6 +374,7 @@ class Tester():
             fonts_delta = None
             serverConfig_delta = None 
             average_delta = None
+            current_average = None,
 
         data = {
             "scores": {
@@ -348,7 +389,7 @@ class Tester():
                 "fonts_delta": fonts_delta,
                 "serverConfig_delta": serverConfig_delta,
                 "average_delta": average_delta,
-                "current_average": post_globalScore,
+                "current_average": current_average,
             }
         }
 
@@ -485,8 +526,9 @@ class Tester():
         if 'vrt' in self.test.type or 'full' in self.test.type:
             # scores & data
             images_data = Image().test(test=self.test, index=index)
-            images_score = images_data['average_score'] / 100
-            
+            if images_data['average_score'] != None:
+                images_score = images_data['average_score'] / 100
+
             # weights
             images_w = 2
         

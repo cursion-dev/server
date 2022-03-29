@@ -1,11 +1,13 @@
-from .driver import driver_init
+from .driver_s import driver_init as driver_s_init
+from .driver_s import driver_wait
+from .driver_p import get_data
 from ..models import Site, Scan, Test
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .image import Image
-import time, os, sys, json
+import time, os, sys, json, asyncio
 
 
 
@@ -23,12 +25,15 @@ class Scanner():
         if configs is None:
             configs = {
                 'window_size': '1920,1080',
+                'driver': 'selenium',
+                'device': 'desktop',
                 'interval': 5,
                 'min_wait_time': 10,
                 'max_wait_time': 60,
             }
         self.site = site
-        self.driver = driver_init(window_size=configs['window_size'])
+        if configs['driver'] == 'selenium':
+            self.driver = driver_s_init(window_size=configs['window_size'], device=configs['device'])
         self.scan = scan
         self.configs = configs
 
@@ -40,14 +45,26 @@ class Scanner():
 
             returns -> `Scan` <obj>
         """
-        self.driver.get(self.site.site_url)
-        time.sleep(5)
-        html = self.driver.page_source
-        logs = self.driver.get_log('browser')
-        images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
-        self.driver.quit()
-        lh_data = Lighthouse(self.site).get_data()
-        yl_data = Yellowlab(self.site).get_data()
+        
+        if self.configs['driver'] == 'selenium':
+            self.driver.get(self.site.site_url)
+            html = self.driver.page_source
+            logs = self.driver.get_log('browser')
+            images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            self.driver.quit()
+        else:
+            driver_data = asyncio.run(
+                get_data(
+                    url=self.site.site_url, 
+                    configs=self.configs
+                )
+            )
+            html = driver_data['html']
+            logs = driver_data['logs']
+            images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+        
+        lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
+        yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
 
         if self.scan:
@@ -89,14 +106,25 @@ class Scanner():
         else:
             first_scan = self.scan
 
-        self.driver.get(self.site.site_url)
-        time.sleep(5)
-        html = self.driver.page_source
-        logs = self.driver.get_log('browser')
-        images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
-        self.driver.quit()
-        lh_data = Lighthouse(self.site).get_data()
-        yl_data = Yellowlab(self.site).get_data()
+        if self.configs['driver'] == 'selenium':
+            self.driver.get(self.site.site_url)
+            html = self.driver.page_source
+            logs = self.driver.get_log('browser')
+            images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            self.driver.quit()
+        else:
+            driver_data = asyncio.run(
+                get_data(
+                    url=self.site.site_url, 
+                    configs=self.configs
+                )
+            )
+            html = driver_data['html']
+            logs = driver_data['logs']
+            images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+            
+        lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
+        yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
         second_scan = Scan.objects.create(
             site=self.site, paired_scan=first_scan,

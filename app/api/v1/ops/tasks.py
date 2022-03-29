@@ -15,10 +15,9 @@ def create_site_task(site_id):
 
 
 def create_scan_task(
-        scan_id=None, 
-        site_id=None,
+        scan_id=None,
+        site_id=None, 
         automation_id=None, 
-        type=None,
         configs=None,
     ):
     if scan_id is not None:

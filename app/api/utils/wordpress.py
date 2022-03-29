@@ -1,4 +1,4 @@
-from .driver import driver_init, driver_wait
+from .driver_s import driver_init, driver_wait
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
@@ -323,7 +323,7 @@ class Wordpress():
                 search_form.send_keys(Keys.RETURN)
                 time.sleep(3)
 
-                ##### Clicking Updraft "install" plugin ######
+                ##### Clicking "install" plugin ######
                 install = self.driver.find_element_by_xpath('//*[@id="the-list"]/div[1]/div[1]/div[2]/ul/li[1]/a') #### ---> This will have to updated regularly 
                 self.driver.execute_script("arguments[0].scrollIntoView();", install)
                 time.sleep(1)

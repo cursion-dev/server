@@ -7,8 +7,19 @@ from .v1.ops.tasks import (create_site_task,
 )
 from .models import Log
 from django.contrib.auth.models import User
+from .utils.driver_p import driver_test
+from asgiref.sync import async_to_sync
+import asyncio
+
 
 logger = get_task_logger(__name__)
+
+
+
+@shared_task
+def test_pupeteer():
+    asyncio.run(driver_test())
+    logger.info('Tested pupeteer instalation')
 
 
 @shared_task
@@ -24,14 +35,12 @@ def create_scan_bg(
         site_id=None, 
         automation_id=None, 
         configs=None,
-        type=None,
     ):
     create_scan_task(
         scan_id, 
         site_id,
         automation_id, 
         configs,
-        type,
     )
     logger.info('Created new scan of site')
 

@@ -1,4 +1,4 @@
-import json, boto3
+import json, boto3, asyncio
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
@@ -14,6 +14,8 @@ from ...utils.tester import Tester as T
 from ...utils.image import Image as I
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
+from ...utils.wordpress_p import Wordpress as W_P
+
 
 
 
@@ -372,6 +374,8 @@ def create_scan(request, delay=False):
 
     if not configs:
         configs = {
+            'driver': 'selenium',
+            'device': 'desktop',
             'window_size': '1920,1080',
             'interval': 5,
             'min_wait_time': 10,
@@ -991,43 +995,76 @@ def install_wp_plugin(request):
     plugin_name = request.data.get('plugin_name', None)
     username = request.data.get('username', None)
     password = request.data.get('password', None)
-    wait_time = request.data.get('wait_time', 15)
+    wait_time = request.data.get('wait_time', 30)
+    driver = request.data.get('driver', 'selenium')
 
-    # init wordpress
-    wp = W(
-        login_url=login_url, 
-        admin_url=admin_url,
-        username=username,
-        password=password, 
-        wait_time=wait_time,
-    )
+    if driver == 'selenium':
 
-    # login
-    wp_status = wp.login()
+        # init wordpress
+        wp = W(
+            login_url=login_url, 
+            admin_url=admin_url,
+            username=username,
+            password=password, 
+            wait_time=wait_time,
+        )
 
-    # adjust lang
-    wp_status = wp.begin_lang_check()
+        # login
+        wp_status = wp.login()
 
-    # install plugin
-    wp_status = wp.install_plugin(plugin_name=plugin_name)
+        # adjust lang
+        wp_status = wp.begin_lang_check()
 
-    # re adjust lang
-    wp_status = wp.end_lang_check()
+        # install plugin
+        wp_status = wp.install_plugin(plugin_name=plugin_name)
 
-    if wp_status: 
-        data = {
-            'status': 'success',
-            'message': 'plugin installed successfully'
-        }
+        # re adjust lang
+        wp_status = wp.end_lang_check()
+
+        if wp_status: 
+            data = {
+                'status': 'success',
+                'message': 'plugin installed successfully'
+            }
+        else:
+            data = {
+                'status': 'failed',
+                'message': 'plugin installation failed'
+            }
+
+        response = Response(data, status=status.HTTP_200_OK)
+        record_api_call(request, data, '200')
+        return response
+
     else:
-        data = {
-            'status': 'failed',
-            'message': 'plugin installation failed'
-        }
 
-    response = Response(data, status=status.HTTP_200_OK)
-    record_api_call(request, data, '200')
-    return response
+        # init wordpress for puppeteer
+        wp_status = asyncio.run(
+            W_P(
+                login_url=login_url, 
+                admin_url=admin_url,
+                username=username,
+                password=password, 
+                wait_time=wait_time,
+            ).run_full(plugin_name=plugin_name)
+        )
+
+        if wp_status: 
+            data = {
+                'status': 'success',
+                'message': 'plugin installed successfully'
+            }
+        else:
+            data = {
+                'status': 'failed',
+                'message': 'plugin installation failed'
+            }
+
+        response = Response(data, status=status.HTTP_200_OK)
+        record_api_call(request, data, '200')
+        return response
+
+
 
 
 
@@ -1042,8 +1079,14 @@ def create_site_screenshot(request):
 
     if site_id is not None:
         site = Site.objects.get(id=site_id)
-    
-    data = I().screenshot(site=site, url=url, configs=configs)
+
+    if configs is not None:
+        if configs['driver'] == 'puppeteer':
+            data = asyncio.run(I().screenshot_p(site=site, url=url, configs=configs))
+        elif configs['driver'] == 'selenium':
+            data = I().screenshot(site=site, url=url, configs=configs)
+    else:
+        data = I().screenshot(site=site, url=url, configs=configs)
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response

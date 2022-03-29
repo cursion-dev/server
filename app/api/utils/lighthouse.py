@@ -8,8 +8,10 @@ class Lighthouse():
     """Initializes Google's Lighthouse CLI and runs an audit of the site"""
 
 
-    def __init__(self, site=None):
+    def __init__(self, site=None, configs=None):
         self.site = site
+        self.configs = configs
+        self.sizes = configs['window_size'].split(',')
 
     
     def init_audit(self):
@@ -18,7 +20,11 @@ class Lighthouse():
                 '--config-path=api/utils/custom-config.js',
                 '--quiet',
                 self.site.site_url, 
-                '--chrome-flags="--no-sandbox --headless"', 
+                '--plugins=lighthouse-plugin-crux',
+                '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
+                f'--screenEmulation.width={self.sizes[0]}',
+                f'--screenEmulation.height={self.sizes[1]}',
+                f'--screenEmulation.{self.configs["device"]}',
                 '--output',
                 'json', 
                 ], 
@@ -48,6 +54,8 @@ class Lighthouse():
                     "accessibility": [],
                     "performance": [],
                     "best-practices": [],
+                    "lighthouse-plugin-crux": [],
+                    "pwa": []
                 }
 
                 # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` obj
@@ -57,22 +65,38 @@ class Lighthouse():
                         if int(a["weight"]) > 0:
                             audit = stdout_json["audits"][a["id"]]
                             audits[cat].append(audit)
-                # changing audits name of best-practices to best_practices
+                # changing audits names
                 audits['best_practices'] = audits.pop('best-practices')
+                audits['crux'] = audits.pop('lighthouse-plugin-crux')
                 
                 # get scores from each category
                 seo_score = round(stdout_json["categories"]["seo"]["score"] * 100)
                 accessibility_score = round(stdout_json["categories"]["accessibility"]["score"] * 100)
                 performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
                 best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
-                average_score = (seo_score + accessibility_score + performance_score + best_practices_score)/4
+                pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
+                crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
+
+                if crux_score == 0 :
+                    crux_score = None
+                    average_score = round((
+                            seo_score + accessibility_score + performance_score 
+                            + best_practices_score + pwa_score
+                        )/ 5)
+                else:
+                    average_score = round((
+                            seo_score + accessibility_score + performance_score 
+                            + best_practices_score + pwa_score + crux_score
+                        )/ 6)
 
                 scores = {
                     "seo": seo_score,
                     "accessibility": accessibility_score,
                     "performance": performance_score,
                     "best_practices": best_practices_score,
-                    "average": average_score,
+                    "pwa": pwa_score,
+                    "crux": crux_score,
+                    "average": average_score
                 }
 
 
@@ -90,14 +114,18 @@ class Lighthouse():
                 "accessibility": None,
                 "performance": None,
                 "best_practices": None,
-                "average": None,
+                "pwa": None,
+                "crux": None,
+                "average": None
             }
 
             audits = {
                 "seo": [],
                 "accessibility": [],
                 "performance": [],
-                "best-practices": [],
+                "best_practices": [],
+                "pwa": [],
+                "crux": []
             }
 
             data = {

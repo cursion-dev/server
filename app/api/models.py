@@ -21,7 +21,9 @@ def get_info_default():
             },
             'lighthouse': {
                 'average': None,
-                'seo': None,  
+                'seo': None,
+                'pwa': None, 
+                'crux': None, 
                 'performance': None, 
                 'accessibility': None, 
                 'best_practices': None,
@@ -57,6 +59,8 @@ def get_lh_delta_default():
             "performance_delta": None, 
             "accessibility_delta": None, 
             "best-practices_delta": None,
+            "pwa_delta": None, 
+            "crux_delta": None,
             "average_delta" : None,
             "current_average": None, 
         },
@@ -68,7 +72,7 @@ def get_lh_delta_default():
 def get_yl_delta_default():
     yl_delta_default = {
         "scores": {
-            "globalScore_delta": None,
+            "average_delta": None,
             "pageWeight_delta": None, 
             "requests_delta": None, 
             "domComplexity_delta": None, 
@@ -92,13 +96,17 @@ def get_lh_default():
             "performance": None, 
             "accessibility": None, 
             "best_practices": None,
-            "average": None,
+            "pwa": None, 
+            "crux": None, 
+            "average": None
        },
        "audits": {
             "seo": [], 
             "performance": [], 
             "accessibility": [], 
-            "best-practices": []
+            "best-practices": [],
+            "pwa": [], 
+            "crux": []
        },
     }
     return lh_default

@@ -37,10 +37,13 @@ def automation(automation_id, object_id):
     else:
         return False      
     
+
                 
 
     if use_exp:
+
         for expression in expressions:
+
             if '>=' in expression['operator']:
                 operator = ' >= '
             else:
@@ -61,6 +64,10 @@ def automation(automation_id, object_id):
                 data_type = 'float(test.lighthouse_delta["scores"]["current_average"])'
             elif 'seo_delta' in expression['data_type']:
                 data_type = 'float(test.lighthouse_delta["scores"]["seo_delta"])'
+            elif 'pwa_delta' in expression['data_type']:
+                data_type = 'float(test.lighthouse_delta["scores"]["pwa_delta"])'
+            elif 'crux_delta' in expression['data_type']:
+                data_type = 'float(test.lighthouse_delta["scores"]["crux_delta"])'
             elif 'best_practices_delta' in expression['data_type']:
                 data_type = 'float(test.lighthouse_delta["scores"]["best_practices_delta"])'
             elif 'performance_delta' in expression['data_type']:
@@ -72,6 +79,10 @@ def automation(automation_id, object_id):
                 data_type = 'float(scan.lighthouse["scores"]["average"])'
             elif 'seo' in expression['data_type']:
                 data_type = 'float(scan.lighthouse["scores"]["seo"])'
+            elif 'pwa' in expression['data_type']:
+                data_type = 'float(scan.lighthouse["scores"]["pwa"])'
+            elif 'crux' in expression['data_type']:
+                data_type = 'float(scan.lighthouse["scores"]["crux"])'
             elif 'best_practices' in expression['data_type']:
                 data_type = 'float(scan.lighthouse["scores"]["best_practices"])'
             elif 'performance' in expression['data_type']:

@@ -125,11 +125,11 @@ class Reporter():
         self.c.setFont('Helvetica-Bold', 45)
         self.c.setFillColor(HexColor(self.text_color))
         self.c.drawString(.5*inch, 10*inch, 'Web Vitals for')
-        if len(self.site.site_url) <= 15:
+        if len(self.site.site_url) <= 12:
             self.c.drawString(.5*inch, 9*inch, self.site.site_url)
-        elif 15 < len(self.site.site_url):
-            extra_chars = len(self.site.site_url) - 15
-            m = (2/5)
+        elif 12 < len(self.site.site_url):
+            extra_chars = len(self.site.site_url) - 12
+            m = (3/5)
             self.c.setFont('Helvetica-Bold', int(45 - (extra_chars * m)))
             self.c.setFillColor(HexColor(self.text_color))
             self.c.drawString(.5*inch, 9*inch, self.site.site_url)
@@ -175,7 +175,7 @@ class Reporter():
 
         }
 
-        if score > 80:
+        if score >= 80:
             grade = score_types['a']
         elif 80 > score > 70:
             grade = score_types['b']
@@ -215,6 +215,10 @@ class Reporter():
             string = 'JS Complexity'
         elif cat == 'seo':
             string = 'SEO'
+        elif cat == 'pwa':
+            string = 'PWA'
+        elif cat == 'crux':
+            string = 'CRUX'
         elif cat == 'best_practices' or cat == 'best-practices':
             string = 'Best Practices'
         elif cat == 'performance':
@@ -258,148 +262,151 @@ class Reporter():
         logs_count = 0
         for cat in data['audits']:
 
-            # creating global score
-            if c_count == 0:
-                grade_obj = self.get_score_data(data['scores'][avg_score])
+            # checking if cat is not null
+            if data['scores'][cat] is not None:
+
+                # creating global score
+                if c_count == 0:
+                    grade_obj = self.get_score_data(data['scores'][avg_score])
+                    self.c.setFillColor(HexColor(grade_obj['color'],))
+                    self.c.roundRect(
+                        2*inch, 
+                        8.7*inch, 
+                        1*inch, 
+                        1*inch,
+                        .17*inch, 
+                        stroke=0, 
+                        fill=1
+                    )
+                    self.c.setFillColor(HexColor(self.text_color))
+                    self.c.setFont('Helvetica', 30)
+                    self.c.drawCentredString(
+                        2.5*inch, 
+                        9.05*inch,
+                        grade_obj['grade']
+                    )
+                    self.c.setFont('Helvetica', 20)
+                    self.c.drawCentredString(
+                        5.5*inch, 
+                        8.9*inch,
+                        'Global Score'
+                    )
+                    self.c.setFont('Helvetica-Bold', 20)
+                    self.c.drawCentredString(
+                        5.5*inch, 
+                        9.25*inch,
+                        f'{data["scores"][avg_score]}/100'
+                    )
+
+                
+                # creating new page at limit --> 20 items
+                if logs_count >= 20:
+                    self.end_page()
+                    logs_count = 0
+                    begin_y = 9
+                    self.setup_page()
+                    self.draw_page_title(f'{page_title} (continued)')
+
+                # creating space btw sections
+                if c_count > 0 and logs_count != 0:
+                    begin_y = (self.y - .2)
+                    
+
+
+                # creating individual grade cards
+                grade_obj = self.get_score_data(data['scores'][cat])
                 self.c.setFillColor(HexColor(grade_obj['color'],))
                 self.c.roundRect(
-                    2*inch, 
-                    8.7*inch, 
-                    1*inch, 
-                    1*inch,
-                    .17*inch, 
+                    .5*inch, 
+                    (begin_y - .25)*inch, 
+                    .5*inch, 
+                    .5*inch,
+                    .12*inch, 
                     stroke=0, 
                     fill=1
                 )
                 self.c.setFillColor(HexColor(self.text_color))
-                self.c.setFont('Helvetica', 30)
+                self.c.setFont('Helvetica', 16)
                 self.c.drawCentredString(
-                    2.5*inch, 
-                    9.05*inch,
+                    .75*inch, 
+                    (begin_y - .07)*inch,
                     grade_obj['grade']
                 )
-                self.c.setFont('Helvetica', 20)
+
+                self.c.setFont('Helvetica', 16)
+                cat_string = self.get_cat_string(cat)
                 self.c.drawCentredString(
-                    5.5*inch, 
-                    8.9*inch,
-                    'Global Score'
-                )
-                self.c.setFont('Helvetica-Bold', 20)
-                self.c.drawCentredString(
-                    5.5*inch, 
-                    9.25*inch,
-                    f'{data["scores"][avg_score]}/100'
+                    2.3*inch, 
+                    (begin_y - .07)*inch,
+                    cat_string
                 )
 
-            
-            # creating new page at limit --> 20 items
-            if logs_count >= 20:
-                self.end_page()
-                logs_count = 0
-                begin_y = 9
-                self.setup_page()
-                self.draw_page_title(f'{page_title} (continued)')
 
-            # creating space btw sections
-            if c_count > 0 and logs_count != 0:
-                begin_y = (self.y - .2)
-                
+                p_count = 0
+                for policy in data['audits'][cat]:
 
+                    if (begin_y - (space * p_count)) < 1:
+                        break
 
-            # creating individual grade cards
-            grade_obj = self.get_score_data(data['scores'][cat])
-            self.c.setFillColor(HexColor(grade_obj['color'],))
-            self.c.roundRect(
-                .5*inch, 
-                (begin_y - .25)*inch, 
-                .5*inch, 
-                .5*inch,
-                .12*inch, 
-                stroke=0, 
-                fill=1
-            )
-            self.c.setFillColor(HexColor(self.text_color))
-            self.c.setFont('Helvetica', 16)
-            self.c.drawCentredString(
-                .75*inch, 
-                (begin_y - .07)*inch,
-                grade_obj['grade']
-            )
-
-            self.c.setFont('Helvetica', 16)
-            cat_string = self.get_cat_string(cat)
-            self.c.drawCentredString(
-                2.3*inch, 
-                (begin_y - .07)*inch,
-                cat_string
-            )
+                    # setting up keys for dict(s)
+                    if data_type == 'yellowlab':
+                        policy_text = policy["policy"]["label"]
+                        policy_value = policy["value"]
+                        binary = False
+                    if data_type == 'lighthouse':
+                        policy_text = policy["title"]
+                        policy_value = ''
+                        if "displayValue" in policy:
+                            if len(policy["displayValue"]) < 9:
+                                policy_value = policy["displayValue"]
+                        binary = True
 
 
-            p_count = 0
-            for policy in data['audits'][cat]:
+                    if len(policy_text) < 53:
+                        # creating log box
+                        self.c.setFont('Helvetica', 9)
+                        self.c.setFillColor(HexColor(f'{self.highlight_color}95', hasAlpha=True))
+                        self.c.rect(
+                            log_margin*inch, 
+                            (begin_y - (space * p_count))*inch, 
+                            log_width*inch, log_height*inch, 
+                            stroke=0, 
+                            fill=1
+                        )
+                        
+                        # get grade tab
+                        grade_obj = self.get_score_data(policy['score'], is_binary=binary)
+                        self.c.setFillColor(HexColor(grade_obj['color'],)) 
+                        self.c.rect(
+                            log_margin*inch, 
+                            (begin_y - (space * p_count))*inch, 
+                            grade_tab_width*inch, 
+                            log_height*inch, 
+                            stroke=0, 
+                            fill=1
+                        )
+                        
+                        # inserting data
+                        self.c.setFillColor(HexColor(self.text_color))
 
-                if (begin_y - (space * p_count)) < 1:
-                    break
-
-                # setting up keys for dict(s)
-                if data_type == 'yellowlab':
-                    policy_text = policy["policy"]["label"]
-                    policy_value = policy["value"]
-                    binary = False
-                if data_type == 'lighthouse':
-                    policy_text = policy["title"]
-                    policy_value = ''
-                    if "displayValue" in policy:
-                        if len(policy["displayValue"]) < 9:
-                            policy_value = policy["displayValue"]
-                    binary = True
-
-
-                if len(policy_text) < 53:
-                    # creating log box
-                    self.c.setFont('Helvetica', 9)
-                    self.c.setFillColor(HexColor(f'{self.highlight_color}95', hasAlpha=True))
-                    self.c.rect(
-                        log_margin*inch, 
-                        (begin_y - (space * p_count))*inch, 
-                        log_width*inch, log_height*inch, 
-                        stroke=0, 
-                        fill=1
-                    )
-                    
-                    # get grade tab
-                    grade_obj = self.get_score_data(policy['score'], is_binary=binary)
-                    self.c.setFillColor(HexColor(grade_obj['color'],)) 
-                    self.c.rect(
-                        log_margin*inch, 
-                        (begin_y - (space * p_count))*inch, 
-                        grade_tab_width*inch, 
-                        log_height*inch, 
-                        stroke=0, 
-                        fill=1
-                    )
-                    
-                    # inserting data
-                    self.c.setFillColor(HexColor(self.text_color))
-
-                    # text
-                    self.c.drawString(
-                        (log_margin + text_margin)*inch,
-                        ((begin_y - (space * p_count)) + text_space)*inch, 
-                        (f'{policy_text}')
-                    )
-                    
-                    # value
-                    self.c.drawString(
-                        (value_margin + text_margin + log_margin)*inch, 
-                        ((begin_y - (space * p_count)) + text_space)*inch, 
-                        (f'{policy_value}')
-                    )
-                    
-                    
-                    p_count += 1
-                    logs_count += 1
-                    self.y = (begin_y - (space * p_count))
+                        # text
+                        self.c.drawString(
+                            (log_margin + text_margin)*inch,
+                            ((begin_y - (space * p_count)) + text_space)*inch, 
+                            (f'{policy_text}')
+                        )
+                        
+                        # value
+                        self.c.drawString(
+                            (value_margin + text_margin + log_margin)*inch, 
+                            ((begin_y - (space * p_count)) + text_space)*inch, 
+                            (f'{policy_value}')
+                        )
+                        
+                        
+                        p_count += 1
+                        logs_count += 1
+                        self.y = (begin_y - (space * p_count))
             
             c_count += 1
         

@@ -26,13 +26,17 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Health:\t'+str((float(item.lighthouse_delta["scores"]["current_average"]) + float(item.yellowlab_delta["scores"]["current_average"])/2))+'\n\t'
         elif 'health' in e['data_type']:
             data_type = 'Health:\t'+str((float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"])/2))+'\n\t'
-        
+        # LH test data
         elif 'current_lighthouse_average' in e['data_type']:
             data_type = 'Lighthouse Average:\t'+str(item.lighthouse_delta["scores"]["current_average"])+'\n\t'
         elif 'seo_delta' in e['data_type']:
             data_type = 'SEO Delta:\t'+str(item.lighthouse_delta["scores"]["seo_delta"])+'\n\t'
+        elif 'pwa_delta' in e['data_type']:
+            data_type = 'PWA Delta:\t'+str(item.lighthouse_delta["scores"]["pwa_delta"])+'\n\t'
+        elif 'crux_delta' in e['data_type']:
+            data_type = 'CRUX Delta:\t'+str(item.lighthouse_delta["scores"]["crux_delta"])+'\n\t'
         elif 'best_practices_delta' in e['data_type']:
-            data_type = 'Best Practicies Delta:\t'+str(item.lighthouse_delta["scores"]["best_practices_delta"])+'\n\t'
+            data_type = 'Best Practices Delta:\t'+str(item.lighthouse_delta["scores"]["best_practices_delta"])+'\n\t'
         elif 'performance_delta' in e['data_type']:
             data_type = 'Performance Delta:\t'+str(item.lighthouse_delta["scores"]["performance_delta"])+'\n\t'
         elif 'accessibility_delta' in e['data_type']:
@@ -42,8 +46,12 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Lighthouse Average:\t'+str(item.lighthouse["scores"]["average"])+'\n\t'
         elif 'seo' in e['data_type']:
             data_type = 'SEO:\t'+str(item.lighthouse["scores"]["seo"])+'\n\t'
+        elif 'pwa' in e['data_type']:
+            data_type = 'PWA:\t'+str(item.lighthouse["scores"]["pwa"])+'\n\t'
+        elif 'crux' in e['data_type']:
+            data_type = 'CRUX:\t'+str(item.lighthouse["scores"]["crux"])+'\n\t'
         elif 'best_practices' in e['data_type']:
-            data_type = 'Best Practicies:\t'+str(item.lighthouse["scores"]["best_practices"])+'\n\t'
+            data_type = 'Best Practices:\t'+str(item.lighthouse["scores"]["best_practices"])+'\n\t'
         elif 'performance' in e['data_type']:
             data_type = 'Performance:\t'+str(item.lighthouse["scores"]["performance"])+'\n\t'
         elif 'accessibility' in e['data_type']:
@@ -132,6 +140,10 @@ def create_json_data(data, obj):
             json_data[key] = item.score
         elif 'seo_delta' == json_data[key]:
             json_data[key] = item.lighthouse_delta["scores"]["seo_delta"]
+        elif 'pwa_delta' == json_data[key]:
+            json_data[key] = item.lighthouse_delta["scores"]["pwa_delta"]
+        elif 'crux_delta' == json_data[key]:
+            json_data[key] = item.lighthouse_delta["scores"]["crux_delta"]
         elif 'best_practices_delta' == json_data[key]:
             json_data[key] = item.lighthouse_delta["scores"]["best_practices_delta"]
         elif 'performance_delta' == json_data[key]:
@@ -150,6 +162,10 @@ def create_json_data(data, obj):
             json_data[key] = item.lighthouse["scores"]["current_average"]
         elif 'seo' == json_data[key]:
             json_data[key] = item.lighthouse["scores"]["seo"]
+        elif 'pwa' == json_data[key]:
+            json_data[key] = item.lighthouse["scores"]["pwa"]
+        elif 'crux' == json_data[key]:
+            json_data[key] = item.lighthouse["scores"]["crux"]
         elif 'best_practice' == json_data[key]:
             json_data[key] = item.lighthouse["scores"]["best_practices"]
         elif 'performance' == json_data[key]:
