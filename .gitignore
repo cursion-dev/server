@@ -15,5 +15,8 @@ env/.env.dev
 env/.env.prod
 env/.env.prod.db
 app/static*
+Dockerfile.alpine
+Dockerfile.dev1
+Dockerfile.dev3
 
 app/api/migrations/0001_initial.py
