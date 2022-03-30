@@ -3,6 +3,7 @@ services:
   
   app:
     privileged: true
+    init: true
     build:
       context: .
       dockerfile: Dockerfile

@@ -76,6 +76,7 @@ def driver_test():
         )
 
     driver.close()
+    driver.quit()
     sys.exit(0)
 
 

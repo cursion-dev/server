@@ -3,6 +3,7 @@ version: '3'
 services:
   app:
     privileged: true
+    init: true
     build:
       context: .
       dockerfile: Dockerfile.prod

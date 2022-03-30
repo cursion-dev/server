@@ -51,6 +51,7 @@ class Scanner():
             html = self.driver.page_source
             logs = self.driver.get_log('browser')
             images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            self.driver.close()
             self.driver.quit()
         else:
             driver_data = asyncio.run(
@@ -111,6 +112,7 @@ class Scanner():
             html = self.driver.page_source
             logs = self.driver.get_log('browser')
             images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            self.driver.close()
             self.driver.quit()
         else:
             driver_data = asyncio.run(

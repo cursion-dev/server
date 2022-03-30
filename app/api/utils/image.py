@@ -122,6 +122,7 @@ class Image():
                 bottom = True
 
         if not driver_present:
+            driver.close()
             driver.quit()
 
         return image_array
