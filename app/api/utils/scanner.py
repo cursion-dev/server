@@ -85,7 +85,7 @@ class Scanner():
                 configs=self.configs
             )
 
-            self.update_site_info(first_scan)
+        self.update_site_info(first_scan)
 
         return first_scan
 
