@@ -174,7 +174,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
-# remote storage settings for serving static files to django admin
+### ONLY NEEDED IF USING DJANGO-STORAGES | remote storage settings for serving static files to django admin ###
 # DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 # STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 # STORAGE_DOMAIN = os.environ.get('STORAGE_DOMAIN')
@@ -182,6 +182,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 # MEDIA_ROOT = 'media'
 # STATIC_URL = f"https://{AWS_S3_ENDPOINT_URL}/{STATIC_ROOT}/"
 # MEDIA_URL = f"https://{AWS_S3_ENDPOINT_URL}/{MEDIA_ROOT}/"
+# AWS_S3_ENDPOINT_PATH = os.environ.get('AWS_S3_ENDPOINT_PATH')
+# AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
+
 
 # Used to authenticate with S3 using 'django-stores' pypi package and 'boto3'
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
@@ -191,11 +194,10 @@ AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME')
 AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')
-AWS_S3_ENDPOINT_PATH = os.environ.get('AWS_S3_ENDPOINT_PATH')
-AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
-AWS_S3_URL_PATH = os.environ.get('AWS_S3_URL_PATH')
 AWS_LOCATION = os.environ.get('AWS_LOCATION')
 AWS_DEFAULT_ACL = os.environ.get('AWS_DEFAULT_ACL')
+AWS_S3_URL_PATH = os.environ.get('AWS_S3_URL_PATH')
+
 
 # General optimization for faster delivery
 AWS_IS_GZIPPED = True
