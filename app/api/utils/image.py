@@ -72,10 +72,12 @@ class Image():
 
             # scroll single frame
             if index != 0:
-                driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                # driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs['min_wait_time']))
 
             # get current position and compare to previous
-            new_height = driver.execute_script("return window.pageYOffset + window.innerHeight")
+            new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
             height_diff = new_height - last_height
             if height_diff > 20:
                 last_height = new_height
@@ -186,10 +188,11 @@ class Image():
 
             # scroll single frame
             if index != 0:
-                await page.evaluate("window.scrollBy(0, window.innerHeight);")
+                await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs['min_wait_time']))
 
             # get current position and compare to previous
-            new_height = await page.evaluate("window.pageYOffset + window.innerHeight")
+            new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
             height_diff = new_height - last_height
             if height_diff > 20:
                 last_height = new_height
