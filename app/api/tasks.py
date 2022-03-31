@@ -90,7 +90,7 @@ def delete_report_s3_bg(report_id):
 @shared_task
 def purge_logs(username=None):
     if username:
-        user = User.objcets.get(username=username)
+        user = User.objects.get(username=username)
         Log.objects.filter(user=user).delete()
     else:
         Log.objects.all().delete()
