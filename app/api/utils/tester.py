@@ -530,7 +530,7 @@ class Tester():
                 images_score = images_data['average_score'] / 100
 
             # weights
-            images_w = 2
+            images_w = 4
         
         
 
