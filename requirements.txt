@@ -24,6 +24,7 @@ idna==2.10
 kombu==5.1.0
 Markdown==3.3.4
 numpy==1.22.3
+opencv-python==4.5.5.64
 Pillow==9.0.0
 prometheus-client==0.8.0
 prompt-toolkit==3.0.18
