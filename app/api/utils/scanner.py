@@ -1,4 +1,4 @@
-from .driver_s import driver_init as driver_s_init
+from .driver_s import driver_init as driver_s_init, quit_driver
 from .driver_s import driver_wait
 from .driver_p import get_data
 from ..models import Site, Scan, Test
@@ -51,8 +51,7 @@ class Scanner():
             html = self.driver.page_source
             logs = self.driver.get_log('browser')
             images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
-            self.driver.close()
-            self.driver.quit()
+            quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
                 get_data(
@@ -112,8 +111,7 @@ class Scanner():
             html = self.driver.page_source
             logs = self.driver.get_log('browser')
             images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
-            self.driver.close()
-            self.driver.quit()
+            quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
                 get_data(

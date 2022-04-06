@@ -75,8 +75,7 @@ def driver_test():
         + 'Selenium installed and working \N{check mark} \n'
         )
 
-    driver.close()
-    driver.quit()
+    quit_driver(driver)
     sys.exit(0)
 
 
@@ -140,3 +139,29 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
         wait_time += interval
 
     return
+
+
+
+
+def quit_driver(driver):
+    ''' 
+    Quits and reaps all child processes in docker
+    '''
+    print('Quitting session: %s' % driver.session_id)
+    driver.quit()
+    try:
+        pid = True
+        while pid:
+            pid = os.waitpid(-1, os.WNOHANG)
+            print("Reaped child: %s" % str(pid))
+
+            # avoid infinite loop cause pid value -> (0, 0)
+            try:
+                if pid[0] == 0:
+                    pid = False
+            except:
+                pass
+
+
+    except ChildProcessError:
+        pass
