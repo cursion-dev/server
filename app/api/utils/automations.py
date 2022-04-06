@@ -44,6 +44,10 @@ def automation(automation_id, object_id):
 
         for expression in expressions:
 
+            exp = None
+            data_type = None
+            value = str(float(re.search(r'\d+', str(expression['value'])).group()))
+
             if '>=' in expression['operator']:
                 operator = ' >= '
             else:
@@ -147,11 +151,16 @@ def automation(automation_id, object_id):
             elif 'health' in expression['data_type']:
                 data_type = '((float(scan.lighthouse["scores"]["average"]) + float(scan.yellowlab["scores"]["globalScore"]))/2)'
 
-            elif 'images_score' in expression['data_type']:
+            elif 'avg_image_score' in expression['data_type']:
                 data_type = 'float(test.images_delta["average_score"])'
 
-            value = str(float(re.search(r'\d+', str(expression['value'])).group()))
-            exp = f'{joiner}{data_type}{operator}{value}'
+            elif 'image_scores' in expression['data_type']:
+                data_type = '[i["score"] for i in test.images_delta["images"]]' 
+                exp = f'{joiner}any(i{operator}{value} for i in {data_type})'
+            
+            if exp is None:
+                exp = f'{joiner}{data_type}{operator}{value}'
+           
             exp_list.append(exp)
 
 

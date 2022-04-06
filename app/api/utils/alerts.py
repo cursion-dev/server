@@ -107,8 +107,11 @@ def create_exp_str(item, automation, is_email=False):
         elif 'serverConfig' in e['data_type']:
             data_type = 'Server Config:\t'+str(item.yellowlab["scores"]["serverConfig"])+'\n\t'
         
-        elif 'images_score' in e['data_type']:
+        elif 'avg_image_score' in e['data_type']:
             data_type = ' Avg Image Score:\t'+str(item.images_delta["average_score"])+'\n\t'
+        elif 'image_scores' in e['data_type']:
+            data_type = 'List of Image Scores:\t'+str([i["score"] for i in item.images_delta["images"]])+'\n\t' 
+        
         elif 'logs' in e['data_type']:
             data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
         
@@ -218,6 +221,11 @@ def create_json_data(data, obj):
             json_data[key] = item.yellowlab["scores"]["fonts"]
         elif 'serverConfig' == json_data[key]:
             json_data[key] = item.yellowlab["scores"]["serverConfig"]
+
+        elif 'avg_image_score' == json_data[key]:
+            json_data[key] = item.images_delta["average_score"]
+        elif 'image_scores' == json_data[key]:
+            json_data[key] = [i["score"] for i in item.images_delta["images"]]
 
 
     return json_data
