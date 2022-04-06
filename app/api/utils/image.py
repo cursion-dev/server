@@ -1,16 +1,16 @@
-from .driver_s import driver_init, driver_wait
+from .driver_s import driver_init, driver_wait, quit_driver
 from .driver_p import driver_init as driver_init_p
 from selenium import webdriver
 from ..models import Site, Scan, Test
 from selenium.webdriver.chrome.options import Options
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
-from sewar.full_ref import uqi, mse, ssim
+from sewar.full_ref import uqi, mse, ssim, msssim, psnr, ergas, vifp, rase, sam, scc
 from scanerr import settings
-from PIL import Image as I
+from PIL import Image as I, ImageChops, ImageStat
 from pyppeteer import launch
 import time, os, sys, json, uuid, boto3, \
-    statistics, shutil, numpy
+    statistics, shutil, numpy, cv2
 
 
 
@@ -122,8 +122,7 @@ class Image():
                 bottom = True
 
         if not driver_present:
-            driver.close()
-            driver.quit()
+            quit_driver(driver)
 
         return image_array
 
@@ -207,6 +206,7 @@ class Image():
             
                 # get screenshot
                 await page.screenshot({'path': f'{pic_id}.png'})
+
                 image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
                 remote_path = f'static/sites/{site.id}/{pic_id}.png'
                 root_path = settings.AWS_S3_URL_PATH
@@ -246,8 +246,15 @@ class Image():
 
     def test(self, test, index=None):
         """
-        compares each screenshot between the two scans and records 
+        Compares each screenshot between the two scans and records 
         a score out of 100%.
+
+        Compairsons used : 
+            - Structral Similarity Index (ssim)
+            - PIL ImageChop Differences, Ratio
+            - cv2 ORB Brute-force Matcher,  Ratio
+
+        
         """
 
         # setup boto3 configurations
@@ -303,11 +310,73 @@ class Image():
                 # convert to array
                 post_img_array = numpy.array(post_img)
 
+
+                # test images with PIL
+                def pil_score(pre_img, post_img):
+                    try:
+                        if (pre_img.mode != post_img.mode) \
+                                or (pre_img.size != post_img.size) \
+                                or (pre_img.getbands() != post_img.getbands()):
+                            raise Exception('images are not comparable')
+
+                        # Generate diff image in memory.
+                        diff_img = ImageChops.difference(pre_img, post_img)
+                        # Calculate difference as a ratio.
+                        stat = ImageStat.Stat(diff_img)
+                        diff_ratio = (sum(stat.mean) / (len(stat.mean) * 255)) * 100
+                        pil_img_score = (100 - diff_ratio)
+                        # print(f'PIL score -> {pil_img_score}')
+                        return pil_img_score
+                    
+                    except Exception as e:
+                        print(e)
+
+
+                # test with cv2
+                def cv2_score(pre_img_array, post_img_array):
+                    try:
+                        orb = cv2.ORB_create()
+
+                        # detect keypoints and descriptors
+                        kp_a, desc_a = orb.detectAndCompute(pre_img_array, None)
+                        kp_b, desc_b = orb.detectAndCompute(post_img_array, None)
+
+                        # define the bruteforce matcher object
+                        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+                            
+                        # perform matches. 
+                        matches = bf.match(desc_a, desc_b)
+                        # Look for similar regions with distance < 20. (from 0 to 100)
+                        similar_regions = [i for i in matches if i.distance < 20]  
+                        if len(matches) == 0:
+                            cv2_img_score = 0
+                        else:
+                            cv2_img_score = (len(similar_regions) / len(matches)) * 100
+                            # print(f'cv2 -> {cv2_img_score}')
+                            
+                        return cv2_img_score
+
+                    except Exception as e:
+                        print(e)
+
+
+
                 # test images
                 try:
                     img_score_tupple = ssim(pre_img_array, post_img_array)
                     img_score_list = list(img_score_tupple)
-                    img_score = statistics.fmean(img_score_list) * 100
+                    ssim_img_score = statistics.fmean(img_score_list) * 100
+                    # print(f'ssim -> {ssim_img_score}')
+
+                    pil_img_score = pil_score(pre_img, post_img)
+                    # print(f'pil -> {pil_img_score}')
+
+                    cv2_img_score = cv2_score(pre_img_array, post_img_array)
+                    # print(f'cv2 -> {cv2_img_score}')
+
+                    img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
+                    # print(f'img_score ==>  {img_score}')
+
                 except Exception as e:
                     print(e)
                     img_score = None
@@ -422,6 +491,9 @@ class Image():
             "url": image_url,
             "path": remote_path,
         }
+
+        # quit driver
+        quit_driver(driver)
 
         return img_obj
 
