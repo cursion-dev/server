@@ -40,11 +40,10 @@ async def driver_init(
 
 
 async def interact_with_page(page):
-    # simulate mouse movement and click on <html> tag 
-    html_tag = await page.xpath('/html')
+    # simulate mouse movement
     await page.mouse.move(0, 0)
     await page.mouse.move(0, 100)
-    await html_tag[0].click()
+
     return page
 
 
@@ -162,11 +161,13 @@ async def get_data(url, configs, *args, **options):
     page.on('pageerror', lambda error : record_error(error))
 
     await page.goto(url, page_options) 
+
     # await page.waitForNavigation(navWaitOpt)
     await interact_with_page(page)
     html = await page.content()
     
     await driver.close()
+
     data = {
         'html': html, 
         'logs': logs,
