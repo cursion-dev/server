@@ -19,8 +19,10 @@ import time, os, sys, json, uuid, boto3, \
 class Image():
     """
     High level Image handler used to compare screenshots of
-    a website. Also known as VRT or Visual Regression Testing.
-    Contains two methods scan() and test():
+    a website and retrieve single one-page screenshots. 
+    Also known as VRT or Visual Regression Testing.
+    Contains five methods scan(), scan_p(), test(), 
+    screenshot(), and screenshot_p():
 
         def scan(site, driver=None) -> grabs multiple 
             screenshots of the website and uploads 
@@ -37,6 +39,57 @@ class Image():
 
     """
 
+
+    def __init__(self):
+        
+        # Masking scripts
+        self.set_jquery = (
+            """
+            var jq = document.createElement('script');
+            jq.src = "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js";
+            document.getElementsByTagName('head')[0].appendChild(jq);
+            """
+            )
+
+        self.mask_function = (
+            """
+            (function($){
+                $.fn.overlayMask = function (action) {
+                    var mask = this.find('.overlay-mask');
+
+                    // Create the required mask
+
+                    if (!mask.length) {
+                    this.css({
+                        position: 'relative'
+                    });
+                    mask = $('<div class="overlay-mask"></div>');
+                    mask.css({
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        color: 'green',
+                        backgroundColor: 'green',
+                        top: '0px',
+                        left: '0px',
+                        zIndex: 100,
+                    }).appendTo(this);
+                    }
+
+                    // Act based on params
+
+                    if (!action || action === 'show') {
+                    mask.show();
+                    } else if (action === 'hide') {
+                    mask.hide();
+                    }
+
+                    return this;
+                };
+                })(jQuery)
+            
+            """
+        )
 
 
     def scan(self, site, configs, driver=None,):
@@ -62,6 +115,25 @@ class Image():
 
         # request site_url 
         driver.get(site.site_url)
+
+        # waiting for network requests to resolve
+        driver_wait(
+            driver=driver, 
+            interval=int(configs['interval']),  
+            min_wait_time=int(configs['min_wait_time']),
+            max_wait_time=int(configs['max_wait_time']),
+        )
+
+        # mask all listed ids
+        driver.execute_script(self.set_jquery)
+        time.sleep(5)
+        driver.execute_script(self.mask_function)
+        if configs['mask_ids'] is not None:
+            ids = configs['mask_ids'].split(',')
+            for id in ids:
+                driver.execute_script(f"$('#{id}').overlayMask();")
+                print('masked an element')
+
 
         # scroll one frame at a time and capture screenshot
         image_array = []
@@ -178,6 +250,18 @@ class Image():
 
         # requesting site url
         await page.goto(site.site_url, page_options)
+
+
+        # mask all listed ids
+        await page.evaluate(self.set_jquery)
+        time.sleep(5)
+        await page.evaluate(self.mask_function)
+        if configs['mask_ids'] is not None:
+            ids = configs['mask_ids'].split(',')
+            for id in ids:
+                await page.evaluate(f"$('#{id}').overlayMask();")
+                print('masked an element')
+
 
         # scroll one frame at a time and capture screenshot
         image_array = []

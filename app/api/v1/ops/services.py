@@ -188,6 +188,9 @@ def create_test(request, delay=False):
         configs = {
             'window_size': '1920,1080',
             'interval': 5,
+            'driver': 'selenium',
+            'device': 'desktop',
+            'mask_ids': None,
             'min_wait_time': 10,
             'max_wait_time': 60,
         }
@@ -380,10 +383,11 @@ def create_scan(request, delay=False):
 
     if not configs:
         configs = {
-            'driver': 'selenium',
-            'device': 'desktop',
             'window_size': '1920,1080',
             'interval': 5,
+            'driver': 'selenium',
+            'device': 'desktop',
+            'mask_ids': None,
             'min_wait_time': 10,
             'max_wait_time': 60,
         }

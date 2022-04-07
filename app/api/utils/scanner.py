@@ -27,6 +27,7 @@ class Scanner():
                 'window_size': '1920,1080',
                 'driver': 'selenium',
                 'device': 'desktop',
+                'mask_ids': None,
                 'interval': 5,
                 'min_wait_time': 10,
                 'max_wait_time': 60,
