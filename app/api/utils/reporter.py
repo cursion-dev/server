@@ -177,13 +177,13 @@ class Reporter():
 
         if score >= 80:
             grade = score_types['a']
-        elif 80 > score > 70:
+        elif 80 > score >= 70:
             grade = score_types['b']
-        elif 70 > score > 50:
+        elif 70 > score >= 50:
             grade = score_types['c']
-        elif 50 > score > 30:
+        elif 50 > score >= 30:
             grade = score_types['d']
-        elif 30 > score > 0:
+        elif 30 > score >= 0:
             grade = score_types['e']
         else:
             grade = score_types['f']
