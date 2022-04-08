@@ -435,7 +435,7 @@ class Image():
                         # Look for similar regions with distance < 20. (from 0 to 100)
                         similar_regions = [i for i in matches if i.distance < 20]  
                         if len(matches) == 0:
-                            cv2_img_score = 0
+                            cv2_img_score = 100
                         else:
                             cv2_img_score = (len(similar_regions) / len(matches)) * 100
                             # print(f'cv2 -> {cv2_img_score}')
