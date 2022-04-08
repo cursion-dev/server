@@ -129,7 +129,7 @@ class Image():
         time.sleep(5)
         driver.execute_script(self.mask_function)
         
-        if configs['mask_ids'] is not None:
+        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
                 driver.execute_script(f"$('#{id}').overlayMask();")
@@ -257,7 +257,7 @@ class Image():
         await page.evaluate(self.set_jquery)
         time.sleep(5)
         await page.evaluate(self.mask_function)
-        if configs['mask_ids'] is not None:
+        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
                 await page.evaluate(f"$('#{id}').overlayMask();")
