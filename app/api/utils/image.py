@@ -126,10 +126,8 @@ class Image():
 
         # mask all listed ids
         driver.execute_script(self.set_jquery)
-        print('set jquery')
         time.sleep(5)
         driver.execute_script(self.mask_function)
-        print('set script')
         
         if configs['mask_ids'] is not None:
             ids = configs['mask_ids'].split(',')
