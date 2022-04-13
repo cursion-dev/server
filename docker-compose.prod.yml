@@ -18,7 +18,7 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
-             gunicorn scanerr.wsgi:application --bind 0.0.0.0:8000"
+             gunicorn --timeout 1000 scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
     env_file:
