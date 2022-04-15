@@ -18,7 +18,7 @@ class Lighthouse():
         proc = subprocess.Popen([
                 'lighthouse', 
                 '--config-path=api/utils/custom-config.js',
-                '--quiet',
+                # '--quiet',
                 self.site.site_url, 
                 '--plugins=lighthouse-plugin-crux',
                 '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
