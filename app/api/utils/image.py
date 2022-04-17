@@ -132,9 +132,12 @@ class Image():
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
-                # driver.execute_script(f"$('#{id}').overlayMask();")
-                driver.execute_script(f"$('#{id}').hide();")
-                print('masked an element')
+                try:
+                    # driver.execute_script(f"$('#{id}').overlayMask();")
+                    driver.execute_script(f"$('#{id}').hide();")
+                    print('masked an element')
+                except:
+                    print('cannot find elemend via id provided')
 
 
         # scroll one frame at a time and capture screenshot
@@ -261,8 +264,11 @@ class Image():
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
-                await page.evaluate(f"$('#{id}').hide();")
-                print('masked an element')
+                try:
+                    await page.evaluate(f"$('#{id}').hide();")
+                    print('masked an element')
+                except:
+                    print('cannot find elemend via id provided')
 
 
         # scroll one frame at a time and capture screenshot
