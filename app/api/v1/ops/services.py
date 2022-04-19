@@ -199,6 +199,9 @@ def create_test(request, delay=False):
     test_type = request.data.get('type', ['full'])
     pre_scan = None
     post_scan = None
+
+    if len(test_type) == 0:
+        test_type = ['full']
     
     if not configs:
         configs = {
