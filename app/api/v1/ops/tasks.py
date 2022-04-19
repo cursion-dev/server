@@ -8,9 +8,10 @@ from scanerr import settings
 
 
 
-def create_site_task(site_id):
+def create_site_task(site_id, scan_id):
     site = Site.objects.get(id=site_id)
-    S(site=site).first_scan()
+    scan = Scan.objects.get(id=scan_id)
+    S(site=site, scan=scan).first_scan()
     return site
 
 

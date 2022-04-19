@@ -91,7 +91,11 @@ def create_site(request, delay=False):
         )
 
         if delay == True:
-            create_site_bg.delay(site.id)
+            scan = Scan.objects.create(site=site)
+            create_site_bg.delay(site.id, scan.id)
+            site.info["latest_scan"]["id"] = scan.id
+            site.info["latest_scan"]["time_created"] = scan.time_created
+            site.save()
         else:
             S(site=site).first_scan()
 

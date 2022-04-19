@@ -23,8 +23,8 @@ def test_pupeteer():
 
 
 @shared_task
-def create_site_bg(site_id):
-    create_site_task(site_id)
+def create_site_bg(site_id, scan_id):
+    create_site_task(site_id, scan_id)
     logger.info('Created scan of new site')
 
 
