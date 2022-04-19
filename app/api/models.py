@@ -219,7 +219,7 @@ class Scan(models.Model):
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.site.site_url}__scan'
+        return f'{self.id}__scan'
 
 
 
@@ -239,7 +239,7 @@ class Test(models.Model):
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.site.site_url}__test'
+        return f'{self.id}__test'
 
 
 

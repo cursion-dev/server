@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import *
+from datetime import datetime
 
 
 @admin.register(Site)
@@ -9,13 +10,19 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'time_created', 'type')
+    list_display = ('id', 'site', 'time_created', 'time_completed', 'type')
     search_fields = ('site',)
 
 @admin.register(Scan)
 class ScanAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'time_created')
+    list_display = ('id', 'site', 'time_created', 'time_completed')
     search_fields = ('site',)
+    actions = ['mark_as_completed',]
+
+    def mark_as_completed(self, request, queryset):
+        queryset.update(time_completed=datetime.now())
+
+
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
