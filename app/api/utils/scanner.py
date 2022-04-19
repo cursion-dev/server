@@ -111,7 +111,7 @@ class Scanner():
             first_scan = self.scan
 
         # create second scan obj 
-        second_scan = Scan.objects.create()
+        second_scan = Scan.objects.create(site=self.site)
 
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.site.site_url)
@@ -133,7 +133,6 @@ class Scanner():
         lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
         yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
-        second_scan.site = self.site
         second_scan.paired_scan = first_scan
         second_scan.html = html
         second_scan.logs = logs
