@@ -2,7 +2,6 @@ import json, boto3, asyncio
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
-from django.shortcuts import get_object_or_404
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
@@ -114,7 +113,14 @@ def get_sites(request):
     user = request.user
 
     if site_id != None:
-        site = get_object_or_404(Site, pk=site_id)
+        
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
         if site.user != user:
             data = {'reason': 'you cannot retrieve a Site you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -137,7 +143,13 @@ def get_sites(request):
 
 def delete_site(request, id):
     user = request.user
-    site = get_object_or_404(Site, pk=id)
+    
+    try:
+        site = Site.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Site with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if site.user != user:
         data = {'reason': 'you cannot delete Tests of a Site you do not own',}
@@ -279,10 +291,16 @@ def get_tests(request):
     small = request.query_params.get('small')
 
     if test_id != None:
-        test = get_object_or_404(Test, pk=test_id)
+
+        try:
+            test = Test.objects.get(id=test_id)
+        except:
+            data = {'reason': 'cannot find a Test with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if test.site.user != user:
-            data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
+            data = {'reason': 'you cannot retrieve Tests of a Site you do not own'}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -341,7 +359,13 @@ def get_tests(request):
 
 
 def delete_test(request, id):
-    test = get_object_or_404(Test, pk=id)
+    try:
+        test = Test.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Test with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
     site = test.site
     user = request.user
 
@@ -365,7 +389,13 @@ def create_scan(request, delay=False):
 
     site_id = request.data['site_id']
     user = request.user
-    site = get_object_or_404(Site, pk=site_id)
+    
+    try:
+        site = Site.objects.get(id=site_id)
+    except:
+        data = {'reason': 'cannot find a Site with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -426,7 +456,12 @@ def get_scans(request):
     small = request.query_params.get('small')
 
     if scan_id != None:
-        scan = get_object_or_404(Scan, pk=scan_id)
+        try:
+            scan = Scan.objects.get(id=scan_id)
+        except:
+            data = {'reason': 'cannot find a Scan with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if scan.site.user != user:
             data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
@@ -439,19 +474,14 @@ def get_scans(request):
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
+    
     try:
-        site = get_object_or_404(Site, pk=site_id)
+        site = Site.objects.get(id=site_id)
     except:
-        if site_id != None:
-            data = {'reason': 'cannot find a site with that id',}
-            this_status = status.HTTP_404_NOT_FOUND
-            status_code = '404'
-        else:
-            data = {'reason': 'you did not provide the site_id'}
-            this_status = status.HTTP_400_BAD_REQUEST
-            status_code = '400'
-        record_api_call(request, data, status_code)
-        return Response(data, status=this_status)
+        data = {'reason': 'cannot find a Site with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    
 
     if site.user != user:
         data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
@@ -483,7 +513,13 @@ def get_scans(request):
 
 
 def delete_scan(request, id):
-    scan = get_object_or_404(Scan, pk=id)
+    try:
+        scan = Scan.objects.get(id=scan_id)
+    except:
+        data = {'reason': 'cannot find a Scan with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
     site = scan.site
     user = request.user
 
@@ -681,7 +717,12 @@ def get_schedules(request):
 
 
     if schedule_id != None:
-        schedule = get_object_or_404(Schedule, pk=schedule_id)
+        try:
+            schedule = Schedule.objects.get(id=schedule_id)
+        except:
+            data = {'reason': 'cannot find a Schedule with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if schedule.site.user != user or schedule.user != user:
             data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
@@ -696,18 +737,11 @@ def get_schedules(request):
 
 
     try:
-        site = get_object_or_404(Site, pk=site_id)
+        site = Site.objects.get(id=site_id)
     except:
-        if site_id != None:
-            data = {'reason': 'cannot find a site with that id',}
-            this_status = status.HTTP_404_NOT_FOUND
-            status_code = '404'
-        else:
-            data = {'reason': 'you did not provide the site_id'}
-            this_status = status.HTTP_400_BAD_REQUEST
-            status_code = '400'
-        record_api_call(request, data, status_code)
-        return Response(data, status=this_status)
+        data = {'reason': 'cannot find a Site with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if site.user != user:
         data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
@@ -728,7 +762,13 @@ def get_schedules(request):
 
 
 def delete_schedule(request, id):
-    schedule = get_object_or_404(Schedule, pk=id)
+    try:
+        schedule = Schedule.objects.get(id=schedule_id)
+    except:
+        data = {'reason': 'cannot find a Schedule with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+
     task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
     site = schedule.site
     user = request.user
@@ -821,8 +861,14 @@ def create_or_update_automation(request):
 def get_automations(request):
     automation_id = request.query_params.get('automation_id')
     user = request.user
-    if automation_id != None:
-        automation = get_object_or_404(Automation, pk=automation_id)
+    if automation_id != None:        
+        try:
+            automation = Automation.objects.get(id=automation_id)
+        except:
+            data = {'reason': 'cannot find a Automation with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
         if automation.user != user:
             data = {'reason': 'you cannot retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -844,7 +890,12 @@ def get_automations(request):
 
 
 def delete_automation(request, id):
-    automation = get_object_or_404(Automation, pk=automation_id)
+    try:
+        automation = Automation.objects.get(id=automation_id)
+    except:
+        data = {'reason': 'cannot find a Automation with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
     
     if automation.user != request.user:
         data = {'reason': 'you cannot delete an automation you do not own',}
@@ -883,7 +934,12 @@ def create_or_update_report(request):
     }
     
     if report_id:
-        report = get_object_or_404(Report, pk=report_id)
+        try:
+            report = Report.objects.get(id=report_id)
+        except:
+            data = {'reason': 'cannot find a Report with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
     else:
         report = Report.objects.create(
             user=request.user, site=site
@@ -915,11 +971,21 @@ def get_reports(request):
     report_id = request.query_params.get('report_id', None)
 
     if site_id:
-        site = get_object_or_404(Site, pk=site_id)
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
         reports = Report.objects.filter(site=site, user=request.user).order_by('-time_created')
 
     if report_id:
-        reports = get_object_or_404(Report, pk=report_id)
+        try:
+            report = Report.objects.get(id=report_id)
+        except:
+            data = {'reason': 'cannot find a Report with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if site_id is None and report_id is None:
         reports = Report.objects.filter(user=request.user).order_by('-time_created')
@@ -938,7 +1004,12 @@ def get_reports(request):
 
 def delete_report(request, id):
     user = request.user
-    report = get_object_or_404(Report, pk=id)
+    try:
+        report = Report.objects.get(id=report_id)
+    except:
+        data = {'reason': 'cannot find a Report with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if report.user != user:
         data = {'reason': 'you cannot delete Reports you do not own',}
