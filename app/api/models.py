@@ -13,10 +13,12 @@ def get_info_default():
             'latest_scan': {
                 'id': None,
                 'time_created': None,
+                'time_completed': None,
             },
             'latest_test': {
                 'id': None,
                 'time_created': None,
+                'time_completed': None,
                 'score': None
             },
             'lighthouse': {
@@ -42,7 +44,6 @@ def get_info_default():
                 'serverConfig': None, 
             },
             'status': {
-                'ping': None,
                 'health': None,
                 'badge': 'neutral',
                 'score': None,
@@ -209,6 +210,7 @@ class Scan(models.Model):
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True, blank=True)
     paired_scan = models.ForeignKey('self', on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
     html = models.TextField(serialize=True, null=True, blank=True)
     logs = models.JSONField(serialize=True, null=True, blank=True)
     images = models.JSONField(serialize=True, null=True, blank=True)
