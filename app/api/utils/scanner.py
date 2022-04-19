@@ -43,7 +43,7 @@ class Scanner():
         if scan is not None:
             self.scan = scan
         else:
-            self.scan = Scan.objects.create()
+            self.scan = None
         
         self.configs = configs
 
@@ -55,6 +55,8 @@ class Scanner():
 
             returns -> `Scan` <obj>
         """
+        if self.scan is None:
+            self.scan = Scan.objects.create(site=self.site)
         
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.site.site_url)
