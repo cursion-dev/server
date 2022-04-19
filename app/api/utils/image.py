@@ -137,7 +137,7 @@ class Image():
                     driver.execute_script(f"$('#{id}').hide();")
                     print('masked an element')
                 except:
-                    print('cannot find elemend via id provided')
+                    print('cannot find element via id provided')
 
 
         # scroll one frame at a time and capture screenshot
@@ -268,7 +268,7 @@ class Image():
                     await page.evaluate(f"$('#{id}').hide();")
                     print('masked an element')
                 except:
-                    print('cannot find elemend via id provided')
+                    print('cannot find element via id provided')
 
 
         # scroll one frame at a time and capture screenshot
