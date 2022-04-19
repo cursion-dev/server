@@ -39,8 +39,8 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
-            'html', 'logs', 'lighthouse', 'yellowlab', 'images', 
-            'configs',
+        'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
+        'images', 'configs',
         ]
 
 
@@ -52,7 +52,7 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 
-        'lighthouse', 'yellowlab', 'configs', 
+        'time_completed', 'lighthouse', 'yellowlab', 'configs', 
         ]
 
         
