@@ -7,6 +7,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .image import Image
+from datetime import datetime
 import time, os, sys, json, asyncio
 
 
@@ -22,6 +23,7 @@ class Scanner():
 
         if site == None and scan != None:
             site = scan.site
+        
         if configs is None:
             configs = {
                 'window_size': '1920,1080',
@@ -32,10 +34,17 @@ class Scanner():
                 'min_wait_time': 10,
                 'max_wait_time': 60,
             }
+        
         self.site = site
+        
         if configs['driver'] == 'selenium':
             self.driver = driver_s_init(window_size=configs['window_size'], device=configs['device'])
-        self.scan = scan
+        
+        if scan is not None:
+            self.scan = scan
+        else:
+            self.scan = Scan.objects.create()
+        
         self.configs = configs
 
 
@@ -67,23 +76,15 @@ class Scanner():
         lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
         yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
-
-        if self.scan:
-            self.scan.html = html
-            self.scan.logs = logs
-            self.scan.images = images
-            self.scan.lighthouse = lh_data
-            self.scan.yellowlab = yl_data
-            self.scan.configs = self.configs
-            self.scan.save()
-            first_scan = self.scan
-        else:
-            first_scan = Scan.objects.create(
-                site=self.site, html=html, 
-                logs=logs, lighthouse=lh_data,
-                images=images, yellowlab=yl_data,
-                configs=self.configs
-            )
+        self.scan.html = html
+        self.scan.logs = logs
+        self.scan.images = images
+        self.scan.lighthouse = lh_data
+        self.scan.yellowlab = yl_data
+        self.scan.configs = self.configs
+        self.scan.time_completed = datetime.now()
+        self.scan.save()
+        first_scan = self.scan
 
         self.update_site_info(first_scan)
 
@@ -107,6 +108,9 @@ class Scanner():
         else:
             first_scan = self.scan
 
+        # create second scan obj 
+        second_scan = Scan.objects.create()
+
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.site.site_url)
             html = self.driver.page_source
@@ -127,14 +131,18 @@ class Scanner():
         lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
         yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
-        second_scan = Scan.objects.create(
-            site=self.site, paired_scan=first_scan,
-            html=html, logs=logs, lighthouse=lh_data,
-            images=images, yellowlab=yl_data, 
-            configs=self.configs
-        )
-        second_scan.save()
+        second_scan.site = self.site
+        second_scan.paired_scan = first_scan
+        second_scan.html = html
+        second_scan.logs = logs
+        second_scan.lighthouse = lh_data
+        second_scan.images = images
+        second_scan.yellowlab = yl_data 
+        second_scan.configs = self.configs
 
+        second_scan.time_completed = datetime.now()
+        second_scan.save()
+        
         first_scan.paried_scan = second_scan
         first_scan.save()
 
@@ -179,6 +187,7 @@ class Scanner():
 
         self.site.info['latest_scan']['id'] = str(scan.id)
         self.site.info['latest_scan']['time_created'] = str(scan.time_created)
+        self.site.info['latest_scan']['time_completed'] = str(scan.time_completed)
         self.site.info['lighthouse'] = scan.lighthouse['scores']
         self.site.info['yellowlab'] = scan.yellowlab['scores']
         self.site.info['status']['health'] = str(health)
