@@ -401,6 +401,7 @@ class Tester():
         site = test.site
         site.info['latest_test']['id'] = str(test.id)
         site.info['latest_test']['time_created'] = str(test.time_created)
+        site.info['latest_test']['time_completed'] = str(test.time_completed)
         site.info['latest_test']['score'] = (round(test.score * 100) / 100)
         site.save()
 
