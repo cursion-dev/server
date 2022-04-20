@@ -221,7 +221,7 @@ def create_test(request, delay=False):
         post_scan = Scan.objects.get(id=post_scan_id)
 
 
-    if not Scan.objects.filter(site=site).exists() or Scan.objects.filter(site=site)[0].html == None:
+    if not Scan.objects.filter(site=site).exists() or Scan.objects.filter(site=site)[0].time_completed == None:
         data = {'reason': 'Site not yet onboarded'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)

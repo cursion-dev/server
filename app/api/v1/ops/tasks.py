@@ -57,14 +57,18 @@ def create_test_task(
             type=type,
         )
 
-    if not pre_scan and not post_scan:
+    if pre_scan is not None:
+        pre_scan = Scan.objects.get(id=pre_scan)
+    if post_scan is not None:
+        post_scan = Scan.objects.get(id=post_scan)
+
+    if post_scan is None and pre_scan is not None:
+        post_scan = S(site=site, scan=pre_scan, configs=configs).second_scan()
+        
+    if pre_scan is None and post_scan is None:
         new_scan = S(site=site, configs=configs)
         post_scan = new_scan.second_scan()
         pre_scan = post_scan.paired_scan
-
-    if not post_scan and pre_scan:
-        pre_scan = Scan.objects.get(id=pre_scan)
-        post_scan = S(site=site, scan=pre_scan, configs=configs).second_scan()
 
     # updating parired scans
     pre_scan.paired_scan = post_scan
