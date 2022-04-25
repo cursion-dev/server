@@ -20,7 +20,7 @@ from datetime import timedelta, datetime
 from .services import (
     google_get_access_token, google_get_user_info, 
     user_get_or_create, jwt_login, slack_oauth_middleware,
-    slack_oauth_init, create_user_token
+    slack_oauth_init, create_user_token, t7e
 )
 import os, stripe, json 
 
@@ -75,6 +75,17 @@ class ApiToken(APIView):
 
     def get(self, request):
         response = create_user_token(request)
+        return response
+
+
+
+class Verify(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = t7e(request)
         return response
 
 

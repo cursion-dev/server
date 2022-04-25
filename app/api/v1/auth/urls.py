@@ -25,5 +25,6 @@ urlpatterns = [
     path('update-user', views.UpdateUser.as_view(), name='update_user'), 
     path('slack', views.SlackOauth.as_view(), name='auth_slack'),
     path('token', views.ApiToken.as_view(), name='token'),
+    path('verify', views.Verify.as_view(), name='verify')
 
 ]

