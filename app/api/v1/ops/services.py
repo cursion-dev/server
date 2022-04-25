@@ -85,11 +85,17 @@ def create_site(request, delay=False):
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
     else:
+<<<<<<< HEAD
         tags = request.data.get('tags', None)
         site = Site.objects.create(
             site_url=site_url,
             user=user,
             tags=tags,
+=======
+        site = Site.objects.create(
+            site_url=site_url,
+            user=user
+>>>>>>> origin/main
         )
 
         if delay == True:
@@ -199,7 +205,10 @@ def create_test(request, delay=False):
     post_scan_id = request.data.get('post_scan', None)
     index = request.data.get('index', None)
     test_type = request.data.get('type', ['full'])
+<<<<<<< HEAD
     tags = request.data.get('tags', None)
+=======
+>>>>>>> origin/main
     pre_scan = None
     post_scan = None
 
@@ -234,7 +243,10 @@ def create_test(request, delay=False):
     test = Test.objects.create(
         site=site,
         type=test_type,
+<<<<<<< HEAD
         tags=tags,
+=======
+>>>>>>> origin/main
     )
 
     
@@ -245,8 +257,12 @@ def create_test(request, delay=False):
             type=test_type,
             index=index,
             pre_scan=pre_scan_id, 
+<<<<<<< HEAD
             post_scan=post_scan_id,
             tags=tags,
+=======
+            post_scan=post_scan_id
+>>>>>>> origin/main
         )
         data = {
             'message': 'test is being created in the background',
@@ -422,7 +438,10 @@ def create_scan(request, delay=False):
     
 
     configs = request.data.get('configs', None)
+<<<<<<< HEAD
     tags = request.data.get('tags', None)
+=======
+>>>>>>> origin/main
 
     if not configs:
         configs = {
@@ -436,7 +455,11 @@ def create_scan(request, delay=False):
         }
 
     # creating scan obj
+<<<<<<< HEAD
     created_scan = Scan.objects.create(site=site, tags=tags)
+=======
+    created_scan = Scan.objects.create(site=site)
+>>>>>>> origin/main
 
     if delay == True:
         create_scan_bg.delay(scan_id=created_scan.id, configs=configs)
