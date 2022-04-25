@@ -35,12 +35,14 @@ def create_scan_bg(
         site_id=None, 
         automation_id=None, 
         configs=None,
+        tags=None,
     ):
     create_scan_task(
         scan_id, 
         site_id,
         automation_id, 
         configs,
+        tags,
     )
     logger.info('Created new scan of site')
 
@@ -56,6 +58,7 @@ def create_test_bg(
         index=None,
         pre_scan=None,
         post_scan=None,
+        tags=None,
     ):
     create_test_task(
         test_id,
@@ -65,7 +68,8 @@ def create_test_bg(
         type,
         index,
         pre_scan,
-        post_scan
+        post_scan,
+        tags
     )
     logger.info('Created new test of site')
 

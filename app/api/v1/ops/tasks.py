@@ -20,6 +20,7 @@ def create_scan_task(
         site_id=None, 
         automation_id=None, 
         configs=None,
+        tags=None,
     ):
     if scan_id is not None:
         created_scan = Scan.objects.get(id=scan_id)
@@ -27,6 +28,7 @@ def create_scan_task(
         site = Site.objects.get(id=site_id)
         created_scan = Scan.objects.create(
             site=site,
+            tags=tags, 
         )
     scan = S(scan=created_scan, configs=configs).first_scan()
     if automation_id:
@@ -45,6 +47,7 @@ def create_test_task(
         index=None,
         pre_scan=None,
         post_scan=None,
+        tags=None,
     ):
 
     if test_id is not None:
@@ -55,6 +58,7 @@ def create_test_task(
         created_test = Test.objects.create(
             site=site,
             type=type,
+            tags=tags,
         )
 
     if pre_scan is not None:

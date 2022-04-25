@@ -85,9 +85,11 @@ def create_site(request, delay=False):
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
     else:
+        tags = request.data.get('tags', None)
         site = Site.objects.create(
             site_url=site_url,
-            user=user
+            user=user,
+            tags=tags,
         )
 
         if delay == True:
@@ -197,6 +199,7 @@ def create_test(request, delay=False):
     post_scan_id = request.data.get('post_scan', None)
     index = request.data.get('index', None)
     test_type = request.data.get('type', ['full'])
+    tags = request.data.get('tags', None)
     pre_scan = None
     post_scan = None
 
@@ -231,6 +234,7 @@ def create_test(request, delay=False):
     test = Test.objects.create(
         site=site,
         type=test_type,
+        tags=tags,
     )
 
     
@@ -241,7 +245,8 @@ def create_test(request, delay=False):
             type=test_type,
             index=index,
             pre_scan=pre_scan_id, 
-            post_scan=post_scan_id
+            post_scan=post_scan_id,
+            tags=tags,
         )
         data = {
             'message': 'test is being created in the background',
@@ -417,6 +422,7 @@ def create_scan(request, delay=False):
     
 
     configs = request.data.get('configs', None)
+    tags = request.data.get('tags', None)
 
     if not configs:
         configs = {
@@ -430,7 +436,7 @@ def create_scan(request, delay=False):
         }
 
     # creating scan obj
-    created_scan = Scan.objects.create(site=site)
+    created_scan = Scan.objects.create(site=site, tags=tags)
 
     if delay == True:
         create_scan_bg.delay(scan_id=created_scan.id, configs=configs)

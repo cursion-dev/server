@@ -190,6 +190,10 @@ def get_slack_default():
     return slack_default
 
 
+def get_tags_default():
+    tags_default = None,
+    return tags_default
+
 
 
 
@@ -199,6 +203,7 @@ class Site(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
     info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
+    tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
         return f'{self.site_url}'
@@ -217,6 +222,7 @@ class Scan(models.Model):
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
     yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default)
     configs = models.JSONField(serialize=True, null=True, blank=True)
+    tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
         return f'{self.id}__scan'
@@ -237,6 +243,7 @@ class Test(models.Model):
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
     yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
+    tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
         return f'{self.id}__test'
