@@ -35,6 +35,7 @@ Prior to running app, configure all env's located in the /env directory. There a
 - admin credentials 
 - email credentials
 - database configs
+- google API keys
 - stripe keys
 - OAuth keys
 - twilio credentials
@@ -97,15 +98,15 @@ $ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
-$ docker compose -f docker-compose.prod.yml up -d --build
+$ docker-compose -f docker-compose.prod.yml up -d --build
 ```
 *Spin-down the application*
 ```shell
-$ docker compose -f docker-compose.prod.yml down
+$ docker-compose -f docker-compose.prod.yml down
 ```
 *Spin-down the application and removes the volumes*
 ```shell
-$ docker compose -f docker-compose.prod.yml down -v
+$ docker-compose -f docker-compose.prod.yml down -v
 ```
 
 
