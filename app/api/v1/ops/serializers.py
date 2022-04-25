@@ -28,13 +28,9 @@ class SiteSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Site
-<<<<<<< HEAD
         fields = ['id', 'user', 'site_url', 'time_created', 'info',
         'tags',
         ]
-=======
-        fields = ['id', 'user', 'site_url', 'time_created', 'info']
->>>>>>> origin/main
 
 
 class ScanSerializer(serializers.HyperlinkedModelSerializer):
@@ -46,11 +42,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
         'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
-<<<<<<< HEAD
         'images', 'configs', 'tags',
-=======
-        'images', 'configs',
->>>>>>> origin/main
         ]
 
 
@@ -62,11 +54,7 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 
-<<<<<<< HEAD
         'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags',
-=======
-        'time_completed', 'lighthouse', 'yellowlab', 'configs', 
->>>>>>> origin/main
         ]
 
         
@@ -81,10 +69,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
         'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type',
-<<<<<<< HEAD
         'tags',
-=======
->>>>>>> origin/main
         ]
 
 
@@ -98,11 +83,7 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'lighthouse_delta', 
-<<<<<<< HEAD
         'yellowlab_delta', 'tags',
-=======
-        'yellowlab_delta',
->>>>>>> origin/main
         ]
 
 
