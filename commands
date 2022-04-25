@@ -1,0 +1,14 @@
+### spins up container on localhost ###
+docker compose up --build
+
+### spins down container on localhost ###
+docker compose down
+
+
+
+### spins up the container for production ###
+docker-compose -f docker-compose.prod.yml up -d --build
+
+### spins down the container and removes volumes ###
+docker-compose -f docker-compose.prod.yml down -v
+
