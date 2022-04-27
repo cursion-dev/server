@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from ...models import Account
 from ...utils.verify import verify
@@ -31,4 +32,6 @@ class Command(BaseCommand):
         else:
             print('Accounts can only be initialized if no Accounts exist')
 
+        if not Token.objects.filter(user=request.user).exists():
+            Token.objects.create(user=user)
         verify()
