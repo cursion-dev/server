@@ -210,6 +210,16 @@ def delete_many_sites(request):
             'num_failed': num_failed,
             'failed': failed, 
         }
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    
+    data = {
+        'reason': 'you must provide an array of id\'s'
+    }
+    record_api_call(request, data, '400')
+    response = Response(data, status=status.HTTP_400_BAD_REQUEST)
+    return response
 
 
 
@@ -472,6 +482,16 @@ def delete_many_tests(request):
             'num_failed': num_failed,
             'failed': failed, 
         }
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    
+    data = {
+        'reason': 'you must provide an array of id\'s'
+    }
+    record_api_call(request, data, '400')
+    response = Response(data, status=status.HTTP_400_BAD_REQUEST)
+    return response
 
 
 
@@ -660,7 +680,16 @@ def delete_many_scans(request):
             'failed': failed, 
         }
         
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
 
+    data = {
+        'reason': 'you must provide an array of id\'s'
+    }
+    record_api_call(request, data, '400')
+    response = Response(data, status=status.HTTP_400_BAD_REQUEST)
+    return response
 
 
 def create_or_update_schedule(request):
