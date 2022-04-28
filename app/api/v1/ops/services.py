@@ -216,12 +216,21 @@ def create_test(request, delay=False):
             'min_wait_time': 10,
             'max_wait_time': 60,
         }
-
     
     if pre_scan_id:
-        pre_scan = Scan.objects.get(id=pre_scan_id)
+        try:
+            pre_scan = Scan.objects.get(id=pre_scan_id)
+        except:
+            data = {'reason': 'cannot find a Scan with that id - pre_scan '}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
     if post_scan_id:
-        post_scan = Scan.objects.get(id=post_scan_id)
+        try:
+            post_scan = Scan.objects.get(id=post_scan_id)
+        except:
+            data = {'reason': 'cannot find a Scan with that id - post_scan '}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
 
     if not Scan.objects.filter(site=site).exists() or Scan.objects.filter(site=site)[0].time_completed == None:
