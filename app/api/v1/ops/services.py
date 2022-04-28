@@ -60,9 +60,14 @@ def check_account(request):
 
 
 def create_site(request, delay=False):
-    site_url = request.data['site_url']
+    site_url = request.data.get('site_url')
     user = request.user
     sites = Site.objects.filter(user=user)
+
+    if site_url is None or site_url == '':
+        data = {'reason': 'the site_url cannot be empty',}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     account_is_active = check_account(request)
     if not account_is_active:
