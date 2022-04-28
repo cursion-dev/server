@@ -124,17 +124,12 @@ class Image():
             max_wait_time=int(configs['max_wait_time']),
         )
 
-        # mask all listed ids
-        driver.execute_script(self.set_jquery)
-        time.sleep(5)
-        driver.execute_script(self.mask_function)
-        
+        # mask all listed ids        
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
                 try:
-                    # driver.execute_script(f"$('#{id}').overlayMask();")
-                    driver.execute_script(f"$('#{id}').hide();")
+                    driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
                     print('masked an element')
                 except:
                     print('cannot find element via id provided')
@@ -258,14 +253,11 @@ class Image():
 
 
         # mask all listed ids
-        await page.evaluate(self.set_jquery)
-        time.sleep(5)
-        await page.evaluate(self.mask_function)
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
             ids = configs['mask_ids'].split(',')
             for id in ids:
                 try:
-                    await page.evaluate(f"$('#{id}').hide();")
+                    await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
                     print('masked an element')
                 except:
                     print('cannot find element via id provided')
