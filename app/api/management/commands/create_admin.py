@@ -32,6 +32,6 @@ class Command(BaseCommand):
         else:
             print('Accounts can only be initialized if no Accounts exist')
 
-        if not Token.objects.filter(user=request.user).exists():
+        if not Token.objects.filter(user=user).exists():
             Token.objects.create(user=user)
         verify()
