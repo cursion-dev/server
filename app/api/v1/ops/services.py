@@ -179,6 +179,38 @@ def delete_site(request, id):
     return response
 
 
+def delete_many_sites(request):
+    ids = request.data.get('ids')
+    if ids is not None:
+        count = len(ids)
+        num_succeeded = 0
+        succeeded = []
+        num_failed = 0
+        failed = []
+        user = request.user
+        this_status = True
+
+        for id in ids:
+            try:
+                site = Site.objects.get(id=id)
+                if site.user == user:
+                    delete_site_s3_bg.delay(site_id=id)
+                    site.delete()
+                num_succeeded += 1
+                succeeded.append(str(id))
+            except:
+                num_failed += 1
+                failed.append(str(id))
+                this_status = False
+
+        data = {
+            'status': this_status,
+            'num_succeeded': num_succeeded,
+            'succeeded': succeeded,
+            'num_failed': num_failed,
+            'failed': failed, 
+        }
+
 
 
 def create_test(request, delay=False):
@@ -263,6 +295,7 @@ def create_test(request, delay=False):
             tags=tags,
         )
         data = {
+            'status': True,
             'message': 'test is being created in the background',
             'id': str(test.id),
         }
@@ -409,6 +442,37 @@ def delete_test(request, id):
 
 
 
+def delete_many_tests(request):
+    ids = request.data.get('ids')
+    if ids is not None:
+        count = len(ids)
+        num_succeeded = 0
+        succeeded = []
+        num_failed = 0
+        failed = []
+        user = request.user
+        this_status = True
+
+        for id in ids:
+            try:
+                test = Test.objects.get(id=id)
+                if test.site.user == user:
+                    test.delete()
+                num_succeeded += 1
+                succeeded.append(str(id))
+            except:
+                num_failed += 1
+                failed.append(str(id))
+                this_status = False
+
+        data = {
+            'status': this_status,
+            'num_succeeded': num_succeeded,
+            'succeeded': succeeded,
+            'num_failed': num_failed,
+            'failed': failed, 
+        }
+
 
 
 def create_scan(request, delay=False):
@@ -455,6 +519,7 @@ def create_scan(request, delay=False):
     if delay == True:
         create_scan_bg.delay(scan_id=created_scan.id, configs=configs)
         data = {
+            'status': True,
             'message': 'scan is being created in the background',
             'id': str(created_scan.id),
         }
@@ -561,6 +626,40 @@ def delete_scan(request, id):
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
+
+
+
+def delete_many_scans(request):
+    ids = request.data.get('ids')
+    if ids is not None:
+        count = len(ids)
+        num_succeeded = 0
+        succeeded = []
+        num_failed = 0
+        failed = []
+        user = request.user
+        this_status = True
+
+        for id in ids:
+            try:
+                scan = Scan.objects.get(id=id)
+                if scan.site.user == user:
+                    scan.delete()
+                num_succeeded += 1
+                succeeded.append(str(id))
+            except:
+                num_failed += 1
+                failed.append(str(id))
+                this_status = False
+
+        data = {
+            'status': this_status,
+            'num_succeeded': num_succeeded,
+            'succeeded': succeeded,
+            'num_failed': num_failed,
+            'failed': failed, 
+        }
+        
 
 
 

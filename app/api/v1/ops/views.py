@@ -64,6 +64,16 @@ class SiteDelay(APIView):
 
 
 
+class SitesDelete(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_sites(request)
+        return response
+
+
+
 
 class Scans(APIView):
     permission_classes = (AllowAny,)
@@ -110,6 +120,14 @@ class ScanDelay(APIView):
         response = create_scan(request, delay=True)
         return response
 
+
+class ScansDelete(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_scans(request)
+        return response
 
 
 
@@ -159,6 +177,14 @@ class TestDelay(APIView):
         response = create_test(request, delay=True)
         return response
 
+
+class TestsDelete(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_tests(request)
+        return response
 
 
 
