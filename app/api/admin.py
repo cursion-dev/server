@@ -49,3 +49,18 @@ class ScheduleAdmin(admin.ModelAdmin):
 @admin.register(Automation)
 class AutomationAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'schedule', 'user')
+
+
+
+
+@admin.register(Mask)
+class MaskAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'mask_id', 'time_created',)
+    search_fields = ('mask_id',)
+    actions = ['mark_as_inactive', 'mark_as_active',]
+    
+    def mark_as_inactive(self, request, queryset):
+        queryset.update(active=False)
+    
+    def mark_as_active(self, request, queryset):
+        queryset.update(active=True)

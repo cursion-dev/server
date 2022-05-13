@@ -331,12 +331,24 @@ class Report(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     path = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    type = models.JSONField(serialize=True, null=True, blank=True) # array of [lighthouse, yellowlab, crux]
+    type = models.JSONField(serialize=True, null=True, blank=True) # array of [lighthouse, yellowlab]
     info = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.site.site_url}__report'
     
+
+
+
+class Mask(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    active = models.BooleanField(serialize=True, default=True)
+    mask_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.id}__mask'
+
 
 
 

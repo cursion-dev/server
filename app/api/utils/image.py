@@ -1,7 +1,7 @@
 from .driver_s import driver_init, driver_wait, quit_driver
 from .driver_p import driver_init as driver_init_p
 from selenium import webdriver
-from ..models import Site, Scan, Test
+from ..models import Site, Scan, Test, Mask
 from selenium.webdriver.chrome.options import Options
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
@@ -22,7 +22,8 @@ class Image():
     a website and retrieve single one-page screenshots. 
     Also known as VRT or Visual Regression Testing.
     Contains five methods scan(), scan_p(), test(), 
-    screenshot(), and screenshot_p():
+    screenshot(), and screenshot_p(). The _p appendage
+    denotes using Puppeteer as the webdriver:
 
         def scan(site, driver=None) -> grabs multiple 
             screenshots of the website and uploads 
@@ -133,6 +134,17 @@ class Image():
                     print('masked an element')
                 except:
                     print('cannot find element via id provided')
+
+        
+        # mask all Global mask ids that are active
+        active_masks = Mask.objects.filter(active=True)
+        if len(active_masks) != 0:
+            for mask in active_masks:
+                try:
+                    driver.execute_script(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via global mask id provided')
 
 
         # scroll one frame at a time and capture screenshot
@@ -261,6 +273,17 @@ class Image():
                     print('masked an element')
                 except:
                     print('cannot find element via id provided')
+
+
+        # mask all Global mask ids that are active
+        active_masks = Mask.objects.filter(active=True)
+        if len(active_masks) != 0:
+            for mask in active_masks:
+                try:
+                    page.evaluate(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via global mask id provided')
 
 
         # scroll one frame at a time and capture screenshot
