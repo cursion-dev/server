@@ -372,12 +372,12 @@ class Image():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        # setup temp files
-        if not os.path.exists(os.path.join(settings.BASE_DIR, f'temp/{test.site.id}')):
-            os.makedirs(os.path.join(settings.BASE_DIR, f'temp/{test.site.id}'))
+        # setup temp dirs
+        if not os.path.exists(os.path.join(settings.BASE_DIR, f'temp/{test.id}')):
+            os.makedirs(os.path.join(settings.BASE_DIR, f'temp/{test.id}'))
         
         # temp root
-        temp_root = os.path.join(settings.BASE_DIR, f'temp/{test.site.id}')
+        temp_root = os.path.join(settings.BASE_DIR, f'temp/{test.id}')
         
         # loop through and download each img in scan and compare it.
         pre_scan_images = test.pre_scan.images
@@ -428,6 +428,7 @@ class Image():
 
                         # Generate diff image in memory.
                         diff_img = ImageChops.difference(pre_img, post_img)
+
                         # Calculate difference as a ratio.
                         stat = ImageStat.Stat(diff_img)
                         diff_ratio = (sum(stat.mean) / (len(stat.mean) * 255)) * 100
@@ -453,6 +454,7 @@ class Image():
                             
                         # perform matches. 
                         matches = bf.match(desc_a, desc_b)
+
                         # Look for similar regions with distance < 20. (from 0 to 100)
                         similar_regions = [i for i in matches if i.distance < 20]  
                         if len(matches) == 0:
@@ -501,8 +503,14 @@ class Image():
 
             # remove local copies
             if post_img_obj is not None:
-                os.remove(post_img_path)
-            os.remove(pre_img_path)
+                try:
+                    os.remove(post_img_path)
+                except Exception as e:
+                    print(e)
+            try:        
+                os.remove(pre_img_path)
+            except Exception as e:
+                print(e)
 
             i += 1
 
