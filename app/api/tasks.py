@@ -3,7 +3,7 @@ from celery.utils.log import get_task_logger
 from celery import shared_task
 from .v1.ops.tasks import (create_site_task, 
     create_scan_task, create_test_task, delete_site_s3,
-    create_report_task, delete_report_s3,
+    create_report_task, delete_report_s3, migrate_site_task
 )
 from .models import Log
 from django.contrib.auth.models import User
@@ -23,8 +23,8 @@ def test_pupeteer():
 
 
 @shared_task
-def create_site_bg(site_id, scan_id):
-    create_site_task(site_id, scan_id)
+def create_site_bg(site_id, scan_id, configs=None):
+    create_site_task(site_id, scan_id, configs)
     logger.info('Created scan of new site')
 
 
@@ -33,6 +33,7 @@ def create_site_bg(site_id, scan_id):
 def create_scan_bg(
         scan_id=None,
         site_id=None, 
+        type=['full'],
         automation_id=None, 
         configs=None,
         tags=None,
@@ -40,6 +41,7 @@ def create_scan_bg(
     create_scan_task(
         scan_id, 
         site_id,
+        type,
         automation_id, 
         configs,
         tags,
@@ -100,3 +102,41 @@ def purge_logs(username=None):
         Log.objects.all().delete()
 
     logger.info('Purged logs')
+
+
+
+@shared_task
+def migrate_site_bg(
+        login_url, 
+        admin_url,
+        username,
+        password,
+        email_address,
+        destination_url,
+        sftp_address,
+        dbname,
+        sftp_username,
+        sftp_password, 
+        plugin_name,
+        wait_time,
+        process_id,
+        driver,
+    ):
+    migrate_site_task(
+        login_url, 
+        admin_url,
+        username,
+        password,
+        email_address,
+        destination_url,
+        sftp_address,
+        dbname,
+        sftp_username,
+        sftp_password, 
+        plugin_name,
+        wait_time, 
+        process_id,
+        driver,
+    )
+
+    logger.info('Finished Migration')
