@@ -91,20 +91,23 @@ def create_site(request, delay=False):
         return Response(data, status=status.HTTP_409_CONFLICT)
     else:
         tags = request.data.get('tags', None)
+        configs = request.data.get('configs', None)
+        no_scan = request.data.get('no_scan', False)
         site = Site.objects.create(
             site_url=site_url,
             user=user,
             tags=tags,
         )
 
-        if delay == True:
-            scan = Scan.objects.create(site=site)
-            create_site_bg.delay(site.id, scan.id)
-            site.info["latest_scan"]["id"] = str(scan.id)
-            site.info["latest_scan"]["time_created"] = str(scan.time_created)
-            site.save()
-        else:
-            S(site=site).first_scan()
+        if no_scan == False:
+            if delay == True:
+                scan = Scan.objects.create(site=site, type=['full'])
+                create_site_bg.delay(site.id, scan.id, configs)
+                site.info["latest_scan"]["id"] = str(scan.id)
+                site.info["latest_scan"]["time_created"] = str(scan.time_created)
+                site.save()
+            else:
+                S(site=site).first_scan()
 
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)
@@ -314,12 +317,12 @@ def create_test(request, delay=False):
     
     else:
         if not pre_scan and not post_scan:
-            new_scan = S(site=site, configs=configs)
+            new_scan = S(site=site, configs=configs, type=test_type)
             post_scan = new_scan.second_scan()
             pre_scan = post_scan.paired_scan
 
         if not post_scan and pre_scan:
-            post_scan = S(site=site, scan=pre_scan, configs=configs).second_scan()
+            post_scan = S(site=site, scan=pre_scan, configs=configs, type=test_type).second_scan()
 
         # updating parired scans
         pre_scan.paired_scan = post_scan
@@ -427,6 +430,40 @@ def get_tests(request):
 
 
 
+
+def get_test_lean(request, id):
+    try:
+        test = Test.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Test with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    data = {
+        "id": str(test.id),
+        "site": str(test.site.id),
+        "tags": test.tags,
+        "type": test.type,
+        "time_created": test.time_created,
+        "time_completed": test.time_completed,
+        "pre_scan": str(test.pre_scan.id),
+        "post_scan": str(test.post_scan.id),
+        "score": test.score,
+        "lighthouse_delta": {"scores": test.lighthouse_delta['scores']},
+        "yellowlab_delta": {"scores": test.yellowlab_delta['scores']},
+        "images_delta": {"average_score": test.images_delta.get('average_score')},
+    }
+
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
+
 def delete_test(request, id):
     try:
         test = Test.objects.get(id=id)
@@ -499,6 +536,12 @@ def create_scan(request, delay=False):
 
     site_id = request.data['site_id']
     user = request.user
+    configs = request.data.get('configs', None)
+    types = request.data.get('type', ['full'])
+    tags = request.data.get('tags', None)
+
+    if len(types) == 0:
+        types = ['full']
     
     try:
         site = Site.objects.get(id=site_id)
@@ -519,9 +562,6 @@ def create_scan(request, delay=False):
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
 
-    configs = request.data.get('configs', None)
-    tags = request.data.get('tags', None)
-
     if not configs:
         configs = {
             'window_size': '1920,1080',
@@ -534,10 +574,19 @@ def create_scan(request, delay=False):
         }
 
     # creating scan obj
-    created_scan = Scan.objects.create(site=site, tags=tags)
+    created_scan = Scan.objects.create(
+        site=site, 
+        tags=tags, 
+        type=types,
+        configs=configs,
+    )
 
     if delay == True:
-        create_scan_bg.delay(scan_id=created_scan.id, configs=configs)
+        create_scan_bg.delay(
+            scan_id=created_scan.id, 
+            configs=configs, 
+            type=types,
+        )
         data = {
             'status': True,
             'message': 'scan is being created in the background',
@@ -621,6 +670,33 @@ def get_scans(request):
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
+
+
+
+
+def get_scan_lean(request, id):
+    try:
+        scan = Scan.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Scan with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    data = {
+        "id": str(scan.id),
+        "site": str(scan.site.id),
+        "tags": scan.tags,
+        "type": scan.type,
+        "time_created": scan.time_created,
+        "time_completed": scan.time_completed,
+        "lighthouse": {"scores": scan.lighthouse['scores']},
+        "yellowlab": {"scores": scan.yellowlab['scores']},
+    }
+
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
 
 
 
@@ -725,6 +801,7 @@ def create_or_update_schedule(request):
     freq = request.data.get('frequency', None)
     task_type = request.data.get('task_type', None)
     test_type = request.data.get('test_type', None)
+    scan_type = request.data.get('scan_type', None)
     configs = request.data.get('configs', None)
     schedule_id = request.data.get('schedule_id', None)
 
@@ -766,6 +843,7 @@ def create_or_update_schedule(request):
             arguments = {
                 'site_id': str(site.id),
                 'configs': configs,
+                'type': scan_type,
                 'automation_id': str(auto_id)
             }
 
@@ -835,6 +913,7 @@ def create_or_update_schedule(request):
         extras = {
             "configs": configs,
             "test_type": test_type,
+            "scan_type": scan_type
         }
         
         if schedule:
@@ -1185,6 +1264,46 @@ def delete_report(request, id):
 
 
 
+def get_processes(request):
+    site_id = request.query_params.get('site_id', None)
+    process_id = request.query_params.get('process_id', None)
+
+    if site_id:
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        processes = Process.objects.filter(site=site).order_by('-time_created')
+
+    if process_id:
+        try:
+            process = Process.objects.get(id=process_id)
+            serializer_context = {'request': request,}
+            data = ProcessSerializer(process, context=serializer_context).data
+            record_api_call(request, data, '200')
+            response = Response(data, status=status.HTTP_200_OK)
+            return response
+        except:
+            data = {'reason': 'cannot find a Process with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if site_id is None and report_id is None:
+        processes = Process.objects.all().order_by('-time_created')
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(processes, request)
+    serializer_context = {'request': request,}
+    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
 
 def get_logs(request):
 
@@ -1225,14 +1344,57 @@ def get_logs(request):
 
 
 
-def install_wp_plugin(request):
+
+
+
+def migrate_site(request, delay=False):
     login_url = request.data.get('login_url', None)
     admin_url = request.data.get('admin_url', None)
-    plugin_name = request.data.get('plugin_name', None)
+    plugin_name = request.data.get('plugin_name', 'Cloudways WordPress Migrator')
     username = request.data.get('username', None)
     password = request.data.get('password', None)
+    site_id = request.data.get('site_id', None)
+    email_address = request.data.get('email_address', None)
+    destination_url = request.data.get('destination_url', None)
+    sftp_address = request.data.get('sftp_address', None) 
+    dbname = request.data.get('dbname', None)
+    sftp_username = request.data.get('sftp_username', None)
+    sftp_password = request.data.get('sftp_password', None)
     wait_time = request.data.get('wait_time', 30)
-    driver = request.data.get('driver', 'selenium')
+    driver = request.data.get('driver', 'puppeteer')
+
+    site = Site.objects.get(id=site_id)
+    process = Process.objects.create(
+        site=site,
+        type='migration'
+    )
+    process_id = process.id
+
+    if delay:
+        migrate_site_bg.delay(
+            login_url, 
+            admin_url, 
+            username, 
+            password, 
+            email_address, 
+            destination_url, 
+            sftp_address, 
+            dbname, 
+            sftp_username, 
+            sftp_password, 
+            plugin_name, 
+            wait_time, 
+            process_id, 
+            driver
+        )
+        
+        serializer_context = {'request': request,}
+        data = ProcessSerializer(process, context=serializer_context).data
+        record_api_call(request, data, '201')
+        response = Response(data, status=status.HTTP_201_CREATED)
+        return response
+
+
 
     if driver == 'selenium':
 
@@ -1241,8 +1403,15 @@ def install_wp_plugin(request):
             login_url=login_url, 
             admin_url=admin_url,
             username=username,
-            password=password, 
+            password=password,
+            email_address=email_address,
+            destination_url=destination_url,
+            sftp_address=sftp_address,
+            dbname=dbname,
+            sftp_username=sftp_username,
+            sftp_password=sftp_password, 
             wait_time=wait_time,
+            process_id=process.id
         )
 
         # login
@@ -1254,18 +1423,24 @@ def install_wp_plugin(request):
         # install plugin
         wp_status = wp.install_plugin(plugin_name=plugin_name)
 
+        # launch migration
+        wp_status = wp.launch_migration()
+
+        # run migration
+        wp_status = wp.run_migration()
+
         # re adjust lang
-        wp_status = wp.end_lang_check()
+        # wp_status = wp.end_lang_check()
 
         if wp_status: 
             data = {
                 'status': 'success',
-                'message': 'plugin installed successfully'
+                'message': 'site migration succeeded'
             }
         else:
             data = {
                 'status': 'failed',
-                'message': 'plugin installation failed'
+                'message': 'site migration failed'
             }
 
         response = Response(data, status=status.HTTP_200_OK)
@@ -1288,17 +1463,20 @@ def install_wp_plugin(request):
         if wp_status: 
             data = {
                 'status': 'success',
-                'message': 'plugin installed successfully'
+                'message': 'site migration succeeded'
             }
         else:
             data = {
                 'status': 'failed',
-                'message': 'plugin installation failed'
+                'message': 'site migration failed'
             }
 
         response = Response(data, status=status.HTTP_200_OK)
         record_api_call(request, data, '200')
         return response
+
+
+
 
 
 

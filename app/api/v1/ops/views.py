@@ -112,6 +112,15 @@ class ScanDetail(APIView):
         return response
 
 
+class ScanLean(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete',]
+
+    def get(self, request, id):
+        response = get_scan_lean(request, id)
+        return response
+
+
 class ScanDelay(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['post',]
@@ -166,6 +175,15 @@ class TestDetail(APIView):
 
     def delete(self, request, id):
         response = delete_test(request, id)
+        return response
+
+
+class TestLean(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete',]
+
+    def get(self, request, id):
+        response = get_test_lean(request, id)
         return response
 
 
@@ -344,12 +362,49 @@ class HomeStats(APIView):
 
 
 
-class WordPressPluginInstall(APIView):
+class Processes(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get']
+    
+    def get(self, request):
+        response = get_processes(request)
+        return response
+
+
+class ProcessDetail(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get',]
+
+    def get(self, request, id):
+        if not Process.objects.filter(id=id).exists():
+            data = {'reason': 'process with that id does not exist',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
+        proc = Process.objects.get(id=id)
+        serializer_context = {'request': request,}
+        serialized = ProcessSerializer(proc, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+
+
+class WordPressMigrateSite(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['post',]
     
     def post(self, request):
-        response = install_wp_plugin(request)
+        response = migrate_site(request, delay=False)
+        return response
+
+
+class WordPressMigrateSiteDelay(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+    
+    def post(self, request):
+        response = migrate_site(request, delay=True)
         return response
 
 
