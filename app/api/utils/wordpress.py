@@ -2,7 +2,9 @@ from .driver_s import driver_init, driver_wait
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
-import time
+from ..models import * 
+from datetime import datetime
+import time, uuid
 
 
 
@@ -19,11 +21,28 @@ class Wordpress():
         admin_url, 
         username, 
         password,
+        email_address,
+        destination_url,
+        sftp_address,
+        dbname,
+        sftp_username,
+        sftp_password,
         wait_time, 
+        process_id
         ):
+        
+        # set all global vars
         self.login_url = login_url
         self.username = username
         self.password = password
+        self.email_address = email_address
+        self.destination_url = destination_url
+        self.sftp_address = sftp_address
+        self.dbname = dbname
+        self.sftp_username = sftp_username
+        self.sftp_password = sftp_password
+        self.process = Process.objects.get(id=process_id)
+
         if wait_time is None:
             self.driver = driver_init()
         else:
@@ -348,3 +367,193 @@ class Wordpress():
                 print('failed dependency installation')
                 self.driver.quit()
                 return False
+
+        else:
+            print('plugin already installed')
+            return True
+             
+
+
+    def launch_migration(self):
+        ''' 
+            Launches the migration plugin once Activated.
+
+            returns --> True / False 
+        
+        '''
+
+        # setting url for link naving
+        migrate_page = 'admin.php?page=cloudways'
+        current_url = self.driver.current_url
+
+        if not current_url.endswith("cloudways"):
+            print('navigating to migration page')
+            if self.admin_url.endswith('/'):
+                self.driver.get(f'{self.admin_url}{migrate_page}')
+            else:
+                self.driver.get(f'{self.admin_url}/{migrate_page}')
+            time.sleep(10)
+        print(f'current url -> {self.driver.current_url}')
+        self.driver.save_screenshot('error.png')
+
+        # wait for cloudways email field to become visible
+        # entering self.email_address in field
+        # get_element_by_name="email" -> self.email_address
+        email = self.driver.find_element_by_name('email')
+        email.send_keys(self.email_address)
+        print('entered cloudways email')
+
+        # checking T&S checbox
+        # get_element_by_name="consent".click()
+        self.driver.find_element_by_name('consent').click()
+        print('checked T&S agreement')
+
+        # clicking submit to launch migration plugin
+        # get_element_by_id="migratesubmit".click()
+        self.driver.find_element_by_id('migratesubmit').click()
+        print('clicked migrate button')
+
+        return True
+
+    
+    def run_migration(self):
+        ''' 
+            Enters data on migration page, initiates miration 
+            and begins updating the associated `Process` with data
+            from the page.
+
+            returns --> True / False 
+        
+        '''
+
+        # check for page to fully load 
+        print('waiting 10 sec for new page to load')
+        time.sleep(10)
+        ## enter all necessary data in each field
+
+        # get_element_by_name="address" -> self.destination_url
+        destination_url = self.driver.find_element_by_name('address')
+        destination_url.send_keys(self.destination_url)
+        print(f'dest_url as -> {self.destination_url}')
+        time.sleep(2)
+
+        # get_element_by_name="newurl" -> self.sftp_address 
+        sftp_address = self.driver.find_element_by_name('newurl')
+        sftp_address.send_keys(self.sftp_address)
+        print(f'sftp_address as -> {self.sftp_address}')
+        time.sleep(2)
+
+        # get_element_by_name="appfolder" -> self.dbname
+        dbname = self.driver.find_element_by_name('appfolder')
+        dbname.send_keys(self.dbname)
+        print(f'dbname as -> {self.dbname}')
+        time.sleep(2)
+
+
+        # get_element_by_name="username" -> self.sftp_username
+        sftp_username = self.driver.find_element_by_name('username')
+        sftp_username.send_keys(self.sftp_username)
+        print(f'sftp_username as -> {self.sftp_username}')
+        time.sleep(2)
+
+        # get_element_by_name="passwd" -> self.sftp_password
+        sftp_password = self.driver.find_element_by_name('passwd')
+        sftp_password.screenshot('sftp_password.png')
+        sftp_password.send_keys(self.sftp_password)
+        print(f'sftp_password as -> {self.sftp_password}')
+        time.sleep(2)
+
+        self.driver.execute_script("document.getElementById('source-root-dir-yes').click()")
+        print('clicked root-dir-yes')
+        time.sleep(2)
+
+
+        print('entered all creds')
+        pic_id = uuid.uuid4()
+        image = self.driver.save_screenshot(f'{pic_id}.png')
+
+        # submit data
+        # get_element_by_text="MIGRATE".click()
+        sftp_password.send_keys(Keys.RETURN)
+        print('pressed return key')
+
+        
+
+        # update self.process with info_url
+        self.process.info_url = self.driver.current_url
+        self.process.save()
+
+        done = False
+        done_text = 'Your migration is complete!'
+        new_progress = 0
+        print(f'current url -> {self.driver.current_url}')
+        while not done:
+
+            # get_element_by_name="the main progress bar"
+            # full xpath -> html/body/div/span/div[2]/span/div/div/div/div/div/div[3]/div[4]/div[2]
+            #  //*[@id="app"]/span/div[2]/span/div/div/div/div/div/div[3]/div[4]/div[2]
+            # element -> <div class="progress-percentage font16">60%</div>
+            
+            try:
+                new_progress = self.driver.find_element_by_xpath('//*[@id="app"]/span/div[2]/span/div/div/div/div/div/div[3]/div[4]/div[2]').text()
+                print(f'raw text => {new_progress}')
+                new_progress = float(new_progress.split('%')[0])
+                print(f'current progress -> {new_progress} %')
+            except:
+                try:
+                    print('second method to get progress')
+                    new_progress = self.driver.find_elements_by_class_name('progress-percentage font16')[2].text()
+                    print(f'raw text => {new_progress}')
+                    new_progress = float(new_progress.split('%')[0])
+                    print(f'current progress -> {new_progress} %')
+
+                except:
+                    print('can\'t find main progress bar')
+            
+
+            # update self.process
+            self.process.progress = new_progress
+
+            # check if new_progress is 100%
+            # <h1 class="font-36 color-0E134F proxima-regular mt-1 mb-2">Your migration is complete!</h1>
+            # get full page div 
+            if new_progress >= 100 or done_text in self.driver.page_source:
+                self.process.successful = True
+                self.process.time_completed = datetime.now()
+                done = True
+
+            # checking for process errors
+            try:
+                self.driver.find_elements_by_class_name('alert alert-danger')
+                done = True
+                self.process.time_completed = datetime.now()
+                print('found an error - ending process')
+                self.process.save()
+                return False
+            except:
+                pass
+
+            # saving new data
+            self.process.save()
+
+            time.sleep(1)
+
+
+        return True
+        
+
+
+            
+            
+
+
+
+
+
+
+
+
+        
+
+
+
