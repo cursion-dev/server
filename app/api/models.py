@@ -214,6 +214,7 @@ class Scan(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True, blank=True)
     paired_scan = models.ForeignKey('self', on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
+    type = models.JSONField(serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
     html = models.TextField(serialize=True, null=True, blank=True)
@@ -348,6 +349,22 @@ class Mask(models.Model):
 
     def __str__(self):
         return f'{self.id}__mask'
+
+
+
+
+class Process(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) 
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
+    successful = models.BooleanField(serialize=True, default=False)
+    info_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    progress = models.FloatField(serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.id}__process'
 
 
 
