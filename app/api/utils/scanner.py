@@ -19,6 +19,7 @@ class Scanner():
             site=None, 
             scan=None, 
             configs=None,
+            type=['full']
         ):
 
         if site == None and scan != None:
@@ -46,6 +47,7 @@ class Scanner():
             self.scan = None
         
         self.configs = configs
+        self.type = type
 
 
 
@@ -55,14 +57,24 @@ class Scanner():
 
             returns -> `Scan` <obj>
         """
+
+        html = None
+        logs = None
+        images = None
+        lh_data = None
+        yl_data = None
+
         if self.scan is None:
-            self.scan = Scan.objects.create(site=self.site)
+            self.scan = Scan.objects.create(site=self.site, type=self.type)
         
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.site.site_url)
-            html = self.driver.page_source
-            logs = self.driver.get_log('browser')
-            images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            if 'html' in self.scan.type or 'full' in self.scan.type:
+                html = self.driver.page_source
+            if 'logs' in self.scan.type or 'full' in self.scan.type:
+                logs = self.driver.get_log('browser')
+            if 'vrt' in self.scan.type or 'full' in self.scan.type:
+                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -71,18 +83,29 @@ class Scanner():
                     configs=self.configs
                 )
             )
-            html = driver_data['html']
-            logs = driver_data['logs']
-            images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+            if 'html' in self.scan.type or 'full' in self.scan.type:
+                html = driver_data['html']
+            if 'logs' in self.scan.type or 'full' in self.scan.type:
+                logs = driver_data['logs']
+            if 'vrt' in self.scan.type or 'full' in self.scan.type:
+                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
         
-        lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
-        yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
+        if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
+            lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
+        if 'yellowlab' in self.scan.type or 'full' in self.scan.type:
+            yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
-        self.scan.html = html
-        self.scan.logs = logs
-        self.scan.images = images
-        self.scan.lighthouse = lh_data
-        self.scan.yellowlab = yl_data
+        if html is not None:
+            self.scan.html = html
+        if logs is not None:
+            self.scan.logs = logs
+        if images is not None:
+            self.scan.images = images
+        if lh_data is not None:
+            self.scan.lighthouse = lh_data
+        if yl_data is not None:
+            self.scan.yellowlab = yl_data
+
         self.scan.configs = self.configs
         self.scan.time_completed = datetime.now()
         self.scan.save()
@@ -98,7 +121,7 @@ class Scanner():
 
     def second_scan(self):
         """
-            Method to run a scan and attach existing `scan` obj to it.
+            Method to run a scan and attach existing `Scan` obj to it.
 
             returns -> `Scan` <obj>
         """
@@ -111,13 +134,22 @@ class Scanner():
             first_scan = self.scan
 
         # create second scan obj 
-        second_scan = Scan.objects.create(site=self.site)
+        second_scan = Scan.objects.create(site=self.site, type=self.type)
 
+        html = None
+        logs = None
+        images = None
+        lh_data = None
+        yl_data = None
+        
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.site.site_url)
-            html = self.driver.page_source
-            logs = self.driver.get_log('browser')
-            images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+            if 'html' in second_scan.type or 'full' in second_scan.type:
+                html = self.driver.page_source
+            if 'logs' in second_scan.type or 'full' in second_scan.type:
+                logs = self.driver.get_log('browser')
+            if 'vrt' in second_scan.type or 'full' in second_scan.type:
+                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -126,22 +158,33 @@ class Scanner():
                     configs=self.configs
                 )
             )
-            html = driver_data['html']
-            logs = driver_data['logs']
-            images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
-            
-        lh_data = Lighthouse(site=self.site, configs=self.configs).get_data()
-        yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
+            if 'html' in second_scan.type or 'full' in second_scan.type:
+                html = driver_data['html']
+            if 'logs' in second_scan.type or 'full' in second_scan.type:
+                logs = driver_data['logs']
+            if 'vrt' in second_scan.type or 'full' in second_scan.type:
+                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+        
+        if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
+            lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
+        if 'yellowlab' in second_scan.type or 'full' in second_scan.type:
+            yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
 
-        second_scan.paired_scan = first_scan
-        second_scan.html = html
-        second_scan.logs = logs
-        second_scan.lighthouse = lh_data
-        second_scan.images = images
-        second_scan.yellowlab = yl_data 
+        if html is not None:
+            second_scan.html = html
+        if logs is not None:
+            second_scan.logs = logs
+        if images is not None:
+            second_scan.images = images
+        if lh_data is not None:
+            second_scan.lighthouse = lh_data
+        if yl_data is not None:
+            second_scan.yellowlab = yl_data
+
         second_scan.configs = self.configs
 
         second_scan.time_completed = datetime.now()
+        second_scan.paired_scan = first_scan
         second_scan.save()
         
         first_scan.paried_scan = second_scan
@@ -169,7 +212,6 @@ class Scanner():
         
         if score != 0:
             score = score / d
-    
             if score >= 75:
                 health = 'Good'
                 badge = 'success'
@@ -183,14 +225,16 @@ class Scanner():
         else:
             if self.site.info['status']['score'] is not None:
                 score = float(self.site.info['status']['score'])
+                health = self.site.info['status']['health']
+                badge = self.site.info['status']['badge']
             else:
                 score = None
 
         self.site.info['latest_scan']['id'] = str(scan.id)
         self.site.info['latest_scan']['time_created'] = str(scan.time_created)
         self.site.info['latest_scan']['time_completed'] = str(scan.time_completed)
-        self.site.info['lighthouse'] = scan.lighthouse['scores']
-        self.site.info['yellowlab'] = scan.yellowlab['scores']
+        self.site.info['lighthouse'] = scan.lighthouse.get('scores')
+        self.site.info['yellowlab'] = scan.yellowlab.get('scores')
         self.site.info['status']['health'] = str(health)
         self.site.info['status']['badge'] = str(badge)
         self.site.info['status']['score'] = score
