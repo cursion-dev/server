@@ -22,6 +22,18 @@ class LogSerializer(serializers.HyperlinkedModelSerializer):
 
 
 
+class ProcessSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id',**kwargs)
+
+    class Meta:
+        model = Process
+        fields = ['id', 'site', 'type', 'time_created', 'time_completed',
+        'successful', 'info_url', 'progress',
+        ]
+
+
+
 class SiteSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
@@ -42,7 +54,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
         model = Scan
         fields = ['id', 'site', 'paired_scan', 'time_created',
         'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
-        'images', 'configs', 'tags',
+        'images', 'configs', 'tags', 'type',
         ]
 
 
