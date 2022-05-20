@@ -137,8 +137,11 @@ def delete_site_s3(site_id):
     )
 
     # deleting s3 objects
-    bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/')).delete()
+    try:
+        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/')).delete()
+    except:
+        pass
 
     return
 
