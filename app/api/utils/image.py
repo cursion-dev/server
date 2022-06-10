@@ -9,6 +9,7 @@ from sewar.full_ref import uqi, mse, ssim, msssim, psnr, ergas, vifp, rase, sam,
 from scanerr import settings
 from PIL import Image as I, ImageChops, ImageStat
 from pyppeteer import launch
+from asgiref.sync import sync_to_async
 import time, os, sys, json, uuid, boto3, \
     statistics, shutil, numpy, cv2
 
@@ -212,6 +213,160 @@ class Image():
 
 
 
+
+
+
+    def _scan(self, site, configs, driver=None,):
+        """
+        Grabs multiple screenshots of the website and uploads 
+        them to s3 as one package.
+        """
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        # initialize driver if not passed as param
+        driver_present = True
+        if not driver:
+            driver = driver_init()
+            driver_present = False
+
+
+        # request site_url 
+        driver.get(site.site_url)
+
+        # waiting for network requests to resolve
+        driver_wait(
+            driver=driver, 
+            interval=int(configs['interval']),  
+            min_wait_time=int(configs['min_wait_time']),
+            max_wait_time=int(configs['max_wait_time']),
+        )
+
+        # mask all listed ids        
+        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
+            ids = configs['mask_ids'].split(',')
+            for id in ids:
+                try:
+                    driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via id provided')
+
+        
+        # mask all Global mask ids that are active
+        active_masks = Mask.objects.filter(active=True)
+        if len(active_masks) != 0:
+            for mask in active_masks:
+                try:
+                    driver.execute_script(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via global mask id provided')
+
+        
+        # vertically concats two images
+        def add_images(im1, im2):
+            im1 = I.open(im1)
+            im2 = I.open(im2)
+            new_img = I.new('RGB', (im1.width, im1.height + im2.height))
+            new_img.paste(im1, (0, 0))
+            new_img.paste(im2, (0, im1.height))
+            return new_img
+
+
+        # scroll one frame at a time and capture screenshot
+        final_img = None
+        image_array = []
+        index = 0
+        last_height = -1
+        bottom = False
+        while not bottom:
+
+            # scroll single frame
+            if index != 0:
+                # driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs['min_wait_time']))
+
+            # get current position and compare to previous
+            new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
+            height_diff = new_height - last_height
+            if height_diff > 20:
+                last_height = new_height
+                pic_id = uuid.uuid4()
+                
+                # waiting for network requests to resolve
+                driver_wait(
+                    driver=driver, 
+                    interval=int(configs['interval']),  
+                    min_wait_time=int(configs['min_wait_time']),
+                    max_wait_time=int(configs['max_wait_time']),
+                )
+
+                # get screenshot
+                driver.save_screenshot(f'{pic_id}.png')
+                image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+
+                # adding new image to bottom of existing image (if not index = 0)
+                pic_id_2 = uuid.uuid4()
+                if index != 0 and final_img is not None:
+                    add_images(final_img, image).save(f'{pic_id_2}.png')
+                    os.remove(final_img)
+                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
+                else:
+                    I.open(image).save(f'{pic_id_2}.png')
+                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
+                
+                # remove local copy
+                os.remove(image)
+
+                index += 1 
+            
+            else:
+                bottom = True
+
+
+        remote_path = f'static/sites/{site.id}/{pic_id_2}.png'
+        root_path = settings.AWS_S3_URL_PATH
+        image_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(final_img, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+            )
+       
+
+        # create image obj and add to list
+        img_obj = {
+            "index": 0,
+            "id": str(pic_id_2),
+            "url": image_url,
+            "path": remote_path,
+        }
+
+        image_array.append(img_obj)
+        
+        # remove local copy
+        os.remove(final_img)
+
+        if not driver_present:
+            quit_driver(driver)
+
+        return image_array
+
+
+
+
+
+
+
     async def scan_p(self, site, configs):
         """
         Using Puppeteer, grabs multiple screenshots of the website and uploads 
@@ -276,14 +431,22 @@ class Image():
 
 
         # mask all Global mask ids that are active
-        active_masks = Mask.objects.filter(active=True)
-        if len(active_masks) != 0:
-            for mask in active_masks:
-                try:
-                    page.evaluate(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
-                    print('masked an element')
-                except:
-                    print('cannot find element via global mask id provided')
+        @sync_to_async
+        def get_active_global_masks():
+            masks = Mask.objects.filter(active=True)
+            active_masks = []
+            for mask in masks:
+                active_masks.append(mask.id)
+            return active_masks
+
+        active_masks = await get_active_global_masks()
+
+        for mask in active_masks:
+            try:
+                await page.evaluate(f"document.getElementById('{mask}').style.visibility='hidden';")
+                print('masked an element')
+            except:
+                print('cannot find element via global mask id provided')
 
 
         # scroll one frame at a time and capture screenshot
@@ -346,6 +509,190 @@ class Image():
         await driver.close()
 
         return image_array
+
+
+
+
+
+
+
+
+    async def _scan_p(self, site, configs):
+        """
+        Using Puppeteer, grabs multiple screenshots of the website and uploads 
+        them to s3 as a single image.
+        """
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        driver = await driver_init_p(window_size=configs['window_size'], wait_time=configs['max_wait_time'])
+        page = await driver.newPage()
+
+        sizes = configs['window_size'].split(',')
+        is_mobile = False
+        if configs['device'] == 'mobile':
+            is_mobile = True
+        
+        page_options = {
+            'waitUntil': 'networkidle0', 
+            'timeout': configs['max_wait_time']*1000
+        }
+
+        viewport = {
+            'width': int(sizes[0]),
+            'height': int(sizes[1]),
+            'isMobile': is_mobile,
+        }
+        
+        userAgent = (
+            "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
+            (KHTML, like Gecko) Chrome/99.0.4812.0 Mobile Safari/537.36"
+        )
+        
+        emulate_options = {
+            'viewport': viewport,
+            'userAgent': userAgent
+        }
+
+        if configs['device'] == 'mobile':
+            await page.emulate(emulate_options)
+        else:
+            await page.setViewport(viewport)
+
+        # requesting site url
+        await page.goto(site.site_url, page_options)
+
+
+        # mask all listed ids
+        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
+            ids = configs['mask_ids'].split(',')
+            for id in ids:
+                try:
+                    await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via id provided')
+
+
+        # mask all Global mask ids that are active
+        @sync_to_async
+        def get_active_global_masks():
+            masks = Mask.objects.filter(active=True)
+            active_masks = []
+            for mask in masks:
+                active_masks.append(mask.id)
+            return active_masks
+
+        active_masks = await get_active_global_masks()
+
+        for mask in active_masks:
+            try:
+                await page.evaluate(f"document.getElementById('{mask}').style.visibility='hidden';")
+                print('masked an element')
+            except:
+                print('cannot find element via global mask id provided')
+
+
+        # vertically concats two images
+        @sync_to_async
+        def add_images(im1, im2):
+            im1 = I.open(im1)
+            im2 = I.open(im2)
+            new_img = I.new('RGB', (im1.width, im1.height + im2.height))
+            new_img.paste(im1, (0, 0))
+            new_img.paste(im2, (0, im1.height))
+            return new_img
+
+
+        # scroll one frame at a time and capture screenshot
+        final_img = None
+        image_array = []
+        index = 0
+        last_height = -1
+        bottom = False
+        while not bottom:
+
+            # scroll single frame
+            if index != 0:
+                await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs['min_wait_time']))
+
+            # get current position and compare to previous
+            new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
+            height_diff = new_height - last_height
+            if height_diff > 20:
+                last_height = new_height
+                pic_id = uuid.uuid4()
+
+                # interact with and wait for page to load
+                await page.mouse.move(0, 0)
+                await page.mouse.move(0, 100)
+                time.sleep(configs['min_wait_time'])
+                
+            
+                # get screenshot
+                await page.screenshot({'path': f'{pic_id}.png'})
+                image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+                
+                # adding new image to bottom of existing image (if not index = 0)
+                pic_id_2 = uuid.uuid4()
+                if index != 0 and final_img is not None:
+                    new_img = await add_images(final_img, image)
+                    new_img.save(f'{pic_id_2}.png')
+                    os.remove(final_img)
+                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
+                else:
+                    I.open(image).save(f'{pic_id_2}.png')
+                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
+                
+                # remove local copy
+                os.remove(image)
+
+                index += 1 
+            
+            else:
+                bottom = True
+
+
+        remote_path = f'static/sites/{site.id}/{pic_id_2}.png'
+        root_path = settings.AWS_S3_URL_PATH
+        image_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(final_img, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+            )
+       
+
+        # create image obj and add to list
+        img_obj = {
+            "index": 0,
+            "id": str(pic_id_2),
+            "url": image_url,
+            "path": remote_path,
+        }
+
+        image_array.append(img_obj)
+        
+        # remove local copy
+        os.remove(final_img)
+
+        
+        await driver.close()
+
+        return image_array
+
+
+
+
+
 
 
 
