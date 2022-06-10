@@ -234,7 +234,7 @@ def create_test(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    site_id = request.data['site_id']
+    site_id = request.data.get('site_id')
     user = request.user
     site = Site.objects.get(id=site_id, )
     if site.user != user:
@@ -444,8 +444,8 @@ def get_test_lean(request, id):
         "site": str(test.site.id),
         "tags": test.tags,
         "type": test.type,
-        "time_created": test.time_created,
-        "time_completed": test.time_completed,
+        "time_created": str(test.time_created),
+        "time_completed": str(test.time_completed),
         "pre_scan": str(test.pre_scan.id),
         "post_scan": str(test.post_scan.id),
         "score": test.score,
@@ -534,7 +534,7 @@ def delete_many_tests(request):
 
 def create_scan(request, delay=False):
 
-    site_id = request.data['site_id']
+    site_id = request.data.get('site_id', None)
     user = request.user
     configs = request.data.get('configs', None)
     types = request.data.get('type', ['full'])
@@ -687,8 +687,8 @@ def get_scan_lean(request, id):
         "site": str(scan.site.id),
         "tags": scan.tags,
         "type": scan.type,
-        "time_created": scan.time_created,
-        "time_completed": scan.time_completed,
+        "time_created": str(scan.time_created),
+        "time_completed": str(scan.time_completed),
         "lighthouse": {"scores": scan.lighthouse['scores']},
         "yellowlab": {"scores": scan.yellowlab['scores']},
     }
@@ -777,7 +777,7 @@ def create_or_update_schedule(request):
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
     try:
-        site = Site.objects.get(id=request.data['site_id'])
+        site = Site.objects.get(id=request.data.get('site_id'))
         if site.user != request.user and site.user != None:
             data = {'reason': 'you cannot create a Schedule of a Site you do not own',}
             record_api_call(request, data, '403')
@@ -785,7 +785,7 @@ def create_or_update_schedule(request):
     except:
         site = None
     try:
-        schedule = Schedule.objects.get(id=request.data['schedule_id'])
+        schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
         if schedule.user != request.user and schedule.user != None:
             data = {'reason': 'you cannot update a Schedule you do not own',}
             record_api_call(request, data, '403')
@@ -818,7 +818,7 @@ def create_or_update_schedule(request):
         task.save() 
         schedule.save()
         # retriving object again to avoid cacheing issues
-        schedule_new = Schedule.objects.get(id=request.data['schedule_id'])
+        schedule_new = Schedule.objects.get(id=request.data.get('schedule_id'))
     
     # if not status change, updating data
     else:
@@ -1035,7 +1035,7 @@ def create_or_update_automation(request):
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
     try:
-        schedule = Schedule.objects.get(id=request.data['schedule_id'])
+        schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
         try:
             automation = Automation.objects.get(id=schedule.automation.id)
             if automation.user != request.user and automation.user != None:
@@ -1053,9 +1053,9 @@ def create_or_update_automation(request):
         automation = None
 
     # get data 
-    name = request.data['name']
-    expressions = request.data['expressions']
-    actions = request.data['actions']
+    name = request.data.get('name')
+    expressions = request.data.get('expressions')
+    actions = request.data.get('actions')
 
     if automation:
         automation.name = name
