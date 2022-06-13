@@ -107,7 +107,7 @@ def create_site(request, delay=False):
                 site.info["latest_scan"]["time_created"] = str(scan.time_created)
                 site.save()
             else:
-                S(site=site).first_scan()
+                S(site=site, configs=configs).first_scan()
 
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)
