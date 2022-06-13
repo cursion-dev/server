@@ -439,6 +439,24 @@ def get_test_lean(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
+    # get images_delta if exists
+    try:
+        images_delta = {"average_score": test.images_delta.get('average_score')}
+    except:
+        images_delta = None
+
+    # get lighthouse_delta if exists
+    try:
+        lighthouse_delta = {"scores": test.lighthouse_delta.get('scores')}
+    except:
+        lighthouse_delta = None
+
+     # get lighthouse_delta if exists
+    try:
+        yellowlab_delta = {"scores": test.yellowlab_delta['scores']}
+    except:
+        yellowlab_delta = None
+
     data = {
         "id": str(test.id),
         "site": str(test.site.id),
@@ -449,9 +467,9 @@ def get_test_lean(request, id):
         "pre_scan": str(test.pre_scan.id),
         "post_scan": str(test.post_scan.id),
         "score": test.score,
-        "lighthouse_delta": {"scores": test.lighthouse_delta['scores']},
-        "yellowlab_delta": {"scores": test.yellowlab_delta['scores']},
-        "images_delta": {"average_score": test.images_delta.get('average_score')},
+        "lighthouse_delta": lighthouse_delta,
+        "yellowlab_delta": yellowlab_delta,
+        "images_delta": images_delta,
     }
 
     record_api_call(request, data, '200')
@@ -682,6 +700,18 @@ def get_scan_lean(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
+    # get lighthouse scores if exists
+    try:
+        lighthouse = {"scores": scan.lighthouse.get('scores')}
+    except:
+        lighthouse = None
+    
+    # get yellowlab scores if exists
+    try:
+        yellowlab = {"scores": scan.yellowlab.get('scores')}
+    except:
+        yellowlab = None
+
     data = {
         "id": str(scan.id),
         "site": str(scan.site.id),
@@ -689,8 +719,8 @@ def get_scan_lean(request, id):
         "type": scan.type,
         "time_created": str(scan.time_created),
         "time_completed": str(scan.time_completed),
-        "lighthouse": {"scores": scan.lighthouse['scores']},
-        "yellowlab": {"scores": scan.yellowlab['scores']},
+        "lighthouse": lighthouse,
+        "yellowlab": yellowlab,
     }
 
     record_api_call(request, data, '200')
