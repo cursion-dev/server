@@ -74,7 +74,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Image()._scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -88,7 +88,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Image()._scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
         
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
             lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
@@ -149,7 +149,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = Image()._scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -163,7 +163,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = asyncio.run(Image()._scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
         
         if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
             lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
