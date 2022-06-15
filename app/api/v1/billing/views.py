@@ -240,6 +240,8 @@ class SetupSubscription(APIView):
                 expand=['latest_invoice.payment_intent'],
             )
 
+            # updating price defaults and archiving old price
+            stripe.Product.modify(product.id, default_price=price,)
             stripe.Price.modify(old_account.price_id, active=False)
 
             Account.objects.filter(user=user).update(
