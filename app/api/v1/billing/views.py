@@ -218,7 +218,6 @@ class SetupSubscription(APIView):
 
         if Account.objects.filter(user=user).exists():
             old_account = Account.objects.get(user=user)
-            stripe.Price.modify(old_account.price_id, active=False)
             product = stripe.Product.modify(old_account.product_id, name=product_name)
             customer = stripe.Customer.retrieve(old_account.cust_id)
 
@@ -240,6 +239,8 @@ class SetupSubscription(APIView):
                 }],
                 expand=['latest_invoice.payment_intent'],
             )
+
+            stripe.Price.modify(old_account.price_id, active=False)
 
             Account.objects.filter(user=user).update(
                 type = name,
