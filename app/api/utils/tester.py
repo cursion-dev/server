@@ -415,6 +415,11 @@ class Tester():
 
     def run_test(self, index=None):
 
+        # update test obj with scan configs
+        self.test.pre_scan_configs = self.test.pre_scan.configs
+        self.test.post_scan_configs = self.test.post_scan.configs
+        self.test.save()
+
         # default scores 
         html_score = 0
         num_html_ratio = 0

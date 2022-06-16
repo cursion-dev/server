@@ -245,6 +245,8 @@ class Test(models.Model):
     yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
+    pre_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
+    post_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.id}__test'

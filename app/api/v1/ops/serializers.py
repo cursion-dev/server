@@ -81,7 +81,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'site', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
         'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type',
-        'tags',
+        'tags', 'pre_scan_configs', 'post_scan_configs',
         ]
 
 
