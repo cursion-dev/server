@@ -323,6 +323,107 @@ class ReportDetail(APIView):
 
 
 
+
+
+
+
+
+class Cases(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_case(request)        
+        return response
+    
+    def get(self, request):
+        response = get_cases(request)
+        return response
+
+
+
+class CasesSearch(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = search_cases(request)
+        return response
+
+
+
+class CaseDetail(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        case = get_object_or_404(Case, pk=id)
+        if case.user != request.user:
+            data = {'reason': 'you cannot retrieve Cases you do not own',}
+            record_api_call(request, data, '403')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer_context = {'request': request,}
+        serialized = CaseSerializer(case, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    def delete(self, request, id):
+        response = delete_case(request, id)        
+        return response
+
+
+
+class Testcases(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_testcase(request)        
+        return response
+    
+    def get(self, request):
+        response = get_testcases(request)
+        return response
+
+
+
+class TestcaseDelay(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = create_testcase(request, delay=True)
+        return response
+
+
+
+class TestcaseDetail(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        testcase = get_object_or_404(Testcase, pk=id)
+        if testcase.user != request.user:
+            data = {'reason': 'you cannot retrieve Testcases you do not own',}
+            record_api_call(request, data, '403')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer_context = {'request': request,}
+        serialized = TestcaseSerializer(testcase, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    def delete(self, request, id):
+        response = delete_testcase(request, id)        
+        return response
+
+
+
+
+
 class Logs(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['get',]

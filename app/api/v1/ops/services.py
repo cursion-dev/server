@@ -14,6 +14,7 @@ from ...utils.image import Image as I
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
 from ...utils.wordpress_p import Wordpress as W_P
+from ...utils.caser import Caser
 
 
 
@@ -63,6 +64,10 @@ def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     user = request.user
     sites = Site.objects.filter(user=user)
+
+
+    if site_url.endswith('/'):
+        site_url = site_url.rstrip('/')
 
     if site_url is None or site_url == '':
         data = {'reason': 'the site_url cannot be empty',}
@@ -798,6 +803,9 @@ def delete_many_scans(request):
     return response
 
 
+
+
+
 def create_or_update_schedule(request):
 
     account_is_active = check_account(request)
@@ -834,8 +842,20 @@ def create_or_update_schedule(request):
     scan_type = request.data.get('scan_type', None)
     configs = request.data.get('configs', None)
     schedule_id = request.data.get('schedule_id', None)
+    case_id = request.data.get('case_id', None)
+    updates = request.data.get('updates', None)
 
-    
+
+    if configs is None:
+        configs = {
+            'window_size': '1920,1080',
+            'driver': 'selenium',
+            'device': 'desktop',
+            'mask_ids': None,
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 30,
+        }
 
     if schedule_status != None and schedule != None:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
@@ -852,7 +872,6 @@ def create_or_update_schedule(request):
     
     # if not status change, updating data
     else:
-
         if Automation.objects.filter(schedule=schedule).exists():
             automation = Automation.objects.filter(schedule=schedule)[0]
             auto_id = automation.id
@@ -882,6 +901,17 @@ def create_or_update_schedule(request):
             arguments = {
                 'site_id': str(site.id),
                 'automation_id': str(auto_id)
+            }
+
+
+        if task_type == 'testcase':
+            task = 'api.tasks.create_testcase_bg'
+            arguments = {
+                'site_id': str(site.id),
+                'case_id': str(case_id),
+                'updates': updates,
+                'configs': configs,
+                'automation_id': str(auto_id),
             }
 
         format_str = '%m/%d/%Y'
@@ -943,7 +973,9 @@ def create_or_update_schedule(request):
         extras = {
             "configs": configs,
             "test_type": test_type,
-            "scan_type": scan_type
+            "scan_type": scan_type, 
+            "case_id": case_id, 
+            "updates": updates
         }
         
         if schedule:
@@ -1027,7 +1059,7 @@ def get_schedules(request):
 
 def delete_schedule(request, id):
     try:
-        schedule = Schedule.objects.get(id=schedule_id)
+        schedule = Schedule.objects.get(id=id)
     except:
         data = {'reason': 'cannot find a Schedule with that id'}
         record_api_call(request, data, '404')
@@ -1110,6 +1142,8 @@ def create_or_update_automation(request):
             'automation_id': str(automation.id),
             'configs': json.loads(task.kwargs).get('configs', None), 
             'type': json.loads(task.kwargs).get('type', None),
+            'case_id': json.loads(task.kwargs).get('case_id', None),
+            'updates': json.loads(task.kwargs).get('updates', None)
         }
         task.kwargs=json.dumps(arguments)
         task.save()
@@ -1155,7 +1189,7 @@ def get_automations(request):
 
 def delete_automation(request, id):
     try:
-        automation = Automation.objects.get(id=automation_id)
+        automation = Automation.objects.get(id=id)
     except:
         data = {'reason': 'cannot find a Automation with that id'}
         record_api_call(request, data, '404')
@@ -1269,7 +1303,7 @@ def get_reports(request):
 def delete_report(request, id):
     user = request.user
     try:
-        report = Report.objects.get(id=report_id)
+        report = Report.objects.get(id=id)
     except:
         data = {'reason': 'cannot find a Report with that id'}
         record_api_call(request, data, '404')
@@ -1330,6 +1364,295 @@ def get_processes(request):
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
+
+
+
+
+
+
+
+
+
+
+
+
+
+def create_or_update_case(request):
+    case_id = request.data.get('case_id')
+    steps = request.data.get('steps')
+    name = request.data.get('name')
+    tags = request.data.get('tags')
+
+    account_is_active = check_account(request)
+    if not account_is_active:
+        data = {'reason': 'account not funded',}
+        record_api_call(request, data, '402')
+        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+    if case_id:
+        try:
+            case = Case.objects.get(id=case_id)
+        except:
+            data = {'reason': 'cannot find a Case with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
+        if case.user != request.user:
+            data = {'reason': 'you cannot retrieve Cases you do not own',}
+            record_api_call(request, data, '403')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        else:
+            case.steps = steps
+            case.name = name
+            case.tags = tags
+            case.save()
+    
+    else:
+        case = Case.objects.create(
+            user = request.user,
+            name = name, 
+            tags = tags,
+            steps = steps
+        )
+
+
+    serializer_context = {'request': request,}
+    data = CaseSerializer(case, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def get_cases(request):
+    case_id = request.query_params.get('case_id')
+    if case_id != None:        
+        try:
+            case = Case.objects.get(id=case_id)
+        except:
+            data = {'reason': 'cannot find a Case with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+        if case.user != request.user:
+            data = {'reason': 'you cannot retrieve an Case you do not own',}
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer_context = {'request': request,}
+        serialized = CaseSerializer(case, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    cases = Case.objects.filter(user=request.user).order_by('-time_created')
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(cases, request)
+    serializer_context = {'request': request,}
+    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def search_cases(request):
+    query = request.query_params.get('query')
+    cases = Case.objects.filter(user=request.user, name__icontains=query).order_by('-time_created')
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(cases, request)
+    serializer_context = {'request': request,}
+    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response 
+
+
+
+def delete_case(request, id):
+    try:
+        case = Case.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Case with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    
+    if case.user != request.user:
+        data = {'reason': 'you cannot delete an Case you do not own',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    case.delete()
+
+    data = {'message': 'Case has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
+
+
+def create_testcase(request, delay=False):
+    case_id = request.data.get('case_id')
+    site_id = request.data.get('site_id')
+    updates = request.data.get('updates')
+    configs = request.data.get('configs')
+
+    account_is_active = check_account(request)
+    if not account_is_active:
+        data = {'reason': 'account not funded',}
+        record_api_call(request, data, '402')
+        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+    if case_id and site_id:
+        try:
+            case = Case.objects.get(id=case_id)
+        except:
+            data = {'reason': 'cannot find a Case with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    
+    else:
+        data = {'reason': 'you must provide both site_id and case_id'}
+        record_api_call(request, data, '409')
+        return Response(data, status=status.HTTP_409_CONFLICT)
+
+    steps = case.steps
+    for step in steps:
+        if step['action']['type'] != None:
+            step['action']['time_created'] = None
+            step['action']['time_completed'] = None
+            step['action']['exception'] = None
+            step['action']['passed'] = None
+
+        if step['assertion']['type'] != None:
+            step['assertion']['time_created'] = None
+            step['assertion']['time_completed'] = None
+            step['assertion']['exception'] = None
+            step['assertion']['passed'] = None
+
+    if updates != None:
+        for update in updates:
+            steps[int(update['index'])]['action']['value'] = update['value']
+
+    if configs is None:
+        configs = {
+            'window_size': '1920,1080',
+            'device': 'desktop',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 30,
+        }
+        
+    testcase = Testcase.objects.create(
+        case = case,
+        case_name = case.name,
+        site = site,
+        user = request.user,
+        configs = configs, 
+        steps = steps
+    )
+
+    if delay:
+        # pass the newly created Testcase to the backgroud task to run
+        create_testcase_bg.delay(testcase_id=testcase.id)
+    else:
+        # running testcase
+        asyncio.run(
+            Caser(testcase=testcase).run()
+        )
+        testcase = Testcase.objects.get(id=testcase.id)
+
+    serializer_context = {'request': request,}
+    data = TestcaseSerializer(testcase, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def get_testcases(request):
+    testcase_id = request.query_params.get('testcase_id')
+    site_id = request.query_params.get('site_id')
+
+    if testcase_id != None:        
+        try:
+            testcase = Testcase.objects.get(id=testcase_id)
+        except:
+            data = {'reason': 'cannot find a Testcase with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+        if testcase.user != request.user:
+            data = {'reason': 'you cannot retrieve an Testcase you do not own',}
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer_context = {'request': request,}
+        serialized = TestcaseSerializer(testcase, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    if site_id != None:
+        try:
+            site = Site.objects.get(id=site_id, user=request.user)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        testcases = Testcase.objects.filter(site=site).order_by('-time_created')
+    
+    else:
+        testcases = Testcase.objects.filter(user=request.user).order_by('-time_created')
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(testcases, request)
+    serializer_context = {'request': request,}
+    serialized = TestcaseSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+def delete_testcase(request, id):
+    try:
+        testcase = Testcase.objects.get(id=id)
+    except:
+        data = {'reason': 'cannot find a Testcase with that id'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.user != testcase.user:
+        data = {'reason': 'you cannot delete an Testcase you do not own',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    testcase.delete()
+
+    data = {'message': 'Testcase has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
 
 
 

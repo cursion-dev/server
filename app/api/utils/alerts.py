@@ -114,6 +114,13 @@ def create_exp_str(item, automation, is_email=False):
         
         elif 'logs' in e['data_type']:
             data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
+
+
+        elif 'testcase' in e['data_type']:
+            status = 'Failed'
+            if e['value'] == 'True':
+                status = 'Passed'
+            data_type = 'Testcase "'+str(item.case.name)+'" --> '+str(status)
         
         
         exp_list.append(data_type)
@@ -255,7 +262,11 @@ def automation_email(email=None, automation_id=None, object_id=None):
                 item = Scan.objects.get(id=uuid.UUID(object_id))
                 item_type = 'Scan'
             except:
-                return {'success': False}
+                try:
+                    item = Testcase.objects.get(id=uuid.UUID(object_id))
+                    item_type = 'Testcase'
+                except:
+                    return {'success': False}
 
         exp_list = create_exp_str(item=item, automation=automation, is_email=True)
 
@@ -393,7 +404,11 @@ def automation_webhook(
                 item = Scan.objects.get(id=uuid.UUID(object_id))
                 item_type = 'Scan'
             except:
-                return {'success': False}
+                try:
+                    item = Testcase.objects.get(id=uuid.UUID(object_id))
+                    item_type = 'Testcase'
+                except:
+                    return {'success': False}
         
         pre_json_data = json.loads(request_data)
         json_data = create_json_data(data=pre_json_data, obj=item)
@@ -438,7 +453,11 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
                 item = Scan.objects.get(id=uuid.UUID(object_id))
                 item_type = 'Scan'
             except:
-                return {'success': False}
+                try:
+                    item = Testcase.objects.get(id=uuid.UUID(object_id))
+                    item_type = 'Testcase'
+                except:
+                    return {'success': False}
 
         exp_str = create_exp_str(item=item, automation=automation)
 
@@ -493,7 +512,11 @@ def automation_slack(automation_id=None, object_id=None):
                 item = Scan.objects.get(id=uuid.UUID(object_id))
                 item_type = 'Scan'
             except:
-                return {'success': False}
+                try:
+                    item = Testcase.objects.get(id=uuid.UUID(object_id))
+                    item_type = 'Testcase'
+                except:
+                    return {'success': False}
 
         exp_str = create_exp_str(item=item, automation=automation)
 

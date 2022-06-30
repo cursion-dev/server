@@ -14,6 +14,7 @@ def automation(automation_id, object_id):
     scan = None
     test = None
     report = None
+    testcase = None
     use_exp = True
 
     if schedule.task_type == 'scan':
@@ -34,6 +35,12 @@ def automation(automation_id, object_id):
             use_exp = False
         except:
             return False
+    elif schedule.task_type == 'testcase':
+        try:
+            testcase = Testcase.objects.get(id=object_id)
+            use_exp = True
+        except:
+            return False
     else:
         return False      
     
@@ -46,19 +53,28 @@ def automation(automation_id, object_id):
 
             exp = None
             data_type = None
-            value = str(float(re.search(r'\d+', str(expression['value'])).group()))
 
-            if '>=' in expression['operator']:
-                operator = ' >= '
-            else:
-                operator = ' <= '
+            if testcase == None:
+                value = str(float(re.search(r'\d+', str(expression['value'])).group()))
+
+                if '>=' in expression['operator']:
+                    operator = ' >= '
+                else:
+                    operator = ' <= '
+                
+                if 'and' in expression['joiner']:
+                    joiner = ' and '
+                elif 'or' in expression['joiner']:
+                    joiner = ' or '
+                else:
+                    joiner = ''
             
-            if 'and' in expression['joiner']:
-                joiner = ' and '
-            elif 'or' in expression['joiner']:
-                joiner = ' or '
-            else:
+            if testcase != None:
+                operator = ' == '
                 joiner = ''
+                data_type = 'testcase.passed'
+                value = str(expression['value'])
+
 
             if 'test_score' in expression['data_type']:
                 data_type = 'float(test.score)'

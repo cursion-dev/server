@@ -3,7 +3,8 @@ from celery.utils.log import get_task_logger
 from celery import shared_task
 from .v1.ops.tasks import (create_site_task, 
     create_scan_task, create_test_task, delete_site_s3,
-    create_report_task, delete_report_s3, migrate_site_task
+    create_report_task, delete_report_s3, migrate_site_task,
+    create_testcase_task,
 )
 from .models import Log
 from django.contrib.auth.models import User
@@ -102,6 +103,21 @@ def purge_logs(username=None):
         Log.objects.all().delete()
 
     logger.info('Purged logs')
+
+
+@shared_task
+def create_testcase_bg(
+        testcase_id=None, 
+        site_id=None, 
+        case_id=None, 
+        updates=None, 
+        automation_id=None,
+        configs=None, 
+        type=None,
+    ):
+    create_testcase_task(testcase_id, site_id, case_id, updates, configs, automation_id)
+    logger.info('Ran full testcase')
+
 
 
 

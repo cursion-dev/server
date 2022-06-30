@@ -138,3 +138,30 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'site', 'user', 'time_created', 'type',
         'path', 'info'
         ]
+
+
+
+
+class CaseSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Case
+        fields = ['id', 'name', 'user', 'steps', 'time_created',
+        'tags',
+        ]
+
+
+
+class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+    case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = Testcase
+        fields = ['id', 'site', 'user', 'time_created', 'time_completed',
+        'steps', 'case', 'case_name', 'passed', 'configs',
+        ]

@@ -55,6 +55,16 @@ class ProcessAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created',  'time_completed', 'progress', 'successful')
 
 
+@admin.register(Case)
+class CaseAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user', 'time_created',)
+
+
+@admin.register(Testcase)
+class TestcaseAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user', 'time_created', 'time_completed',)
+
+
 
 @admin.register(Mask)
 class MaskAdmin(admin.ModelAdmin):

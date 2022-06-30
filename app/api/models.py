@@ -178,6 +178,28 @@ def get_actions_default():
 
 
 
+
+def get_steps_default():
+    steps_default = [
+            {
+                'action': {
+                    'type': None, 
+                    'element': None,
+                    'path': None,
+                    'text': None,
+                }, 
+                'assertion': {
+                    'type': None,
+                    'element': None,
+                    'text': None,
+                }, 
+            },
+        ]
+    return steps_default
+
+
+
+
 def get_slack_default():
     slack_default = {
         "slack_name": None, 
@@ -339,6 +361,41 @@ class Report(models.Model):
 
     def __str__(self):
         return f'{self.site.site_url}__report'
+
+
+
+
+
+class Case(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
+    tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
+
+    def __str__(self):
+        return f'{self.name}'
+
+
+
+
+class Testcase(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, serialize=True)
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    case_name = models.CharField(max_length=1000, null=True, blank=True, serialize=True)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    time_completed = models.DateTimeField(null=True, blank=True, serialize=True)
+    passed = models.BooleanField(default=False, serialize=True)
+    steps = models.JSONField(serialize=True, null=True, blank=True)
+    configs = models.JSONField(serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.case.name}__testcase'
+
+
     
 
 
