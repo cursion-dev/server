@@ -706,7 +706,7 @@ class Image():
         Compairsons used : 
             - Structral Similarity Index (ssim)
             - PIL ImageChop Differences, Ratio
-            - cv2 ORB Brute-force Matcher,  Ratio
+            - cv2 ORB Brute-force Matcher, Ratio
 
         
         """
