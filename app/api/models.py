@@ -317,7 +317,7 @@ class Schedule(models.Model):
     automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    task_type = models.CharField(max_length=100, default='test', serialize=True) # report, scan, test
+    task_type = models.CharField(max_length=100, default='test', serialize=True) # report, scan, test, testcase
     timezone = models.CharField(max_length=100, null=True, blank=True, serialize=True)
     begin_date = models.DateTimeField(default=datetime.now, serialize=True)
     time = models.CharField(max_length=100, null=True, blank=True, serialize=True)
