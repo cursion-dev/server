@@ -38,6 +38,8 @@ def create_scan_bg(
         automation_id=None, 
         configs=None,
         tags=None,
+        *args, 
+        **kwargs,
     ):
     create_scan_task(
         scan_id, 
@@ -62,6 +64,8 @@ def create_test_bg(
         pre_scan=None,
         post_scan=None,
         tags=None,
+        *args, 
+        **kwargs,
     ):
     create_test_task(
         test_id,
@@ -114,6 +118,8 @@ def create_testcase_bg(
         automation_id=None,
         configs=None, 
         type=None,
+        *args, 
+        **kwargs,
     ):
     create_testcase_task(testcase_id, site_id, case_id, updates, configs, automation_id)
     logger.info('Ran full testcase')

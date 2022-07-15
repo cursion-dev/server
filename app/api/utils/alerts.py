@@ -135,12 +135,6 @@ def create_exp_str(item, automation, is_email=False):
 
 
 
-
-
-
-
-
-
 def create_json_data(data, obj): 
     json_data = data
     item = obj
@@ -242,7 +236,28 @@ def create_json_data(data, obj):
 
 
 
+def get_item(object_id):
+    try:
+        item = Test.objects.get(id=uuid.UUID(object_id))
+        item_type = 'Test'
+    except:
+        try:
+            item = Scan.objects.get(id=uuid.UUID(object_id))
+            item_type = 'Scan'
+        except:
+            try:
+                item = Testcase.objects.get(id=uuid.UUID(object_id))
+                item_type = 'Testcase'
+            except:
+                return {'success': False}
 
+    data = {
+        'item_type': item_type, 
+        'item': item,
+        'success': True
+    }
+
+    return data
 
 
 
@@ -254,19 +269,13 @@ def automation_email(email=None, automation_id=None, object_id=None):
         schedule = automation.schedule
         site = schedule.site
 
-        try:
-            item = Test.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Test'
-        except:
-            try:
-                item = Scan.objects.get(id=uuid.UUID(object_id))
-                item_type = 'Scan'
-            except:
-                try:
-                    item = Testcase.objects.get(id=uuid.UUID(object_id))
-                    item_type = 'Testcase'
-                except:
-                    return {'success': False}
+        # getting object
+        data = get_item(object_id=object_id)
+        if not data['success']:
+            return {'success': False}
+
+        item = data['item']
+        item_type = data['item_type']
 
         exp_list = create_exp_str(item=item, automation=automation, is_email=True)
 
@@ -396,19 +405,13 @@ def automation_webhook(
         schedule = automation.schedule
         site = schedule.site
 
-        try:
-            item = Test.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Test'
-        except:
-            try:
-                item = Scan.objects.get(id=uuid.UUID(object_id))
-                item_type = 'Scan'
-            except:
-                try:
-                    item = Testcase.objects.get(id=uuid.UUID(object_id))
-                    item_type = 'Testcase'
-                except:
-                    return {'success': False}
+        # getting object
+        data = get_item(object_id=object_id)
+        if not data['success']:
+            return {'success': False}
+
+        item = data['item']
+        item_type = data['item_type']
         
         pre_json_data = json.loads(request_data)
         json_data = create_json_data(data=pre_json_data, obj=item)
@@ -445,19 +448,13 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
         schedule = automation.schedule
         site = schedule.site
 
-        try:
-            item = Test.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Test'
-        except:
-            try:
-                item = Scan.objects.get(id=uuid.UUID(object_id))
-                item_type = 'Scan'
-            except:
-                try:
-                    item = Testcase.objects.get(id=uuid.UUID(object_id))
-                    item_type = 'Testcase'
-                except:
-                    return {'success': False}
+        # getting object
+        data = get_item(object_id=object_id)
+        if not data['success']:
+            return {'success': False}
+
+        item = data['item']
+        item_type = data['item_type']
 
         exp_str = create_exp_str(item=item, automation=automation)
 
@@ -504,19 +501,13 @@ def automation_slack(automation_id=None, object_id=None):
         schedule = automation.schedule
         site = schedule.site
 
-        try:
-            item = Test.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Test'
-        except:
-            try:
-                item = Scan.objects.get(id=uuid.UUID(object_id))
-                item_type = 'Scan'
-            except:
-                try:
-                    item = Testcase.objects.get(id=uuid.UUID(object_id))
-                    item_type = 'Testcase'
-                except:
-                    return {'success': False}
+        # getting object
+        data = get_item(object_id=object_id)
+        if not data['success']:
+            return {'success': False}
+
+        item = data['item']
+        item_type = data['item_type']
 
         exp_str = create_exp_str(item=item, automation=automation)
 

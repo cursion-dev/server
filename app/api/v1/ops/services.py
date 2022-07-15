@@ -874,7 +874,7 @@ def create_or_update_schedule(request):
     else:
         if Automation.objects.filter(schedule=schedule).exists():
             automation = Automation.objects.filter(schedule=schedule)[0]
-            auto_id = automation.id
+            auto_id = str(automation.id)
         else:
             auto_id = None
 
@@ -884,7 +884,7 @@ def create_or_update_schedule(request):
                 'site_id': str(site.id),
                 'configs': configs, 
                 'type': test_type,
-                'automation_id': str(auto_id)
+                'automation_id': auto_id
             }
 
         if task_type == 'scan':
@@ -893,14 +893,14 @@ def create_or_update_schedule(request):
                 'site_id': str(site.id),
                 'configs': configs,
                 'type': scan_type,
-                'automation_id': str(auto_id)
+                'automation_id': auto_id
             }
 
         if task_type == 'report':
             task = 'api.tasks.create_report_bg'
             arguments = {
                 'site_id': str(site.id),
-                'automation_id': str(auto_id)
+                'automation_id': auto_id
             }
 
 
@@ -911,7 +911,7 @@ def create_or_update_schedule(request):
                 'case_id': str(case_id),
                 'updates': updates,
                 'configs': configs,
-                'automation_id': str(auto_id),
+                'automation_id': auto_id,
             }
 
         format_str = '%m/%d/%Y'
