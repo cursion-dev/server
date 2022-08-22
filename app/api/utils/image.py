@@ -127,10 +127,16 @@ class Image():
         )
 
         # inserting animation pausing script
-        driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
-
+        try:
+            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        except:
+            print('cannot pause animations')
+            
         # inserting video pausing scripts
-        driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        try:
+            driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        except:
+            print('cannnot pause videos')
 
         # mask all listed ids        
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
@@ -255,10 +261,17 @@ class Image():
         )
 
         # inserting animation pausing script
-        driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        try:
+            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        except:
+            print('cannot pause animations')
 
         # inserting video pausing scripts
-        driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        try:
+            driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        except:
+            print('cannnot pause videos')
+            
 
         # mask all listed ids        
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
@@ -431,10 +444,16 @@ class Image():
         await page.goto(site.site_url, page_options)
 
         # inserting animation pausing script
-        await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        try:
+            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        except:
+            print('cannot pause animations')
 
         # inserting video pausing scripts
-        await page.evaluate("document.querySelectorAll('video').forEach(vid => vid.pause());")
+        try:
+            await page.evaluate("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        except:
+            print('cannot pause videos')
 
 
         # mask all listed ids
@@ -587,10 +606,16 @@ class Image():
         await page.goto(site.site_url, page_options)
 
         # inserting animation pausing script
-        await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        try:
+            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+        except:
+            print('cannot pause animations')
 
         # inserting video pausing scripts
-        await page.evaluate("document.querySelectorAll('video').forEach(vid => vid.pause());")
+        try:
+            await page.evaluate("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+        except:
+            print('cannot pause videos')
 
         # mask all listed ids
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
