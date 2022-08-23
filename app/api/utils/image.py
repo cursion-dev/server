@@ -44,7 +44,7 @@ class Image():
 
     def __init__(self):
         
-        # Masking scripts
+        # scripts
         self.set_jquery = (
             """
             var jq = document.createElement('script');
@@ -53,6 +53,7 @@ class Image():
             """
             )
 
+        
         self.mask_function = (
             """
             (function($){
@@ -128,7 +129,7 @@ class Image():
 
         # inserting animation pausing script
         try:
-            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
         except:
             print('cannot pause animations')
             
@@ -262,7 +263,7 @@ class Image():
 
         # inserting animation pausing script
         try:
-            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
         except:
             print('cannot pause animations')
 
@@ -443,17 +444,21 @@ class Image():
         # requesting site url
         await page.goto(site.site_url, page_options)
 
+        
+
         # inserting animation pausing script
         try:
-            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
         except:
             print('cannot pause animations')
 
-        # inserting video pausing scripts
+        # pausing videos
         try:
-            await page.evaluate("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
-        except:
-            print('cannot pause videos')
+            videos = await page.querySelectorAll('video')
+            for vid in videos:
+                await page.evaluate('(vid) => vid.pause()', vid)
+        except Exception as e:
+            print(e)
 
 
         # mask all listed ids
@@ -607,15 +612,17 @@ class Image():
 
         # inserting animation pausing script
         try:
-            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
         except:
             print('cannot pause animations')
 
-        # inserting video pausing scripts
+        # pausing videos
         try:
-            await page.evaluate("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
-        except:
-            print('cannot pause videos')
+            videos = await page.querySelectorAll('video')
+            for vid in videos:
+                await page.evaluate('(vid) => vid.pause()', vid)
+        except Exception as e:
+            print(e)
 
         # mask all listed ids
         if configs['mask_ids'] is not None and configs['mask_ids'] != '':
