@@ -7,6 +7,7 @@ from django.core import serializers
 from django.forms.models import model_to_dict
 from ...models import Account, Card
 from datetime import timedelta, datetime
+from scanerrimport settings
 import os, stripe, json 
 
 
@@ -17,7 +18,7 @@ class StripeKey(APIView):
     http_method_names = ['post',]
 
     def post(self, request):  
-        key = os.environ.get('STRIPE_PUBLIC_TEST')
+        key = settings.STRIPE_PUBLIC
         data = {'key': key,}
         return Response(data, status=status.HTTP_200_OK)
 
@@ -29,7 +30,7 @@ class CreateCustomer(APIView):
     http_method_names = ['post',]
 
     def post(self, request):  
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         customer = stripe.Customer.create(email=request.user.email)
         
         account = Account.objects.create(
@@ -49,7 +50,7 @@ class CreateProduct(APIView):
 
     def post(self, request):  
         name = request.data['name']
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         product = stripe.Product.create(name=name)
         
         account = Account.objects.get(user=request.user)
@@ -69,7 +70,7 @@ class CreatePrice(APIView):
     def post(self, request):  
         account = Account.objects.get(user=request.user)
         price_amount = float(request.data['price_amount'])
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         price = stripe.Price.create(
             product=account.product_id,
             unit_amount=price_amount,
@@ -94,7 +95,7 @@ class CreateSubscription(APIView):
     http_method_names = ['post',]
 
     def post(self, request):  
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         account = Account.objects.get(user=request.user)
         subscription = stripe.Subscription.create(
             customer=account.cust_id,
@@ -121,7 +122,7 @@ class CompleteSubscription(APIView):
     http_method_names = ['post',]
 
     def post(self, request):  
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         account = Account.objects.get(user=request.user)
         pay_method_id = request.data['payment_method']
         if Card.objects.filter(account=account).exists():
@@ -209,7 +210,7 @@ class SetupSubscription(APIView):
     http_method_names = ['post',]
 
     def post(self, request):  
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
         user = request.user
         name = request.data['name']
         product_name = str(user.email + '_' + str(user.id) + '_' + name)
@@ -342,7 +343,7 @@ class AccountActivation(APIView):
 
     def post(self, request):
         account = Account.objects.get(user=request.user)
-        stripe.api_key = os.environ.get('STRIPE_PRIVATE_TEST')
+        stripe.api_key = settings.STRIPE_PRIVATE
 
         if account.active == True:
             stripe.Subscription.modify(
