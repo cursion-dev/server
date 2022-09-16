@@ -7,7 +7,7 @@ from django.core import serializers
 from django.forms.models import model_to_dict
 from ...models import Account, Card
 from datetime import timedelta, datetime
-from scanerrimport settings
+from scanerr import settings
 import os, stripe, json 
 
 
