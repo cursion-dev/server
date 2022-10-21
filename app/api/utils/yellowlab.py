@@ -92,7 +92,8 @@ class Yellowlab():
 
                 data = {
                     "scores": scores, 
-                    "audits": audits
+                    "audits": audits,
+                    "failed": False
                 }
 
         except Exception as e:
@@ -127,7 +128,8 @@ class Yellowlab():
 
             data = {
                 "scores": scores, 
-                "audits": audits
+                "audits": audits,
+                "failed": True
             }
             
         return data

@@ -102,7 +102,8 @@ class Lighthouse():
 
                 data = {
                     "scores": scores, 
-                    "audits": audits
+                    "audits": audits,
+                    "failed": False
                 }
 
 
@@ -130,7 +131,8 @@ class Lighthouse():
 
             data = {
                 "scores": scores, 
-                "audits": audits
+                "audits": audits,
+                "failed": True
             }
             
         return data

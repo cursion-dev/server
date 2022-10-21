@@ -74,7 +74,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image()._scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -88,7 +88,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image()._scan_p(site=self.site, configs=self.configs))
         
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
             lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
@@ -111,7 +111,7 @@ class Scanner():
         self.scan.save()
         first_scan = self.scan
 
-        self.update_site_info(first_scan)
+        update_site_info(first_scan)
 
         return first_scan
 
@@ -149,7 +149,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image()._scan(site=self.site, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -163,7 +163,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image()._scan_p(site=self.site, configs=self.configs))
         
         if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
             lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
@@ -190,55 +190,243 @@ class Scanner():
         first_scan.paried_scan = second_scan
         first_scan.save()
 
-        self.update_site_info(second_scan)
+        update_site_info(second_scan)
         
         return second_scan
 
 
+
+
+
+
+
+def update_site_info(scan):
+    """ 
+        Method to update associated Site with the new Scan data
+
+        returns -> `Site` <obj>
+    """
+        
+    health = 'No Data'
+    badge = 'neutral'
+    d = 0
+    score = 0
+    site = scan.site
+
+    if scan.lighthouse['scores']['average'] is not None:
+        score += float(scan.lighthouse['scores']['average'])
+        d += 1
+    if scan.yellowlab['scores']['globalScore'] is not None:
+        score += float(scan.yellowlab['scores']['globalScore'])
+        d += 1
     
-    def update_site_info(self, scan):
-        
-        health = 'No Data'
-        badge = 'neutral'
-        d = 0
-        score = 0
-
-        if scan.lighthouse['scores']['average'] is not None:
-            score += float(scan.lighthouse['scores']['average'])
-            d += 1
-        if scan.yellowlab['scores']['globalScore'] is not None:
-            score += float(scan.yellowlab['scores']['globalScore'])
-            d += 1
-        
-        if score != 0:
-            score = score / d
-            if score >= 75:
-                health = 'Good'
-                badge = 'success'
-            elif 75 > score >= 60:
-                health = 'Okay'
-                badge = 'warning'
-            elif 60 > score:
-                health = 'Poor'
-                badge = 'danger'
-        
+    if score != 0:
+        score = score / d
+        if score >= 75:
+            health = 'Good'
+            badge = 'success'
+        elif 75 > score >= 60:
+            health = 'Okay'
+            badge = 'warning'
+        elif 60 > score:
+            health = 'Poor'
+            badge = 'danger'
+    
+    else:
+        if scan.site.info['status']['score'] is not None:
+            score = float(site.info['status']['score'])
+            health = site.info['status']['health']
+            badge = site.info['status']['badge']
         else:
-            if self.site.info['status']['score'] is not None:
-                score = float(self.site.info['status']['score'])
-                health = self.site.info['status']['health']
-                badge = self.site.info['status']['badge']
-            else:
-                score = None
+            score = None
 
-        self.site.info['latest_scan']['id'] = str(scan.id)
-        self.site.info['latest_scan']['time_created'] = str(scan.time_created)
-        self.site.info['latest_scan']['time_completed'] = str(scan.time_completed)
-        self.site.info['lighthouse'] = scan.lighthouse.get('scores')
-        self.site.info['yellowlab'] = scan.yellowlab.get('scores')
-        self.site.info['status']['health'] = str(health)
-        self.site.info['status']['badge'] = str(badge)
-        self.site.info['status']['score'] = score
+    site.info['latest_scan']['id'] = str(scan.id)
+    site.info['latest_scan']['time_created'] = str(scan.time_created)
+    site.info['latest_scan']['time_completed'] = str(scan.time_completed)
+    site.info['lighthouse'] = scan.lighthouse.get('scores')
+    site.info['yellowlab'] = scan.yellowlab.get('scores')
+    site.info['status']['health'] = str(health)
+    site.info['status']['badge'] = str(badge)
+    site.info['status']['score'] = score
 
-        self.site.save()
+    site.save()
 
-        return self.site
+    return site
+
+
+
+
+
+
+
+
+
+
+def check_scan_completion(scan):
+    """
+        Method that checks if the scan has finished all 
+        components. If so, method also updates scan and site 
+        info.
+
+        returns -> `Scan` <obj>
+    """
+
+    finished = True
+
+    if 'html' or 'full' in scan.type:
+        if scan.html == None or scan.html == '':
+            finished = False
+
+    if 'logs' or 'full' in scan.type:
+        if scan.logs == None or scan.logs == '':
+            finished = False
+
+    if 'lighthouse' or 'full' in scan.type:
+        if scan.lighthouse['scores']['average'] == None and scan.lighthouse.get('failed') == None:
+            finished = False
+            
+    if 'lighthouse' or 'full' in scan.type:
+        if scan.yellowlab['scores']['globalScore'] == None and scan.yellowlab.get('failed') == None:
+            finished = False
+
+    if 'vrt' or 'full' in scan.type:
+        if scan.images == None or scan.images == '':
+            finished = False
+
+    # deciding if done
+    if finished is True:
+        time_completed = datetime.now()
+        update_site_info(scan)
+        scan.time_completed = time_completed
+        scan.save()
+
+    return scan
+
+
+
+
+
+
+def _html_and_logs(scan):
+    """
+        Method to run the 'html' and 'logs' component of the scan 
+        allowing for multi-threading.
+
+        returns -> `Scan` <obj>
+    """
+    if scan.configs['driver'] == 'selenium':
+
+        driver = driver_s_init(
+            window_size=scan.configs['window_size'], 
+            device=scan.configs['device']
+        )
+        driver.get(scan.site.site_url)
+        if 'html' in scan.type or 'full' in scan.type:
+            html = driver.page_source
+            scan.html = html
+        if 'logs' in scan.type or 'full' in scan.type:
+            logs = driver.get_log('browser')
+            scan.logs = logs
+        quit_driver(driver)
+
+
+    if scan.configs['driver'] == 'puppeteer':
+        
+        driver_data = asyncio.run(
+            get_data(
+                url=scan.site.site_url, 
+                configs=scan.configs
+            )
+        )
+        if 'html' in scan.type or 'full' in scan.type:
+            html = driver_data['html']
+            scan.html = html
+        if 'logs' in scan.type or 'full' in scan.type:
+            logs = driver_data['logs']
+            scan.logs = logs
+
+        
+    # updating Scan object
+    scan.save()
+
+    # checking if scan is done
+    scan = check_scan_completion(scan)
+
+    return scan
+
+
+
+
+
+def _vrt(scan):
+    """
+        Method to run the visual regression (vrt) component of the scan 
+        allowing for multi-threading.
+
+        returns -> `Scan` <obj>
+    """
+    if scan.configs['driver'] == 'selenium':
+        driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
+        images = Image()._scan(site=scan.site, driver=driver, configs=scan.configs)
+        quit_driver(driver)
+
+    if configs['driver'] == 'puppeteer':
+        images = asyncio.run(Image()._scan_p(site=scan.site, configs=scan.configs))
+    
+    # updating Scan object
+    scan.images = images
+    scan.save()
+
+    # checking if scan is done
+    scan = check_scan_completion(scan)
+
+    return scan
+
+
+
+
+
+def _lighthouse(scan):
+    """
+        Method to run the lighthouse component of the scan 
+        allowing for multi-threading.
+
+        returns -> `Scan` <obj>
+    """
+
+    # running lighthouse
+    lh_data = Lighthouse(site=scan.site, configs=scan.configs).get_data() 
+    
+    # updating Scan object
+    scan.lighthouse = lh_data
+    scan.save()
+
+    # checking if scan is done
+    scan = check_scan_completion(scan)
+
+    return scan
+
+
+
+
+
+
+def _yellowlab(scan):
+    """
+        Method to run the yellowlab component of the scan 
+        allowing for multi-threading.
+
+        returns -> `Scan` <obj>
+    """
+
+    # running yellowlab
+    yl_data = Lighthouse(site=scan.site, configs=scan.configs).get_data() 
+    
+    # updating Scan object
+    scan.yellowlab = yl_data
+    scan.save()
+
+    # checking if scan is done
+    scan = check_scan_completion(scan)
+
+    return scan

@@ -126,7 +126,6 @@ def create_site(request, delay=False):
 
 
 
-
 def get_sites(request):
     site_id = request.query_params.get('site_id')
     user = request.user
@@ -605,11 +604,24 @@ def create_scan(request, delay=False):
     )
 
     if delay == True:
-        create_scan_bg.delay(
-            scan_id=created_scan.id, 
-            configs=configs, 
-            type=types,
-        )
+
+        # create_scan_bg.delay(
+        #     scan_id=created_scan.id, 
+        #     configs=configs, 
+        #     type=types,
+        # )
+
+        # running scans in selenium mode
+        if 'html' or 'logs'  or 'full' in types:
+            run_html_and_logs_bg.delay(scan=created_scan)
+        if 'lighthouse' or 'full' in types:
+            run_lighthouse_bg.delay(scan=created_scan)
+        if 'yellowlab' or 'full' in types:
+            run_yellowlab_bg.delay(scan=created_scan)
+        if 'vrt' or 'full' in types:
+            run_vrt_bg.delay(scan=created_scan)
+
+
         data = {
             'status': True,
             'message': 'scan is being created in the background',

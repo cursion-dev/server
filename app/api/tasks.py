@@ -1,11 +1,10 @@
 from __future__ import absolute_import, unicode_literals
+from typing import Any
 from celery.utils.log import get_task_logger
 from celery import shared_task
-from .v1.ops.tasks import (create_site_task, 
-    create_scan_task, create_test_task, delete_site_s3,
-    create_report_task, delete_report_s3, migrate_site_task,
-    create_testcase_task,
-)
+from celery import Task as BaseTask
+from .v1.ops.tasks import *
+from .bootstrap.logger import producer_log
 from .models import Log
 from django.contrib.auth.models import User
 from .utils.driver_p import driver_test
@@ -16,21 +15,38 @@ import asyncio
 logger = get_task_logger(__name__)
 
 
+class ScannerApiTask(BaseTask):
+    def delay(
+            self,
+            *args,
+            **kwargs,
+    ) -> Any:
+        """
+        Producer handler.
 
-@shared_task
+        :rtype Any:
+        """
+        result = self.apply_async(args, kwargs)
+
+        producer_log.info("CELERY_TASK_QUEUED - ID: %s", result.id)
+
+        return result
+
+
+
+@shared_task(base=ScannerApiTask)
 def test_pupeteer():
     asyncio.run(driver_test())
     logger.info('Tested pupeteer instalation')
 
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def create_site_bg(site_id, scan_id, configs=None):
     create_site_task(site_id, scan_id, configs)
     logger.info('Created scan of new site')
 
 
-
-@shared_task
+@shared_task(base=ScannerApiTask)
 def create_scan_bg(
         scan_id=None,
         site_id=None, 
@@ -53,7 +69,34 @@ def create_scan_bg(
 
 
 
-@shared_task
+
+@shared_task(base=ScannerApiTask)
+def run_html_and_logs_bg(scan=None):
+    run_html_and_logs_task(scan)
+    logger.info('ran html & logs component')
+
+
+@shared_task(base=ScannerApiTask)
+def run_vrt_bg(scan=None):
+    run_vrt_task(scan)
+    logger.info('ran vrt component')
+
+
+@shared_task(base=ScannerApiTask)
+def run_lighthouse_bg(scan=None):
+    run_lighthouse_task(scan)
+    logger.info('ran lighthouse component')
+
+
+@shared_task(base=ScannerApiTask)
+def run_yellowlab_bg(scan=None):
+    run_yellowlab_task(scan)
+    logger.info('ran yellowlab component')
+
+
+
+
+@shared_task(base=ScannerApiTask)
 def create_test_bg(
         test_id=None,
         site_id=None, 
@@ -80,25 +123,25 @@ def create_test_bg(
     )
     logger.info('Created new test of site')
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def create_report_bg(site_id=None, automation_id=None):
     create_report_task(site_id, automation_id)
     logger.info('Created new report of site')
 
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def delete_site_s3_bg(site_id):
     delete_site_s3(site_id)
     logger.info('Deleted site s3 objects')
 
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def delete_report_s3_bg(report_id):
     delete_report_s3(report_id)
     logger.info('Deleted Report pdf in s3')
 
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def purge_logs(username=None):
     if username:
         user = User.objects.get(username=username)
@@ -127,7 +170,7 @@ def create_testcase_bg(
 
 
 
-@shared_task
+@shared_task(base=ScannerApiTask)
 def migrate_site_bg(
         login_url, 
         admin_url,

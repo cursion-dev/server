@@ -1,5 +1,6 @@
 from ...models import *
 from ...utils.scanner import Scanner as S
+from ...utils.scanner import *
 from ...utils.tester import Tester as T
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
@@ -40,6 +41,31 @@ def create_scan_task(
     if automation_id:
         automation(automation_id, scan.id)
     return scan
+
+
+
+
+
+def run_html_and_logs_task(scan=None):
+    scan = _html_and_logs(scan)
+    return scan
+
+def run_vrt_task(scan=None):
+    scan = _vrt(scan)
+    return scan
+
+def run_vrt_task(scan=None):
+    scan = _vrt(scan)
+    return scan
+
+def run_lighthouse_task(scan=None):
+    scan = _lighthouse(scan)
+    return scan
+
+def run_yellowlab_task(scan=None):
+    scan = _yellowlab(scan)
+    return scan
+
 
 
 
