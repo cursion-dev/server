@@ -199,6 +199,17 @@ def get_steps_default():
 
 
 
+def get_scores_default():
+    scores_default = {
+        'html': None,
+        'logs': None,
+        'lighthouse': None,
+        'yellowlab': None,
+        'vrt': None
+    }
+    return scores_default
+
+
 
 def get_slack_default():
     slack_default = {
@@ -261,6 +272,7 @@ class Test(models.Model):
     pre_scan = models.ForeignKey(Scan, on_delete=models.SET_NULL, serialize=True, null=True, blank=True, related_name='pre_scan')
     post_scan = models.ForeignKey(Scan, on_delete=models.SET_NULL, serialize=True, null=True, blank=True, related_name='post_scan')
     score = models.FloatField(serialize=True, null=True, blank=True)
+    component_scores = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_default)
     html_delta = models.JSONField(serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)

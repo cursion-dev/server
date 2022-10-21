@@ -575,6 +575,12 @@ class Tester():
         self.test.yellowlab_delta = yellowlab_data
         self.test.images_delta = images_data
         self.test.score = score
+        self.test.component_scores['html'] = (micro_diff_score * 100)
+        self.test.component_scores['logs'] = (logs_score * 100)
+        self.test.component_scores['lighthouse'] = (lighthouse_score * 100)
+        self.test.component_scores['yellowlab'] = (yellowlab_score * 100)
+        self.test.component_scores['vrt'] = (images_score * 100)
+
 
         self.test.save()
 
