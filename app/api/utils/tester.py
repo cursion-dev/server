@@ -495,13 +495,15 @@ class Tester():
             # scores & data
             lighthouse_data = self.delta_lighthouse()
             lighthouse_avg = lighthouse_data['scores']['average_delta']
-            if lighthouse_avg != None:
+            if lighthouse_avg != None and lighthouse_avg > -100:
                 lighthouse_score = (100 + lighthouse_avg)/100
-            
+            if lighthouse_avg != None and lighthouse_avg <= -100:
+                lighthouse_score = 0
+
             # weights
             if lighthouse_score == None:
                 delta_lh_w = 0
-            elif lighthouse_score > 0:
+            elif lighthouse_score > 1:
                 delta_lh_w = 1
                 lighthouse_score = 1
             else:
@@ -514,13 +516,15 @@ class Tester():
             # scores & data
             yellowlab_data = self.delta_yellowlab()
             yellowlab_avg = yellowlab_data['scores']['average_delta']
-            if yellowlab_avg != None:
+            if yellowlab_avg != None and yellowlab_avg > -100:
                 yellowlab_score = (100 + yellowlab_avg)/100
-            
+            if yellowlab_avg != None and yellowlab_avg <= -100:
+                yellowlab_score = 0
+
             # weights
             if yellowlab_score == None:
                 delta_yl_w = 0
-            elif yellowlab_score > 0:
+            elif yellowlab_score > 1:
                 delta_yl_w = 1
                 yellowlab_score = 1
             else:
