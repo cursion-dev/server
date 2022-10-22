@@ -18,4 +18,4 @@ app/static*
 Dockerfile.alpine
 Dockerfile.dev1
 Dockerfile.dev3
-app/api/migrations/0001_initial.py
+app/api/migrations/*_initial.py
