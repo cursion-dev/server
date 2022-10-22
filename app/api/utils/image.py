@@ -9,6 +9,7 @@ from sewar.full_ref import uqi, mse, ssim, msssim, psnr, ergas, vifp, rase, sam,
 from scanerr import settings
 from PIL import Image as I, ImageChops, ImageStat
 from pyppeteer import launch
+from datetime import datetime
 from asgiref.sync import sync_to_async
 import time, os, sys, json, uuid, boto3, \
     statistics, shutil, numpy, cv2
@@ -95,6 +96,25 @@ class Image():
         )
 
 
+
+
+    def check_timeout(self, timeout, start_time):
+        """
+        Checks to see if the current time exceedes the alotted timeout. 
+        
+        returns -> True / False 
+        """
+
+        current = datetime.now()
+        diff = current - start_time
+        if diff.total_seconds() >= timeout:
+            return False
+        else:
+            return True
+
+
+
+
     def scan(self, site, configs, driver=None,):
         """
         Grabs multiple screenshots of the website and uploads 
@@ -122,26 +142,28 @@ class Image():
         # waiting for network requests to resolve
         driver_wait(
             driver=driver, 
-            interval=int(configs['interval']),  
-            min_wait_time=int(configs['min_wait_time']),
-            max_wait_time=int(configs['max_wait_time']),
+            interval=int(configs.get('interval', 5)),  
+            min_wait_time=int(configs.get('min_wait_time', 10)),
+            max_wait_time=int(configs.get('max_wait_time', 30)),
         )
 
-        # inserting animation pausing script
-        try:
-            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
-        except:
-            print('cannot pause animations')
-            
-        # inserting video pausing scripts
-        try:
-            driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
-        except:
-            print('cannnot pause videos')
+
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
+                
+            # inserting video pausing scripts
+            try:
+                driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+            except:
+                print('cannnot pause videos')
 
         # mask all listed ids        
-        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
-            ids = configs['mask_ids'].split(',')
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
             for id in ids:
                 try:
                     driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
@@ -166,13 +188,18 @@ class Image():
         index = 0
         last_height = -1
         bottom = False
+        start_time = datetime.now()
         while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(configs.get('timeout', 300), start_time):
+                break
 
             # scroll single frame
             if index != 0:
                 # driver.execute_script("window.scrollBy(0, window.innerHeight);")
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(configs['min_wait_time']))
+                time.sleep(int(configs.get('min_wait_time', 10)))
 
             # get current position and compare to previous
             new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
@@ -184,9 +211,9 @@ class Image():
                 # waiting for network requests to resolve
                 driver_wait(
                     driver=driver, 
-                    interval=int(configs['interval']),  
-                    min_wait_time=int(configs['min_wait_time']),
-                    max_wait_time=int(configs['max_wait_time']),
+                    interval=int(configs.get('interval', 5)),  
+                    min_wait_time=int(configs.get('min_wait_time', 10)),
+                    max_wait_time=int(configs.get('max_wait_time', 30)),
                 )
 
                 # get screenshot
@@ -256,27 +283,28 @@ class Image():
         # waiting for network requests to resolve
         driver_wait(
             driver=driver, 
-            interval=int(configs['interval']),  
-            min_wait_time=int(configs['min_wait_time']),
-            max_wait_time=int(configs['max_wait_time']),
+            interval=int(configs.get('interval', 5)),  
+            min_wait_time=int(configs.get('min_wait_time', 10)),
+            max_wait_time=int(configs.get('max_wait_time', 30)),
         )
 
-        # inserting animation pausing script
-        try:
-            driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
-        except:
-            print('cannot pause animations')
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
 
-        # inserting video pausing scripts
-        try:
-            driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
-        except:
-            print('cannnot pause videos')
+            # inserting video pausing scripts
+            try:
+                driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+            except:
+                print('cannnot pause videos')
             
 
         # mask all listed ids        
-        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
-            ids = configs['mask_ids'].split(',')
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
             for id in ids:
                 try:
                     driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
@@ -312,13 +340,18 @@ class Image():
         index = 0
         last_height = -1
         bottom = False
+        start_time = datetime.now()
         while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(configs.get('timeout', 300), start_time):
+                break
 
             # scroll single frame
             if index != 0:
                 # driver.execute_script("window.scrollBy(0, window.innerHeight);")
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(configs['min_wait_time']))
+                time.sleep(int(configs.get('min_wait_time', 10)))
 
             # get current position and compare to previous
             new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
@@ -330,9 +363,9 @@ class Image():
                 # waiting for network requests to resolve
                 driver_wait(
                     driver=driver, 
-                    interval=int(configs['interval']),  
-                    min_wait_time=int(configs['min_wait_time']),
-                    max_wait_time=int(configs['max_wait_time']),
+                    interval=int(configs.get('interval', 5)),  
+                    min_wait_time=int(configs.get('min_wait_time', 10)),
+                    max_wait_time=int(configs.get('max_wait_time', 30)),
                 )
 
                 # get screenshot
@@ -407,17 +440,17 @@ class Image():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        driver = await driver_init_p(window_size=configs['window_size'], wait_time=configs['max_wait_time'])
+        driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=configs.get('max_wait_time', 30))
         page = await driver.newPage()
 
-        sizes = configs['window_size'].split(',')
+        sizes = configs.get('window_size', '1920,1080').split(',')
         is_mobile = False
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             is_mobile = True
         
         page_options = {
             'waitUntil': 'networkidle0', 
-            'timeout': configs['max_wait_time']*1000
+            'timeout': configs.get('max_wait_time', 30)*1000
         }
 
         viewport = {
@@ -436,7 +469,7 @@ class Image():
             'userAgent': userAgent
         }
 
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             await page.emulate(emulate_options)
         else:
             await page.setViewport(viewport)
@@ -445,25 +478,25 @@ class Image():
         await page.goto(site.site_url, page_options)
 
         
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
 
-        # inserting animation pausing script
-        try:
-            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
-        except:
-            print('cannot pause animations')
-
-        # pausing videos
-        try:
-            videos = await page.querySelectorAll('video')
-            for vid in videos:
-                await page.evaluate('(vid) => vid.pause()', vid)
-        except Exception as e:
-            print(e)
+            # pausing videos
+            try:
+                videos = await page.querySelectorAll('video')
+                for vid in videos:
+                    await page.evaluate('(vid) => vid.pause()', vid)
+            except Exception as e:
+                print(e)
 
 
         # mask all listed ids
-        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
-            ids = configs['mask_ids'].split(',')
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
             for id in ids:
                 try:
                     await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
@@ -496,12 +529,17 @@ class Image():
         index = 0
         last_height = -1
         bottom = False
+        start_time = datetime.now()
         while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(configs.get('timeout', 300), start_time):
+                break
 
             # scroll single frame
             if index != 0:
                 await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(configs['min_wait_time']))
+                time.sleep(int(configs.get('min_wait_time', 10)))
 
             # get current position and compare to previous
             new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
@@ -513,7 +551,7 @@ class Image():
                 # interact with and wait for page to load
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
-                time.sleep(configs['min_wait_time'])
+                time.sleep(configs.get('min_wait_time', 10))
                 
             
                 # get screenshot
@@ -573,17 +611,17 @@ class Image():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        driver = await driver_init_p(window_size=configs['window_size'], wait_time=configs['max_wait_time'])
+        driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=configs.get('max_wait_time', 30))
         page = await driver.newPage()
 
-        sizes = configs['window_size'].split(',')
+        sizes = configs.get('window_size', '1920,1080').split(',')
         is_mobile = False
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             is_mobile = True
         
         page_options = {
             'waitUntil': 'networkidle0', 
-            'timeout': configs['max_wait_time']*1000
+            'timeout': configs.get('max_wait_time', 30)*1000
         }
 
         viewport = {
@@ -602,7 +640,7 @@ class Image():
             'userAgent': userAgent
         }
 
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             await page.emulate(emulate_options)
         else:
             await page.setViewport(viewport)
@@ -610,23 +648,24 @@ class Image():
         # requesting site url
         await page.goto(site.site_url, page_options)
 
-        # inserting animation pausing script
-        try:
-            await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
-        except:
-            print('cannot pause animations')
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
 
-        # pausing videos
-        try:
-            videos = await page.querySelectorAll('video')
-            for vid in videos:
-                await page.evaluate('(vid) => vid.pause()', vid)
-        except Exception as e:
-            print(e)
+            # pausing videos
+            try:
+                videos = await page.querySelectorAll('video')
+                for vid in videos:
+                    await page.evaluate('(vid) => vid.pause()', vid)
+            except Exception as e:
+                print(e)
 
         # mask all listed ids
-        if configs['mask_ids'] is not None and configs['mask_ids'] != '':
-            ids = configs['mask_ids'].split(',')
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
             for id in ids:
                 try:
                     await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
@@ -671,12 +710,17 @@ class Image():
         index = 0
         last_height = -1
         bottom = False
+        start_time = datetime.now()
         while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(configs.get('timeout', 300), start_time):
+                break
 
             # scroll single frame
             if index != 0:
                 await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(configs['min_wait_time']))
+                time.sleep(int(configs.get('min_wait_time', 10)))
 
             # get current position and compare to previous
             new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
@@ -688,7 +732,7 @@ class Image():
                 # interact with and wait for page to load
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
-                time.sleep(configs['min_wait_time'])
+                time.sleep(configs.get('min_wait_time', 10))
                 
             
                 # get screenshot
@@ -963,7 +1007,7 @@ class Image():
 
         # initialize driver if not passed as param
         if not driver:
-            driver = driver_init(window_size=configs['window_size'], device=configs['device'])
+            driver = driver_init(window_size=configs.get('window_size', '1920,1080'), device=configs.get('device'))
 
 
         # get or create site data
@@ -981,9 +1025,9 @@ class Image():
         # wait for site to fully load
         driver_wait(
             driver=driver, 
-            interval=int(configs['interval']),  
-            min_wait_time=int(configs['min_wait_time']),
-            max_wait_time=int(configs['max_wait_time']),
+            interval=int(configs.get('interval', 5)),  
+            min_wait_time=int(configs.get('min_wait_time', 10)),
+            max_wait_time=int(configs.get('max_wait_time', 30)),
         )
 
         # grab screenshot
@@ -1040,17 +1084,17 @@ class Image():
                 "min_wait_time": 10
             }
 
-        driver = await driver_init_p(window_size=configs['window_size'], wait_time=configs['max_wait_time'])
+        driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=configs.get('max_wait_time', 30))
         page = await driver.newPage()
 
-        sizes = configs['window_size'].split(',')
+        sizes = configs.get('window_size', '1920,1080').split(',')
         is_mobile = False
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             is_mobile = True
         
         page_options = {
             'waitUntil': 'networkidle0', 
-            'timeout': configs['max_wait_time']*1000
+            'timeout': configs.get('max_wait_time', 30)*1000
         }
 
         viewport = {
@@ -1069,7 +1113,7 @@ class Image():
             'userAgent': userAgent
         }
 
-        if configs['device'] == 'mobile':
+        if configs.get('device') == 'mobile':
             await page.emulate(emulate_options)
         else:
             await page.setViewport(viewport)
@@ -1088,7 +1132,7 @@ class Image():
         # interact with and wait for page to load
         await page.mouse.move(0, 0)
         await page.mouse.move(0, 100)
-        time.sleep(configs['min_wait_time'])
+        time.sleep(configs.get('min_wait_time', 10))
 
         # get screenshot
         pic_id = uuid.uuid4()

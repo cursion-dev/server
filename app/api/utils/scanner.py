@@ -34,6 +34,8 @@ class Scanner():
                 'interval': 5,
                 'min_wait_time': 10,
                 'max_wait_time': 60,
+                'timeout': 300,
+                'disable_animations': False
             }
         
         self.site = site

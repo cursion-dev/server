@@ -269,6 +269,8 @@ def create_test(request, delay=False):
             'mask_ids': None,
             'min_wait_time': 10,
             'max_wait_time': 60,
+            'timeout': 300,
+            'disable_animations': False
         }
     
     if pre_scan_id:
@@ -593,6 +595,8 @@ def create_scan(request, delay=False):
             'mask_ids': None,
             'min_wait_time': 10,
             'max_wait_time': 60,
+            'timeout': 300,
+            'disable_animations': False
         }
 
     # creating scan obj
@@ -867,6 +871,8 @@ def create_or_update_schedule(request):
             'interval': 5,
             'min_wait_time': 10,
             'max_wait_time': 30,
+            'timeout': 300,
+            'disable_animations': False
         }
 
     if schedule_status != None and schedule != None:
