@@ -617,13 +617,13 @@ def create_scan(request, delay=False):
 
         # running scans in selenium mode
         if 'html' or 'logs'  or 'full' in types:
-            run_html_and_logs_bg.delay(scan=created_scan)
+            run_html_and_logs_bg.delay(scan_id=created_scan.id)
         if 'lighthouse' or 'full' in types:
-            run_lighthouse_bg.delay(scan=created_scan)
+            run_lighthouse_bg.delay(scan_id=created_scan.id)
         if 'yellowlab' or 'full' in types:
-            run_yellowlab_bg.delay(scan=created_scan)
+            run_yellowlab_bg.delay(scan_id=created_scan.id)
         if 'vrt' or 'full' in types:
-            run_vrt_bg.delay(scan=created_scan)
+            run_vrt_bg.delay(scan_id=created_scan.id)
 
 
         data = {

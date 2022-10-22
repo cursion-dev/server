@@ -1,6 +1,5 @@
 from ...models import *
 from ...utils.scanner import Scanner as S
-from ...utils.scanner import *
 from ...utils.tester import Tester as T
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
@@ -9,6 +8,10 @@ from ...utils.automations import automation
 from ...utils.caser import Caser
 import boto3, asyncio
 from scanerr import settings
+from ...utils.scanner import (
+    _html_and_logs, _vrt, _lighthouse, 
+    _yellowlab
+)
 
 
 
@@ -46,24 +49,20 @@ def create_scan_task(
 
 
 
-def run_html_and_logs_task(scan=None):
-    scan = _html_and_logs(scan)
+def run_html_and_logs_task(scan_id=None):
+    scan = _html_and_logs(scan_id)
     return scan
 
-def run_vrt_task(scan=None):
-    scan = _vrt(scan)
+def run_vrt_task(scan_id=None):
+    scan = _vrt(scan_id)
     return scan
 
-def run_vrt_task(scan=None):
-    scan = _vrt(scan)
+def run_lighthouse_task(scan_id=None):
+    scan = _lighthouse(scan_id)
     return scan
 
-def run_lighthouse_task(scan=None):
-    scan = _lighthouse(scan)
-    return scan
-
-def run_yellowlab_task(scan=None):
-    scan = _yellowlab(scan)
+def run_yellowlab_task(scan_id=None):
+    scan = _yellowlab(scan_id)
     return scan
 
 

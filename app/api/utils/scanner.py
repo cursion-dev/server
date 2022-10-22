@@ -284,11 +284,11 @@ def check_scan_completion(scan):
             finished = False
 
     if 'lighthouse' or 'full' in scan.type:
-        if scan.lighthouse['scores']['average'] == None and scan.lighthouse.get('failed') == None:
+        if scan.lighthouse.get('scores').get('average') == None and scan.lighthouse.get('failed') == None:
             finished = False
             
-    if 'lighthouse' or 'full' in scan.type:
-        if scan.yellowlab['scores']['globalScore'] == None and scan.yellowlab.get('failed') == None:
+    if 'yellowlab' or 'full' in scan.type:
+        if scan.yellowlab.get('scores').get('globalScore') == None and scan.yellowlab.get('failed') == None:
             finished = False
 
     if 'vrt' or 'full' in scan.type:
@@ -309,13 +309,15 @@ def check_scan_completion(scan):
 
 
 
-def _html_and_logs(scan):
+def _html_and_logs(scan_id):
     """
         Method to run the 'html' and 'logs' component of the scan 
         allowing for multi-threading.
 
         returns -> `Scan` <obj>
     """
+    scan = Scan.objects.get(id=scan_id)
+
     if scan.configs['driver'] == 'selenium':
 
         driver = driver_s_init(
@@ -325,10 +327,14 @@ def _html_and_logs(scan):
         driver.get(scan.site.site_url)
         if 'html' in scan.type or 'full' in scan.type:
             html = driver.page_source
+            scan = Scan.objects.get(id=scan_id)
             scan.html = html
+            scan.save()
         if 'logs' in scan.type or 'full' in scan.type:
             logs = driver.get_log('browser')
+            scan = Scan.objects.get(id=scan_id)
             scan.logs = logs
+            scan.save()
         quit_driver(driver)
 
 
@@ -342,14 +348,15 @@ def _html_and_logs(scan):
         )
         if 'html' in scan.type or 'full' in scan.type:
             html = driver_data['html']
+            scan = Scan.objects.get(id=scan_id)
             scan.html = html
+            scan.save()
         if 'logs' in scan.type or 'full' in scan.type:
             logs = driver_data['logs']
+            scan = Scan.objects.get(id=scan_id)
             scan.logs = logs
+            scan.save()
 
-        
-    # updating Scan object
-    scan.save()
 
     # checking if scan is done
     scan = check_scan_completion(scan)
@@ -360,22 +367,24 @@ def _html_and_logs(scan):
 
 
 
-def _vrt(scan):
+def _vrt(scan_id):
     """
         Method to run the visual regression (vrt) component of the scan 
         allowing for multi-threading.
 
         returns -> `Scan` <obj>
     """
+    scan = Scan.objects.get(id=scan_id)
     if scan.configs['driver'] == 'selenium':
         driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
         images = Image()._scan(site=scan.site, driver=driver, configs=scan.configs)
         quit_driver(driver)
 
-    if configs['driver'] == 'puppeteer':
+    if scan.configs['driver'] == 'puppeteer':
         images = asyncio.run(Image()._scan_p(site=scan.site, configs=scan.configs))
     
     # updating Scan object
+    scan = Scan.objects.get(id=scan_id)
     scan.images = images
     scan.save()
 
@@ -388,18 +397,20 @@ def _vrt(scan):
 
 
 
-def _lighthouse(scan):
+def _lighthouse(scan_id):
     """
         Method to run the lighthouse component of the scan 
         allowing for multi-threading.
 
         returns -> `Scan` <obj>
     """
+    scan = Scan.objects.get(id=scan_id)
 
     # running lighthouse
     lh_data = Lighthouse(site=scan.site, configs=scan.configs).get_data() 
     
     # updating Scan object
+    scan = Scan.objects.get(id=scan_id)
     scan.lighthouse = lh_data
     scan.save()
 
@@ -413,18 +424,20 @@ def _lighthouse(scan):
 
 
 
-def _yellowlab(scan):
+def _yellowlab(scan_id):
     """
         Method to run the yellowlab component of the scan 
         allowing for multi-threading.
 
         returns -> `Scan` <obj>
-    """
+    """ 
+    scan = Scan.objects.get(id=scan_id)
 
     # running yellowlab
-    yl_data = Lighthouse(site=scan.site, configs=scan.configs).get_data() 
+    yl_data = Yellowlab(site=scan.site, configs=scan.configs).get_data()
     
     # updating Scan object
+    scan = Scan.objects.get(id=scan_id)
     scan.yellowlab = yl_data
     scan.save()
 

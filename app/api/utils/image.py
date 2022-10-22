@@ -102,15 +102,16 @@ class Image():
         """
         Checks to see if the current time exceedes the alotted timeout. 
         
-        returns -> True / False 
+        returns -> True if timeout exceeded
         """
 
         current = datetime.now()
         diff = current - start_time
         if diff.total_seconds() >= timeout:
-            return False
-        else:
+            print('exceeded timeout')
             return True
+        else:
+            return False
 
 
 

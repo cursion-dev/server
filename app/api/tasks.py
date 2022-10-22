@@ -3,8 +3,13 @@ from typing import Any
 from celery.utils.log import get_task_logger
 from celery import shared_task
 from celery import Task as BaseTask
-from .v1.ops.tasks import *
-from .bootstrap.logger import producer_log
+from .v1.ops.tasks import (
+    create_site_task, create_scan_task, run_html_and_logs_task,
+    run_vrt_task, run_lighthouse_task, run_yellowlab_task, 
+    create_test_task, create_report_task, delete_report_s3,
+    delete_site_s3, create_testcase_task, migrate_site_task,
+    
+)
 from .models import Log
 from django.contrib.auth.models import User
 from .utils.driver_p import driver_test
@@ -15,38 +20,21 @@ import asyncio
 logger = get_task_logger(__name__)
 
 
-class ScannerApiTask(BaseTask):
-    def delay(
-            self,
-            *args,
-            **kwargs,
-    ) -> Any:
-        """
-        Producer handler.
-
-        :rtype Any:
-        """
-        result = self.apply_async(args, kwargs)
-
-        producer_log.info("CELERY_TASK_QUEUED - ID: %s", result.id)
-
-        return result
 
 
-
-@shared_task(base=ScannerApiTask)
+@shared_task
 def test_pupeteer():
     asyncio.run(driver_test())
     logger.info('Tested pupeteer instalation')
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def create_site_bg(site_id, scan_id, configs=None):
     create_site_task(site_id, scan_id, configs)
     logger.info('Created scan of new site')
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def create_scan_bg(
         scan_id=None,
         site_id=None, 
@@ -70,33 +58,33 @@ def create_scan_bg(
 
 
 
-@shared_task(base=ScannerApiTask)
-def run_html_and_logs_bg(scan=None):
-    run_html_and_logs_task(scan)
+@shared_task
+def run_html_and_logs_bg(scan_id=None):
+    run_html_and_logs_task(scan_id)
     logger.info('ran html & logs component')
 
 
-@shared_task(base=ScannerApiTask)
-def run_vrt_bg(scan=None):
-    run_vrt_task(scan)
+@shared_task
+def run_vrt_bg(scan_id=None):
+    run_vrt_task(scan_id)
     logger.info('ran vrt component')
 
 
-@shared_task(base=ScannerApiTask)
-def run_lighthouse_bg(scan=None):
-    run_lighthouse_task(scan)
+@shared_task
+def run_lighthouse_bg(scan_id=None):
+    run_lighthouse_task(scan_id)
     logger.info('ran lighthouse component')
 
 
-@shared_task(base=ScannerApiTask)
-def run_yellowlab_bg(scan=None):
-    run_yellowlab_task(scan)
+@shared_task
+def run_yellowlab_bg(scan_id=None):
+    run_yellowlab_task(scan_id)
     logger.info('ran yellowlab component')
 
 
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def create_test_bg(
         test_id=None,
         site_id=None, 
@@ -123,25 +111,25 @@ def create_test_bg(
     )
     logger.info('Created new test of site')
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def create_report_bg(site_id=None, automation_id=None):
     create_report_task(site_id, automation_id)
     logger.info('Created new report of site')
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def delete_site_s3_bg(site_id):
     delete_site_s3(site_id)
     logger.info('Deleted site s3 objects')
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def delete_report_s3_bg(report_id):
     delete_report_s3(report_id)
     logger.info('Deleted Report pdf in s3')
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def purge_logs(username=None):
     if username:
         user = User.objects.get(username=username)
@@ -170,7 +158,7 @@ def create_testcase_bg(
 
 
 
-@shared_task(base=ScannerApiTask)
+@shared_task
 def migrate_site_bg(
         login_url, 
         admin_url,
