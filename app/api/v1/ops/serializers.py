@@ -61,7 +61,15 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
 class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id',**kwargs)
     paired_scan = serializers.PrimaryKeyRelatedField(source='paired_scan.id',**kwargs)
+    lighthouse = serializers.SerializerMethodField()
+    yellowlab = serializers.SerializerMethodField()
     id = serializers.PrimaryKeyRelatedField(**kwargs)
+
+    def get_lighthouse(self, obj):
+        return {'scores': obj.lighthouse['scores']}
+    
+    def get_yellowlab(self, obj):
+        return {'scores': obj.yellowlab['scores']}
 
     class Meta:
         model = Scan
