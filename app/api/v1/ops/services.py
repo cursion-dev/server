@@ -90,7 +90,7 @@ def create_site(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if Site.objects.filter(site_url=site_url).exists():
+    if Site.objects.filter(site_url=site_url, user=user).exists():
         data = {'reason': 'site already exists',}
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
@@ -287,6 +287,18 @@ def create_test(request, delay=False):
             data = {'reason': 'cannot find a Scan with that id - post_scan '}
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if pre_scan:
+        if pre_scan.time_completed == None:
+            data = {'reason': 'post_scan still running'}
+            record_api_call(request, data, '400')
+            return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    
+    if post_scan:
+        if post_scan.time_completed == None:
+            data = {'reason': 'pre_scan still running'}
+            record_api_call(request, data, '400')
+            return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
 
     if not Scan.objects.filter(site=site).exists():
