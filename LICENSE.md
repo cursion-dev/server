@@ -1,4 +1,4 @@
-Copyright (c) 2022 Scanerr
+Copyright (c) 2023 Scanerr
 
 
 Scanerr Commercial Software License Terms

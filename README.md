@@ -7,7 +7,7 @@ This is the server repo for the Scanerr API, an error detection service designed
 > This software is only intended for internal white-label use and is not licensed for redristibution. See LICENSE for more information.
 
 
-Copyright © Scanerr 2021
+Copyright © Scanerr 2023
 
 ---
 &nbsp;
