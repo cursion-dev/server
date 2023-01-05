@@ -289,10 +289,11 @@ def create_test(request, delay=False):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
 
-    if not Scan.objects.filter(site=site).exists() or Scan.objects.filter(site=site)[0].time_completed == None:
+    if not Scan.objects.filter(site=site).exists():
         data = {'reason': 'Site not yet onboarded'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
+
 
 
     # creating test object

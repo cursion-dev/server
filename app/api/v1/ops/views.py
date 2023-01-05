@@ -41,6 +41,7 @@ class SiteDetail(APIView):
         site = get_object_or_404(Site, pk=id)
         if site.user != request.user:
             data = {'reason': 'you cannot retrieve a Site you do not own',}
+            record_api_call(request, data, '401')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)

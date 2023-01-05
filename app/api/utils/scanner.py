@@ -129,7 +129,8 @@ class Scanner():
         """
         if not self.scan:
             first_scan = Scan.objects.filter(
-                site=self.site
+                site=self.site, 
+                time_completed__isnull=False
             ).order_by('-time_created').first()
         
         else:
