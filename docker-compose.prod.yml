@@ -58,8 +58,10 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
       - app
+  
+  
   nginx-proxy-letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion
+    image: nginxproxy/acme-companion  # LEGACY -> jrcs/letsencrypt-nginx-proxy-companion 
     env_file:
       - ./env/.env.prod.proxy-companion
     volumes:
@@ -67,12 +69,14 @@ services:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
+      - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
 
 
 volumes:
   static_volume:
+  letsencrypt-acme:
   certs:
   html:
   vhost:
