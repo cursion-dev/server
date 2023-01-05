@@ -1615,7 +1615,7 @@ def create_testcase(request, delay=False):
 
 
 
-def get_testcases(request):
+def get_testcases(request, lean=False):
     testcase_id = request.query_params.get('testcase_id')
     site_id = request.query_params.get('site_id')
 
@@ -1653,6 +1653,8 @@ def get_testcases(request):
     result_page = paginator.paginate_queryset(testcases, request)
     serializer_context = {'request': request,}
     serialized = TestcaseSerializer(result_page, many=True, context=serializer_context)
+    if lean:
+        serialized = SmallTestcaseSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response

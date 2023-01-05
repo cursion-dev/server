@@ -390,6 +390,20 @@ class Testcases(APIView):
 
 
 
+class TestcasesLean(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_testcase(request)        
+        return response
+    
+    def get(self, request):
+        response = get_testcases(request)
+        return respons
+
+
+
 class TestcaseDelay(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['post',]
