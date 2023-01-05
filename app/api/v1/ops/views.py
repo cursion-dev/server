@@ -115,7 +115,7 @@ class ScanDetail(APIView):
 
 class ScanLean(APIView):
     permission_classes = (AllowAny,)
-    http_method_names = ['get', 'delete',]
+    http_method_names = ['get', ]
 
     def get(self, request, id):
         response = get_scan_lean(request, id)
@@ -181,7 +181,7 @@ class TestDetail(APIView):
 
 class TestLean(APIView):
     permission_classes = (AllowAny,)
-    http_method_names = ['get', 'delete',]
+    http_method_names = ['get',]
 
     def get(self, request, id):
         response = get_test_lean(request, id)
@@ -387,20 +387,6 @@ class Testcases(APIView):
     def get(self, request):
         response = get_testcases(request)
         return response
-
-
-
-class TestcasesLean(APIView):
-    permission_classes = (AllowAny,)
-    http_method_names = ['post', 'get']
-
-    def post(self, request):
-        response = create_testcase(request)        
-        return response
-    
-    def get(self, request):
-        response = get_testcases(request)
-        return respons
 
 
 

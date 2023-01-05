@@ -106,7 +106,7 @@ def create_site(request, delay=False):
 
         if no_scan == False:
             if delay == True:
-                scan = Scan.objects.create(site=site, type=['full'])
+                scan = Scan.objects.create(site=site, type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
                 create_site_bg.delay(site.id, scan.id, configs)
                 site.info["latest_scan"]["id"] = str(scan.id)
                 site.info["latest_scan"]["time_created"] = str(scan.time_created)
@@ -252,13 +252,13 @@ def create_test(request, delay=False):
     pre_scan_id = request.data.get('pre_scan', None)
     post_scan_id = request.data.get('post_scan', None)
     index = request.data.get('index', None)
-    test_type = request.data.get('type', ['full'])
+    test_type = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     tags = request.data.get('tags', None)
     pre_scan = None
     post_scan = None
 
     if len(test_type) == 0:
-        test_type = ['full']
+        test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
     
     if not configs:
         configs = {
@@ -379,7 +379,7 @@ def get_tests(request):
     site_id = request.query_params.get('site_id')
     time_begin = request.query_params.get('time_begin')
     time_end = request.query_params.get('time_end')
-    small = request.query_params.get('small')
+    lean = request.query_params.get('lean')
 
     if test_id != None:
 
@@ -437,10 +437,10 @@ def get_tests(request):
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(tests, request)
     serializer_context = {'request': request,}
-    if small != None:
+    serialized = TestSerializer(result_page, many=True, context=serializer_context)
+    if lean is not None:
         serialized = SmallTestSerializer(result_page, many=True, context=serializer_context)
-    else:
-        serialized = TestSerializer(result_page, many=True, context=serializer_context)
+        
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
 
@@ -574,11 +574,11 @@ def create_scan(request, delay=False):
     site_id = request.data.get('site_id', None)
     user = request.user
     configs = request.data.get('configs', None)
-    types = request.data.get('type', ['full'])
+    types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     tags = request.data.get('tags', None)
 
     if len(types) == 0:
-        types = ['full']
+        types = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
     
     try:
         site = Site.objects.get(id=site_id)
@@ -666,7 +666,7 @@ def get_scans(request):
     site_id = request.query_params.get('site_id')
     time_begin = request.query_params.get('time_begin')
     time_end = request.query_params.get('time_end')
-    small = request.query_params.get('small')
+    lean = request.query_params.get('lean')
 
     if scan_id != None:
         try:
@@ -715,10 +715,9 @@ def get_scans(request):
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(scans, request)
     serializer_context = {'request': request,}
-    if small != None:
+    serialized = ScanSerializer(result_page, many=True, context=serializer_context)
+    if lean is not None:
         serialized = SmallScanSerializer(result_page, many=True, context=serializer_context)
-    else:
-        serialized = ScanSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -1250,7 +1249,7 @@ def create_or_update_report(request):
 
     report_id = request.data.get('report_id', None)
     site_id = request.data.get('site_id', None)
-    report_type = request.data.get('type', ['full'])
+    report_type = request.data.get('type', ['lighthouse', 'yellowlab'])
     text_color = request.data.get('text_color', '#24262d')
     background_color = request.data.get('background_color', '#e1effd')
     highlight_color = request.data.get('highlight_color', '#4283f8')
@@ -1615,9 +1614,11 @@ def create_testcase(request, delay=False):
 
 
 
-def get_testcases(request, lean=False):
+def get_testcases(request):
     testcase_id = request.query_params.get('testcase_id')
     site_id = request.query_params.get('site_id')
+    lean = request.query_params.get('lean')
+
 
     if testcase_id != None:        
         try:
@@ -1653,7 +1654,7 @@ def get_testcases(request, lean=False):
     result_page = paginator.paginate_queryset(testcases, request)
     serializer_context = {'request': request,}
     serialized = TestcaseSerializer(result_page, many=True, context=serializer_context)
-    if lean:
+    if lean is not None:
         serialized = SmallTestcaseSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
