@@ -107,7 +107,16 @@ def create_site(request, delay=False):
         if no_scan == False:
             if delay == True:
                 scan = Scan.objects.create(site=site, type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
-                create_site_bg.delay(site.id, scan.id, configs)
+                 # running scans in parallel
+                if 'html' or 'logs'  or 'full' in types:
+                    run_html_and_logs_bg.delay(scan_id=scan.id)
+                if 'lighthouse' or 'full' in types:
+                    run_lighthouse_bg.delay(scan_id=scan.id)
+                if 'yellowlab' or 'full' in types:
+                    run_yellowlab_bg.delay(scan_id=scan.id)
+                if 'vrt' or 'full' in types:
+                    run_vrt_bg.delay(scan_id=scan.id)
+                # create_site_bg.delay(site.id, scan.id, configs)
                 site.info["latest_scan"]["id"] = str(scan.id)
                 site.info["latest_scan"]["time_created"] = str(scan.time_created)
                 site.save()
@@ -566,6 +575,8 @@ def delete_many_tests(request):
     record_api_call(request, data, '400')
     response = Response(data, status=status.HTTP_400_BAD_REQUEST)
     return response
+
+
 
 
 
