@@ -47,6 +47,7 @@ class Lighthouse():
                     return error
 
                 stdout_json = json.loads(stdout_value)
+                print(stdout_json)
 
                 # initial audits object
                 audits = {
