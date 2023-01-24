@@ -29,7 +29,7 @@ def test_pupeteer():
 
 
 @shared_task
-def create_site_bg(site_id, scan_id, configs=None):
+def create_site_bg(site_id=None, scan_id=None, configs=None, *args, **kwargs):
     create_site_task(site_id, scan_id, configs)
     logger.info('Created scan of new site')
 
@@ -59,25 +59,25 @@ def create_scan_bg(
 
 
 @shared_task
-def run_html_and_logs_bg(scan_id=None):
+def run_html_and_logs_bg(scan_id=None, *args, **kwargs):
     run_html_and_logs_task(scan_id)
     logger.info('ran html & logs component')
 
 
 @shared_task
-def run_vrt_bg(scan_id=None):
+def run_vrt_bg(scan_id=None, *args, **kwargs):
     run_vrt_task(scan_id)
     logger.info('ran vrt component')
 
 
 @shared_task
-def run_lighthouse_bg(scan_id=None):
+def run_lighthouse_bg(scan_id=None, *args, **kwargs):
     run_lighthouse_task(scan_id)
     logger.info('ran lighthouse component')
 
 
 @shared_task
-def run_yellowlab_bg(scan_id=None):
+def run_yellowlab_bg(scan_id=None, *args, **kwargs):
     run_yellowlab_task(scan_id)
     logger.info('ran yellowlab component')
 
@@ -112,25 +112,25 @@ def create_test_bg(
     logger.info('Created new test of site')
 
 @shared_task
-def create_report_bg(site_id=None, automation_id=None):
+def create_report_bg(site_id=None, automation_id=None, *args, **kwargs):
     create_report_task(site_id, automation_id)
     logger.info('Created new report of site')
 
 
 @shared_task
-def delete_site_s3_bg(site_id):
+def delete_site_s3_bg(site_id, *args, **kwargs):
     delete_site_s3(site_id)
     logger.info('Deleted site s3 objects')
 
 
 @shared_task
-def delete_report_s3_bg(report_id):
+def delete_report_s3_bg(report_id, *args, **kwargs):
     delete_report_s3(report_id)
     logger.info('Deleted Report pdf in s3')
 
 
 @shared_task
-def purge_logs(username=None):
+def purge_logs(username=None, *args, **kwargs):
     if username:
         user = User.objects.get(username=username)
         Log.objects.filter(user=user).delete()
@@ -173,7 +173,9 @@ def migrate_site_bg(
         plugin_name,
         wait_time,
         process_id,
-        driver,
+        driver, 
+        *args, 
+        **kwargs
     ):
     migrate_site_task(
         login_url, 
