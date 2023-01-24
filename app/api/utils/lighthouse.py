@@ -40,7 +40,7 @@ class Lighthouse():
         try:
             stdout_value = self.init_audit() 
             stdout_string = str(stdout_value)
-            print(f'LH string output => {stdout_string}')
+            # print(f'LH string output => {stdout_string}')
 
         
             if len(stdout_string) != 0:
@@ -49,7 +49,7 @@ class Lighthouse():
                     return error
 
                 stdout_json = json.loads(stdout_value)
-                print(f'LH json output => {stdout_json}')
+                # print(f'LH json output => {stdout_json}')
 
                 # initial audits object
                 audits = {
@@ -63,11 +63,13 @@ class Lighthouse():
 
                 # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` obj
                 for cat in audits:
-                    cat_audits = stdout_json["categories"][cat]["auditRefs"]
-                    for a in cat_audits:
-                        if int(a["weight"]) > 0:
-                            audit = stdout_json["audits"][a["id"]]
-                            audits[cat].append(audit)
+                    cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
+                    print(f'AUDITS => {cat_audits}')
+                    if cat_audits is not None:
+                        for a in cat_audits:
+                            if int(a["weight"]) > 0:
+                                audit = stdout_json["audits"][a["id"]]
+                                audits[cat].append(audit)
                 # changing audits names
                 audits['best_practices'] = audits.pop('best-practices')
                 audits['crux'] = audits.pop('lighthouse-plugin-crux')
