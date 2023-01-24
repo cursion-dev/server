@@ -659,13 +659,17 @@ def create_scan(request, delay=False):
         print(f'types ==> {str(types)}')
 
         # running scans in selenium mode
-        if 'html' or 'logs'  or 'full' in types:
+        if 'html' in types or 'logs' in types or 'full' in types:
+            print('running html & logs')
             run_html_and_logs_bg.delay(scan_id=created_scan.id)
-        if 'lighthouse' or 'full' in types:
+        if 'lighthouse' in types or 'full' in types:
+            print('running lighthouse')
             run_lighthouse_bg.delay(scan_id=created_scan.id)
-        if 'yellowlab' or 'full' in types:
+        if 'yellowlab' in types or 'full' in types:
+            print('running yellowlab')
             run_yellowlab_bg.delay(scan_id=created_scan.id)
-        if 'vrt' or 'full' in types:
+        if 'vrt' in types or 'full' in types:
+            print('running vrt')
             run_vrt_bg.delay(scan_id=created_scan.id)
 
 
