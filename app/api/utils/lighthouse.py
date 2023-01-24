@@ -39,7 +39,7 @@ class Lighthouse():
 
         # try:
         stdout_value = self.init_audit() 
-        stdout_string = str(stdout_value)
+        stdout_string = dict(stdout_value)
         # print(f'LH string output => {stdout_string}')
 
     
@@ -48,8 +48,10 @@ class Lighthouse():
                 error = {'error': 'lighthouse ran into a problem',}
                 return error
 
-            stdout_json = json.loads(stdout_value)
+            # stdout_json = json.loads(stdout_value)
             # print(f'LH json output => {stdout_json}')
+            stdout_json = stdout_string
+
 
             # initial audits object
             audits = {
@@ -64,7 +66,6 @@ class Lighthouse():
             # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` obj
             for cat in audits:
                 cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
-                print(f'AUDITS => {cat_audits}')
                 if cat_audits is not None:
                     for a in cat_audits:
                         if int(a["weight"]) > 0:
