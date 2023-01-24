@@ -19,7 +19,7 @@ class Scanner():
             site=None, 
             scan=None, 
             configs=None,
-            type=['full']
+            type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
         ):
 
         if site == None and scan != None:

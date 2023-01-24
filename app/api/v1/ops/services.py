@@ -64,7 +64,7 @@ def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     user = request.user
     sites = Site.objects.filter(user=user)
-
+    
 
     if site_url.endswith('/'):
         site_url = site_url.rstrip('/')
@@ -104,10 +104,27 @@ def create_site(request, delay=False):
             tags=tags,
         )
 
+        if not configs:
+            configs = {
+                'window_size': '1920,1080',
+                'interval': 5,
+                'driver': 'selenium',
+                'device': 'desktop',
+                'mask_ids': None,
+                'min_wait_time': 10,
+                'max_wait_time': 60,
+                'timeout': 300,
+                'disable_animations': False
+            }
+
         if no_scan == False:
             if delay == True:
-                scan = Scan.objects.create(site=site, type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
-                 # running scans in parallel
+                scan = Scan.objects.create(
+                    site=site, 
+                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    configs=configs,
+                )
+                # running scans in parallel
                 if 'html' or 'logs'  or 'full' in types:
                     run_html_and_logs_bg.delay(scan_id=scan.id)
                 if 'lighthouse' or 'full' in types:
