@@ -276,23 +276,23 @@ def check_scan_completion(scan):
 
     finished = True
 
-    if 'html' or 'full' in scan.type:
+    if 'html' in scan.type or 'full' in scan.type:
         if scan.html == None or scan.html == '':
             finished = False
 
-    if 'logs' or 'full' in scan.type:
+    if 'logs' in scan.type or 'full' in scan.type:
         if scan.logs == None or scan.logs == '':
             finished = False
 
-    if 'lighthouse' or 'full' in scan.type:
+    if 'lighthouse' in scan.type or 'full' in scan.type:
         if scan.lighthouse.get('scores').get('average') == None and scan.lighthouse.get('failed') == None:
             finished = False
             
-    if 'yellowlab' or 'full' in scan.type:
+    if 'yellowlab' in scan.type or 'full' in scan.type:
         if scan.yellowlab.get('scores').get('globalScore') == None and scan.yellowlab.get('failed') == None:
             finished = False
 
-    if 'vrt' or 'full' in scan.type:
+    if 'vrt' in scan.type or 'full' in scan.type:
         if scan.images == None or scan.images == '':
             finished = False
 
