@@ -64,7 +64,7 @@ def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     user = request.user
     sites = Site.objects.filter(user=user)
-    
+
 
     if site_url.endswith('/'):
         site_url = site_url.rstrip('/')
@@ -655,6 +655,8 @@ def create_scan(request, delay=False):
         #     configs=configs, 
         #     type=types,
         # )
+
+        print(f'types ==> {str(types)}')
 
         # running scans in selenium mode
         if 'html' or 'logs'  or 'full' in types:
