@@ -84,37 +84,21 @@ WSGI_APPLICATION = 'scanerr.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-
-if DEBUG == True:
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',  # django.db.backends.postgresql
-            'HOST': os.environ.get('DB_HOST'),
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASS'),
-            'PORT': os.environ.get('DB_PORT')
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',  # django.db.backends.postgresql
+        'HOST': os.environ.get('DB_HOST'),
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASS'),
+        'PORT': os.environ.get('DB_PORT')
     }
+}
 
-else:
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',  # django.db.backends.postgresql
-            'HOST': os.environ.get('DB_HOST'),
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASS'),
-            'PORT': os.environ.get('DB_PORT')
-        }
-    }
 
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -172,7 +156,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
@@ -213,7 +196,6 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 # Redis and Celery Conf
-
 CELERY_BROKER_URL = "redis://redis:6379"
 CELERY_RESULT_BACKEND = "redis://redis:6379"
 
@@ -221,7 +203,6 @@ CELERY_RESULT_BACKEND = "redis://redis:6379"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
@@ -240,5 +221,9 @@ GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
 
 
 # stripe keys
-STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_LIVE')
-STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_LIVE')
+if os.environ.get('STRIPE_ENV') == 'prod':
+    STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_LIVE')
+    STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_LIVE')
+if os.environ.get('STRIPE_ENV') == 'dev':
+    STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_TEST')
+    STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_TEST')

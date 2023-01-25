@@ -22,10 +22,20 @@ services:
     expose:
       - 8000
     env_file:
-      - ./env/.env.prod
+      - ./env/.env.dev
+
+
+  db:
+    image: postgres:10-alpine
+    env_file:
+      - ./env/.env.dev
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
+
 
   redis:
     image: redis:alpine
+
 
   celery:
     privileged: true
@@ -36,7 +46,7 @@ services:
     volumes:
       - ./app:/scanerr
     env_file:
-      - ./env/.env.prod
+      - ./env/.env.dev
     depends_on:
       - redis
       - app
@@ -79,3 +89,4 @@ volumes:
   certs:
   html:
   vhost:
+  pgdata:
