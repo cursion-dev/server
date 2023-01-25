@@ -40,8 +40,9 @@ class Lighthouse():
         # try:
         stdout_value = self.init_audit() 
         stdout_string = str(stdout_value)
-        # delm = '{\\n  "lighthouseVersion"'
-        # stdout_string = delm + stdout_string.split(delm)[1]
+        delm = '{\\n  "lighthouseVersion"'
+        stdout_string = delm + stdout_string.split(delm)[1]
+        stdout_value = bytes(stdout_string, 'utf-8')
 
     
         if len(stdout_string) != 0:
@@ -49,7 +50,7 @@ class Lighthouse():
                 error = {'error': 'lighthouse ran into a problem',}
                 return error
 
-            print(f'stdout_value is type => {type(stdout_value)}')
+            # print(f'stdout_value is type => {type(stdout_value)}')
             stdout_json = json.loads(stdout_value)
 
             # # initial audits object
