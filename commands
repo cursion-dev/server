@@ -9,6 +9,14 @@ docker compose down
 ### spins up the container for production ###
 docker-compose -f docker-compose.prod.yml up -d --build
 
-### spins down the container and removes volumes ###
+### spins down the container ###
 docker-compose -f docker-compose.prod.yml down
+
+
+
+### spins up the container for development ###
+docker-compose -f docker-compose.dev.yml up -d --build
+
+### spins down the container ###
+docker-compose -f docker-compose.dev.yml down
 
