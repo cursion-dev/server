@@ -16,7 +16,6 @@ Copyright © Scanerr 2023
 &nbsp;
 
 #### Env's and deployment
-
 - [Scanerr Server (API repo)](#scanerr-server-api-repo)
   - [Table of Contents](#table-of-contents)
       - [Env's and deployment](#envs-and-deployment)
