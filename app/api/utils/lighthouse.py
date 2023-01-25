@@ -39,7 +39,8 @@ class Lighthouse():
 
         # try:
         stdout_value = self.init_audit() 
-        stdout_string = str(stdout_value)
+        stdout_string = stdout_value
+        stdout_json = json.loads(stdout_value)
         # delm = '{\\n  "lighthouseVersion"'
         # stdout_string = delm + stdout_string.split(delm)[1]
 
