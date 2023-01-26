@@ -31,13 +31,19 @@ class Yellowlab():
         stdout_value = self.init_audit() 
         # decode bytes into string
         stdout_string = stdout_value.decode('iso-8859-1')
-        # print(f'YL string output => {stdout_string}')
+
+        # # clean string of any errors
+        # delm = '{\n  "lighthouseVersion"'
+        # stdout_string = delm + stdout_string.split(delm)[1]
+
+        # # encode back to bytes
+        # stdout_value = stdout_string.encode('iso-8859-1')
 
     
-        if len(stdout_string) != 0:
-            if 'Runtime error encountered' in stdout_string:
-                error = {'error': 'yellowlab ran into a problem',}
-                return error
+        # if len(stdout_string) != 0:
+        #     if 'Runtime error encountered' in stdout_string:
+        #         error = {'error': 'yellowlab ran into a problem',}
+        #         return error
 
             # stdout_json = json.loads(stdout_value)
 
@@ -93,11 +99,11 @@ class Yellowlab():
             #     "serverConfig": serverConfig_score,
             # }
 
-            data = {
-                "scores": 'scores', 
-                "audits": stdout_string,
-                "failed": False
-            }
+        data = {
+            "scores": 'scores', 
+            "audits": stdout_string,
+            "failed": False
+        }
 
         # except Exception as e:
         #     print(e)
