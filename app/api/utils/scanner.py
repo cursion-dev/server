@@ -440,7 +440,6 @@ def _yellowlab(scan_id):
     # updating Scan object
     scan = Scan.objects.get(id=scan_id)
     scan.yellowlab = yl_data
-    scan.html = yl_data  # TODO --> remove this after testing
     scan.save()
 
     # checking if scan is done
