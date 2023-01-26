@@ -50,6 +50,7 @@ services:
     depends_on:
       - redis
       - app
+      - db
 
 
   nginx-proxy:
