@@ -413,7 +413,6 @@ def _lighthouse(scan_id):
     # updating Scan object
     scan = Scan.objects.get(id=scan_id)
     scan.lighthouse = lh_data
-    scan.html = lh_data # TODO --> remove this, just testing
     scan.save()
 
     # checking if scan is done

@@ -650,14 +650,6 @@ def create_scan(request, delay=False):
 
     if delay == True:
 
-        # create_scan_bg.delay(
-        #     scan_id=created_scan.id, 
-        #     configs=configs, 
-        #     type=types,
-        # )
-
-        print(f'types ==> {str(types)}')
-
         # running scans in selenium mode
         if 'html' in types or 'logs' in types or 'full' in types:
             print('running html & logs')
