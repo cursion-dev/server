@@ -43,7 +43,7 @@ class Lighthouse():
         stdout_string = stdout_value.decode('iso-8859-1')
 
         # clean string of any errors
-        delm = '{\\n  "lighthouseVersion"'
+        delm = '{\n  "lighthouseVersion"'
         stdout_string = delm + stdout_string.split(delm)[1]
 
         # encode back to bytes
