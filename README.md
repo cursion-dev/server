@@ -16,7 +16,9 @@ Copyright © Scanerr 2023
 &nbsp;
 
 #### Env's and deployment
-
+- [Scanerr Server (API repo)](#scanerr-server-api-repo)
+  - [Table of Contents](#table-of-contents)
+      - [Env's and deployment](#envs-and-deployment)
   - [Environment](#environment)
   - [Local](#local)
   - [Remote](#remote)
@@ -89,6 +91,26 @@ $ ssh root@your_server_ip
 # ufw enable
 # su {user}
 ```
+
+*Add user to docker group*
+```shell
+$ sudo usermod -aG docker {user}
+$ newgrp docker 
+```
+
+*Generate SSH keys for GitHub*
+``` shell
+$ ssh-keygen -t ed25519 -C "your_github_email@example.com"
+```
+- press `Enter` 3 times
+```shell
+$ eval "$(ssh-agent -s)"
+$ ssh-add ~/.ssh/id_ed25519
+$ cat ~/.ssh/id_ed25519.pub
+```
+- copy key to clipboard and paste in GutHub
+
+
 *Create a dir to clone the app into*
 ``` shell
 $ cd ~

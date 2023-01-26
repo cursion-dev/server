@@ -29,9 +29,8 @@ class Yellowlab():
     def get_data(self):
         try:
             stdout_value = self.init_audit() 
-            stdout_string = str(stdout_value)
-            # print(f'YL string output => {stdout_string}')
-
+            # decode bytes into string
+            stdout_string = stdout_value.decode('iso-8859-1')
         
             if len(stdout_string) != 0:
                 if 'Runtime error encountered' in stdout_string:
@@ -39,8 +38,6 @@ class Yellowlab():
                     return error
 
                 stdout_json = json.loads(stdout_value)
-                # print(f'YL json output => {stdout_json}')
-
 
                 # initial audits object
                 audits = {

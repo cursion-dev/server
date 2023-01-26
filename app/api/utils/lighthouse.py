@@ -39,8 +39,15 @@ class Lighthouse():
 
         try:
             stdout_value = self.init_audit() 
-            stdout_string = str(stdout_value)
-            # print(f'LH string output => {stdout_string}')
+            # decode bytes into string
+            stdout_string = stdout_value.decode('iso-8859-1')
+
+            # clean string of any errors
+            delm = '{\n  "lighthouseVersion"'
+            stdout_string = delm + stdout_string.split(delm)[1]
+
+            # encode back to bytes
+            stdout_value = stdout_string.encode('iso-8859-1')
 
         
             if len(stdout_string) != 0:
@@ -78,7 +85,12 @@ class Lighthouse():
                 performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
                 best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
                 pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
-                crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
+                
+                # attempting crux
+                try:
+                    crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
+                except:
+                    crux_score = 0
 
                 if crux_score == 0 :
                     crux_score = None

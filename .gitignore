@@ -10,7 +10,7 @@ __pycache__/
 */__pycache__/*
 **/__pycache__/
 server/app/env*
-env/.env.staging
+env/.env.local
 env/.env.dev
 env/.env.prod
 env/.env.prod.db
