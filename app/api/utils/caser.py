@@ -148,7 +148,7 @@ class Caser():
                     selector = await self.format_element(step["action"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                     # scrolling to element 
-                    await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
+                    await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
                     element = await self.page.J(selector)
                     await element.click()
                     time.sleep(int(self.configs['min_wait_time']))
@@ -180,7 +180,7 @@ class Caser():
                         selector = await self.format_element(step["action"]["element"])
                         await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                         # scrolling to element 
-                        await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
+                        await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
                         element = await self.page.J(selector)
                         await element.click(clickCount=3)
                     await self.page.keyboard.type(step["action"]["value"])
