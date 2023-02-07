@@ -147,7 +147,7 @@ class Caser():
                     # using puppeteer, find and click on the 'element' 
                     selector = await self.format_element(step["action"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
-                    # scrolling to element 
+                    # scrolling to element using plain JavaScript
                     await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
                     element = await self.page.J(selector)
                     await element.click()
@@ -179,7 +179,7 @@ class Caser():
                     if step["action"]["element"] != (None or ''):
                         selector = await self.format_element(step["action"]["element"])
                         await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
-                        # scrolling to element 
+                        # scrolling to element using plain JavaScript 
                         await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
                         element = await self.page.J(selector)
                         await element.click(clickCount=3)
@@ -239,7 +239,7 @@ class Caser():
                     # using puppeteer, find elememt and assert if element.text == assertion.text
                     selector = await self.format_element(step["assertion"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
-                    # scrolling to element 
+                    # scrolling to element using plain JavaScript
                     await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
                     elementText = await self.page.evaluate(f'document.querySelector({selector}).textContent')
                     elementText = elementText.strip()
