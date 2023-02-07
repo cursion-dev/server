@@ -240,8 +240,8 @@ class Caser():
                     selector = await self.format_element(step["assertion"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                     # scrolling to element 
-                    await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
-                    elementText = await self.page.evaluate(f'document.querySelector("{selector}").textContent')
+                    await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
+                    elementText = await self.page.evaluate(f'document.querySelector({selector}).textContent')
                     elementText = elementText.strip()
                     print(f'elementText => {elementText}')
                     print(f'value => {step["assertion"]["value"]}')
