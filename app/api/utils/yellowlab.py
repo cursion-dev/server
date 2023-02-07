@@ -97,6 +97,9 @@ class Yellowlab():
                     "failed": False
                 }
 
+            else:
+                raise RuntimeError
+
         except Exception as e:
             print(e)
 
