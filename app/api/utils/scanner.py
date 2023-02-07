@@ -290,6 +290,10 @@ def check_scan_completion(scan):
             
     if 'yellowlab' in scan.type or 'full' in scan.type:
         if scan.yellowlab.get('scores').get('globalScore') == None and scan.yellowlab.get('failed') == None:
+            
+            print(f'yellowlab score -> {scan.yellowlab.get("scores").get("globalScore")}')
+            print(f'yellowlab failed -> {scan.yellowlab.get("failed")}')
+
             finished = False
 
     if 'vrt' in scan.type or 'full' in scan.type:
