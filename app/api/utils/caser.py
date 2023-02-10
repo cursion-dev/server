@@ -1,5 +1,5 @@
 from .driver_p import driver_init
-import time, asyncio, uuid, json, boto3, os, shutil
+import time, asyncio, uuid, json, boto3, os
 from ..models import * 
 from datetime import datetime
 from asgiref.sync import sync_to_async
@@ -58,6 +58,23 @@ class Caser():
 
     
     async def save_screenshot(self, page):
+        '''
+        Grabs & uploads a screenshot of the `page` 
+        passed in the params. 
+
+        Returns -> `image_url` <str:remote path to image>
+        
+        '''
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        # setting id for image
         pic_id = uuid.uuid4()
         
         # get screenshot
