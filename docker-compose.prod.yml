@@ -32,6 +32,7 @@ services:
     restart: always
     build:
       context: .
+      dockerfile: Dockerfile.prod
     command: celery -A scanerr worker --beat --scheduler django --loglevel=info
     volumes:
       - ./app:/scanerr
