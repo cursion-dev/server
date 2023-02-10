@@ -22,7 +22,7 @@ RUN npm cache clean --force
 RUN export NODE_OPTIONS="--max-old-space-size=7000"
 
 # installing lighthouse & yellowlabtools
-# RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools    --no-install-recommends
+# --no-install-recommends
 RUN npm install -g lighthouse
 RUN npm install -g lighthouse-plugin-crux
 RUN npm install -g lodash
