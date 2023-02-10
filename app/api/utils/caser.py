@@ -1,8 +1,9 @@
 from .driver_p import driver_init
-import time, asyncio, uuid, json
+import time, asyncio, uuid, json, boto3, os, shutil
 from ..models import * 
 from datetime import datetime
 from asgiref.sync import sync_to_async
+from scanerr import settings
 
 
 
@@ -23,7 +24,7 @@ class Caser():
     @sync_to_async
     def update_testcase(
             self, index=None, type=None, start_time=None, end_time=None, 
-            passed=None, exception=None, time_completed=None,
+            passed=None, exception=None, time_completed=None, image=None,
         ):
         if start_time != None:
             self.testcase.steps[index][type]['time_created'] = str(start_time)
@@ -33,6 +34,8 @@ class Caser():
             self.testcase.steps[index][type]['passed'] = passed
         if exception != None:
             self.testcase.steps[index][type]['exception'] = str(exception)
+        if image != None:
+            self.testcase.steps[index][type]['image'] = str(image)
         if time_completed != None:
             self.testcase.time_completed = time_completed
             test_status = True
@@ -50,6 +53,32 @@ class Caser():
     def format_element(self, element):
         elememt = json.dumps(element).rstrip('"').lstrip('"')
         return element
+
+
+
+    
+    async def save_screenshot(self, page):
+        pic_id = uuid.uuid4()
+        
+        # get screenshot
+        await page.screenshot({'path': f'{pic_id}.png'})
+
+        # seting up paths
+        image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+        remote_path = f'static/testcases/{self.testcase.id}/{pic_id}.png'
+        root_path = settings.AWS_S3_URL_PATH
+        image_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(image, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+            )
+        # remove local copy
+        os.remove(image)
+
+        # returning image url
+        return  image_url
 
     
     
@@ -109,6 +138,7 @@ class Caser():
             if step['action']['type'] == 'navigate':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -121,6 +151,7 @@ class Caser():
                     time.sleep(int(self.configs['min_wait_time']))
 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -129,7 +160,8 @@ class Caser():
                     index=i, type='action', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 )
                     
 
@@ -137,6 +169,7 @@ class Caser():
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -154,6 +187,7 @@ class Caser():
                     time.sleep(int(self.configs['min_wait_time']))
                 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -161,13 +195,15 @@ class Caser():
                     index=i, type='action', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 ) 
 
 
             if step['action']['type'] == 'change':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -187,6 +223,7 @@ class Caser():
                     time.sleep(int(self.configs['min_wait_time']))
                 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -194,13 +231,15 @@ class Caser():
                     index=i, type='action', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 ) 
 
             
             if step['action']['type'] == 'keyDown':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -213,6 +252,7 @@ class Caser():
                     time.sleep(int(self.configs['min_wait_time']))
                 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -220,7 +260,8 @@ class Caser():
                     index=i, type='action', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 )
             
 
@@ -229,6 +270,7 @@ class Caser():
             if step['assertion']['type'] == 'match':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='assertion', 
                     start_time=datetime.now()
@@ -248,6 +290,7 @@ class Caser():
                     assert elementText == step["assertion"]["value"]
 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -255,13 +298,15 @@ class Caser():
                     index=i, type='assertion', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 )
 
             
             if step['assertion']['type'] == 'exists':
                 exception = None
                 passed = True
+                image = None
                 await self.update_testcase(
                     index=i, type='assertion', 
                     start_time=datetime.now()
@@ -275,6 +320,7 @@ class Caser():
                     await self.page.J(selector)
 
                 except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
                     exception = e
                     passed = False
 
@@ -282,7 +328,8 @@ class Caser():
                     index=i, type='assertion', 
                     end_time=datetime.now(), 
                     passed=passed, 
-                    exception=exception
+                    exception=exception,
+                    image=image
                 )
 
             i += 1    
