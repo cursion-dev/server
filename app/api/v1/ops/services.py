@@ -791,11 +791,9 @@ def get_scan_lean(request, id):
 
 def delete_scan(request, id):
     try:
-        scan = Scan.objects.get(id=scan_id)
+        scan = Scan.objects.get(id=id)
     except Exception as e:
-        # data = {'reason': 'cannot find a Scan with that id'}
-        data = {'reason': str(e)}
-        print(e)
+        data = {'reason': 'cannot find a Scan with that id'}
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
         
