@@ -791,8 +791,8 @@ def get_scan_lean(request, id):
 
 def delete_scan(request, id):
     try:
-        scan = Scan.objects.get(id=scan_id)
-    except:
+        scan = Scan.objects.get(id=id)
+    except Exception as e:
         data = {'reason': 'cannot find a Scan with that id'}
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
@@ -1700,6 +1700,9 @@ def delete_testcase(request, id):
         data = {'reason': 'you cannot delete an Testcase you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    # remove s3 objects
+    delete_testcase_s3_bg.delay(testcase_id=id)
 
     testcase.delete()
 

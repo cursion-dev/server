@@ -8,6 +8,7 @@ from .v1.ops.tasks import (
     run_vrt_task, run_lighthouse_task, run_yellowlab_task, 
     create_test_task, create_report_task, delete_report_s3,
     delete_site_s3, create_testcase_task, migrate_site_task,
+    delete_testcase_s3,
     
 )
 from .models import Log
@@ -121,6 +122,12 @@ def create_report_bg(site_id=None, automation_id=None, *args, **kwargs):
 def delete_site_s3_bg(site_id, *args, **kwargs):
     delete_site_s3(site_id)
     logger.info('Deleted site s3 objects')
+
+
+@shared_task
+def delete_testcase_s3_bg(testcase_id, *args, **kwargs):
+    delete_testcase_s3(testcase_id)
+    logger.info('Deleted testcase s3 objects')
 
 
 @shared_task
