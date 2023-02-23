@@ -1701,6 +1701,9 @@ def delete_testcase(request, id):
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
+    # remove s3 objects
+    delete_testcase_s3_bg.delay(testcase_id=id)
+
     testcase.delete()
 
     data = {'message': 'Testcase has been deleted',}
