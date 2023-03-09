@@ -273,7 +273,7 @@ class SetupSubscription(APIView):
                 }],
                 payment_behavior='default_incomplete',
                 expand=['latest_invoice.payment_intent'],
-                trial_period_days=7,
+                # trial_period_days=7,
             )
 
             Account.objects.create(
