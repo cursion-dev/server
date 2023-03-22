@@ -298,6 +298,11 @@ def create_test(request, delay=False):
             'timeout': 300,
             'disable_animations': False
         }
+
+    if not Scan.objects.filter(site=site).exists():
+        data = {'reason': 'Site not yet onboarded'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
     
     if pre_scan_id:
         try:
@@ -314,24 +319,21 @@ def create_test(request, delay=False):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
+    # grabbing most recent Scan 
+    if pre_scan_id is None:
+        pre_scan = Scan.objects.filter(site=site).order_by('-time_created')[0]
+
     if pre_scan:
         if pre_scan.time_completed == None:
-            data = {'reason': 'post_scan still running'}
+            data = {'reason': 'pre_scan still running'}
             record_api_call(request, data, '400')
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
     
     if post_scan:
         if post_scan.time_completed == None:
-            data = {'reason': 'pre_scan still running'}
+            data = {'reason': 'post_scan still running'}
             record_api_call(request, data, '400')
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
-
-
-    if not Scan.objects.filter(site=site).exists():
-        data = {'reason': 'Site not yet onboarded'}
-        record_api_call(request, data, '400')
-        return Response(data, status=status.HTTP_400_BAD_REQUEST)
-
 
 
     # creating test object
