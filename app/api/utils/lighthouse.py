@@ -85,6 +85,9 @@ class Lighthouse():
                 performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
                 best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
                 pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
+
+                # printing crux data
+                print(stdout_json["categories"]["lighthouse-plugin-crux"])
                 
                 # attempting crux
                 try:
