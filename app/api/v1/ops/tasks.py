@@ -134,7 +134,7 @@ def create_report_task(site_id, automation_id=None):
         info = {
             "text_color": '#24262d',
             "background_color": '#e1effd',
-            "highlight_color": '#4283f8',
+            "highlight_color": '#ffffff',
         }
         report = Report.objects.create(
             user=site.user,
