@@ -140,6 +140,7 @@ def create_report_task(site_id, automation_id=None):
             user=site.user,
             site=site,
             info=info,
+            type=['lighthouse', 'yellowlab']
         )
 
     
