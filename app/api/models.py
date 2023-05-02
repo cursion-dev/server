@@ -290,6 +290,7 @@ class Test(models.Model):
 
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
     active = models.BooleanField(default=False, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
@@ -303,6 +304,21 @@ class Account(models.Model):
 
     def __str__(self):
         return self.user.email
+
+
+
+
+class Member(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
+    status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+
+    def __str__(self):
+        return f'{self.user.email}_{self.account.name}'
+
 
 
 
