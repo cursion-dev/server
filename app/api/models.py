@@ -312,6 +312,7 @@ class Member(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
+    email = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # created by Account admin
     status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
     time_created = models.DateTimeField(default=timezone.now, serialize=True)

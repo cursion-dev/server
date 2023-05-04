@@ -15,7 +15,7 @@ from scanerr import settings
 from django.shortcuts import redirect
 from django.contrib.auth.models import User
 from .alerts import send_reset_link
-from ...models import Account
+from ...models import Account, Member
 from datetime import timedelta, datetime
 from .services import (
     google_get_access_token, google_get_user_info, 
@@ -220,4 +220,35 @@ class SlackOauth(APIView):
         response = slack_oauth_middleware(request, user)
         return response
 
-    
+
+
+
+
+class Account(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'post']
+
+    def post(self, request, *args, **kwargs ):
+        response = create_or_update_account(request)
+        return response
+
+    def get(self, request, *args, **kwargs):
+        response = get_account(request)
+        return response
+
+
+
+
+class Member(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'post']
+
+    def post(self, request, *args, **kwargs ):
+        response = create_or_update_member(request)
+        return response
+
+    def get(self, request, *args, **kwargs):
+        response = get_member(request)
+        return response
+
+        

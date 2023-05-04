@@ -5,7 +5,7 @@ from django.contrib.auth.models import update_last_login
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from django.shortcuts import render
-from ...models import (Test, Site, Scan, Account)
+from ...models import (Test, Site, Scan, Account, Member)
 from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
 from rest_framework.fields import UUIDField
@@ -71,3 +71,19 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
         'cust_id', 'sub_id', 'product_id', 'price_id', 'slack',
         'user',
         ]
+
+
+
+class MemberSerializer(serializers.HyperlinkedModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+
+    class Meta:
+        model = Member
+        fields = ['id', 'status', 'time_created', 'type',
+        'email', 'type', 'user', 'account',
+        ]
+
+
+        

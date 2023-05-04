@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
-from ...models import Account, Card
+from ...models import Account, Card, Member
 from slack_sdk.oauth import AuthorizeUrlGenerator
 from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
 from slack_sdk.oauth.state_store import FileOAuthStateStore
