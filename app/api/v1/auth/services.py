@@ -244,3 +244,155 @@ def t7e(request):
             stdout=subprocess.PIPE,
             user='app',
         )
+
+
+
+
+def create_or_update_account(request=None, *args, **kwargs):
+    # get posted data
+    if request is not None:
+        user = request.user
+        _id = request.data.get('id')
+        name = request.data.get('name')
+        active = request.data.get('active')
+        type = request.data.get('type')
+        max_sites = request.data.get('max_sites')
+        cust_id = request.data.get('cust_id')
+        sub_id = request.data.get('sub_id')
+        product_id = request.data.get('product_id')
+        price_id = request.data.get('price_id')
+        slack = request.data.get('slack')
+
+    if requerst is None:
+        user = kwargs.get('user')
+        _id = kwargs.get('id')
+        name = kwargs.get('name')
+        active = kwargs.get('active')
+        type = kwargs.get('type')
+        max_sites = kwargs.get('max_sites')
+        cust_id = kwargs.get('cust_id')
+        sub_id = kwargs.get('sub_id')
+        product_id = kwargs.get('product_id')
+        price_id = kwargs.get('price_id')
+        slack = kwargs.get('slack')
+
+
+    if _id is not None:
+        if not Account.objects.filter(id=_id).exists():
+            data = {'reason': 'account not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
+
+        # updating with new info
+        account = Account.objects.get(id=_id)
+        if name is not None:
+            account.name = name
+        if active is not None:
+            account.active = active
+        if type is not None:
+            account.type = type
+        if max_sites is not None:
+            account.max_sites = max_sites
+        if cust_id is not None:
+            account.cust_id = cust_id
+        if sub_id is not None:
+            account.sub_id = sub_id
+        if product_id is not None:
+            account.product_id = product_id
+        if price_id is not None:
+            account.price_id = price_id
+        if slack is not None:
+            account.slack = slack
+        
+        # saving updated info
+        account.save()
+
+
+
+    if _id is None:
+        account = Account.objects.create(
+            user=user,
+            name=name,
+            active=active,
+            type=type,
+            max_sites=max_sites,
+            cust_id=cust_id,
+            sub_id=sub_id,
+            product_id=product_id,
+            price_id=price_id,
+            slack=slack
+        )
+    
+    
+    serializer_context = {'request': request,}
+    serialized = AccountSerializer(account, context=serializer_context)
+    data = serialized.data
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
+
+
+
+
+
+
+def create_or_update_member(request=None, *args, **kwargs):
+    # get posted data
+    if request is not None:
+        user = request.user
+        _id = request.data.get('id')
+        account = request.data.get('account')
+        status = request.data.get('status')
+        type = request.data.get('type')
+        email = request.data.get('email')
+
+    if requerst is None:
+        user = kwargs.get('user')
+        account = kwargs.get('account')
+        status = kwargs.get('status')
+        type = kwargs.get('type')
+        email = kwargs.get('email')
+
+
+    if _id is not None:
+        if not Member.objects.filter(id=_id).exists():
+            data = {'reason': 'member not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
+
+        # updating with new info
+        member = Member.objects.get(id=_id)
+        if account is not None:
+            member.account = account
+        if email is not None:
+            member.email = email
+        if type is not None:
+            member.type = type
+        if status is not None:
+            member.status = status
+        
+        # saving updated info
+        member.save()
+
+
+
+    if _id is None:
+        member = Member.objects.create(
+            user=user,
+            email=email,
+            status=status,
+            type=type,
+            account=account,
+        )
+    
+    
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(member, context=serializer_context)
+    data = serialized.data
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
