@@ -41,7 +41,7 @@ class SiteSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Site
         fields = ['id', 'user', 'site_url', 'time_created', 'info',
-        'tags',
+        'tags', 'account',
         ]
 
 
@@ -117,7 +117,7 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
         model = Schedule
         fields = ['id', 'site', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
-        'periodic_task_id', 'status', 'automation', 'extras'
+        'periodic_task_id', 'status', 'automation', 'extras', 'account',
         ]
 
 
@@ -130,7 +130,7 @@ class AutomationSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Automation
         fields = ['id', 'expressions', 'actions', 'user', 'schedule',
-        'time_created', 'name'
+        'time_created', 'name', 'account',
         ]
 
 
@@ -144,7 +144,7 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Report
         fields = ['id', 'site', 'user', 'time_created', 'type',
-        'path', 'info'
+        'path', 'info', 'account',
         ]
 
 
@@ -157,7 +157,7 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Case
         fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags',
+        'tags', 'account',
         ]
 
 
@@ -171,7 +171,7 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'steps', 'case', 'case_name', 'passed', 'configs',
+        'steps', 'case', 'case_name', 'passed', 'configs', 'account',
         ]
 
 

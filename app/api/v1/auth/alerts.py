@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.template.loader import render_to_string
 from datetime import date
 import os, operator
+from ...models import *
 from django.utils.html import strip_tags
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -34,7 +35,101 @@ def send_reset_link(email):
             'signature' : '- Cheers!',
         }
 
-        html_message = render_to_string('api/reset_password_email.html', context)
+        html_message = render_to_string('api/alert_with_button.html', context)
+        plain_message = strip_tags(html_message)
+        send_mail(
+            from_email = os.getenv('EMAIL_HOST_USER'),
+            subject = subject,
+            message = plain_message,
+            recipient_list = [email],
+            html_message = html_message,
+            fail_silently = True,
+        )
+
+        data = {
+            'success': True
+        }
+    
+    else:
+        data = {
+            'success': False
+        }
+        
+    return data
+
+
+
+
+
+
+
+def send_invite_link(member):
+    if Member.objects.filter(email=email, status="pending").exists():
+        member = Member.objects.get(email=email)
+        link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={account.id}&code={account.code}&member={member.id}&email={email}'
+        subject = 'Scanerr Invite'
+        title = 'Scanerr Invite'
+        pre_header = 'Scanerr Invite'
+        pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Scanerr. Now just click the link below to accept the invite!'
+
+        subject = subject
+        context = {
+            'title' : title,
+            'pre_header' : pre_header,
+            'pre_content' : pre_content,
+            'object_url' : link,
+            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'button_text' : 'Accept Invite',
+            'content' : '',
+            'signature' : '- Cheers!',
+        }
+
+        html_message = render_to_string('api/alert_with_button.html', context)
+        plain_message = strip_tags(html_message)
+        send_mail(
+            from_email = os.getenv('EMAIL_HOST_USER'),
+            subject = subject,
+            message = plain_message,
+            recipient_list = [email],
+            html_message = html_message,
+            fail_silently = True,
+        )
+
+        data = {
+            'success': True
+        }
+    
+    else:
+        data = {
+            'success': False
+        }
+        
+    return data
+
+
+
+
+
+def send_remove_alert(member):
+    if Member.objects.filter(email=email, status="removed").exists():
+        member = Member.objects.get(email=email)
+        subject = 'Removed From Account'
+        title = 'Removed From Account'
+        pre_header = 'Removed From Account'
+        pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Scanerr. Please let us know if there\'s been a mistake.'
+
+        subject = subject
+        context = {
+            'title' : title,
+            'pre_header' : pre_header,
+            'pre_content' : pre_content,
+            'object_url' : link,
+            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'content' : '',
+            'signature' : '- Cheers!',
+        }
+
+        html_message = render_to_string('api/alert_no_button.html', context)
         plain_message = strip_tags(html_message)
         send_mail(
             from_email = os.getenv('EMAIL_HOST_USER'),

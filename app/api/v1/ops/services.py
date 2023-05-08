@@ -49,20 +49,18 @@ def record_api_call(request, data, status):
 
 
 def check_account(request):
-    if Account.objects.filter(user=request.user).exists():
-        account = Account.objects.get(user=request.user)
-        if account.active == True:
-            return True
-        else:
-            return False
+    if Member.objects.filter(user=request.user).exists():
+        member = Member.objects.get(user=request.user)
+        return member.account.active
     else:
-        return True
+        return False
 
 
 
 def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     user = request.user
+    account = Member.objects.get(user=user).account
     sites = Site.objects.filter(user=user)
 
 
@@ -155,6 +153,8 @@ def create_site(request, delay=False):
 def get_sites(request):
     site_id = request.query_params.get('site_id')
     user = request.user
+    account = Member.objects.get(user=user).account
+
 
     if site_id != None:
         
@@ -165,8 +165,8 @@ def get_sites(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         
-        if site.user != user:
-            data = {'reason': 'you cannot retrieve a Site you do not own',}
+        if site.account != account:
+            data = {'reason': 'retrieve a Site you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)
@@ -174,7 +174,7 @@ def get_sites(request):
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     
-    sites = Site.objects.filter(user=user).order_by('-time_created')
+    sites = Site.objects.filter(account=account).order_by('-time_created')
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(sites, request)
     serializer_context = {'request': request,}
@@ -187,6 +187,7 @@ def get_sites(request):
 
 def delete_site(request, id):
     user = request.user
+    account = Member.objects.get(user=user).account
     
     try:
         site = Site.objects.get(id=id)
@@ -195,8 +196,8 @@ def delete_site(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-    if site.user != user:
-        data = {'reason': 'you cannot delete Tests of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'delete a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -214,6 +215,9 @@ def delete_site(request, id):
 
 def delete_many_sites(request):
     ids = request.data.get('ids')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     if ids is not None:
         count = len(ids)
         num_succeeded = 0
@@ -226,7 +230,7 @@ def delete_many_sites(request):
         for id in ids:
             try:
                 site = Site.objects.get(id=id)
-                if site.user == user:
+                if site.account == account:
                     delete_site_s3_bg.delay(site_id=id)
                     site.delete()
                 num_succeeded += 1
@@ -257,22 +261,6 @@ def delete_many_sites(request):
 
 
 def create_test(request, delay=False):
-
-    account_is_active = check_account(request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-
-    site_id = request.data.get('site_id')
-    user = request.user
-    site = Site.objects.get(id=site_id, )
-    if site.user != user:
-        data = {'reason': 'you cannot create a Test of a Site you do not own'}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-
-
     # get data from request
     configs = request.data.get('configs', None)
     pre_scan_id = request.data.get('pre_scan', None)
@@ -282,6 +270,21 @@ def create_test(request, delay=False):
     tags = request.data.get('tags', None)
     pre_scan = None
     post_scan = None
+    site_id = request.data.get('site_id')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    account_is_active = check_account(request)
+    if not account_is_active:
+        data = {'reason': 'account not funded',}
+        record_api_call(request, data, '402')
+        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+    site = Site.objects.get(id=site_id, )
+    if site.account != account:
+        data = {'reason': 'create a Test of a Site you do not own'}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
 
     if len(test_type) == 0:
         test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
@@ -403,11 +406,13 @@ def create_test(request, delay=False):
 
 def get_tests(request):
     user = request.user
+    account = Member.objects.get(user=user).account
     test_id = request.query_params.get('test_id')
     site_id = request.query_params.get('site_id')
     time_begin = request.query_params.get('time_begin')
     time_end = request.query_params.get('time_end')
     lean = request.query_params.get('lean')
+    
 
     if test_id != None:
 
@@ -418,8 +423,8 @@ def get_tests(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if test.site.user != user:
-            data = {'reason': 'you cannot retrieve Tests of a Site you do not own'}
+        if test.site.account != account:
+            data = {'reason': 'retrieve Tests of a Site you do not own'}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -444,8 +449,8 @@ def get_tests(request):
         record_api_call(request, data, status_code)
         return Response(data, status=this_status)
 
-    if site.user != user:
-        data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'retrieve Tests of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
@@ -479,12 +484,20 @@ def get_tests(request):
 
 
 def get_test_lean(request, id):
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         test = Test.objects.get(id=id)
     except:
         data = {'reason': 'cannot find a Test with that id'}
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if test.site.account != account:
+        data = {'reason': 'retrieve Tests of a Site you do not own'}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
 
     # get images_delta if exists
     try:
@@ -539,9 +552,10 @@ def delete_test(request, id):
         
     site = test.site
     user = request.user
+    account = Member.objects.get(user=user).account
 
-    if site.user != user:
-        data = {'reason': 'you cannot delete Tests of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'delete Tests of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -556,6 +570,9 @@ def delete_test(request, id):
 
 def delete_many_tests(request):
     ids = request.data.get('ids')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     if ids is not None:
         count = len(ids)
         num_succeeded = 0
@@ -600,9 +617,10 @@ def delete_many_tests(request):
 
 
 def create_scan(request, delay=False):
-
-    site_id = request.data.get('site_id', None)
+    
     user = request.user
+    account = Member.objects.get(user=user).account
+    site_id = request.data.get('site_id', None)
     configs = request.data.get('configs', None)
     types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     tags = request.data.get('tags', None)
@@ -623,8 +641,8 @@ def create_scan(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
     
-    if site.user != user:
-        data = {'reason': 'you cannot create a Scan of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'create a Scan of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
@@ -690,6 +708,7 @@ def create_scan(request, delay=False):
 def get_scans(request):
 
     user = request.user
+    account = Member.objects.get(user=user).account
     scan_id = request.query_params.get('scan_id')
     site_id = request.query_params.get('site_id')
     time_begin = request.query_params.get('time_begin')
@@ -704,8 +723,8 @@ def get_scans(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if scan.site.user != user:
-            data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
+        if scan.site.account != account:
+            data = {'reason': 'retrieve Scans of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -724,8 +743,8 @@ def get_scans(request):
         return Response(data, status=status.HTTP_404_NOT_FOUND)
     
 
-    if site.user != user:
-        data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'retrieve Scans of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -754,12 +773,20 @@ def get_scans(request):
 
 
 def get_scan_lean(request, id):
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         scan = Scan.objects.get(id=id)
     except:
         data = {'reason': 'cannot find a Scan with that id'}
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if scan.site.account != account:
+        data = {'reason': 'retrieve Scans of a Site you do not own'}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
 
     # get lighthouse scores if exists
     try:
@@ -801,9 +828,11 @@ def delete_scan(request, id):
         
     site = scan.site
     user = request.user
+    account = Member.objects.get(user=user).account
 
-    if site.user != user:
-        data = {'reason': 'you cannot delete Scans of a Site you do not own',}
+
+    if site.account != account:
+        data = {'reason': 'delete Scans of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -818,6 +847,9 @@ def delete_scan(request, id):
 
 def delete_many_scans(request):
     ids = request.data.get('ids')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     if ids is not None:
         count = len(ids)
         num_succeeded = 0
@@ -830,7 +862,7 @@ def delete_many_scans(request):
         for id in ids:
             try:
                 scan = Scan.objects.get(id=id)
-                if scan.site.user == user:
+                if scan.site.account == account:
                     scan.delete()
                 num_succeeded += 1
                 succeeded.append(str(id))
@@ -863,6 +895,8 @@ def delete_many_scans(request):
 
 
 def create_or_update_schedule(request):
+    user = request.user
+    account = Member.objects.get(user=user).account
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -872,16 +906,16 @@ def create_or_update_schedule(request):
 
     try:
         site = Site.objects.get(id=request.data.get('site_id'))
-        if site.user != request.user and site.user != None:
-            data = {'reason': 'you cannot create a Schedule of a Site you do not own',}
+        if site.account != account and site.account != None:
+            data = {'reason': 'create a Schedule of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
     except:
         site = None
     try:
         schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
-        if schedule.user != request.user and schedule.user != None:
-            data = {'reason': 'you cannot update a Schedule you do not own',}
+        if schedule.account != account and schedule.account != None:
+            data = {'reason': 'update a Schedule you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
     except:
@@ -1043,7 +1077,7 @@ def create_or_update_schedule(request):
                     user=request.user, timezone=timezone,
                     begin_date=begin_date, time=time, frequency=freq,
                     task=task, crontab_id=crontab.id, task_type=task_type,
-                    extras=extras
+                    extras=extras, account=account
                 )
                 schedule_new = Schedule.objects.get(id=schedule_id)
         else:
@@ -1052,7 +1086,8 @@ def create_or_update_schedule(request):
                 begin_date=begin_date, time=time, frequency=freq,
                 task=task, crontab_id=crontab.id,
                 periodic_task_id=periodic_task.id,
-                extras=extras 
+                extras=extras,
+                account=account
             )
 
     serializer_context = {'request': request,}
@@ -1066,6 +1101,7 @@ def create_or_update_schedule(request):
 
 def get_schedules(request):
     user = request.user
+    account = Member.objects.get(user=user).account
     schedule_id = request.query_params.get('schedule_id')
     site_id = request.query_params.get('site_id')
 
@@ -1078,8 +1114,8 @@ def get_schedules(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if schedule.site.user != user or schedule.user != user:
-            data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
+        if schedule.site.account != user or schedule.account != account:
+            data = {'reason': 'retrieve Schedules of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -1097,8 +1133,8 @@ def get_schedules(request):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-    if site.user != user:
-        data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
+    if site.account != account:
+        data = {'reason': 'retrieve Schedules of a Site you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
@@ -1116,6 +1152,7 @@ def get_schedules(request):
 
 
 def delete_schedule(request, id):
+
     try:
         schedule = Schedule.objects.get(id=id)
     except:
@@ -1126,9 +1163,10 @@ def delete_schedule(request, id):
     task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
     site = schedule.site
     user = request.user
+    account = Member.objects.get(user=user).account
 
-    if site.user != user:
-        data = {'reason': 'you cannot delete Schedules you do not own',}
+    if site.account != account:
+        data = {'reason': 'delete Schedules you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1147,6 +1185,8 @@ def delete_schedule(request, id):
 
 
 def create_or_update_automation(request):
+    user = request.user
+    account = Member.objects.get(user=user).account
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -1158,14 +1198,14 @@ def create_or_update_automation(request):
         schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
         try:
             automation = Automation.objects.get(id=schedule.automation.id)
-            if automation.user != request.user and automation.user != None:
-                data = {'reason': 'you cannot update a Automation you do not own',}
+            if automation.account != account and automation.account != None:
+                data = {'reason': 'update a Automation you do not own',}
                 record_api_call(request, data, '403')
                 return Response(data, status=status.HTTP_403_FORBIDDEN)
         except:
             automation = None
-        if schedule.user != request.user and schedule.user != None:
-            data = {'reason': 'you cannot create a Automation of a Schedule you do not own',}
+        if schedule.account != account and schedule.account != None:
+            data = {'reason': 'create a Automation of a Schedule you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
     except:
@@ -1187,7 +1227,7 @@ def create_or_update_automation(request):
     if not automation:
         automation = Automation.objects.create(
             name=name, expressions=expressions, actions=actions,
-            schedule=schedule, user=request.user,
+            schedule=schedule, user=request.user, account=account
         )
 
     if schedule:
@@ -1217,6 +1257,8 @@ def create_or_update_automation(request):
 def get_automations(request):
     automation_id = request.query_params.get('automation_id')
     user = request.user
+    account = Member.objects.get(user=user).account
+
     if automation_id != None:        
         try:
             automation = Automation.objects.get(id=automation_id)
@@ -1225,8 +1267,8 @@ def get_automations(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if automation.user != user:
-            data = {'reason': 'you cannot retrieve an Automation you do not own',}
+        if automation.account != account:
+            data = {'reason': 'retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         serializer_context = {'request': request,}
         serialized = AutomationSerializer(automation, context=serializer_context)
@@ -1246,6 +1288,9 @@ def get_automations(request):
 
 
 def delete_automation(request, id):
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         automation = Automation.objects.get(id=id)
     except:
@@ -1253,8 +1298,8 @@ def delete_automation(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
     
-    if automation.user != request.user:
-        data = {'reason': 'you cannot delete an automation you do not own',}
+    if automation.account != account:
+        data = {'reason': 'delete an automation you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1274,6 +1319,9 @@ def delete_automation(request, id):
 
 
 def create_or_update_report(request):
+
+    user = request.user
+    account = Member.objects.get(user=user).account
 
     report_id = request.data.get('report_id', None)
     site_id = request.data.get('site_id', None)
@@ -1296,9 +1344,16 @@ def create_or_update_report(request):
             data = {'reason': 'cannot find a Report with that id'}
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+        if report.account != account:
+            data = {'reason': 'update a Report you do not own'}
+            record_api_call(request, data, '403')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+    
     else:
         report = Report.objects.create(
-            user=request.user, site=site
+            user=request.user, site=site, 
+            account=account
         )
 
     # update report data
@@ -1325,6 +1380,8 @@ def create_or_update_report(request):
 def get_reports(request):
     site_id = request.query_params.get('site_id', None)
     report_id = request.query_params.get('report_id', None)
+    user = request.user 
+    account = Member.objects.get(user=user).account
 
     if site_id:
         try:
@@ -1333,7 +1390,7 @@ def get_reports(request):
             data = {'reason': 'cannot find a Site with that id'}
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
-        reports = Report.objects.filter(site=site, user=request.user).order_by('-time_created')
+        reports = Report.objects.filter(site=site, account=account).order_by('-time_created')
 
     if report_id:
         try:
@@ -1360,6 +1417,8 @@ def get_reports(request):
 
 def delete_report(request, id):
     user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         report = Report.objects.get(id=id)
     except:
@@ -1367,8 +1426,8 @@ def delete_report(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-    if report.user != user:
-        data = {'reason': 'you cannot delete Reports you do not own',}
+    if report.account != account:
+        data = {'reason': 'delete Reports you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1440,6 +1499,8 @@ def create_or_update_case(request):
     steps = request.data.get('steps')
     name = request.data.get('name')
     tags = request.data.get('tags')
+    user = request.user
+    account = Member.objects.get(user=user).account
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -1455,8 +1516,8 @@ def create_or_update_case(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         
-        if case.user != request.user:
-            data = {'reason': 'you cannot retrieve Cases you do not own',}
+        if case.account != account:
+            data = {'reason': 'retrieve Cases you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         else:
@@ -1470,7 +1531,8 @@ def create_or_update_case(request):
             user = request.user,
             name = name, 
             tags = tags,
-            steps = steps
+            steps = steps,
+            account = account
         )
 
 
@@ -1485,6 +1547,9 @@ def create_or_update_case(request):
 
 def get_cases(request):
     case_id = request.query_params.get('case_id')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     if case_id != None:        
         try:
             case = Case.objects.get(id=case_id)
@@ -1493,8 +1558,8 @@ def get_cases(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if case.user != request.user:
-            data = {'reason': 'you cannot retrieve an Case you do not own',}
+        if case.account != account:
+            data = {'reason': 'retrieve an Case you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -1516,8 +1581,10 @@ def get_cases(request):
 
 
 def search_cases(request):
+    user = request.user
+    account = Member.objects.get(user=user).account
     query = request.query_params.get('query')
-    cases = Case.objects.filter(user=request.user, name__icontains=query).order_by('-time_created')
+    cases = Case.objects.filter(account=account, name__icontains=query).order_by('-time_created')
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
     serializer_context = {'request': request,}
@@ -1529,6 +1596,9 @@ def search_cases(request):
 
 
 def delete_case(request, id):
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         case = Case.objects.get(id=id)
     except:
@@ -1536,8 +1606,8 @@ def delete_case(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
     
-    if case.user != request.user:
-        data = {'reason': 'you cannot delete an Case you do not own',}
+    if case.account != account:
+        data = {'reason': 'delete an Case you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1560,6 +1630,9 @@ def create_testcase(request, delay=False):
     site_id = request.data.get('site_id')
     updates = request.data.get('updates')
     configs = request.data.get('configs')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
 
     account_is_active = check_account(request)
     if not account_is_active:
@@ -1569,14 +1642,14 @@ def create_testcase(request, delay=False):
 
     if case_id and site_id:
         try:
-            case = Case.objects.get(id=case_id)
+            case = Case.objects.get(id=case_id, account=account)
         except:
             data = {'reason': 'cannot find a Case with that id'}
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         try:
-            site = Site.objects.get(id=site_id)
+            site = Site.objects.get(id=site_id, account=account)
         except:
             data = {'reason': 'cannot find a Site with that id'}
             record_api_call(request, data, '404')
@@ -1646,7 +1719,8 @@ def get_testcases(request):
     testcase_id = request.query_params.get('testcase_id')
     site_id = request.query_params.get('site_id')
     lean = request.query_params.get('lean')
-
+    user = request.user
+    account = Member.objects.get(user=user).account
 
     if testcase_id != None:        
         try:
@@ -1656,8 +1730,8 @@ def get_testcases(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if testcase.user != request.user:
-            data = {'reason': 'you cannot retrieve an Testcase you do not own',}
+        if testcase.account != account:
+            data = {'reason': 'retrieve an Testcase you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -1668,7 +1742,7 @@ def get_testcases(request):
 
     if site_id != None:
         try:
-            site = Site.objects.get(id=site_id, user=request.user)
+            site = Site.objects.get(id=site_id, account=account)
         except:
             data = {'reason': 'cannot find a Site with that id'}
             record_api_call(request, data, '404')
@@ -1676,7 +1750,7 @@ def get_testcases(request):
         testcases = Testcase.objects.filter(site=site).order_by('-time_created')
     
     else:
-        testcases = Testcase.objects.filter(user=request.user).order_by('-time_created')
+        testcases = Testcase.objects.filter(account=account).order_by('-time_created')
 
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(testcases, request)
@@ -1691,6 +1765,9 @@ def get_testcases(request):
 
 
 def delete_testcase(request, id):
+    user = request.user
+    account = Member.objects.get(user=user).account
+
     try:
         testcase = Testcase.objects.get(id=id)
     except:
@@ -1698,8 +1775,8 @@ def delete_testcase(request, id):
         record_api_call(request, data, '404')
         return Response(data, status=status.HTTP_404_NOT_FOUND)
     
-    if request.user != testcase.user:
-        data = {'reason': 'you cannot delete an Testcase you do not own',}
+    if testcase.account != account:
+        data = {'reason': 'delete an Testcase you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1732,7 +1809,7 @@ def get_logs(request):
     if log_id != None:
         log = Log.objects.get(id=log_id)
         if log.user != request.user:
-            data = {'reason': 'you cannot retrieve Logs you do not own',}
+            data = {'reason': 'retrieve Logs you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         

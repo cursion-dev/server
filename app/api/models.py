@@ -235,6 +235,7 @@ class Site(models.Model):
     site_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
@@ -295,6 +296,7 @@ class Account(models.Model):
     active = models.BooleanField(default=False, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     max_sites = models.IntegerField(serialize=True, null=True, blank=True)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -311,14 +313,14 @@ class Account(models.Model):
 class Member(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     email = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # created by Account admin
     status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
 
     def __str__(self):
-        return f'{self.user.email}_{self.account.name}'
+        return f'{self.user.email}__{self.account.name}'
 
 
 
@@ -346,6 +348,7 @@ class Schedule(models.Model):
     automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     task_type = models.CharField(max_length=100, default='test', serialize=True) # report, scan, test, testcase
     timezone = models.CharField(max_length=100, null=True, blank=True, serialize=True)
     begin_date = models.DateTimeField(default=datetime.now, serialize=True)
@@ -367,6 +370,7 @@ class Automation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True, blank=True, serialize=True, related_name='assoc_sch')
     expressions = models.JSONField(serialize=True, null=True, blank=True, default=get_expressions_default)
@@ -383,6 +387,7 @@ class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     path = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     type = models.JSONField(serialize=True, null=True, blank=True) # array of [lighthouse, yellowlab]
@@ -399,6 +404,7 @@ class Case(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
@@ -412,6 +418,7 @@ class Case(models.Model):
 class Testcase(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, serialize=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     case_name = models.CharField(max_length=1000, null=True, blank=True, serialize=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)

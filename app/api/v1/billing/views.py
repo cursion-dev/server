@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.core import serializers
 from django.forms.models import model_to_dict
 from ...models import Account, Card
+from ..auth.services import create_or_update_account
 from datetime import timedelta, datetime
 from scanerr import settings
 import os, stripe, json 
@@ -212,60 +213,36 @@ class SetupSubscription(APIView):
     def post(self, request):  
         stripe.api_key = settings.STRIPE_PRIVATE
         user = request.user
-        name = request.data['name']
+        name = request.data.get('name')
         product_name = str(user.email + '_' + str(user.id) + '_' + name)
-        price_amount = int(request.data['price_amount'])
-        max_sites = int(request.data['max_sites'])
+        price_amount = int(request.data.get('price_amount'))
+        max_sites = int(request.data.get('max_sites'))
 
-        if Account.objects.filter(user=user).exists():
-            old_account = Account.objects.get(user=user)
-            product = stripe.Product.modify(old_account.product_id, name=product_name)
-            customer = stripe.Customer.retrieve(old_account.cust_id)
-
-            price = stripe.Price.create(
-                product=product.id,
-                unit_amount=price_amount,
-                currency='usd',
-                recurring={'interval': 'month',},
+        if not Account.objects.filter(user=user).exists():
+            create_or_update_account(
+                user=user,
+                type=name,
+                max_sites=max_sites,
             )
 
-            sub = stripe.Subscription.retrieve(old_account.sub_id)
-            subscription = stripe.Subscription.modify(
-                sub.id,
-                cancel_at_period_end=False,
-                proration_behavior='create_prorations',
-                items=[{
-                    'id': sub['items']['data'][0].id,
-                    'price': price.id,
-                }],
-                expand=['latest_invoice.payment_intent'],
-            )
-
-            # updating price defaults and archiving old price
-            stripe.Product.modify(product.id, default_price=price,)
-            stripe.Price.modify(old_account.price_id, active=False)
-
-            Account.objects.filter(user=user).update(
-                type = name,
-                cust_id = customer.id,
-                sub_id = subscription.id,
-                product_id = product.id,
-                price_id = price.id,
-                max_sites = max_sites,
-            )
-
-        else:
+        account = Account.objects.get(user=user)
+        
+        if account.cust_id is None:
             product = stripe.Product.create(name=product_name)
             customer = stripe.Customer.create(email=request.user.email)
-            price = stripe.Price.create(
-                product=product.id,
-                unit_amount=price_amount,
-                currency='usd',
-                recurring={
-                    'interval': 'month',
-                    'trial_period_days': 7,
-                },
-            )
+
+        if account.cust_id is not None:
+            product = stripe.Product.modify(account.product_id, name=product_name)
+            customer = stripe.Customer.retrieve(account.cust_id)
+
+        price = stripe.Price.create(
+            product=product.id,
+            unit_amount=price_amount,
+            currency='usd',
+            recurring={'interval': 'month',},
+        )
+
+        if account.sub_id is None:
             subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{
@@ -276,17 +253,32 @@ class SetupSubscription(APIView):
                 # trial_period_days=7,
             )
 
-            Account.objects.create(
-                user=user,
-                type = name,
-                cust_id = customer.id,
-                sub_id = subscription.id,
-                product_id = product.id,
-                price_id = price.id,
-                max_sites = max_sites,
+        if account.sub_id is not None:
+            sub = stripe.Subscription.retrieve(account.sub_id)
+            subscription = stripe.Subscription.modify(
+                sub.id,
+                cancel_at_period_end=False,
+                proration_behavior='create_prorations',
+                items=[{
+                    'id': sub['items']['data'][0].id,
+                    'price': price.id,
+                }],
+                expand=['latest_invoice.payment_intent'],
             )
-
         
+            # updating price defaults and archiving old price
+            stripe.Product.modify(product.id, default_price=price,)
+            stripe.Price.modify(account.price_id, active=False)
+
+
+        Account.objects.filter(user=user).update(
+            type = name,
+            cust_id = customer.id,
+            sub_id = subscription.id,
+            product_id = product.id,
+            price_id = price.id,
+            max_sites = max_sites,
+        )        
 
         data = {
             'subscription_id' : subscription.id,

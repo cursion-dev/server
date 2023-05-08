@@ -1,4 +1,4 @@
-import requests, os, subprocess
+import requests, os, subprocess, secrets
 from typing import Dict, Any
 from scanerr import settings
 from django.http import HttpResponse
@@ -15,6 +15,7 @@ from slack_sdk.oauth.installation_store import FileInstallationStore, Installati
 from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
 from .serializers import AccountSerializer
+from .alerts import *
 from rest_framework.response import Response
 from django.contrib.auth.middleware import get_user
 
@@ -230,12 +231,6 @@ def slack_oauth_init(request, user):
 
 
 
-def account_setup(request):
-    account = Account.objects.create(user=user)
-    card = Card.objects.create(user=user, account=account)
-    return True
-
-
 def t7e(request):
     if request.GET.get('cred') == \
         'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792':
@@ -256,6 +251,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         name = request.data.get('name')
         active = request.data.get('active')
         type = request.data.get('type')
+        code = request.data.get('code')
         max_sites = request.data.get('max_sites')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
@@ -269,6 +265,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         name = kwargs.get('name')
         active = kwargs.get('active')
         type = kwargs.get('type')
+        code = kwargs.get('code')
         max_sites = kwargs.get('max_sites')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
@@ -291,6 +288,8 @@ def create_or_update_account(request=None, *args, **kwargs):
             account.active = active
         if type is not None:
             account.type = type
+        if code is not None:
+            account.code = code
         if max_sites is not None:
             account.max_sites = max_sites
         if cust_id is not None:
@@ -310,11 +309,16 @@ def create_or_update_account(request=None, *args, **kwargs):
 
 
     if _id is None:
+
+        if code is None:
+            code = secrets.token_urlsafe([16])
+
         account = Account.objects.create(
             user=user,
             name=name,
             active=active,
             type=type,
+            code=code,
             max_sites=max_sites,
             cust_id=cust_id,
             sub_id=sub_id,
@@ -329,11 +333,6 @@ def create_or_update_account(request=None, *args, **kwargs):
     data = serialized.data
     response = Response(data, status=status.HTTP_200_OK)
     return response
-
-
-
-
-
 
 
 
@@ -379,8 +378,6 @@ def create_or_update_member(request=None, *args, **kwargs):
         # saving updated info
         member.save()
 
-
-
     if _id is None:
         member = Member.objects.create(
             user=user,
@@ -389,6 +386,13 @@ def create_or_update_member(request=None, *args, **kwargs):
             type=type,
             account=account,
         )
+
+    
+    if status == 'pending':
+        send_invite_link(member)
+    
+    if status == 'removed':
+        send_remove_alert(member)
     
     
     serializer_context = {'request': request,}
