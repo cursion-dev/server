@@ -399,6 +399,7 @@ def create_or_update_member(request=None, *args, **kwargs):
         status = request.data.get('status')
         type = request.data.get('type')
         email = request.data.get('email')
+        code = request.data.get('code')
 
     if requerst is None:
         user = kwargs.get('user')
@@ -406,6 +407,7 @@ def create_or_update_member(request=None, *args, **kwargs):
         status = kwargs.get('status')
         type = kwargs.get('type')
         email = kwargs.get('email')
+        code = kwargs.get('code')
 
 
     if _id is not None:
@@ -422,8 +424,17 @@ def create_or_update_member(request=None, *args, **kwargs):
             member.email = email
         if type is not None:
             member.type = type
+        
         if status is not None:
-            member.status = status
+            if status == 'active':
+                if code == member.account.code:
+                    member.status = status
+                else:
+                    data = {'reason': 'member not authorized',}
+                    record_api_call(request, data, '403')
+                    return Response(data, status=status.HTTP_403_FORBIDDEN) 
+            else:
+                member.status = status
         
         # saving updated info
         member.save()
