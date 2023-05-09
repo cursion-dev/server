@@ -33,7 +33,7 @@ class AccountAdmin(admin.ModelAdmin):
 
 @admin.register(Member)
 class MemberAdmin(admin.ModelAdmin):
-    list_display = ('user__username', 'account__name', 'time_created', 'type', 'status')
+    list_display = ('user', 'account', 'time_created', 'type', 'status')
     search_fields = ('user__username', 'account__name')
     # list_display = ('__str__', 'time_created')
     # search_fields = ('__str__',)
