@@ -29,6 +29,11 @@ class AccountAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'type')
     search_fields = ('__str__',)
 
+@admin.register(Member)
+class MemberAdmin(admin.ModelAdmin):
+    list_display = ('user', 'account__name', 'time_created', 'type', 'status')
+    search_fields = ('user__username', 'account__name')
+
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'brand', 'last_four')
@@ -54,16 +59,13 @@ class AutomationAdmin(admin.ModelAdmin):
 class ProcessAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created',  'time_completed', 'progress', 'successful')
 
-
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'user', 'time_created',)
 
-
 @admin.register(Testcase)
 class TestcaseAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'user', 'time_created', 'time_completed',)
-
 
 
 @admin.register(Mask)
