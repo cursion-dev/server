@@ -35,8 +35,6 @@ class AccountAdmin(admin.ModelAdmin):
 class MemberAdmin(admin.ModelAdmin):
     list_display = ('user', 'account', 'time_created', 'type', 'status')
     search_fields = ('user__username', 'account__name')
-    # list_display = ('__str__', 'time_created')
-    # search_fields = ('__str__',)
 
 
 @admin.register(Card)
