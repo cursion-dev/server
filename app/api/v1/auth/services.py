@@ -424,17 +424,12 @@ def create_or_update_member(request=None, *args, **kwargs):
             member.email = email
         if type is not None:
             member.type = type
-        
         if status is not None:
-            if status == 'active':
-                if code == member.account.code:
-                    member.status = status
-                else:
-                    data = {'reason': 'member not authorized',}
-                    record_api_call(request, data, '403')
-                    return Response(data, status=status.HTTP_403_FORBIDDEN) 
-            else:
-                member.status = status
+            if status == 'active' and code != member.account.code:
+                data = {'reason': 'member not authorized',}
+                record_api_call(request, data, '403')
+                return Response(data, status=status.HTTP_403_FORBIDDEN) 
+            member.status = status
         
         # saving updated info
         member.save()
