@@ -39,7 +39,9 @@ class SiteDetail(APIView):
 
     def get(self, request, id):
         site = get_object_or_404(Site, pk=id)
-        if site.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        if site.account != account:
             data = {'reason': 'you cannot retrieve a Site you do not own',}
             record_api_call(request, data, '401')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -96,7 +98,10 @@ class ScanDetail(APIView):
 
     def get(self, request, id):
         scan = get_object_or_404(Scan, pk=id)
-        if scan.site.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+
+        if scan.site.account != account:
             data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -163,7 +168,10 @@ class TestDetail(APIView):
 
     def get(self, request, id):
         test = get_object_or_404(Test, pk=id)
-        if test.site.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+
+        if test.site.account != account:
             data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -229,7 +237,10 @@ class ScheduleDetail(APIView):
 
     def get(self, request, id):
         schedule = get_object_or_404(Schedule, pk=id)
-        if schedule.site.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+
+        if schedule.site.account != account:
             data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -268,6 +279,9 @@ class AutomationDetail(APIView):
 
     def get(self, request, id):
         automation = get_object_or_404(Automation, pk=id)
+        user = request.user
+        account = Member.objects.get(user=user).account
+
         if automation.user != request.user:
             data = {'reason': 'you cannot retrieve Automations you do not own',}
             record_api_call(request, data, '403')
@@ -307,7 +321,10 @@ class ReportDetail(APIView):
 
     def get(self, request, id):
         report = get_object_or_404(Report, pk=id)
-        if report.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        
+        if report.account != account:
             data = {'reason': 'you cannot retrieve Reports you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -359,7 +376,10 @@ class CaseDetail(APIView):
 
     def get(self, request, id):
         case = get_object_or_404(Case, pk=id)
-        if case.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        
+        if case.account != account:
             data = {'reason': 'you cannot retrieve Cases you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -406,7 +426,10 @@ class TestcaseDetail(APIView):
 
     def get(self, request, id):
         testcase = get_object_or_404(Testcase, pk=id)
-        if testcase.user != request.user:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        
+        if testcase.account != account:
             data = {'reason': 'you cannot retrieve Testcases you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)

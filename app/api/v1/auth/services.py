@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
 from ...models import Account, Card, Member
 from slack_sdk.oauth import AuthorizeUrlGenerator
@@ -337,6 +338,55 @@ def create_or_update_account(request=None, *args, **kwargs):
 
 
 
+def get_account(request=None, id=None, *args, **kwargs):
+    user = request.user
+    account_id = request.query_params.get('id')
+
+    if id is not None:
+        account = get_object_or_404(Account, pk=id)
+
+    if account_id is not None:
+        account = get_object_or_404(Account, pk=account_id)
+
+    if account_id is None and id is None:
+        account = Member.objects.get(user=user).account
+
+    if not Member.objects.filter(account=account, user=user).exists():
+        data = {'reason': 'you cannot retrieve an Account you are not a member of',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    serializer_context = {'request': request,}
+    serialized = AccountSerializer(account, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_account_members(request=None, id=None, *args, **kwargs):
+    user = request.user
+    account_id = request.query_params.get('id')
+    mem_acct = Member.objets.get(user=user).account
+
+    if id is not None:
+        account = get_object_or_404(Account, pk=id)
+
+    if mem_acct != account:
+        data = {'reason': 'you cannot retrieve an Account you are not a member of',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    members = Member.objects.filter(account=account)
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(members, request)
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    return response
+
 
 
 
@@ -400,3 +450,30 @@ def create_or_update_member(request=None, *args, **kwargs):
     data = serialized.data
     response = Response(data, status=status.HTTP_200_OK)
     return response
+
+
+
+
+def get_member(request=None, id=None, *args, **kwargs):
+    user = request.user
+    member_id = request.query_params.get('id')
+
+    if id is not None:
+        member = get_object_or_404(Member, pk=id)
+
+    if member_id is not None:
+        member = get_object_or_404(member, pk=member_id)
+
+    if member_id is None and id is None:
+        member = Member.objects.get(user=user)
+
+    if member.user != user and member.account.user != user:
+        data = {'reason': 'you cannot retrieve a Member you are not affiliated with',}
+        record_api_call(request, data, '401')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(member, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
