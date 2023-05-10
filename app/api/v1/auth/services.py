@@ -312,7 +312,7 @@ def create_or_update_account(request=None, *args, **kwargs):
     if _id is None:
 
         if code is None:
-            code = secrets.token_urlsafe([16])
+            code = secrets.token_urlsafe(16)
 
         account = Account.objects.create(
             user=user,
