@@ -412,6 +412,13 @@ def create_or_update_member(request=None, *args, **kwargs):
         email = kwargs.get('email')
         code = kwargs.get('code')
 
+    if account is not None:
+        if Account.objects.filter(id=account).exists():
+            account = Account.objects.get(id=account)
+        else:
+            data = {'reason': 'account not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
 
     if _id is not None:
         if not Member.objects.filter(id=_id).exists():
