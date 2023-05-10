@@ -349,7 +349,8 @@ def get_account(request=None, id=None, *args, **kwargs):
         account = get_object_or_404(Account, pk=account_id)
 
     if account_id is None and id is None:
-        account = Member.objects.get(user=user).account
+        member = get_object_or_404(member, user=user)
+        account = member.account
 
     if not Member.objects.filter(account=account, user=user).exists():
         data = {'reason': 'you cannot retrieve an Account you are not a member of',}
@@ -471,7 +472,7 @@ def get_member(request=None, id=None, *args, **kwargs):
         member = get_object_or_404(member, pk=member_id)
 
     if member_id is None and id is None:
-        member = Member.objects.get(user=user)
+        member = get_object_or_404(member, user=user)
 
     if member.user != user and member.account.user != user:
         data = {'reason': 'you cannot retrieve a Member you are not affiliated with',}
