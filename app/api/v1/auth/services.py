@@ -432,6 +432,8 @@ def create_or_update_member(request=None, *args, **kwargs):
             member.account = account
         if email is not None:
             member.email = email
+        if user is not None:
+            member.user = user
         if type is not None:
             member.type = type
         if status is not None:
@@ -446,7 +448,6 @@ def create_or_update_member(request=None, *args, **kwargs):
 
     if _id is None:
         member = Member.objects.create(
-            user=user,
             email=email,
             status=status,
             type=type,
