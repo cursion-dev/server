@@ -437,6 +437,7 @@ def create_or_update_member(request=None, *args, **kwargs):
         if type is not None:
             member.type = type
         if status is not None:
+            # checking if user has valid code for membership
             if status == 'active' and code != member.account.code:
                 data = {'reason': 'member not authorized',}
                 record_api_call(request, data, '403')
