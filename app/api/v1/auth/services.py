@@ -260,7 +260,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         price_id = request.data.get('price_id')
         slack = request.data.get('slack')
 
-    if requerst is None:
+    if request is None:
         user = kwargs.get('user')
         _id = kwargs.get('id')
         name = kwargs.get('name')
@@ -404,7 +404,7 @@ def create_or_update_member(request=None, *args, **kwargs):
         email = request.data.get('email')
         code = request.data.get('code')
 
-    if requerst is None:
+    if request is None:
         user = kwargs.get('user')
         account = kwargs.get('account')
         status = kwargs.get('status')
