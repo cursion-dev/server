@@ -232,7 +232,7 @@ class Account(APIView):
         response = create_or_update_account(request)
         return response
 
-    def get(self, request, id, *args, **kwargs):
+    def get(self, request, id=None, *args, **kwargs):
         response = get_account(request, id)
         return response
 
@@ -242,7 +242,7 @@ class AccountMembers(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['get',]
 
-    def get(self, request, id, *args, **kwargs):
+    def get(self, request, id=None, *args, **kwargs):
         response = get_account_members(request, id)
         return response
 
@@ -255,7 +255,7 @@ class Member(APIView):
         response = create_or_update_member(request)
         return response
 
-    def get(self, request, id, *args, **kwargs):
+    def get(self, request, id=None, *args, **kwargs):
         response = get_member(request, id)
         return response
 
