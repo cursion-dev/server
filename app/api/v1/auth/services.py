@@ -15,7 +15,7 @@ from slack_sdk.oauth import AuthorizeUrlGenerator
 from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
 from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
-from .serializers import AccountSerializer
+from .serializers import *
 from .alerts import *
 from rest_framework.response import Response
 from django.contrib.auth.middleware import get_user
