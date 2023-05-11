@@ -64,9 +64,9 @@ def send_reset_link(email):
 
 
 def send_invite_link(member):
-    if Member.objects.filter(email=email, status="pending").exists():
-        member = Member.objects.get(email=email)
-        link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={account.id}&code={account.code}&member={member.id}&email={email}'
+    if Member.objects.filter(email=member.email, status="pending").exists():
+        member = Member.objects.get(email=member.email)
+        link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={account.id}&code={account.code}&member={member.id}&email={member.email}'
         subject = 'Scanerr Invite'
         title = 'Scanerr Invite'
         pre_header = 'Scanerr Invite'
@@ -90,7 +90,7 @@ def send_invite_link(member):
             from_email = os.getenv('EMAIL_HOST_USER'),
             subject = subject,
             message = plain_message,
-            recipient_list = [email],
+            recipient_list = [member.email],
             html_message = html_message,
             fail_silently = True,
         )
@@ -111,8 +111,8 @@ def send_invite_link(member):
 
 
 def send_remove_alert(member):
-    if Member.objects.filter(email=email, status="removed").exists():
-        member = Member.objects.get(email=email)
+    if Member.objects.filter(email=member.email, status="removed").exists():
+        member = Member.objects.get(email=member.email)
         subject = 'Removed From Account'
         title = 'Removed From Account'
         pre_header = 'Removed From Account'
@@ -135,7 +135,7 @@ def send_remove_alert(member):
             from_email = os.getenv('EMAIL_HOST_USER'),
             subject = subject,
             message = plain_message,
-            recipient_list = [email],
+            recipient_list = [member.email],
             html_message = html_message,
             fail_silently = True,
         )
