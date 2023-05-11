@@ -277,7 +277,7 @@ class Member(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
 
     def __str__(self):
-        return f'{self.user.email}__{self.account.name}'
+        return f'{self.email}__{self.account.name}'
 
 
 
