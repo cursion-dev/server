@@ -123,7 +123,7 @@ def send_remove_alert(member):
             'title' : title,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
-            'object_url' : link,
+            'object_url' : None,
             'home_page' : os.environ.get('CLIENT_URL_ROOT'),
             'content' : '',
             'signature' : '- Cheers!',
