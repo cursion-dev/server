@@ -371,7 +371,7 @@ def get_account(request=None, id=None, *args, **kwargs):
 def get_account_members(request=None, id=None, *args, **kwargs):
     user = request.user
     account_id = request.query_params.get('id')
-    mem_acct = Member.objets.get(user=user).account
+    mem_acct = Member.objects.get(user=user).account
 
     if id is not None:
         account = get_object_or_404(Account, pk=id)
