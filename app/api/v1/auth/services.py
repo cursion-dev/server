@@ -455,10 +455,10 @@ def create_or_update_member(request=None, *args, **kwargs):
         )
 
     
-    if status == 'pending':
+    if _status == 'pending':
         send_invite_link(member)
     
-    if status == 'removed':
+    if _status == 'removed':
         send_remove_alert(member)
     
     
