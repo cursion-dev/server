@@ -324,8 +324,7 @@ def create_or_update_account(request=None, *args, **kwargs):
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
-            price_id=price_id,
-            slack=slack
+            price_id=price_id
         )
     
     
