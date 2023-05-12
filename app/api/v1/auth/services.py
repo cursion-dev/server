@@ -463,6 +463,10 @@ def create_or_update_member(request=None, *args, **kwargs):
     
     if _status == 'removed':
         send_remove_alert(member)
+        member.delete()
+        data = {'message': 'Member removed'}
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
     
     
     serializer_context = {'request': request,}
