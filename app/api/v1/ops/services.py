@@ -61,7 +61,7 @@ def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     user = request.user
     account = Member.objects.get(user=user).account
-    sites = Site.objects.filter(user=user)
+    sites = Site.objects.filter(account=account)
 
 
     if site_url.endswith('/'):
