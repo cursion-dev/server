@@ -8,6 +8,7 @@ from django.utils.html import strip_tags
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
+from ...utils.alerts import sendgrid_email
 
 
 
@@ -26,6 +27,8 @@ def send_reset_link(email):
         subject = subject
         context = {
             'title' : title,
+            'subject' : subject,
+            'email': email,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : reset_link,
@@ -35,16 +38,18 @@ def send_reset_link(email):
             'signature' : '- Cheers!',
         }
 
-        html_message = render_to_string('api/alert_with_button.html', context)
-        plain_message = strip_tags(html_message)
-        send_mail(
-            from_email = os.getenv('EMAIL_HOST_USER'),
-            subject = subject,
-            message = plain_message,
-            recipient_list = [email],
-            html_message = html_message,
-            fail_silently = True,
-        )
+        sendgrid_email(message_obj=context)
+
+        # html_message = render_to_string('api/alert_with_button.html', context)
+        # plain_message = strip_tags(html_message)
+        # send_mail(
+        #     from_email = os.getenv('EMAIL_HOST_USER'),
+        #     subject = subject,
+        #     message = plain_message,
+        #     recipient_list = [email],
+        #     html_message = html_message,
+        #     fail_silently = True,
+        # )
 
         data = {
             'success': True
@@ -75,6 +80,8 @@ def send_invite_link(member):
         subject = subject
         context = {
             'title' : title,
+            'subject' : subject,
+            'email': member.email,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : link,
@@ -83,17 +90,19 @@ def send_invite_link(member):
             'content' : '',
             'signature' : '- Cheers!',
         }
+        
+        sendgrid_email(message_obj=context)
 
-        html_message = render_to_string('api/alert_with_button.html', context)
-        plain_message = strip_tags(html_message)
-        send_mail(
-            from_email = os.getenv('EMAIL_HOST_USER'),
-            subject = subject,
-            message = plain_message,
-            recipient_list = [member.email],
-            html_message = html_message,
-            fail_silently = True,
-        )
+        # html_message = render_to_string('api/alert_with_button.html', context)
+        # plain_message = strip_tags(html_message)
+        # send_mail(
+        #     from_email = os.getenv('EMAIL_HOST_USER'),
+        #     subject = subject,
+        #     message = plain_message,
+        #     recipient_list = [member.email],
+        #     html_message = html_message,
+        #     fail_silently = True,
+        # )
 
         data = {
             'success': True
@@ -121,6 +130,8 @@ def send_remove_alert(member):
         subject = subject
         context = {
             'title' : title,
+            'subject' : subject,
+            'email': member.email,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : None,
@@ -129,16 +140,18 @@ def send_remove_alert(member):
             'signature' : '- Cheers!',
         }
 
-        html_message = render_to_string('api/alert_no_button.html', context)
-        plain_message = strip_tags(html_message)
-        send_mail(
-            from_email = os.getenv('EMAIL_HOST_USER'),
-            subject = subject,
-            message = plain_message,
-            recipient_list = [member.email],
-            html_message = html_message,
-            fail_silently = True,
-        )
+        sendgrid_email(message_obj=context)
+
+        # html_message = render_to_string('api/alert_no_button.html', context)
+        # plain_message = strip_tags(html_message)
+        # send_mail(
+        #     from_email = os.getenv('EMAIL_HOST_USER'),
+        #     subject = subject,
+        #     message = plain_message,
+        #     recipient_list = [member.email],
+        #     html_message = html_message,
+        #     fail_silently = True,
+        # )
 
         data = {
             'success': True
