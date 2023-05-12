@@ -100,6 +100,7 @@ def create_site(request, delay=False):
             site_url=site_url,
             user=user,
             tags=tags,
+            account=account
         )
 
         if not configs:
@@ -1693,7 +1694,8 @@ def create_testcase(request, delay=False):
         site = site,
         user = request.user,
         configs = configs, 
-        steps = steps
+        steps = steps,
+        account = account
     )
 
     if delay:
