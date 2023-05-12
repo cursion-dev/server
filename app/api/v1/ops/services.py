@@ -1569,7 +1569,7 @@ def get_cases(request):
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     
-    cases = Case.objects.filter(user=request.user).order_by('-time_created')
+    cases = Case.objects.filter(account=account).order_by('-time_created')
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
     serializer_context = {'request': request,}
