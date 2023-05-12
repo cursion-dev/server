@@ -581,7 +581,7 @@ def delete_many_tests(request):
         for id in ids:
             try:
                 test = Test.objects.get(id=id)
-                if test.site.user == user:
+                if test.site.account == account:
                     test.delete()
                 num_succeeded += 1
                 succeeded.append(str(id))
