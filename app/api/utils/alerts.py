@@ -12,6 +12,7 @@ from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To
+from scanerr import settings
 
 
 

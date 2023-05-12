@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from ...utils.alerts import sendgrid_email
+from scanerr import settings
 
 
 
