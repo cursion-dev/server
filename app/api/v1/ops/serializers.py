@@ -37,6 +37,7 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
 class SiteSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Site
@@ -112,6 +113,7 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     automation = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Schedule
@@ -126,6 +128,7 @@ class AutomationSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     schedule = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Automation
@@ -140,6 +143,7 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Report
@@ -153,6 +157,7 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
 class CaseSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Case
@@ -167,6 +172,7 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Testcase
@@ -180,9 +186,10 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'case', 'case_name', 'passed', 'configs',
+        'case', 'case_name', 'passed', 'configs', 'account',
         ]
