@@ -434,7 +434,7 @@ def create_or_update_member(request=None, *args, **kwargs):
             member.account = account
         if email is not None:
             member.email = email
-        if user is not None and user.usermane == member.email:
+        if user is not None and user.username == member.email:
             member.user = user
         if type is not None:
             member.type = type
@@ -457,7 +457,6 @@ def create_or_update_member(request=None, *args, **kwargs):
             account=account,
         )
 
-    
     if _status == 'pending':
         send_invite_link(member)
     
@@ -467,7 +466,6 @@ def create_or_update_member(request=None, *args, **kwargs):
         data = {'message': 'Member removed'}
         response = Response(data, status=status.HTTP_200_OK)
         return response
-    
     
     serializer_context = {'request': request,}
     serialized = MemberSerializer(member, context=serializer_context)
