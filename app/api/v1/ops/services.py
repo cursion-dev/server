@@ -78,7 +78,7 @@ def create_site(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if sites.count() >= max_sites:
+    if sites.count() >= account.max_sites:
         data = {'reason': 'maximum number of sites reached',}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
