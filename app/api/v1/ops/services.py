@@ -2004,7 +2004,9 @@ def create_site_screenshot(request):
 
 
 def get_home_stats(request):
-    sites = Site.objects.filter(user=request.user)
+    user = request.user
+    account = Member.objects.get(user=user).account
+    sites = Site.objects.filter(account=account)
     site_count = sites.count()
     test_count = 0
     scan_count = 0
