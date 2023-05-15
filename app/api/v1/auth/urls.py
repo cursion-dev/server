@@ -25,6 +25,11 @@ urlpatterns = [
     path('update-user', views.UpdateUser.as_view(), name='update_user'), 
     path('slack', views.SlackOauth.as_view(), name='auth_slack'),
     path('token', views.ApiToken.as_view(), name='token'),
-    path('verify', views.Verify.as_view(), name='verify')
+    path('verify', views.Verify.as_view(), name='verify'),
+    path('account', views.Account.as_view(), name='account'),
+    path('account/<uuid:id>', views.Account.as_view(), name='account-detail'),
+    path('account/<uuid:id>/members', views.AccountMembers.as_view(), name='account-members'),
+    path('member', views.Member.as_view(), name='member'),
+    path('member/<uuid:id>', views.Member.as_view(), name='member-detail'),
 
 ]

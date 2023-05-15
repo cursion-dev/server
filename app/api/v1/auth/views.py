@@ -15,13 +15,9 @@ from scanerr import settings
 from django.shortcuts import redirect
 from django.contrib.auth.models import User
 from .alerts import send_reset_link
-from ...models import Account
+from ...models import Account, Member
 from datetime import timedelta, datetime
-from .services import (
-    google_get_access_token, google_get_user_info, 
-    user_get_or_create, jwt_login, slack_oauth_middleware,
-    slack_oauth_init, create_user_token, t7e
-)
+from .services import *
 import os, stripe, json 
 
 
@@ -220,4 +216,43 @@ class SlackOauth(APIView):
         response = slack_oauth_middleware(request, user)
         return response
 
-    
+
+
+
+
+class Account(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'post']
+
+    def post(self, request, *args, **kwargs ):
+        response = create_or_update_account(request)
+        return response
+
+    def get(self, request, id=None, *args, **kwargs):
+        response = get_account(request, id)
+        return response
+
+
+
+class AccountMembers(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get',]
+
+    def get(self, request, id=None, *args, **kwargs):
+        response = get_account_members(request, id)
+        return response
+
+
+class Member(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'post']
+
+    def post(self, request, *args, **kwargs ):
+        response = create_or_update_member(request)
+        return response
+
+    def get(self, request, id=None, *args, **kwargs):
+        response = get_member(request, id)
+        return response
+
+        

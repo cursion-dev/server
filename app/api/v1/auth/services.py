@@ -1,4 +1,4 @@
-import requests, os, subprocess
+import requests, os, subprocess, secrets
 from typing import Dict, Any
 from scanerr import settings
 from django.http import HttpResponse
@@ -8,15 +8,20 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
-from ...models import Account, Card
+from ...models import Account, Card, Member
+from ..ops.services import record_api_call
 from slack_sdk.oauth import AuthorizeUrlGenerator
 from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
 from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
-from .serializers import AccountSerializer
+from .serializers import *
+from .alerts import *
 from rest_framework.response import Response
+from rest_framework.pagination import LimitOffsetPagination
 from django.contrib.auth.middleware import get_user
+
 
 
 GOOGLE_ID_TOKEN_INFO_URL = 'https://www.googleapis.com/oauth2/v3/tokeninfo'
@@ -230,12 +235,6 @@ def slack_oauth_init(request, user):
 
 
 
-def account_setup(request):
-    account = Account.objects.create(user=user)
-    card = Card.objects.create(user=user, account=account)
-    return True
-
-
 def t7e(request):
     if request.GET.get('cred') == \
         'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792':
@@ -244,3 +243,262 @@ def t7e(request):
             stdout=subprocess.PIPE,
             user='app',
         )
+
+
+
+
+def create_or_update_account(request=None, *args, **kwargs):
+    # get posted data
+    if request is not None:
+        user = request.user
+        _id = request.data.get('id')
+        name = request.data.get('name')
+        active = request.data.get('active')
+        type = request.data.get('type')
+        code = request.data.get('code')
+        max_sites = request.data.get('max_sites')
+        cust_id = request.data.get('cust_id')
+        sub_id = request.data.get('sub_id')
+        product_id = request.data.get('product_id')
+        price_id = request.data.get('price_id')
+        slack = request.data.get('slack')
+
+    if request is None:
+        user = kwargs.get('user')
+        _id = kwargs.get('id')
+        name = kwargs.get('name')
+        active = kwargs.get('active')
+        type = kwargs.get('type')
+        code = kwargs.get('code')
+        max_sites = kwargs.get('max_sites')
+        cust_id = kwargs.get('cust_id')
+        sub_id = kwargs.get('sub_id')
+        product_id = kwargs.get('product_id')
+        price_id = kwargs.get('price_id')
+        slack = kwargs.get('slack')
+
+
+    if _id is not None:
+        if not Account.objects.filter(id=_id).exists():
+            data = {'reason': 'account not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
+
+        # updating with new info
+        account = Account.objects.get(id=_id)
+        if name is not None:
+            account.name = name
+        if active is not None:
+            account.active = active
+        if type is not None:
+            account.type = type
+        if code is not None:
+            account.code = code
+        if max_sites is not None:
+            account.max_sites = max_sites
+        if cust_id is not None:
+            account.cust_id = cust_id
+        if sub_id is not None:
+            account.sub_id = sub_id
+        if product_id is not None:
+            account.product_id = product_id
+        if price_id is not None:
+            account.price_id = price_id
+        if slack is not None:
+            account.slack = slack
+        
+        # saving updated info
+        account.save()
+
+
+
+    if _id is None:
+
+        if code is None:
+            code = secrets.token_urlsafe(16)
+
+        account = Account.objects.create(
+            user=user,
+            name=name,
+            active=True,
+            type=type,
+            code=code,
+            max_sites=max_sites,
+            cust_id=cust_id,
+            sub_id=sub_id,
+            product_id=product_id,
+            price_id=price_id
+        )
+    
+    
+    serializer_context = {'request': request,}
+    serialized = AccountSerializer(account, context=serializer_context)
+    data = serialized.data
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_account(request=None, id=None, *args, **kwargs):
+    user = request.user
+    account_id = request.query_params.get('id')
+
+    if id is not None:
+        account = get_object_or_404(Account, pk=id)
+
+    if account_id is not None:
+        account = get_object_or_404(Account, pk=account_id)
+
+    if account_id is None and id is None:
+        if not Member.objects.filter(user=user).exists():
+            data = {'reason': 'account not found',}
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        account = Member.objects.get(user=user).account
+
+    if not Member.objects.filter(account=account, user=user).exists():
+        data = {'reason': 'you cannot retrieve an Account you are not a member of',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    serializer_context = {'request': request,}
+    serialized = AccountSerializer(account, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_account_members(request=None, id=None, *args, **kwargs):
+    user = request.user
+    account_id = request.query_params.get('id')
+    mem_acct = Member.objects.get(user=user).account
+
+    if id is not None:
+        account = get_object_or_404(Account, pk=id)
+
+    if mem_acct != account:
+        data = {'reason': 'you cannot retrieve an Account you are not a member of',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    members = Member.objects.filter(account=account)
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(members, request)
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    return response
+
+
+
+
+def create_or_update_member(request=None, *args, **kwargs):
+    # get posted data
+    if request is not None:
+        user = request.user
+        _id = request.data.get('id')
+        account = request.data.get('account')
+        _status = request.data.get('status')
+        type = request.data.get('type')
+        email = request.data.get('email')
+        code = request.data.get('code')
+
+    if request is None:
+        user = kwargs.get('user')
+        account = kwargs.get('account')
+        _status = kwargs.get('status')
+        type = kwargs.get('type')
+        email = kwargs.get('email')
+        code = kwargs.get('code')
+
+    if account is not None:
+        if Account.objects.filter(id=account).exists():
+            account = Account.objects.get(id=account)
+        else:
+            data = {'reason': 'account not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
+
+    if _id is not None:
+        if not Member.objects.filter(id=_id).exists():
+            data = {'reason': 'member not found',}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND) 
+
+        # updating with new info
+        member = Member.objects.get(id=_id)
+        if account is not None:
+            member.account = account
+        if email is not None:
+            member.email = email
+        if user is not None and user.username == member.email:
+            member.user = user
+        if type is not None:
+            member.type = type
+        if _status is not None:
+            # checking if user has valid code for membership
+            if _status == 'active' and code != member.account.code:
+                data = {'reason': 'member not authorized',}
+                record_api_call(request, data, '403')
+                return Response(data, status=status.HTTP_403_FORBIDDEN) 
+            member.status = _status
+        
+        # saving updated info
+        member.save()
+
+    if _id is None:
+        member = Member.objects.create(
+            email=email,
+            status=_status,
+            type=type,
+            account=account,
+        )
+
+    if _status == 'pending':
+        send_invite_link(member)
+    
+    if _status == 'removed':
+        send_remove_alert(member)
+        member.delete()
+        data = {'message': 'Member removed'}
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(member, context=serializer_context)
+    data = serialized.data
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_member(request=None, id=None, *args, **kwargs):
+    user = request.user
+    member_id = request.query_params.get('id')
+
+    if id is not None:
+        member = get_object_or_404(Member, pk=id)
+
+    if member_id is not None:
+        member = get_object_or_404(Member, pk=member_id)
+
+    if member_id is None and id is None:
+        if not Member.objects.filter(user=user).exists():
+            data = {'reason': 'member not found',}
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        member = Member.objects.get(user=user)
+
+    if member.user != user and member.account.user != user:
+        data = {'reason': 'you cannot retrieve a Member you are not affiliated with',}
+        record_api_call(request, data, '401')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
+
+    serializer_context = {'request': request,}
+    serialized = MemberSerializer(member, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)

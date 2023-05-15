@@ -21,10 +21,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
+LANDING_URL_ROOT = os.environ.get('LANDING_URL_ROOT')
 API_URL_ROOT = os.environ.get('API_URL_ROOT')
 CORS_ORIGIN_ALLOW_ALL = True
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
@@ -133,10 +134,10 @@ REST_FRAMEWORK = {
 
 }
 
-# SIMPLE_JWT = {
-#     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=.5),
-#     'REFRESH_TOKEN_LIFETIME': timedelta(minutes=1),
-# }
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=36),
+}
 
 
 
@@ -213,6 +214,14 @@ EMAIL_PORT = os.environ.get('EMAIL_PORT')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS')
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+
+
+# Sendgrid configs
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
+DEFAULT_TEMPLATE = os.environ.get('DEFAULT_TEMPLATE')
+DEFAULT_TEMPLATE_NO_BUTTON = os.environ.get('DEFAULT_TEMPLATE_NO_BUTTON')
+AUTOMATION_TEMPLATE = os.environ.get('AUTOMATION_TEMPLATE')
+
 
 
 # google oAuth2

@@ -37,11 +37,12 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
 class SiteSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Site
         fields = ['id', 'user', 'site_url', 'time_created', 'info',
-        'tags',
+        'tags', 'account',
         ]
 
 
@@ -112,12 +113,13 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     automation = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Schedule
         fields = ['id', 'site', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
-        'periodic_task_id', 'status', 'automation', 'extras'
+        'periodic_task_id', 'status', 'automation', 'extras', 'account',
         ]
 
 
@@ -126,11 +128,12 @@ class AutomationSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     schedule = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Automation
         fields = ['id', 'expressions', 'actions', 'user', 'schedule',
-        'time_created', 'name'
+        'time_created', 'name', 'account',
         ]
 
 
@@ -140,11 +143,12 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Report
         fields = ['id', 'site', 'user', 'time_created', 'type',
-        'path', 'info'
+        'path', 'info', 'account',
         ]
 
 
@@ -153,11 +157,12 @@ class ReportSerializer(serializers.HyperlinkedModelSerializer):
 class CaseSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Case
         fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags',
+        'tags', 'account',
         ]
 
 
@@ -167,11 +172,12 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'steps', 'case', 'case_name', 'passed', 'configs',
+        'steps', 'case', 'case_name', 'passed', 'configs', 'account',
         ]
 
 
@@ -180,9 +186,10 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'case', 'case_name', 'passed', 'configs',
+        'case', 'case_name', 'passed', 'configs', 'account',
         ]

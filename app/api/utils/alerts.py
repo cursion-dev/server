@@ -10,6 +10,9 @@ from ..models import *
 from twilio.rest import Client
 from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, From, To
+from scanerr import settings
 
 
 
@@ -294,6 +297,7 @@ def automation_email(email=None, automation_id=None, object_id=None):
         subject = subject
         context = {
             'title' : title,
+            'subject': subject,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'exp_list': exp_list,
@@ -301,19 +305,22 @@ def automation_email(email=None, automation_id=None, object_id=None):
             'home_page' : os.environ.get('CLIENT_URL_ROOT'),
             'button_text' : 'View Site Dashboard',
             'content' : content,
+            'email': email,
             'signature' : '- Cheers!',
         }
 
-        html_message = render_to_string('api/automation_email.html', context)
-        plain_message = strip_tags(html_message)
-        send_mail(
-            from_email = os.getenv('EMAIL_HOST_USER'),
-            subject = subject,
-            message = plain_message,
-            recipient_list = [email],
-            html_message = html_message,
-            fail_silently = True,
-        )
+        sendgrid_email(message_obj=context)
+
+        # html_message = render_to_string('api/automation_email.html', context)
+        # plain_message = strip_tags(html_message)
+        # send_mail(
+        #     from_email = os.getenv('EMAIL_HOST_USER'),
+        #     subject = subject,
+        #     message = plain_message,
+        #     recipient_list = [email],
+        #     html_message = html_message,
+        #     fail_silently = True,
+        # )
 
         data = {
             'success': True
@@ -554,4 +561,96 @@ def automation_slack(automation_id=None, object_id=None):
             'success': False
         }
         
+    return data
+
+
+
+
+
+
+
+def sendgrid_email(message_obj):
+    """
+    Tries to send an email via the SendGrid API.
+
+    Expects the following:
+        "message_obj": <obj> {
+            'pre_content':  <str>,
+            'content':      <str>,
+            'subject':      <str>,
+            'title':        <str>,
+            'pre_header':   <str>,
+            'button_text':  <str>,
+            'exp_list':     <array>,
+            'email':        <str>,
+            'template':     <str>,
+            'object_url':   <str>,
+            'signature':    <str>
+        }
+
+    Returns --> data: {
+        'message': True
+    }
+    """
+
+
+    # defining data
+    pre_content = message_obj.get('pre_content')
+    content = message_obj.get('content')
+    subject = message_obj.get('subject')
+    title = message_obj.get('title')
+    pre_header = message_obj.get('pre_header')
+    button_text = message_obj.get('button_text')
+    email = message_obj.get('email')
+    exp_list = message_obj.get('exp_list')
+    object_url = message_obj.get('object_url')
+    signature = message_obj.get('signature', '- Cheers!')
+
+
+    # build template data
+    template_data = {
+        'title' : title,
+        'pre_header' : pre_header,
+        'pre_content' : pre_content,
+        'object_url' : object_url,
+        'exp_list': exp_list,
+        'home_page' : settings.LANDING_URL_ROOT,
+        'button_text' : button_text,
+        'content' : content,
+        'signature' : signature,
+        'subject': subject,
+    }
+
+    # decide which template to use based on data
+    template = settings.DEFAULT_TEMPLATE
+    if object_url is None:
+        template = settings.DEFAULT_TEMPLATE_NO_BUTTON
+    if exp_list is not None:
+        template = settings.AUTOMATION_TEMPLATE
+
+
+    # init SendGrid message
+    message = Mail(
+        from_email=From('hello@scanerr.io', 'Scanerr'),  # prod -> settings.EMAIL_HOST_USER
+        to_emails=email,  
+    )
+    
+    # attach template data and id
+    message.dynamic_template_data = template_data
+    message.template_id = template
+
+    # send message 
+    try:
+        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        response = sg.send(message)
+        status = True
+    except Exception as e:
+        status = False
+        print(e.message)
+
+    
+    data = {
+        'success': status
+    }
+
     return data
