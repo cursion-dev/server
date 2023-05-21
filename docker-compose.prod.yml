@@ -2,11 +2,13 @@ version: '3'
 
 services:
   app:
+    restart: always
     privileged: true
     init: true
     build:
       context: .
       dockerfile: Dockerfile.prod
+    # image: landonr/scanerr-server
     volumes:
       - ./app:/app
       - static_volume:/app/static
@@ -26,6 +28,8 @@ services:
 
   redis:
     image: redis:alpine
+    ports:
+      - "6379"
 
   celery:
     privileged: true
@@ -33,6 +37,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
+    # image: landonr/scanerr-server
     command: celery -A scanerr worker --beat --scheduler django --loglevel=info
     volumes:
       - ./app:/scanerr

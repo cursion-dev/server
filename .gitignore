@@ -19,3 +19,4 @@ Dockerfile.alpine
 Dockerfile.dev1
 Dockerfile.dev3
 app/api/migrations/*_*.py
+k8s/*/*-configs.yaml
