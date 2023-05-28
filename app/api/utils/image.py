@@ -511,8 +511,9 @@ class Image():
         def get_active_global_masks():
             masks = Mask.objects.filter(active=True)
             active_masks = []
-            for mask in masks:
-                active_masks.append(mask.id)
+            if len(masks) > 0:
+                for mask in masks:
+                    active_masks.append(mask.id)
             return active_masks
 
         active_masks = await get_active_global_masks()
