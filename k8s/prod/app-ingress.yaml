@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-nginx
+  name: app-ingress
+spec:
+  tls:
+    - hosts:
+      - api1.scanerr.io
+      secretName: letsencrypt-nginx
+  rules:
+  - host: api1.scanerr.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: app-service
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  ingressClassName: nginx

@@ -2,15 +2,17 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: celery-deployment
+  labels:
+    deployment: celery
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: celery
+      app: celery-deployment
   template:
     metadata:
       labels:
-        app: celery
+        app: celery-deployment
     spec:
       imagePullSecrets:
         - name: regcred
