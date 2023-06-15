@@ -6,7 +6,7 @@ services:
     init: true
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     volumes:
       - ./app:/app
       - static_volume:/app/static

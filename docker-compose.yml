@@ -7,7 +7,7 @@ services:
     restart: always
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     # image: landonr/scanerr-server
     ports:
       - "8000:8000"
