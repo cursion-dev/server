@@ -18,6 +18,7 @@ from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
 from .serializers import *
 from .alerts import *
+from ...tasks import send_invite_link_bg, send_remove_alert_bg
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from django.contrib.auth.middleware import get_user
@@ -458,11 +459,11 @@ def create_or_update_member(request=None, *args, **kwargs):
         )
 
     if _status == 'pending':
-        send_invite_link(member)
+        send_invite_link_bg.delay(member_id=member.id)
     
     if _status == 'removed':
-        send_remove_alert(member)
-        member.delete()
+        # method also deletes member
+        send_remove_alert_bg.delay(member_id=member.id)
         data = {'message': 'Member removed'}
         response = Response(data, status=status.HTTP_200_OK)
         return response

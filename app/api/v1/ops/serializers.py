@@ -46,14 +46,28 @@ class SiteSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
+class PageSerializer(serializers.HyperlinkedModelSerializer):
+    user = serializers.ReadOnlyField(source='user.username')
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+
+    class Meta:
+        model = Page
+        fields = ['id', 'user', 'site', 'page_url', 'time_created', 'info',
+        'tags', 'account',
+        ]
+
+
 class ScanSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id',**kwargs)
+    page = serializers.PrimaryKeyRelatedField(source='page.id',**kwargs)
     paired_scan = serializers.PrimaryKeyRelatedField(source='paired_scan.id',**kwargs)
     id = serializers.PrimaryKeyRelatedField(**kwargs)
 
     class Meta:
         model = Scan
-        fields = ['id', 'site', 'paired_scan', 'time_created',
+        fields = ['id', 'site', 'page', 'paired_scan', 'time_created',
         'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
         'images', 'configs', 'tags', 'type',
         ]
@@ -61,6 +75,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
 
 class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id',**kwargs)
+    page = serializers.PrimaryKeyRelatedField(source='page.id',**kwargs)
     paired_scan = serializers.PrimaryKeyRelatedField(source='paired_scan.id',**kwargs)
     lighthouse = serializers.SerializerMethodField()
     yellowlab = serializers.SerializerMethodField()
@@ -74,20 +89,21 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Scan
-        fields = ['id', 'site', 'paired_scan', 'time_created', 'logs', 
+        fields = ['id', 'site', 'page', 'paired_scan', 'time_created', 'logs', 
         'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags',
         ]
 
         
 class TestSerializer(serializers.HyperlinkedModelSerializer):
-    site = serializers.PrimaryKeyRelatedField(**kwargs)
-    pre_scan = serializers.PrimaryKeyRelatedField(**kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+    page = serializers.PrimaryKeyRelatedField(source='page.id', **kwargs)
+    pre_scan = serializers.PrimaryKeyRelatedField(source='pre_scan.id', **kwargs)
     post_scan = serializers.PrimaryKeyRelatedField(source='post_scan.id',**kwargs)
     id = serializers.PrimaryKeyRelatedField(**kwargs)
 
     class Meta:
         model = Test
-        fields = ['id', 'site', 'time_created', 'time_completed',
+        fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
         'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type',
         'tags', 'pre_scan_configs', 'post_scan_configs', 'component_scores',
@@ -95,14 +111,15 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
-    site = serializers.PrimaryKeyRelatedField(**kwargs)
-    pre_scan = serializers.PrimaryKeyRelatedField(**kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+    page = serializers.PrimaryKeyRelatedField(source='page.id', **kwargs)
+    pre_scan = serializers.PrimaryKeyRelatedField(source='pre_scan.id', **kwargs)
     post_scan = serializers.PrimaryKeyRelatedField(source='post_scan.id',**kwargs)
     id = serializers.PrimaryKeyRelatedField(**kwargs)
 
     class Meta:
         model = Test
-        fields = ['id', 'site', 'time_created', 'time_completed',
+        fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'lighthouse_delta', 
         'yellowlab_delta', 'tags', 'component_scores', 
         ]

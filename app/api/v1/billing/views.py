@@ -190,6 +190,8 @@ class CompleteSubscription(APIView):
             'plan': {
                 'name': account.type,
                 'active': account.active,
+                'price_amount': account.price_amount,
+                'max_sites': account.max_sites,
                 'slack': {
                     'slack_name': account.slack['slack_name'], 
                     'bot_user_id': account.slack['bot_user_id'], 
@@ -278,6 +280,7 @@ class SetupSubscription(APIView):
             product_id = product.id,
             price_id = price.id,
             max_sites = max_sites,
+            price_amount = price_amount,
         )        
 
         data = {
@@ -311,6 +314,8 @@ class GetBillingInfo(APIView):
                 'plan': {
                     'name': account.type,
                     'active': account.active,
+                    'price_amount': account.price_amount,
+                    'max_sites': account.max_sites,
                     'slack': {
                         'slack_name': account.slack['slack_name'], 
                         'bot_user_id': account.slack['bot_user_id'], 
@@ -381,3 +386,37 @@ class AccountActivation(APIView):
 
         return Response(data, status=status.HTTP_200_OK)
         
+
+
+
+
+class StripeInvoice(APIView):
+    permission_classes = (AllowAny,)
+    https_method_names = ['get',]
+
+    def get(self, request):
+        account = Account.objects.get(user=request.user)
+        stripe.api_key = settings.STRIPE_PRIVATE
+
+        data = {"message": "no Account found"}
+        if account.cust_id is not None:
+            invoice_body = stripe.Invoice.list(
+                customer=account.cust_id,
+            )
+            
+            i_list = []
+            for invoice in invoice_body.data:
+                obj = {
+                    'id': invoice.id,
+                    'status': invoice.status,
+                    'price_amount': invoice.lines.data[0]['price']['unit_amount'],
+                    'created': invoice.created
+                }
+                i_list.append(obj)
+            data = {
+                'has_more': invoice_body.has_more,
+                'data': i_list
+            }
+
+        return Response(data, status=status.HTTP_200_OK)
+

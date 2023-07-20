@@ -28,7 +28,7 @@ def create_exp_str(item, automation, is_email=False):
         elif 'current_health' in e['data_type']:
             data_type = 'Health:\t'+str((float(item.lighthouse_delta["scores"]["current_average"]) + float(item.yellowlab_delta["scores"]["current_average"])/2))+'\n\t'
         elif 'health' in e['data_type']:
-            data_type = 'Health:\t'+str((float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"])/2))+'\n\t'
+            data_type = 'Health:\t'+str(((float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"]))/2))+'\n\t'
         # LH test data
         elif 'current_lighthouse_average' in e['data_type']:
             data_type = 'Lighthouse Average:\t'+str(item.lighthouse_delta["scores"]["current_average"])+'\n\t'
@@ -270,7 +270,12 @@ def automation_email(email=None, automation_id=None, object_id=None):
     if email and automation_id:
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        site = schedule.site
+        if schedule.site is not None:
+            url_end = '/site/'+str(schedule.site.id)
+            url = schedule.site.site_url
+        else:
+            url_end = '/page/'+str(schedule.page.id)
+            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -282,12 +287,12 @@ def automation_email(email=None, automation_id=None, object_id=None):
 
         exp_list = create_exp_str(item=item, automation=automation, is_email=True)
 
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
-        subject = f'Alert for {site.site_url}'
-        title = f'Alert for {site.site_url}'
-        pre_header = f'Alert for {site.site_url}'
+        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
+        subject = f'Alert for {url}'
+        title = f'Alert for {url}'
+        pre_header = f'Alert for {url}'
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {site.site_url}. ' 
+            f'Scanerr just finished running a {item_type} for {url}. ' 
             f'Below are the current stats:\n'
         )
         content = (
@@ -341,8 +346,12 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
     if email and automation_id:
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        site = schedule.site
-
+        if schedule.site is not None:
+            url_end = '/site/'+str(schedule.site.id)
+            url = schedule.site.site_url
+        else:
+            url_end = '/page/'+str(schedule.page.id)
+            url = schedule.page.page_url
         try:
             item = Report.objects.get(id=uuid.UUID(object_id))
             item_type = 'Report'
@@ -351,11 +360,11 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
 
         exp_list = ''
         object_url = str(item.path)
-        subject = f'Report for {site.site_url}'
-        title = f'Report for {site.site_url}'
-        pre_header = f'Report for {site.site_url}'
+        subject = f'Report for {url}'
+        title = f'Report for {url}'
+        pre_header = f'Report for {url}'
         pre_content = (
-            f'Scanerr just finished creating a {item_type} for {site.site_url}. ' 
+            f'Scanerr just finished creating a {item_type} for {url}. ' 
             f'Please click the link below to access and download the report.\n'
         )
         content = (
@@ -410,7 +419,12 @@ def automation_webhook(
     if request_type and automation_id and request_url and request_data and object_id:
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        site = schedule.site
+        if schedule.site is not None:
+            url_end = '/site/'+str(schedule.site.id)
+            url = schedule.site.site_url
+        else:
+            url_end = '/page/'+str(schedule.page.id)
+            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -453,7 +467,12 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
     if phone_number and automation_id and object_id:
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        site = schedule.site
+        if schedule.site is not None:
+            url_end = '/site/'+str(schedule.site.id)
+            url = schedule.site.site_url
+        else:
+            url_end = '/page/'+str(schedule.page.id)
+            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -465,9 +484,9 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
 
         exp_str = create_exp_str(item=item, automation=automation)
 
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
+        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {site.site_url}. ' 
+            f'Scanerr just finished running a {item_type} for {url}. ' 
             f'Below are the current stats:\n\n\t{exp_str}\n'
         )
         content = (
@@ -506,7 +525,13 @@ def automation_slack(automation_id=None, object_id=None):
         automation = Automation.objects.get(id=automation_id)
         account = Account.objects.get(user=automation.user)
         schedule = automation.schedule
-        site = schedule.site
+        if schedule.site is not None:
+            url_end = '/site/'+str(schedule.site.id)
+            url = schedule.site.site_url
+        else:
+            url_end = '/page/'+str(schedule.page.id)
+            url = schedule.page.page_url
+
 
         # getting object
         data = get_item(object_id=object_id)
@@ -518,9 +543,9 @@ def automation_slack(automation_id=None, object_id=None):
 
         exp_str = create_exp_str(item=item, automation=automation)
 
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + '/site/'+str(site.id))
+        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {site.site_url}. ' 
+            f'Scanerr just finished running a {item_type} for {url}. ' 
             f'Below are the current stats:\n\n\t{exp_str}\n'
         )
         content = (

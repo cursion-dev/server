@@ -8,8 +8,10 @@ class Lighthouse():
     """Initializes Google's Lighthouse CLI and runs an audit of the site"""
 
 
-    def __init__(self, site=None, configs=None):
-        self.site = site
+    def __init__(self, scan=None, configs=None):
+        self.scan = scan
+        self.site = self.scan.site
+        self.page = self.scan.page
         self.configs = configs
         self.sizes = configs['window_size'].split(',')
 
@@ -19,7 +21,7 @@ class Lighthouse():
                 'lighthouse', 
                 '--config-path=api/utils/custom-config.js',
                 '--quiet',
-                self.site.site_url, 
+                self.page.page_url, 
                 '--plugins=lighthouse-plugin-crux',
                 '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
                 f'--screenEmulation.width={self.sizes[0]}',

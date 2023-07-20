@@ -24,7 +24,7 @@ def create_site_task(site_id, scan_id, configs):
 
 def create_scan_task(
         scan_id=None,
-        site_id=None, 
+        page_id=None, 
         type=['full'],
         automation_id=None, 
         configs=None,
@@ -32,10 +32,11 @@ def create_scan_task(
     ):
     if scan_id is not None:
         created_scan = Scan.objects.get(id=scan_id)
-    elif site_id is not None:
-        site = Site.objects.get(id=site_id)
+    elif page_id is not None:
+        page = Page.objects.get(id=page_id)
         created_scan = Scan.objects.create(
-            site=site,
+            site=page.site,
+            page=page,
             type=type,
             configs=configs,
             tags=tags, 
@@ -71,7 +72,7 @@ def run_yellowlab_task(scan_id=None):
 
 def create_test_task(
         test_id=None, 
-        site_id=None,
+        page_id=None,
         automation_id=None, 
         configs=None, 
         type=['full'],
@@ -83,11 +84,12 @@ def create_test_task(
 
     if test_id is not None:
         created_test = Test.objects.get(id=test_id)
-        site = created_test.site
-    elif site_id is not None:
-        site = Site.objects.get(id=site_id)
+        page = created_test.page
+    elif page_id is not None:
+        page = Page.objects.get(id=page_id)
         created_test = Test.objects.create(
-            site=site,
+            site=page.site,
+            page=page,
             type=type,
             tags=tags,
         )
@@ -98,10 +100,10 @@ def create_test_task(
         post_scan = Scan.objects.get(id=post_scan)
 
     if post_scan is None and pre_scan is not None:
-        post_scan = S(site=site, scan=pre_scan, configs=configs, type=type).second_scan()
+        post_scan = S(site=page.site, page=page, scan=pre_scan, configs=configs, type=type).second_scan()
         
     if pre_scan is None and post_scan is None:
-        new_scan = S(site=site, configs=configs, type=type)
+        new_scan = S(site=page.site, page=page, configs=configs, type=type)
         post_scan = new_scan.second_scan()
         pre_scan = post_scan.paired_scan
 
@@ -126,10 +128,12 @@ def create_test_task(
 
 
 
-def create_report_task(site_id, automation_id=None):
-    site = Site.objects.get(id=site_id)
-    if Report.objects.filter(site=site).exists():
-       report = Report.objects.filter(site=site).order_by('-time_created')[0]
+def create_report_task(page_id=None, automation_id=None):
+    
+    page = Page.objects.get(id=page_id)
+
+    if Report.objects.filter(page=page).exists():
+        report = Report.objects.filter(site=site).order_by('-time_created')[0]
     else:
         info = {
             "text_color": '#24262d',
@@ -138,11 +142,11 @@ def create_report_task(site_id, automation_id=None):
         }
         report = Report.objects.create(
             user=site.user,
-            site=site,
+            site=page.site,
+            page=page,
             info=info,
             type=['lighthouse', 'yellowlab']
         )
-
     
     report = R(report=report).make_test_report()
     if automation_id:
@@ -171,6 +175,7 @@ def delete_site_s3(site_id):
         pass
 
     return
+    
 
 
 
@@ -194,7 +199,6 @@ def delete_testcase_s3(testcase_id):
     return
 
     
-
 
 
 def delete_report_s3(report_id):

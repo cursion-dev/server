@@ -8,15 +8,17 @@ class Yellowlab():
     """Initializes Yellow Lab Tools CLI and runs an audit of the site"""
 
 
-    def __init__(self, site=None, configs=None):
-        self.site = site
+    def __init__(self, scan=None, configs=None):
+        self.scan = scan
+        self.site = self.scan.site
+        self.page = self.scan.page
         self.configs = configs
 
     
     def init_audit(self):
         proc = subprocess.Popen([
                 'yellowlabtools', 
-                self.site.site_url,
+                self.page.page_url,
                 f'--device={self.configs["device"]}'
                 ], 
             stdout=subprocess.PIPE,

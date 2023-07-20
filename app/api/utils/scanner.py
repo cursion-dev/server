@@ -1,7 +1,7 @@
 from .driver_s import driver_init as driver_s_init, quit_driver
 from .driver_s import driver_wait
 from .driver_p import get_data
-from ..models import Site, Scan, Test
+from ..models import *
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
@@ -17,6 +17,7 @@ class Scanner():
     def __init__(
             self, 
             site=None, 
+            page=None,
             scan=None, 
             configs=None,
             type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
@@ -24,6 +25,9 @@ class Scanner():
 
         if site == None and scan != None:
             site = scan.site
+        
+        if page == None and scan != None:
+            page = scan.page
         
         if configs is None:
             configs = {
@@ -39,6 +43,7 @@ class Scanner():
             }
         
         self.site = site
+        self.page = page
         
         if configs['driver'] == 'selenium':
             self.driver = driver_s_init(window_size=configs['window_size'], device=configs['device'])
@@ -67,21 +72,21 @@ class Scanner():
         yl_data = None
 
         if self.scan is None:
-            self.scan = Scan.objects.create(site=self.site, type=self.type)
+            self.scan = Scan.objects.create(site=self.site, page=self.page, type=self.type)
         
         if self.configs['driver'] == 'selenium':
-            self.driver.get(self.site.site_url)
+            self.driver.get(self.page.page_url)
             if 'html' in self.scan.type or 'full' in self.scan.type:
                 html = self.driver.page_source
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image().scan(scan=self.scan, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
                 get_data(
-                    url=self.site.site_url, 
+                    url=self.page.page_url, 
                     configs=self.configs
                 )
             )
@@ -90,12 +95,12 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image().scan_p(scan=self.scan, configs=self.configs))
         
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
-            lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
+            lh_data = Lighthouse(scan=self.scan, configs=self.configs).get_data() 
         if 'yellowlab' in self.scan.type or 'full' in self.scan.type:
-            yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
+            yl_data = Yellowlab(scan=self.scan, configs=self.configs).get_data()
 
         if html is not None:
             self.scan.html = html
@@ -113,6 +118,7 @@ class Scanner():
         self.scan.save()
         first_scan = self.scan
 
+        update_page_info(first_scan)
         update_site_info(first_scan)
 
         return first_scan
@@ -130,6 +136,7 @@ class Scanner():
         if not self.scan:
             first_scan = Scan.objects.filter(
                 site=self.site, 
+                page=self.page,
                 time_completed__isnull=False
             ).order_by('-time_created').first()
         
@@ -137,7 +144,7 @@ class Scanner():
             first_scan = self.scan
 
         # create second scan obj 
-        second_scan = Scan.objects.create(site=self.site, type=self.type)
+        second_scan = Scan.objects.create(site=self.site,  page=self.page, type=self.type)
 
         html = None
         logs = None
@@ -146,18 +153,18 @@ class Scanner():
         yl_data = None
         
         if self.configs['driver'] == 'selenium':
-            self.driver.get(self.site.site_url)
+            self.driver.get(self.page.page_url)
             if 'html' in second_scan.type or 'full' in second_scan.type:
                 html = self.driver.page_source
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = Image().scan(site=self.site, driver=self.driver, configs=self.configs)
+                images = Image().scan(scan=second_scan, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
                 get_data(
-                    url=self.site.site_url, 
+                    url=self.page.page_url, 
                     configs=self.configs
                 )
             )
@@ -166,12 +173,12 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = asyncio.run(Image().scan_p(site=self.site, configs=self.configs))
+                images = asyncio.run(Image().scan_p(scan=second_scan, configs=self.configs))
         
         if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
-            lh_data = Lighthouse(site=self.site, configs=self.configs).get_data() 
+            lh_data = Lighthouse(scan=second_scan, configs=self.configs).get_data() 
         if 'yellowlab' in second_scan.type or 'full' in second_scan.type:
-            yl_data = Yellowlab(site=self.site, configs=self.configs).get_data()
+            yl_data = Yellowlab(scan=second_scan, configs=self.configs).get_data()
 
         if html is not None:
             second_scan.html = html
@@ -193,6 +200,7 @@ class Scanner():
         first_scan.paried_scan = second_scan
         first_scan.save()
 
+        update_page_info(second_scan)
         update_site_info(second_scan)
         
         return second_scan
@@ -212,9 +220,70 @@ def update_site_info(scan):
         
     health = 'No Data'
     badge = 'neutral'
-    d = 0
     score = 0
     site = scan.site
+    pages = Page.objects.filter(site=site)
+
+    # get latest scan of pages
+    scans = []
+    for page in pages:
+        if Scan.objects.filter(page=page).exists():
+            _scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
+            if _scan.lighthouse['scores']['average'] is not None:
+                scans.append(_scan.lighthouse['scores']['average'])
+            if _scan.yellowlab['scores']['globalScore'] is not None:
+                scans.append(_scan.yellowlab['scores']['globalScore'])
+    
+    # calc average score
+    score = sum(scans)/len(scans)
+    
+    if score != 0:
+        if score >= 75:
+            health = 'Good'
+            badge = 'success'
+        elif 75 > score >= 60:
+            health = 'Okay'
+            badge = 'warning'
+        elif 60 > score:
+            health = 'Poor'
+            badge = 'danger'
+    
+    else:
+        if site.info['status']['score'] is not None:
+            score = float(site.info['status']['score'])
+            health = site.info['status']['health']
+            badge = site.info['status']['badge']
+        else:
+            score = None
+
+    site.info['latest_scan']['id'] = str(scan.id)
+    site.info['latest_scan']['time_created'] = str(scan.time_created)
+    site.info['latest_scan']['time_completed'] = str(scan.time_completed)
+    site.info['status']['health'] = str(health)
+    site.info['status']['badge'] = str(badge)
+    site.info['status']['score'] = score
+
+    site.save()
+
+    return site
+
+
+
+
+
+
+def update_page_info(scan):
+    """ 
+        Method to update associated Page with the new Scan data
+
+        returns -> `Page` <obj>
+    """
+        
+    health = 'No Data'
+    badge = 'neutral'
+    d = 0
+    score = 0
+    page = scan.page
 
     if scan.lighthouse['scores']['average'] is not None:
         score += float(scan.lighthouse['scores']['average'])
@@ -236,29 +305,25 @@ def update_site_info(scan):
             badge = 'danger'
     
     else:
-        if scan.site.info['status']['score'] is not None:
-            score = float(site.info['status']['score'])
-            health = site.info['status']['health']
-            badge = site.info['status']['badge']
+        if scan.page.info['status']['score'] is not None:
+            score = float(page.info['status']['score'])
+            health = page.info['status']['health']
+            badge = page.info['status']['badge']
         else:
             score = None
 
-    site.info['latest_scan']['id'] = str(scan.id)
-    site.info['latest_scan']['time_created'] = str(scan.time_created)
-    site.info['latest_scan']['time_completed'] = str(scan.time_completed)
-    site.info['lighthouse'] = scan.lighthouse.get('scores')
-    site.info['yellowlab'] = scan.yellowlab.get('scores')
-    site.info['status']['health'] = str(health)
-    site.info['status']['badge'] = str(badge)
-    site.info['status']['score'] = score
+    page.info['latest_scan']['id'] = str(scan.id)
+    page.info['latest_scan']['time_created'] = str(scan.time_created)
+    page.info['latest_scan']['time_completed'] = str(scan.time_completed)
+    page.info['lighthouse'] = scan.lighthouse.get('scores')
+    page.info['yellowlab'] = scan.yellowlab.get('scores')
+    page.info['status']['health'] = str(health)
+    page.info['status']['badge'] = str(badge)
+    page.info['status']['score'] = score
 
-    site.save()
+    page.save()
 
-    return site
-
-
-
-
+    return page
 
 
 
@@ -268,8 +333,8 @@ def update_site_info(scan):
 def check_scan_completion(scan):
     """
         Method that checks if the scan has finished all 
-        components. If so, method also updates scan and site 
-        info.
+        components. If so, method also updates Scan, Site, 
+        & Page info.
 
         returns -> `Scan` <obj>
     """
@@ -299,6 +364,7 @@ def check_scan_completion(scan):
     # deciding if done
     if finished is True:
         time_completed = datetime.now()
+        update_page_info(scan)
         update_site_info(scan)
         scan.time_completed = time_completed
         scan.save()
@@ -318,45 +384,46 @@ def _html_and_logs(scan_id):
         returns -> `Scan` <obj>
     """
     scan = Scan.objects.get(id=scan_id)
+    try:
+        if scan.configs['driver'] == 'selenium':
 
-    if scan.configs['driver'] == 'selenium':
-
-        driver = driver_s_init(
-            window_size=scan.configs['window_size'], 
-            device=scan.configs['device']
-        )
-        driver.get(scan.site.site_url)
-        if 'html' in scan.type or 'full' in scan.type:
-            html = driver.page_source
-            scan = Scan.objects.get(id=scan_id)
-            scan.html = html
-            scan.save()
-        if 'logs' in scan.type or 'full' in scan.type:
-            logs = driver.get_log('browser')
-            scan = Scan.objects.get(id=scan_id)
-            scan.logs = logs
-            scan.save()
-        quit_driver(driver)
-
-
-    if scan.configs['driver'] == 'puppeteer':
-        
-        driver_data = asyncio.run(
-            get_data(
-                url=scan.site.site_url, 
-                configs=scan.configs
+            driver = driver_s_init(
+                window_size=scan.configs['window_size'], 
+                device=scan.configs['device']
             )
-        )
-        if 'html' in scan.type or 'full' in scan.type:
-            html = driver_data['html']
-            scan = Scan.objects.get(id=scan_id)
-            scan.html = html
-            scan.save()
-        if 'logs' in scan.type or 'full' in scan.type:
-            logs = driver_data['logs']
-            scan = Scan.objects.get(id=scan_id)
-            scan.logs = logs
-            scan.save()
+            driver.get(scan.page.page_url)
+            if 'html' in scan.type or 'full' in scan.type:
+                html = driver.page_source
+                scan = Scan.objects.get(id=scan_id)
+                scan.html = html
+                scan.save()
+            if 'logs' in scan.type or 'full' in scan.type:
+                logs = driver.get_log('browser')
+                scan = Scan.objects.get(id=scan_id)
+                scan.logs = logs
+                scan.save()
+            quit_driver(driver)
+
+        if scan.configs['driver'] == 'puppeteer':
+            
+            driver_data = asyncio.run(
+                get_data(
+                    url=scan.page.page_url, 
+                    configs=scan.configs
+                )
+            )
+            if 'html' in scan.type or 'full' in scan.type:
+                html = driver_data['html']
+                scan = Scan.objects.get(id=scan_id)
+                scan.html = html
+                scan.save()
+            if 'logs' in scan.type or 'full' in scan.type:
+                logs = driver_data['logs']
+                scan = Scan.objects.get(id=scan_id)
+                scan.logs = logs
+                scan.save()
+    except Exception as e:
+        print(e)
 
 
     # checking if scan is done
@@ -376,18 +443,22 @@ def _vrt(scan_id):
         returns -> `Scan` <obj>
     """
     scan = Scan.objects.get(id=scan_id)
-    if scan.configs['driver'] == 'selenium':
-        driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
-        images = Image().scan(site=scan.site, driver=driver, configs=scan.configs)
-        quit_driver(driver)
-
-    if scan.configs['driver'] == 'puppeteer':
-        images = asyncio.run(Image().scan_p(site=scan.site, configs=scan.configs))
     
-    # updating Scan object
-    scan = Scan.objects.get(id=scan_id)
-    scan.images = images
-    scan.save()
+    try:
+        if scan.configs['driver'] == 'selenium':
+            driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
+            images = Image().scan(scan=scan, driver=driver, configs=scan.configs)
+            quit_driver(driver)
+
+        if scan.configs['driver'] == 'puppeteer':
+            images = asyncio.run(Image().scan_p(scan=scan, configs=scan.configs))
+        
+        # updating Scan object
+        scan = Scan.objects.get(id=scan_id)
+        scan.images = images
+        scan.save()
+    except Exception as e:
+        print(e)
 
     # checking if scan is done
     scan = check_scan_completion(scan)
@@ -407,13 +478,16 @@ def _lighthouse(scan_id):
     """
     scan = Scan.objects.get(id=scan_id)
 
-    # running lighthouse
-    lh_data = Lighthouse(site=scan.site, configs=scan.configs).get_data() 
-    
-    # updating Scan object
-    scan = Scan.objects.get(id=scan_id)
-    scan.lighthouse = lh_data
-    scan.save()
+    try:
+        # running lighthouse
+        lh_data = Lighthouse(scan=scan, configs=scan.configs).get_data() 
+        
+        # updating Scan object
+        scan = Scan.objects.get(id=scan_id)
+        scan.lighthouse = lh_data
+        scan.save()
+    except Exception as e:
+        print(e)
 
     # checking if scan is done
     scan = check_scan_completion(scan)
@@ -433,14 +507,17 @@ def _yellowlab(scan_id):
         returns -> `Scan` <obj>
     """ 
     scan = Scan.objects.get(id=scan_id)
-
-    # running yellowlab
-    yl_data = Yellowlab(site=scan.site, configs=scan.configs).get_data()
     
-    # updating Scan object
-    scan = Scan.objects.get(id=scan_id)
-    scan.yellowlab = yl_data
-    scan.save()
+    try:
+        # running yellowlab
+        yl_data = Yellowlab(scan=scan, configs=scan.configs).get_data()
+        
+        # updating Scan object
+        scan = Scan.objects.get(id=scan_id)
+        scan.yellowlab = yl_data
+        scan.save()
+    except Exception as e:
+        print(e)
 
     # checking if scan is done
     scan = check_scan_completion(scan)
