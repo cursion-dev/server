@@ -35,10 +35,6 @@ jobs:
       uses: digitalocean/action-doctl@v2
       with:
         token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-    - name: Print creds
-      # run: doctl registry login --expiry-seconds 1200
-      run: echo ${{ secrets.DOCKER_UESR }} ${{ secrets.DOCKER_PASS }}
     
     # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
     - name: Build container image
