@@ -18,8 +18,8 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: landonr/scanerr-server
-          imagePullPolicy: IfNotPresent
+          image: <IMAGE> # landonr/scanerr-server
+          imagePullPolicy: Always
           command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info"]
           envFrom:
             - configMapRef:

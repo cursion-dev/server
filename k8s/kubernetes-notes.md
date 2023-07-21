@@ -87,7 +87,7 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 1. Create docker secrets  
-- `kubectl $scanerrk8s create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=<username> --docker-password=<password> --docker-email=<email>` 
+- `kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=<username> --docker-password=<password> --docker-email=<email>` 
 
 
 ### 1. Build Dockerfile into image
@@ -96,32 +96,42 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 2. Install nginx ingress controler on cluster
-`kubectl $scanerrk8s apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml`
+- `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml`
+- Then add and `A` record for domain that points to new loadbalancer
 
 
-### 3. Spin Scanerr deployments and services
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-configs.yaml`
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/redis-deployment.yaml`
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
+### 3. Update ingress-nginx-controler "Service file" with domain
+- add the below annotation 
+- `service.beta.kubernetes.io/do-loadbalancer-hostname: "api2.scanerr.io"`
 
 
-### 4. Add app Ingress
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+### 4. Spin up Scanerr deployments and services
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-configs.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/redis-deployment.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-deployment.yaml`
 
 
-### 5. Install cert-manager
-- `kubectl $scanerrk8s apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml`
+### 5. Add app Ingress
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
 
 
-### 6. Add cert issure
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-cert-issuer.yaml`
+### 6. Install cert-manager
+- `kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.yaml`
+
+
+### 7. Add cert issure
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-cert-issuer.yaml`
+- NOTE: May have to wait a bit before running this one
   
 
-### 7. Update app Ingress for TLS 
-- Uncomment the TLS section, cert-manager.io/cluster-issuer annotation & reapply 
-- `kubectl $scanerrk8s apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+### 8. Update app Ingress for TLS 
+- Uncomment the "TLS section" & "cert-manager.io/cluster-issuer annotation" then reapply 
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
 
 
-### 8. Update ingress-nginx-controler with domain
-- add the below annotation 
-- `service.beta.kubernetes.io/do-loadbalancer-hostname: "api1.scanerr.io"`
+### NOTES:
+ - When reprovisioning to new domains and SSL certs ensure all `certificates` & `secrets` are deleted
+   - `kubectl delete certificate <cert-name>`
+   - `kubectl delete secret <sec-name>` ... may have to do this in the k8s dashboard
+
