@@ -40,11 +40,11 @@ jobs:
     - name: Build container image
       run: docker build -t ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7) .
 
-    - name: Log in to DigitalOcean Container Registry with short-lived credentials
-      run: doctl registry login --expiry-seconds 1200
+    # - name: Log in to DigitalOcean Container Registry with short-lived credentials
+    #   run: doctl registry login --expiry-seconds 1200
 
     - name: Push image to DigitalOcean Container Registry
-      run: docker push ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7)
+      run: doctl registry login --expiry-seconds 1200 && docker push ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7)
 
     # Update deployment files to reflect new build.
     - name: Update app deployment file
