@@ -46,7 +46,7 @@ jobs:
 
     - name: Log in to DigitalOcean Container Registry with short-lived credentials
       # run: doctl registry login --expiry-seconds 1200
-      run: docker login -u ${{ secrets.DOCKER_UESR }} --password-stdin ${{ secrets.DOCKER_PASS }}
+      run: docker login -u ${{ secrets.DOCKER_UESR }} -p ${{ secrets.DOCKER_PASS }}
 
     - name: Push image to DigitalOcean Container Registry
       run: docker image push ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7)
