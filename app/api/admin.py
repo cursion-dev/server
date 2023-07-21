@@ -5,20 +5,27 @@ from datetime import datetime
 
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
-    list_display = ('site_url', 'user', 'time_created')
+    list_display = ('site_url', 'account', 'time_created')
     search_fields = ('site_url',)
+
+
+
+@admin.register(Page)
+class SiteAdmin(admin.ModelAdmin):
+    list_display = ('page_url', 'account', 'time_created')
+    search_fields = ('page_url',)
 
 
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'site', 'time_created', 'time_completed', 'type')
-    search_fields = ('site',)
+    list_display = ('id', 'page', 'time_created', 'time_completed', 'type')
+    search_fields = ('page',)
 
 
 @admin.register(Scan)
 class ScanAdmin(admin.ModelAdmin):
-    list_display = ('id', 'site', 'time_created', 'time_completed')
-    search_fields = ('site',)
+    list_display = ('id', 'page', 'time_created', 'time_completed')
+    search_fields = ('page',)
     actions = ['mark_as_completed',]
 
     def mark_as_completed(self, request, queryset):

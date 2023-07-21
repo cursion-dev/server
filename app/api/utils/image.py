@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.options import Options
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from sewar.full_ref import uqi, mse, ssim, msssim, psnr, ergas, vifp, rase, sam, scc
+from skimage.metrics import structural_similarity
 from scanerr import settings
 from PIL import Image as I, ImageChops, ImageStat
 from pyppeteer import launch
@@ -116,7 +117,7 @@ class Image():
 
 
 
-    def scan(self, site, configs, driver=None,):
+    def scan(self, scan, configs, driver=None,):
         """
         Grabs multiple screenshots of the website and uploads 
         them to s3.
@@ -130,6 +131,10 @@ class Image():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
+        # get page and site objs
+        site = scan.site
+        page = scan.page
+
         # initialize driver if not passed as param
         driver_present = True
         if not driver:
@@ -137,8 +142,8 @@ class Image():
             driver_present = False
 
 
-        # request site_url 
-        driver.get(site.site_url)
+        # request page_url 
+        driver.get(page.page_url)
 
         # waiting for network requests to resolve
         driver_wait(
@@ -220,7 +225,7 @@ class Image():
                 # get screenshot
                 driver.save_screenshot(f'{pic_id}.png')
                 image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-                remote_path = f'static/sites/{site.id}/{pic_id}.png'
+                remote_path = f'static/sites/{site.id}/{page.id}/{scan.id}/{pic_id}.png'
                 root_path = settings.AWS_S3_URL_PATH
                 image_url = f'{root_path}/{remote_path}'
             
@@ -257,7 +262,7 @@ class Image():
 
 
 
-    def _scan(self, site, configs, driver=None,):
+    def _scan(self, scan, configs, driver=None,):
         """
         Grabs multiple screenshots of the website and uploads 
         them to s3 as one package.
@@ -271,6 +276,10 @@ class Image():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
+        # get page and site objs
+        site = scan.site
+        page = scan.page
+
         # initialize driver if not passed as param
         driver_present = True
         if not driver:
@@ -278,8 +287,8 @@ class Image():
             driver_present = False
 
 
-        # request site_url 
-        driver.get(site.site_url)
+        # request page_url 
+        driver.get(page.page_url)
 
         # waiting for network requests to resolve
         driver_wait(
@@ -392,7 +401,7 @@ class Image():
                 bottom = True
 
 
-        remote_path = f'static/sites/{site.id}/{pic_id_2}.png'
+        remote_path = f'static/sites/{site.id}/{page.id}/{scan.id}/{pic_id_2}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
@@ -427,7 +436,7 @@ class Image():
 
 
 
-    async def scan_p(self, site, configs):
+    async def scan_p(self, scan, configs):
         """
         Using Puppeteer, grabs multiple screenshots of the website and uploads 
         them to s3.
@@ -440,6 +449,10 @@ class Image():
             region_name=str(settings.AWS_S3_REGION_NAME), 
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
+
+        # get page and site objs
+        site = scan.site
+        _page = scan.page
 
         driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=configs.get('max_wait_time', 30))
         page = await driver.newPage()
@@ -475,8 +488,8 @@ class Image():
         else:
             await page.setViewport(viewport)
 
-        # requesting site url
-        await page.goto(site.site_url, page_options)
+        # requesting page_url
+        await page.goto(_page.page_url, page_options)
 
         
         if configs.get('disable_animations') == True:
@@ -560,7 +573,7 @@ class Image():
                 await page.screenshot({'path': f'{pic_id}.png'})
 
                 image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-                remote_path = f'static/sites/{site.id}/{pic_id}.png'
+                remote_path = f'static/sites/{site.id}/{_page.id}/{scan.id}/{pic_id}.png'
                 root_path = settings.AWS_S3_URL_PATH
                 image_url = f'{root_path}/{remote_path}'
             
@@ -599,7 +612,7 @@ class Image():
 
 
 
-    async def _scan_p(self, site, configs):
+    async def _scan_p(self, scan, configs):
         """
         Using Puppeteer, grabs multiple screenshots of the website and uploads 
         them to s3 as a single image.
@@ -612,6 +625,10 @@ class Image():
             region_name=str(settings.AWS_S3_REGION_NAME), 
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
+
+        # get page and site objs
+        site = scan.site
+        _page = scan.page
 
         driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=configs.get('max_wait_time', 30))
         page = await driver.newPage()
@@ -647,8 +664,8 @@ class Image():
         else:
             await page.setViewport(viewport)
 
-        # requesting site url
-        await page.goto(site.site_url, page_options)
+        # requesting page_url
+        await page.goto(_page.page_url, page_options)
 
         if configs.get('disable_animations') == True:
             # inserting animation pausing script
@@ -761,7 +778,7 @@ class Image():
                 bottom = True
 
 
-        remote_path = f'static/sites/{site.id}/{pic_id_2}.png'
+        remote_path = f'static/sites/{site.id}/{_page.id}/{scan.id}/{pic_id_2}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
@@ -866,6 +883,75 @@ class Image():
                 post_img_array = numpy.array(post_img)
 
 
+                # build two new images with differences highlighted
+                def highlight_diffs(pre_img_path, post_img_path, index):
+                    '''
+                        Returns -> two new images with highlights
+                    '''
+                    # Load the images
+                    image1 = cv2.imread(pre_img_path)
+                    image2 = cv2.imread(post_img_path)
+
+                    # Convert the images to grayscale
+                    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+                    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+                    # Compute the SSIM map
+                    (ssim_map, diff) = structural_similarity(gray1, gray2, full=True)
+
+                    # Highlight the differences
+                    diff = (diff * 255).astype("uint8")
+
+                    # Threshold the difference map
+                    _, thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+
+                    # Find contours of the differences
+                    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                    # Draw rectangles around the differences
+                    for contour in contours:
+                        (x, y, w, h) = cv2.boundingRect(contour)
+                        cv2.rectangle(image1, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                        cv2.rectangle(image2, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+                    # Save the output images
+                    img_1_id = uuid.uuid4()
+                    img_2_id = uuid.uuid4()
+                    cv2.imwrite(temp_root + f"/{img_1_id}.png", image1)
+                    cv2.imwrite(temp_root + f"/{img_2_id}.png", image2)                    
+                    img_objs = save_images(img_1_id, img_2_id, index)
+
+                    return img_objs
+
+
+                # saving old images to new test.id path
+                def save_images(pre_img_id, post_img_id, index):
+                    image_ids = [pre_img_id, post_img_id]
+                    img_objs = []
+                    for img_id in image_ids:
+                        image = os.path.join(temp_root, f'{img_id}.png')
+                        remote_path = f'static/sites/{test.page.site.id}/{test.page.id}/{test.id}/{img_id}.png'
+                        root_path = settings.AWS_S3_URL_PATH
+                        image_url = f'{root_path}/{remote_path}'
+                    
+                        # upload to s3
+                        with open(image, 'rb') as data:
+                            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                            )
+                        
+                        # building img obj
+                        obj = {
+                            "id": str(img_id),
+                            "url": image_url,
+                            "path": remote_path,
+                            "index": index,
+                        }
+                        img_objs.append(obj)
+                        
+                    return img_objs
+
+
                 # test images with PIL
                 def pil_score(pre_img, post_img):
                     try:
@@ -920,19 +1006,25 @@ class Image():
 
                 # test images
                 try:
+                    # ssim scoring
                     img_score_tupple = ssim(pre_img_array, post_img_array)
                     img_score_list = list(img_score_tupple)
                     ssim_img_score = statistics.fmean(img_score_list) * 100
-                    # print(f'ssim -> {ssim_img_score}')
 
+                    # pillow scoring
                     pil_img_score = pil_score(pre_img, post_img)
-                    # print(f'pil -> {pil_img_score}')
-
+                    
+                    # pixel perfect scoring
                     cv2_img_score = cv2_score(pre_img_array, post_img_array)
-                    # print(f'cv2 -> {cv2_img_score}')
 
+                    # weighted average
                     img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
-                    # print(f'img_score ==>  {img_score}')
+
+                    # generating new highlighted images
+                    diff_imgs = highlight_diffs(pre_img_path, post_img_path, i)
+
+                    # saving old images to test.id path
+                    old_imgs = save_images(pre_img_obj['id'], post_img_obj['id'], i)
 
                 except Exception as e:
                     print(e)
@@ -941,8 +1033,10 @@ class Image():
                 # create img test obj and add to array
                 img_test_obj = {
                     "index": i, 
-                    "pre_img": pre_img_obj,
-                    "post_img": post_img_obj,
+                    "pre_img": old_imgs[0],
+                    "post_img": old_imgs[1],
+                    "pre_img_diff": diff_imgs[0], 
+                    "post_img_diff": diff_imgs[1], 
                     "score": img_score,
                 }
 
@@ -1036,7 +1130,7 @@ class Image():
         pic_id = uuid.uuid4()
         driver.save_screenshot(f'{pic_id}.png')
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-        remote_path = f'static/sites/{site_id}/{pic_id}.png'
+        remote_path = f'static/sites/{site_id}/{page.id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
@@ -1141,7 +1235,7 @@ class Image():
         await page.screenshot({'path': f'{pic_id}.png'})
         await driver.close()
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-        remote_path = f'static/sites/{site_id}/{pic_id}.png'
+        remote_path = f'static/sites/{site_id}/{page.id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
 

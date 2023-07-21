@@ -67,12 +67,81 @@ class SiteDelay(APIView):
 
 
 
+class SiteCrawl(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request, id):
+        response = crawl_site(request, id)
+        return response
+
+
 class SitesDelete(APIView):
     permission_classes = (AllowAny,)
     http_method_names = ['post',]
 
     def post(self, request):
         response = delete_many_sites(request)
+        return response
+
+
+
+
+class Pages(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post', 'get']
+    pagination_class = LimitOffsetPagination
+
+    def post(self, request):
+        response = create_page(request)
+        return response
+
+    def get(self, request):
+        response = get_pages(request)
+        return response
+    
+
+
+class PageDetail(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        page = get_object_or_404(Page, pk=id)
+        user = request.user
+        account = Member.objects.get(user=user).account
+        if page.account != account:
+            data = {'reason': 'you cannot retrieve a Page you do not own',}
+            record_api_call(request, data, '401')
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        serializer_context = {'request': request,}
+        serialized = PageSerializer(page, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK) 
+
+    def delete(self, request, id):
+        response = delete_page(request, id)
+        return response
+
+
+
+class PageDelay(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = create_page(request, delay=True)
+        return response
+
+
+
+class PagesDelete(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_pages(request)
         return response
 
 
@@ -134,6 +203,17 @@ class ScanDelay(APIView):
     def post(self, request):
         response = create_scan(request, delay=True)
         return response
+
+
+
+class ScansCreate(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = create_many_scans(request)
+        return response
+
 
 
 class ScansDelete(APIView):
@@ -202,6 +282,15 @@ class TestDelay(APIView):
 
     def post(self, request):
         response = create_test(request, delay=True)
+        return response
+
+
+class TestsCreate(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = create_many_tests(request)
         return response
 
 
@@ -484,6 +573,15 @@ class HomeStats(APIView):
         response = get_home_stats(request)
         return response
 
+
+
+class SiteStats(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = get_site_stats(request)
+        return response
 
 
 

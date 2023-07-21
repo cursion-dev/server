@@ -143,6 +143,9 @@ def send_remove_alert(member):
 
         sendgrid_email(message_obj=context)
 
+        # delete member obj
+        member.delete()
+
         # html_message = render_to_string('api/alert_no_button.html', context)
         # plain_message = strip_tags(html_message)
         # send_mail(

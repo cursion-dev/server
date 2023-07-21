@@ -1,5 +1,5 @@
 from ..models import *
-import time, os, sys, json, boto3
+import time, os, sys, json, boto3, textwrap
 import PIL.Image as Img
 from scanerr import settings
 from datetime import datetime, timedelta
@@ -25,9 +25,9 @@ class Reporter():
 
     def __init__(self, report, scan=None):
         self.report = report
-        self.site = self.report.site
+        self.page = self.report.page
         if scan is None:
-            self.scan = Scan.objects.get(id=self.site.info['latest_scan']['id'])
+            self.scan = Scan.objects.get(id=self.page.info['latest_scan']['id'])
         else:
             self.scan = scan
 
@@ -70,7 +70,7 @@ class Reporter():
 
     def publish_report(self):
         self.c.save()
-        remote_path = f'static/sites/{self.report.site.id}/{self.report.id}.pdf'
+        remote_path = f'static/sites/{self.report.page.site.id}/{self.report.page.id}/{self.report.id}.pdf'
         s3 = boto3.client('s3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
             aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
             region_name=str(settings.AWS_S3_REGION_NAME), 
@@ -89,6 +89,25 @@ class Reporter():
         self.report.path = report_url
         self.report.save()
         os.remove(self.local_path)
+
+    
+    def draw_wrapped_line(self, text, length, x_pos, y_pos, y_offset):
+        """
+        :param text: the raw text to wrap
+        :param length: the max number of characters per line
+        :param x_pos: starting x position
+        :param y_pos: starting y position
+        :param y_offset: the amount of space to leave between wrapped lines
+        """
+        if len(text) > length:
+            wraps = textwrap.wrap(text, length, break_long_words=True)
+            for x in range(len(wraps)):
+                self.c.drawString(x_pos*inch, y_pos*inch, wraps[x])
+                y_pos -= y_offset
+            y_pos += y_offset  # add back offset after last wrapped line
+        else:
+            self.c.drawString(x_pos*inch, y_pos*inch, text)
+        return y_pos
 
     
 
@@ -125,14 +144,17 @@ class Reporter():
         self.c.setFont('Helvetica-Bold', 45)
         self.c.setFillColor(HexColor(self.text_color))
         self.c.drawString(.5*inch, 10*inch, 'Web Vitals for')
-        if len(self.site.site_url) <= 12:
-            self.c.drawString(.5*inch, 9*inch, self.site.site_url)
-        elif 12 < len(self.site.site_url):
-            extra_chars = len(self.site.site_url) - 12
-            m = (3/5)
+        if len(self.page.page_url) <= 12:
+            self.c.setFont('Helvetica-Bold', 30)
+            self.c.drawString(.5*inch, 9*inch, self.page.page_url)
+        elif 12 < len(self.page.page_url):
+            extra_chars = len(self.page.page_url) - 12
+            m = (2/5)
+            y_offset = .5
+            length = int(20 + (extra_chars * m))
             self.c.setFont('Helvetica-Bold', int(45 - (extra_chars * m)))
             self.c.setFillColor(HexColor(self.text_color))
-            self.c.drawString(.5*inch, 9*inch, self.site.site_url)
+            self.draw_wrapped_line(text=self.page.page_url, length=length, x_pos=.5, y_pos=9, y_offset=y_offset)
         # cover img
         cover_img = os.path.join(settings.BASE_DIR, "api/utils/report_assets/cover_img.png")
         self.c.drawImage(cover_img, 1*inch, 2*inch, 6.04*inch, 4.68*inch, mask='auto')

@@ -1,4 +1,4 @@
-from ..models import Site, Scan, Test
+from ..models import *
 import time, os, sys, json, random, string, re
 from difflib import SequenceMatcher, HtmlDiff, Differ
 from datetime import datetime
@@ -399,17 +399,41 @@ class Tester():
 
     def update_site_info(self, test):
         site = test.site
+
+        # get pages
+        pages = Page.objects.filter(site=site)
+
+        # get latest tests of pages
+        tests = []
+        for page in pages:
+            if Test.objects.filter(page=page).exists():
+                _test = Test.objects.filter(page=page).order_by('-time_completed')[0]
+                if _test.score is not None:
+                    tests.append(_test.score)
+        
+        # calc site average of latest
+        site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
+
         site.info['latest_test']['id'] = str(test.id)
         site.info['latest_test']['time_created'] = str(test.time_created)
         site.info['latest_test']['time_completed'] = str(test.time_completed)
-        site.info['latest_test']['score'] = (round(test.score * 100) / 100)
+        site.info['latest_test']['score'] = site_avg_test_score
         site.save()
 
         return site
+
+
+
+    def update_page_info(self, test):
+        page = test.page
+        page.info['latest_test']['id'] = str(test.id)
+        page.info['latest_test']['time_created'] = str(test.time_created)
+        page.info['latest_test']['time_completed'] = str(test.time_completed)
+        page.info['latest_test']['score'] = (round(test.score * 100) / 100)
+        page.save()
+
+        return page
         
-
-
-
 
 
 
@@ -588,6 +612,7 @@ class Tester():
 
         self.test.save()
 
+        self.update_page_info(self.test)
         self.update_site_info(self.test)
 
         return self.test

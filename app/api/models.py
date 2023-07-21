@@ -53,6 +53,31 @@ def get_info_default():
 
 
 
+
+
+def get_small_info_default():
+    info_default = {
+            'latest_scan': {
+                'id': None,
+                'time_created': None,
+                'time_completed': None,
+            },
+            'latest_test': {
+                'id': None,
+                'time_created': None,
+                'time_completed': None,
+                'score': None
+            },
+            'status': {
+                'health': None,
+                'badge': 'neutral',
+                'score': None,
+            },
+        }
+    return info_default
+
+
+
 def get_lh_delta_default():
     lh_delta_default = {
         "scores": {
@@ -239,10 +264,12 @@ class Account(models.Model):
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     max_sites = models.IntegerField(serialize=True, null=True, blank=True, default=1)
+    max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=25)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
 
     def __str__(self):
@@ -289,7 +316,7 @@ class Site(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
-    info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_small_info_default)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
@@ -297,9 +324,25 @@ class Site(models.Model):
 
 
 
+class Page(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True, blank=True)
+    page_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
+    tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
+
+    def __str__(self):
+        return f'{self.page_url}'
+
+
+
 class Scan(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True, blank=True)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, serialize=True, blank=True)
     paired_scan = models.ForeignKey('self', on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
     type = models.JSONField(serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
@@ -320,6 +363,7 @@ class Scan(models.Model):
 class Test(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, serialize=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
     type = models.JSONField(serialize=True, null=True, blank=True)
@@ -345,6 +389,7 @@ class Test(models.Model):
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -361,7 +406,14 @@ class Schedule(models.Model):
     extras = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.site.site_url}__{self.task_type}'
+        if self.site is not None:
+            url = self.site.site_url
+            level = 'site'
+        if self.page is not None:
+            url = self.page.site.site_url
+            level = 'page'
+
+        return f'{url}_{self.task_type}_{level}'
 
 
 
@@ -386,6 +438,7 @@ class Automation(models.Model):
 class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)

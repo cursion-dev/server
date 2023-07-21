@@ -2,36 +2,37 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app-deployment
+  labels:
+    deployment: app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app
+      app: app-deployment
   template:
     metadata:
       labels:
-        app: app
+        app: app-deployment
     spec:
       imagePullSecrets:
         - name: regcred
       containers:
-        - name: app
-          image: landonr/scanerr-server
-          imagePullPolicy: IfNotPresent
+        - name: scanerr-server
+          image: <IMAGE> # landonr/scanerr-server
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
-          command:
-            - "sh"
-            - "-c"
-            - >
-              python3 manage.py wait_for_db &&
-              python3 manage.py makemigrations --no-input &&
-              python3 manage.py migrate --no-input &&
-              python3 manage.py collectstatic --no-input &&
-              python3 manage.py create_admin &&
-              python3 manage.py driver_s_test &&
-              python3 manage.py driver_p_test &&
-              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
+          command: ["/bin/sh", "-c"]
+          args: 
+            - > 
+                python3 manage.py wait_for_db &&
+                python3 manage.py makemigrations --no-input &&
+                python3 manage.py migrate --no-input &&
+                python3 manage.py collectstatic --no-input &&
+                python3 manage.py create_admin &&
+                python3 manage.py driver_s_test &&
+                python3 manage.py driver_p_test &&
+                gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
           envFrom:
             - configMapRef:
                 name: app-configs
@@ -51,9 +52,8 @@ metadata:
   name: app-service
 spec:
   selector:
-    app: app
+    app:  app-deployment
   ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
-  type: NodePort
+  - name: http
+    port: 80
+    targetPort: 8000

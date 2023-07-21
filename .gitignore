@@ -9,14 +9,10 @@ __pycache__
 __pycache__/
 */__pycache__/*
 **/__pycache__/
-server/app/env*
 env/.env.local
 env/.env.dev
 env/.env.prod
 env/.env.prod.db
 app/static*
-Dockerfile.alpine
-Dockerfile.dev1
-Dockerfile.dev3
 app/api/migrations/*_*.py
 k8s/*/*-configs.yaml

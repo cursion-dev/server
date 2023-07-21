@@ -7,16 +7,16 @@ services:
     init: true
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     # image: landonr/scanerr-server
     volumes:
       - ./app:/app
       - static_volume:/app/static
     command: >
-      sh -c "python3 manage.py makemigrations  --no-input &&
+      sh -c "python3 manage.py wait_for_db &&
+             python3 manage.py makemigrations  --no-input &&
              python3 manage.py migrate  --no-input &&
              python3 manage.py collectstatic --no-input &&
-             python3 manage.py wait_for_db &&
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
