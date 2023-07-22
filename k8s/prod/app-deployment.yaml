@@ -43,13 +43,13 @@ spec:
             requests:
               cpu: "500m"
               memory: "500Mi"
-          volumeMounts:
-           - mountPath: "/app/api/migrations"
-             name: my-app-volume
-      volumes:
-        - name: my-app-volume
-          persistentVolumeClaim:
-           claimName: app-volume
+      #     volumeMounts:
+      #      - mountPath: "/app/api/migrations"
+      #        name: my-app-volume
+      # volumes:
+      #   - name: my-app-volume
+      #     persistentVolumeClaim:
+      #      claimName: app-pvc
 
 ---
 
