@@ -1249,7 +1249,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         
         if delay == True:
             create_test_bg.delay(
-                page_id=page.id,
+                page_id=p.id,
                 test_id=test.id,
                 configs=configs,
                 type=test_type,
