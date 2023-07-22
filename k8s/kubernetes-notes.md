@@ -102,7 +102,7 @@ kubectl port-forward service/app-service 8000:8000
 
 ### 3. Update ingress-nginx-controler "Service file" with domain
 - add the below annotation 
-- `service.beta.kubernetes.io/do-loadbalancer-hostname: "api2.scanerr.io"`
+- `service.beta.kubernetes.io/do-loadbalancer-hostname: "api.scanerr.io"`
 
 
 ### 4. Spin up Scanerr deployments and services

@@ -857,7 +857,8 @@ def create_many_scans(request):
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-            except:
+            except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
@@ -880,7 +881,8 @@ def create_many_scans(request):
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-            except:
+            except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
@@ -1062,7 +1064,8 @@ def delete_many_scans(request):
                     scan.delete()
                 num_succeeded += 1
                 succeeded.append(str(id))
-            except:
+            except Exception as e:
+                print(e)
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
@@ -1330,7 +1333,8 @@ def create_many_tests(request):
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-            except:
+            except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
@@ -1353,7 +1357,8 @@ def create_many_tests(request):
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-            except:
+            except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
