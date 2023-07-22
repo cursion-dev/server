@@ -49,7 +49,7 @@ jobs:
 
     # Update deployment files to reflect new build.
     - name: Update app deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yml
+      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
     
     - name: Update celery deployment file
       run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yml
