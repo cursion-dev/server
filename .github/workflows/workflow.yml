@@ -52,16 +52,16 @@ jobs:
       run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
     
     - name: Update celery deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yml
+      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
 
     - name: Save DigitalOcean kubeconfig with short-lived credentials
       run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 ${{ secrets.CLUSTER_NAME }}
     
     # Re-deploy app and Celery
     - name: Deploy app
-      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/app-deployment.yml
+      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
     - name: Deploy celery 
-      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yml
+      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
 
     - name: Verify app
       run: kubectl rollout status deployment/app-deployment
