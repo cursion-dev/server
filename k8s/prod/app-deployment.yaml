@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server
+          image: landonr/scanerr-server:eead9ec # <IMAGE> 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -38,11 +38,11 @@ spec:
                 name: app-configs
           resources:
             limits:
-              cpu: "4"
+              cpu: "6"
               memory: "6Gi"
-            # requests:
-            #   cpu: "500m"
-            #   memory: "500Mi"
+            requests:
+              cpu: "500m"
+              memory: "500Mi"
       #     volumeMounts:
       #      - mountPath: "/app/api/migrations"
       #        name: my-app-volume
