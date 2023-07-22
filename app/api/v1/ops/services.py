@@ -216,6 +216,10 @@ def crawl_site(request, id):
             'disable_animations': False
         }
 
+    # update site info
+    site.time_crawl_completed = None
+    site.save()
+
     crawl_site_bg.delay(site_id=site.id, configs=configs)
 
     serializer_context = {'request': request,}

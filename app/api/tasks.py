@@ -13,6 +13,7 @@ from .v1.ops.tasks import (
 )
 from .models import *
 from django.contrib.auth.models import User
+from django.utils import timezone
 from .utils.driver_p import driver_test
 from .v1.auth.alerts import send_invite_link, send_remove_alert
 from asgiref.sync import async_to_sync
@@ -42,6 +43,9 @@ def create_site_bg(site_id=None, scan_id=None, configs=None, *args, **kwargs):
 @shared_task
 def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
+    site.time_crawl_started = timezone.now()
+    site.time_crawl_completed = None
+    site.save()
     # crawl site 
     pages = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
     for url in pages:
@@ -67,7 +71,9 @@ def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
         page.info["latest_scan"]["id"] = str(scan.id)
         page.info["latest_scan"]["time_created"] = str(scan.time_created)
         page.save()
-
+    # updating site status
+    site.time_crawl_completed = timezone.now()
+    site.save()
 
     logger.info('Added site and all pages')
 
@@ -77,6 +83,9 @@ def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
 @shared_task
 def crawl_site_bg(site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
+    site.time_crawl_started = timezone.now()
+    site.time_crawl_completed = None
+    site.save()
     old_pages = Page.objects.filter(site=site)
     old_urls = []
     for p in old_pages:
@@ -114,7 +123,9 @@ def crawl_site_bg(site_id=None, configs=None, *args, **kwargs):
         page.info["latest_scan"]["id"] = str(scan.id)
         page.info["latest_scan"]["time_created"] = str(scan.time_created)
         page.save()
-
+    # updating site status
+    site.time_crawl_completed = timezone.now()
+    site.save()
 
     logger.info('crawled site and added pages')
 
