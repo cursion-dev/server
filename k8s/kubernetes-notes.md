@@ -108,6 +108,7 @@ kubectl port-forward service/app-service 8000:8000
 ### 4. Spin up Scanerr deployments and services
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-configs.yaml`
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/redis-deployment.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-volume.yaml`
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-deployment.yaml`
 
