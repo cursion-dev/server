@@ -42,7 +42,7 @@ class SiteSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Site
         fields = ['id', 'user', 'site_url', 'time_created', 'info',
-        'tags', 'account',
+        'tags', 'account', 'time_crawl_started', 'time_crawl_completed',
         ]
 
 
