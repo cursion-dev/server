@@ -195,8 +195,8 @@ AWS_S3_OBJECT_PARAMETERS = {
 # CELERY_RESULT_BACKEND = "redis://redis:6379"
 
 # RabbitMQ and Celery Conf
-CELERY_BROKER_URL = "amqp://rabbitmq:5672"
-CELERY_RESULT_BACKEND = "amqp://rabbitmq:5672"
+CELERY_BROKER_URL = "rpc://rabbitmq:5672"
+CELERY_RESULT_BACKEND = "rpc://rabbitmq:5672"
 
 
 

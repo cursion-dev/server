@@ -1,0 +1,29 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: celery-worker-scaler
+  namespace: celery-workers
+spec:
+  scaleTargetRef:
+    name: celery-worker
+  pollingInterval: 3
+  minReplicaCount: 2
+  maxReplicaCount: 30
+  triggers:
+    - type: rabbitmq
+      metadata:
+        queueName: celery
+        queueLength: "10"
+      authenticationRef:
+        name: rabbitmq-worker-trigger
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: rabbitmq-worker-trigger
+  namespace: celery-workers
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: celery-workers-secret
+      key: CELERY_BROKER_URL
