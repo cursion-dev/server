@@ -191,8 +191,12 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 # Redis and Celery Conf
-CELERY_BROKER_URL = "redis://redis:6379"
-CELERY_RESULT_BACKEND = "redis://redis:6379"
+# CELERY_BROKER_URL = "redis://redis:6379"
+# CELERY_RESULT_BACKEND = "redis://redis:6379"
+
+# RabbitMQ and Celery Conf
+CELERY_BROKER_URL = "rabbitmp://rabbitmp:5672"
+CELERY_RESULT_BACKEND = "rabbitmp://rabbitmp:5672"
 
 
 
@@ -215,7 +219,6 @@ SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
 DEFAULT_TEMPLATE = os.environ.get('DEFAULT_TEMPLATE')
 DEFAULT_TEMPLATE_NO_BUTTON = os.environ.get('DEFAULT_TEMPLATE_NO_BUTTON')
 AUTOMATION_TEMPLATE = os.environ.get('AUTOMATION_TEMPLATE')
-
 
 
 # google oAuth2
