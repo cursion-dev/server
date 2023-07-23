@@ -24,6 +24,7 @@ humanize==3.7.0
 idna==2.10
 imutils==0.5.4
 kombu==5.1.0
+librabbitmq==2.0.0
 Markdown==3.3.4
 numpy==1.22.3
 opencv-python==4.5.5.64
