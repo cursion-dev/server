@@ -113,6 +113,7 @@ kubectl port-forward service/app-service 8000:8000
 <!-- - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-volumeclaim.yaml` -->
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-deployment.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-autoscaler.yaml`
 
 
 ### 5. Add app Ingress
