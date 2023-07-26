@@ -5,7 +5,7 @@ metadata:
   labels:
     deployment: app
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: app-deployment
@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server:eead9ec 
+          image: landonr/scanerr-server:25a7e15 # <IMAGE> # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -38,18 +38,18 @@ spec:
                 name: app-configs
           resources:
             limits:
-              cpu: "6"
-              memory: "6Gi"
+              cpu: "2"
+              memory: "4Gi"
             requests:
-              cpu: "500m"
-              memory: "500Mi"
-      #     volumeMounts:
-      #      - mountPath: "/app/api/migrations"
-      #        name: my-app-volume
-      # volumes:
-      #   - name: my-app-volume
-      #     persistentVolumeClaim:
-      #      claimName: app-pvc
+              cpu: "1"
+              memory: "1Gi"
+          volumeMounts:
+           - mountPath: "/app/api/migrations"
+             name: app-volume
+      volumes:
+        - name: app-volume
+          persistentVolumeClaim:
+           claimName: app-pvc
 
 ---
 

@@ -50,27 +50,28 @@ def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
     pages = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
     for url in pages:
         # add new page
-        page = Page.objects.create(
-            site=site,
-            page_url=url,
-            user=site.user,
-            account=site.account,
-        )
-        # create initial scan
-        scan = Scan.objects.create(
-            site=site,
-            page=page, 
-            type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-            configs=configs
-        )
-        # run each scan component in parallel
-        run_html_and_logs_bg.delay(scan_id=scan.id)
-        run_lighthouse_bg.delay(scan_id=scan.id)
-        run_yellowlab_bg.delay(scan_id=scan.id)
-        run_vrt_bg.delay(scan_id=scan.id)
-        page.info["latest_scan"]["id"] = str(scan.id)
-        page.info["latest_scan"]["time_created"] = str(scan.time_created)
-        page.save()
+        if not Page.objects.filter(site=site, page_url=url).exists():
+            page = Page.objects.create(
+                site=site,
+                page_url=url,
+                user=site.user,
+                account=site.account,
+            )
+            # create initial scan
+            scan = Scan.objects.create(
+                site=site,
+                page=page, 
+                type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                configs=configs
+            )
+            # run each scan component in parallel
+            run_html_and_logs_bg.delay(scan_id=scan.id)
+            run_lighthouse_bg.delay(scan_id=scan.id)
+            run_yellowlab_bg.delay(scan_id=scan.id)
+            run_vrt_bg.delay(scan_id=scan.id)
+            page.info["latest_scan"]["id"] = str(scan.id)
+            page.info["latest_scan"]["time_created"] = str(scan.time_created)
+            page.save()
     # updating site status
     site.time_crawl_completed = timezone.now()
     site.save()
@@ -102,27 +103,28 @@ def crawl_site_bg(site_id=None, configs=None, *args, **kwargs):
         
     for url in add_pages:
         # add new page
-        page = Page.objects.create(
-            site=site,
-            page_url=url,
-            user=site.user,
-            account=site.account,
-        )
-        # create initial scan
-        scan = Scan.objects.create(
-            site=site,
-            page=page, 
-            type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-            configs=configs
-        )
-        # run each scan component in parallel
-        run_html_and_logs_bg.delay(scan_id=scan.id)
-        run_lighthouse_bg.delay(scan_id=scan.id)
-        run_yellowlab_bg.delay(scan_id=scan.id)
-        run_vrt_bg.delay(scan_id=scan.id)
-        page.info["latest_scan"]["id"] = str(scan.id)
-        page.info["latest_scan"]["time_created"] = str(scan.time_created)
-        page.save()
+        if not Page.objects.filter(site=site, page_url=url).exists():
+            page = Page.objects.create(
+                site=site,
+                page_url=url,
+                user=site.user,
+                account=site.account,
+            )
+            # create initial scan
+            scan = Scan.objects.create(
+                site=site,
+                page=page, 
+                type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                configs=configs
+            )
+            # run each scan component in parallel
+            run_html_and_logs_bg.delay(scan_id=scan.id)
+            run_lighthouse_bg.delay(scan_id=scan.id)
+            run_yellowlab_bg.delay(scan_id=scan.id)
+            run_vrt_bg.delay(scan_id=scan.id)
+            page.info["latest_scan"]["id"] = str(scan.id)
+            page.info["latest_scan"]["time_created"] = str(scan.time_created)
+            page.save()
     # updating site status
     site.time_crawl_completed = timezone.now()
     site.save()
