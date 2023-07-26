@@ -11,10 +11,11 @@ spec:
   triggers:
     - type: redis
       metadata:
-        address: redis:6379 # Format must be host:port
+        address: redis.default.svc.cluster.local:6379  # Format must be host:port redis:6379
         listName: celery # Required
         listLength: "5" # Required
         activationListLength: "5" # optional
         enableTLS: "false" # optional
         unsafeSsl: "false" # optional
         databaseIndex: "0" # optional
+
