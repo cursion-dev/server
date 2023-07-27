@@ -280,7 +280,13 @@ def _create_test(
     created_test.pre_scan = pre_scan
     created_test.post_scan = post_scan
     created_test.save()
+    
+    # run tests
+    test = T(test=created_test).run_test(index=index)
+    if automation_id:
+        automation(automation_id, test.id)
     logger.info('Created new test of page')
+
 
 
 
@@ -294,6 +300,8 @@ def create_test_bg(*args, **kwargs):
     configs = kwargs.get('configs')
     tags = kwargs.get('tags')
     automation_id = kwargs.get('automation_id')
+    pre_scan = kwargs.get('pre_scan')
+    post_scan = kwargs.get('post_scan')
 
     if test_id is None:
         if site_id is not None:
@@ -309,6 +317,8 @@ def create_test_bg(*args, **kwargs):
                 type=type,
                 configs=configs,
                 tags=tags,
+                pre_scan=pre_scan,
+                post_scan=post_scan,
                 automation_id=automation_id
             )
     
@@ -320,6 +330,8 @@ def create_test_bg(*args, **kwargs):
             type=type,
             configs=configs,
             tags=tags,
+            pre_scan=pre_scan,
+            post_scan=post_scan,
             automation_id=automation_id
         )
 
