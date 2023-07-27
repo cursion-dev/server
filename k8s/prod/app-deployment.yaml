@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: landonr/scanerr-server:25a7e15 # <IMAGE> # 
+          image: <IMAGE> # landonr/scanerr-server:802fed4 # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -26,6 +26,7 @@ spec:
           args: 
             - > 
                 python3 manage.py wait_for_db &&
+                python manage.py showmigrations &&
                 python3 manage.py makemigrations --no-input &&
                 python3 manage.py migrate --no-input &&
                 python3 manage.py collectstatic --no-input &&
