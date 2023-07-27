@@ -335,6 +335,7 @@ class Page(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
+    time_crawl = models.DateTimeField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return f'{self.page_url}'
