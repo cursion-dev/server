@@ -243,17 +243,42 @@ def _create_test(
         *args, 
         **kwargs,
     ):
-    create_test_task(
-        test_id,
-        page_id, 
-        automation_id, 
-        configs, 
-        type,
-        index,
-        pre_scan,
-        post_scan,
-        tags
-    )
+    if test_id is not None:
+        created_test = Test.objects.get(id=test_id)
+        page = created_test.page
+    elif page_id is not None:
+        page = Page.objects.get(id=page_id)
+        created_test = Test.objects.create(
+            site=page.site,
+            page=page,
+            type=type,
+            tags=tags,
+        )
+
+    if pre_scan is not None:
+        pre_scan = Scan.objects.get(id=pre_scan)
+    if post_scan is not None:
+        post_scan = Scan.objects.get(id=post_scan)
+
+    if post_scan is None and pre_scan is not None:
+        post_scan = S(site=page.site, page=page, scan=pre_scan, configs=configs, type=type).second_scan()
+        
+    if pre_scan is None and post_scan is None:
+        new_scan = S(site=page.site, page=page, configs=configs, type=type)
+        post_scan = new_scan.second_scan()
+        pre_scan = post_scan.paired_scan
+
+    # updating parired scans
+    pre_scan.paired_scan = post_scan
+    post_scan.paried_scan = pre_scan
+    pre_scan.save()
+    post_scan.save()
+
+    # updating test object
+    created_test.type = type
+    created_test.pre_scan = pre_scan
+    created_test.post_scan = post_scan
+    created_test.save()
     logger.info('Created new test of page')
 
 
