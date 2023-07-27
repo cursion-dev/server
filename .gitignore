@@ -14,5 +14,6 @@ env/.env.dev
 env/.env.prod
 env/.env.prod.db
 app/static*
-app/api/migrations/*_*.py
+# app/api/migrations/*_*.py
 k8s/*/*-configs.yaml
+env/.env.stage

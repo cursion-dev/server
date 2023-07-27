@@ -44,13 +44,13 @@ spec:
             requests:
               cpu: "1"
               memory: "1Gi"
-          volumeMounts:
-           - mountPath: "/app/api/migrations"
-             name: app-volume
-      volumes:
-        - name: app-volume
-          persistentVolumeClaim:
-           claimName: app-pvc
+      #     volumeMounts:
+      #      - mountPath: "/app/api/migrations"
+      #        name: app-volume
+      # volumes:
+      #   - name: app-volume
+      #     persistentVolumeClaim:
+      #      claimName: app-pvc
 
 ---
 
