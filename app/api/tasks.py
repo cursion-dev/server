@@ -5,6 +5,7 @@ from celery import shared_task
 from celery import Task as BaseTask
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
+from .utils.tester import Tester as T
 from .v1.ops.tasks import (
     create_site_task, create_scan_task, run_html_and_logs_task,
     run_vrt_task, run_lighthouse_task, run_yellowlab_task, 
