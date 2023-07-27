@@ -7,7 +7,7 @@ spec:
     name: celery-deployment
   pollingInterval: 3
   minReplicaCount: 2
-  maxReplicaCount: 30
+  maxReplicaCount: 15
   triggers:
     - type: redis
       metadata:
