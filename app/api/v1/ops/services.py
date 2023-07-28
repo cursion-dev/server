@@ -143,6 +143,8 @@ def create_site(request, delay=False):
                             )
                 else:
                     create_site_and_pages_bg.delay(site_id=site.id, configs=configs)
+                site.time_crawl_started = datetime.now()
+                site.time_crawl_completed = datetime.now()
                 site.info["latest_scan"]["time_created"] = str(datetime.now())
                 site.save()
 

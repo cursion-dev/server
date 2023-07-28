@@ -15,6 +15,7 @@ async def driver_init(
         'args': [
             '--no-sandbox', 
             '--disable-dev-shm-usage',
+            '--force-device-scale-factor=1',
             f'--window-size={window_size}',
         ],
         'defaultViewport': {

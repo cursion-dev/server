@@ -53,47 +53,6 @@ class Image():
             jq.src = "https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js";
             document.getElementsByTagName('head')[0].appendChild(jq);
             """
-            )
-
-        
-        self.mask_function = (
-            """
-            (function($){
-                $.fn.overlayMask = function (action) {
-                    var mask = this.find('.overlay-mask');
-
-                    // Create the required mask
-
-                    if (!mask.length) {
-                    this.css({
-                        position: 'relative'
-                    });
-                    mask = $('<div class="overlay-mask"></div>');
-                    mask.css({
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        color: 'green',
-                        backgroundColor: 'green',
-                        top: '0px',
-                        left: '0px',
-                        zIndex: 100,
-                    }).appendTo(this);
-                    }
-
-                    // Act based on params
-
-                    if (!action || action === 'show') {
-                    mask.show();
-                    } else if (action === 'hide') {
-                    mask.hide();
-                    }
-
-                    return this;
-                };
-                })(jQuery)
-            
-            """
         )
 
 
@@ -113,6 +72,8 @@ class Image():
             return True
         else:
             return False
+
+
 
 
 
@@ -256,6 +217,158 @@ class Image():
             quit_driver(driver)
 
         return image_array
+
+
+
+
+
+
+
+    def scan_full(self, scan, configs, driver=None,):
+        """
+        Grabs multiple screenshots of the website and uploads 
+        them to s3.
+        """
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        # get page and site objs
+        site = scan.site
+        page = scan.page
+
+        # initialize driver if not passed as param
+        driver_present = True
+        if not driver:
+            driver = driver_init()
+            driver_present = False
+
+
+        # request page_url 
+        driver.get(page.page_url)
+
+        # waiting for network requests to resolve
+        driver_wait(
+            driver=driver, 
+            interval=int(configs.get('interval', 5)),  
+            min_wait_time=int(configs.get('min_wait_time', 10)),
+            max_wait_time=int(configs.get('max_wait_time', 30)),
+        )
+
+        # getting full_page_height
+        full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
+        sizes = configs.get('window_size', '1920,1080').split(',')
+        driver.set_window_size(int(sizes[0]), int(full_page_height))
+
+
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                driver.execute_script("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
+                
+            # inserting video pausing scripts
+            try:
+                driver.execute_script("const video = document.querySelectorAll('video').forEach(vid => vid.pause());")
+            except:
+                print('cannnot pause videos')
+
+        # mask all listed ids        
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
+            for id in ids:
+                try:
+                    driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via id provided')
+
+        
+        # mask all Global mask ids that are active
+        active_masks = Mask.objects.filter(active=True)
+        if len(active_masks) != 0:
+            for mask in active_masks:
+                try:
+                    driver.execute_script(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via global mask id provided')
+
+
+        # scroll one frame at a time and capture screenshot
+        image_array = []
+        index = 0
+        last_height = -1
+        bottom = False
+        start_time = datetime.now()
+        while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(configs.get('timeout', 300), start_time):
+                break
+
+            # scroll single frame
+            if index != 0:
+                # driver.execute_script("window.scrollBy(0, window.innerHeight);")
+                driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs.get('min_wait_time', 10)))
+
+            # get current position and compare to previous
+            new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
+            height_diff = new_height - last_height
+            if height_diff > 20:
+                last_height = new_height
+                pic_id = uuid.uuid4()
+                
+                # waiting for network requests to resolve
+                driver_wait(
+                    driver=driver, 
+                    interval=int(configs.get('interval', 5)),  
+                    min_wait_time=int(configs.get('min_wait_time', 10)),
+                    max_wait_time=int(configs.get('max_wait_time', 30)),
+                )
+
+                # get screenshot
+                driver.save_screenshot(f'{pic_id}.png')
+                image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+                remote_path = f'static/sites/{site.id}/{page.id}/{scan.id}/{pic_id}.png'
+                root_path = settings.AWS_S3_URL_PATH
+                image_url = f'{root_path}/{remote_path}'
+            
+                # upload to s3
+                with open(image, 'rb') as data:
+                    s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                    )
+                # remove local copy
+                os.remove(image)
+
+                # create image obj and add to list
+                img_obj = {
+                    "index": index,
+                    "id": str(pic_id),
+                    "url": image_url,
+                    "path": remote_path,
+                }
+
+                image_array.append(img_obj)
+
+                index += 1 
+            
+            else:
+                bottom = True
+
+        if not driver_present:
+            quit_driver(driver)
+
+        return image_array
+
 
 
 
@@ -435,7 +548,6 @@ class Image():
 
 
 
-
     async def scan_p(self, scan, configs):
         """
         Using Puppeteer, grabs multiple screenshots of the website and uploads 
@@ -566,7 +678,7 @@ class Image():
                 # interact with and wait for page to load
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
-                time.sleep(configs.get('min_wait_time', 10))
+                time.sleep(int(configs.get('min_wait_time', 10)))
                 
             
                 # get screenshot
@@ -604,6 +716,198 @@ class Image():
         await driver.close()
 
         return image_array
+
+
+
+
+
+
+    async def scan_p_full(self, scan, configs):
+        """
+        Using Puppeteer, grabs multiple screenshots of the website and uploads 
+        them to s3.
+        """
+
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
+        # get page and site objs
+        @sync_to_async
+        def get_site():
+            site = scan.site
+            return site
+        
+        @sync_to_async
+        def get_page():
+            _page = scan.page
+            return _page
+
+        site = await get_site()
+        _page = await get_page()
+
+        driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=int(configs.get('max_wait_time', 30)))
+        page = await driver.newPage()
+
+        sizes = configs.get('window_size', '1920,1080').split(',')
+        is_mobile = False
+        if configs.get('device') == 'mobile':
+            is_mobile = True
+        
+        page_options = {
+            'waitUntil': 'networkidle0', 
+            'timeout': int(configs.get('max_wait_time', 30))*1000
+        }
+
+        # requesting page_url to get height of 
+        await page.goto(_page.page_url, page_options)
+
+        # getting full_page_height
+        full_page_height = await page.evaluate("document.scrollingElement.scrollHeight;")
+
+        viewport = {
+            'width': int(sizes[0]),
+            'height': int(full_page_height),
+            'isMobile': is_mobile,
+        }
+        
+        userAgent = (
+            "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
+            (KHTML, like Gecko) Chrome/99.0.4812.0 Mobile Safari/537.36"
+        )
+        
+        emulate_options = {
+            'viewport': viewport,
+            'userAgent': userAgent
+        }
+
+        if configs.get('device') == 'mobile':
+            await page.emulate(emulate_options)
+        else:
+            await page.setViewport(viewport)
+
+        # requesting page_url
+        await page.goto(_page.page_url, page_options)
+
+        
+        if configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                await page.evaluate("const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');const styleTagCSSes = document.createTextNode('*,:after,:before{-webkit-transition:none!important;-moz-transition:none!important;-ms-transition:none!important;-o-transition:none!important;transition:none!important;-webkit-transform:none!important;-moz-transform:none!important;-ms-transform:none!important;-o-transform:none!important;-webkit-animation:none!important;animation:none!important;transform:none!important;transition-delay:0s!important;transition-duration:0s!important;animation-delay:-0.0001s!important;animation-duration:0s!important;animation-play-state:paused!important;caret-color:transparent!important;color-adjust:exact!important;}');styleElement.appendChild(styleTagCSSes);document.head.appendChild(styleElement);")
+            except:
+                print('cannot pause animations')
+
+            # pausing videos
+            try:
+                videos = await page.querySelectorAll('video')
+                for vid in videos:
+                    await page.evaluate('(vid) => vid.pause()', vid)
+            except Exception as e:
+                print(e)
+
+
+        # mask all listed ids
+        if configs.get('mask_ids') is not None and configs.get('mask_ids') != '':
+            ids = configs.get('mask_ids').split(',')
+            for id in ids:
+                try:
+                    await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via id provided')
+
+
+        # mask all Global mask ids that are active
+        @sync_to_async
+        def get_active_global_masks():
+            masks = Mask.objects.filter(active=True)
+            active_masks = []
+            if len(masks) > 0:
+                for mask in masks:
+                    active_masks.append(mask.id)
+            return active_masks
+
+        active_masks = await get_active_global_masks()
+
+        for mask in active_masks:
+            try:
+                await page.evaluate(f"document.getElementById('{mask}').style.visibility='hidden';")
+                print('masked an element')
+            except:
+                print('cannot find element via global mask id provided')
+
+
+        # scroll one frame at a time and capture screenshot
+        image_array = []
+        index = 0
+        last_height = -1
+        bottom = False
+        start_time = datetime.now()
+        while not bottom:
+
+            # checking if maxed out time
+            if self.check_timeout(int(configs.get('timeout', 300)), start_time):
+                break
+
+            # scroll single frame
+            if index != 0:
+                await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
+                time.sleep(int(configs.get('min_wait_time', 10)))
+
+            # get current position and compare to previous
+            new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
+            height_diff = new_height - last_height
+            if height_diff > 20:
+                last_height = new_height
+                pic_id = uuid.uuid4()
+
+                # interact with and wait for page to load
+                await page.mouse.move(0, 0)
+                await page.mouse.move(0, 100)
+                time.sleep(int(configs.get('min_wait_time', 10)))
+                
+            
+                # get screenshot
+                await page.screenshot({'path': f'{pic_id}.png'})
+
+                image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+                remote_path = f'static/sites/{site.id}/{_page.id}/{scan.id}/{pic_id}.png'
+                root_path = settings.AWS_S3_URL_PATH
+                image_url = f'{root_path}/{remote_path}'
+            
+                # upload to s3
+                with open(image, 'rb') as data:
+                    s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                    )
+                # remove local copy
+                os.remove(image)
+
+                # create image obj and add to list
+                img_obj = {
+                    "index": index,
+                    "id": str(pic_id),
+                    "url": image_url,
+                    "path": remote_path,
+                }
+
+                image_array.append(img_obj)
+
+                index += 1 
+            
+            else:
+                bottom = True
+
+        
+        await driver.close()
+
+        return image_array
+
+
 
 
 
@@ -751,7 +1055,7 @@ class Image():
                 # interact with and wait for page to load
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
-                time.sleep(configs.get('min_wait_time', 10))
+                time.sleep(int(configs.get('min_wait_time', 10)))
                 
             
                 # get screenshot
@@ -1078,6 +1382,10 @@ class Image():
 
 
 
+
+
+
+
     def screenshot(self, site=None, url=None, configs=None, driver=None):
         """
         Grabs single screenshot of the website and uploads 
@@ -1228,7 +1536,7 @@ class Image():
         # interact with and wait for page to load
         await page.mouse.move(0, 0)
         await page.mouse.move(0, 100)
-        time.sleep(configs.get('min_wait_time', 10))
+        time.sleep(int(configs.get('min_wait_time', 10)))
 
         # get screenshot
         pic_id = uuid.uuid4()

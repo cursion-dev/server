@@ -447,11 +447,11 @@ def _vrt(scan_id):
     try:
         if scan.configs['driver'] == 'selenium':
             driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
-            images = Image().scan(scan=scan, driver=driver, configs=scan.configs)
+            images = Image().scan_full(scan=scan, driver=driver, configs=scan.configs)
             quit_driver(driver)
 
         if scan.configs['driver'] == 'puppeteer':
-            images = asyncio.run(Image().scan_p(scan=scan, configs=scan.configs))
+            images = asyncio.run(Image().scan_p_full(scan=scan, configs=scan.configs))
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)

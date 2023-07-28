@@ -38,7 +38,8 @@ def driver_init(
     options.add_argument("start-maximized")
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=%s" % window_size)
+    options.add_argument("--force-device-scale-factor=1")
+    options.add_argument("--window-size=%s" % window_size) 
 
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
