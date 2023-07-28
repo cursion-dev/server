@@ -19,7 +19,7 @@ from django.utils import timezone
 from .utils.driver_p import driver_test
 from .v1.auth.alerts import send_invite_link, send_remove_alert
 from asgiref.sync import async_to_sync
-import asyncio, boto3
+import asyncio, boto3, time
 from datetime import datetime, timedelta, date
 from scanerr import settings
 
@@ -150,7 +150,7 @@ def scan_page_bg(scan_id=None, configs=None, *args, **kwargs):
     if 'vrt' in scan.type or 'full' in scan.type:
         run_vrt_bg.delay(scan_id=scan.id)
 
-    logger.info('Added site and all pages')
+    logger.info('created new Scan of Page')
 
 
 
@@ -210,18 +210,15 @@ def run_html_and_logs_bg(scan_id=None, *args, **kwargs):
     run_html_and_logs_task(scan_id)
     logger.info('ran html & logs component')
 
-
 @shared_task
 def run_vrt_bg(scan_id=None, *args, **kwargs):
     run_vrt_task(scan_id)
     logger.info('ran vrt component')
 
-
 @shared_task
 def run_lighthouse_bg(scan_id=None, *args, **kwargs):
     run_lighthouse_task(scan_id)
     logger.info('ran lighthouse component')
-
 
 @shared_task
 def run_yellowlab_bg(scan_id=None, *args, **kwargs):
@@ -229,6 +226,37 @@ def run_yellowlab_bg(scan_id=None, *args, **kwargs):
     logger.info('ran yellowlab component')
 
 
+
+
+@shared_task
+def run_test(test_id, *args, **kwargs):
+    automation_id = kwargs.get('automation_id')
+    test = Test.objects.get(id=test_id)
+    T(test=test).run_test()
+
+    test = T(test=test).run_test()
+    if automation_id:
+        automation(automation_id, test.id)
+    logger.info('Test completed')
+
+
+@shared_task
+def check_scan_for_test(test_id=None, max_wait_time=500, *args, **kwargs):
+    automation_id = kwargs.get('automation_id')
+    test = Test.objects.get(id=test_id)
+    post_scan_id = test.post_scan.id
+
+    current_time = 0
+    while current_time < max_wait_time:
+        post_scan = Scan.objects.get(id=post_scan_id)
+        time.sleep(5)
+        if post_scan.time_completed is not None:
+           run_test.delay(test_id=test.id, automation_id=automation_id)
+           current_time += 500
+
+        current_time += 5
+
+    logger.info('Scan complete, begining Test')
 
 
 @shared_task
@@ -262,13 +290,21 @@ def _create_test(
     if post_scan is not None:
         post_scan = Scan.objects.get(id=post_scan)
 
-    if post_scan is None and pre_scan is not None:
-        post_scan = S(site=page.site, page=page, scan=pre_scan, configs=configs, type=type).second_scan()
+    if post_scan is None or pre_scan is None:
+        if pre_scan is None:
+            pre_scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
+        post_scan = Scan.objects.create(
+            site=page.site,
+            page=page,
+            tags=tags, 
+            type=type,
+            configs=configs,
+        )
+        scan_page_bg.delay(
+            scan_id=post_scan.id, 
+            configs=configs,
+        )
         
-    if pre_scan is None and post_scan is None:
-        new_scan = S(site=page.site, page=page, configs=configs, type=type)
-        post_scan = new_scan.second_scan()
-        pre_scan = post_scan.paired_scan
 
     # updating parired scans
     pre_scan.paired_scan = post_scan
@@ -282,11 +318,10 @@ def _create_test(
     created_test.post_scan = post_scan
     created_test.save()
     
-    # run tests
-    test = T(test=created_test).run_test(index=index)
-    if automation_id:
-        automation(automation_id, test.id)
-    logger.info('Created new test of page')
+    # monitor post_scan and run test after completion
+    check_scan_for_test.delay(test_id=created_test.id, automation_id=automation_id)
+    
+    logger.info('Began Scan/Test process')
 
 
 
