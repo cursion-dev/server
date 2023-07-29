@@ -2859,7 +2859,7 @@ def get_celery_task_length(request):
     for replica in reserved:
         all_tasks += len(reserved[replica])
     for replica in active:
-        all_tasks += reserved[replica]
+        all_tasks += len(active[replica])
 
     # return response
     data = {"all_tasks": str(all_tasks)}
