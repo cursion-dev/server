@@ -638,3 +638,15 @@ class SiteScreenshot(APIView):
     def post(self, request):
         response = create_site_screenshot(request)
         return response
+
+
+
+class CeleryTasks(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+    http_method_names = ['get',]
+    
+    def get(self, request):
+        response = get_celery_task_length(request)
+        return response
+
