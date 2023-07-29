@@ -25,6 +25,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: app-configs
+          env:
+            - name: THIS_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           resources:
             limits:
               cpu: "2"

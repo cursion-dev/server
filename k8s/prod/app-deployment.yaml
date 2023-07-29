@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server:8f7f90d # 
+          image: <IMAGE> # landonr/scanerr-server:1e6dca5 # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -33,11 +33,17 @@ spec:
                 python3 manage.py create_admin &&
                 python3 manage.py driver_s_test &&
                 python3 manage.py driver_p_test &&
-                python3 manage.py check_celery_tasks &&
+                printenv THIS_POD_NAME &&
                 gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
+            
           envFrom:
             - configMapRef:
                 name: app-configs
+          env:
+            - name: THIS_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           resources:
             limits:
               cpu: "2"
@@ -46,7 +52,7 @@ spec:
               cpu: "1"
               memory: "1Gi"
       #     volumeMounts:
-      #      - mountPath: "/app/api/migrations"
+      #      - mountPath: "/app/api/migrations" python3 manage.py check_celery_tasks &&
       #        name: app-volume
       # volumes:
       #   - name: app-volume

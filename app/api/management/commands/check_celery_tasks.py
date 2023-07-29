@@ -1,6 +1,6 @@
 from scanerr import celery
 from django.core.management.base import BaseCommand
-import time
+import time, os
 
 # checking if celery tasks have completed running
 
@@ -8,14 +8,16 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
+        this_pod = f"celery@{str(os.environ.get('THIS_POD_NAME'))}"
+
         def get_task_list():
             # Inspect all nodes.
             i = celery.app.control.inspect()
             # Tasks received, but are still waiting to be executed.
-            reserved = i.reserved()
+            reserved = i.reserved()[this_pod]
             print(f'Reserved tasks -> {str(reserved)}')
             # Active tasks
-            active = i.active()
+            active = i.active()[this_pod]
             print(f'Active tasks -> {str(reserved)}')
             tasks = len(active) + len(reserved)
         
