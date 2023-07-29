@@ -14,11 +14,12 @@ spec:
       labels:
         app: celery-deployment
     spec:
+      terminationGracePeriodSeconds: 1200
       imagePullSecrets:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # landonr/scanerr-server:802fed4 # 
+          image: <IMAGE> # landonr/scanerr-server:c6f563e #
           imagePullPolicy: Always
           command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info"]
           envFrom:
@@ -31,4 +32,7 @@ spec:
             requests:
               cpu: "1"
               memory: "1Gi"
-
+          lifecycle:
+            preStop:
+              exec:
+                command: ["python3 manage.py check_celery_tasks.py"]
