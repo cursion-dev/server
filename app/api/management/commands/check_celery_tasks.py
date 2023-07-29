@@ -1,4 +1,4 @@
-from ....scanerr.celery import app 
+from ...scanerr.celery import app
 from django.core.management.base import BaseCommand
 import time
 

@@ -35,4 +35,4 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["python3 manage.py check_celery_tasks.py"]
+                command: ["python3 manage.py check_celery_tasks"]
