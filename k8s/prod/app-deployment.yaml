@@ -33,7 +33,6 @@ spec:
                 python3 manage.py create_admin &&
                 python3 manage.py driver_s_test &&
                 python3 manage.py driver_p_test &&
-                printenv THIS_POD_NAME &&
                 gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
             
           envFrom:
@@ -51,14 +50,6 @@ spec:
             requests:
               cpu: "1"
               memory: "1Gi"
-      #     volumeMounts:
-      #      - mountPath: "/app/api/migrations" python3 manage.py check_celery_tasks &&
-      #        name: app-volume
-      # volumes:
-      #   - name: app-volume
-      #     persistentVolumeClaim:
-      #      claimName: app-pvc
-
 ---
 
 apiVersion: v1
