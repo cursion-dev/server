@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server:802fed4 # 
+          image: <IMAGE> # landonr/scanerr-server:8f7f90d # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -33,6 +33,7 @@ spec:
                 python3 manage.py create_admin &&
                 python3 manage.py driver_s_test &&
                 python3 manage.py driver_p_test &&
+                python3 manage.py check_celery_tasks &&
                 gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
           envFrom:
             - configMapRef:
