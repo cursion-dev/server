@@ -2862,6 +2862,6 @@ def get_celery_task_length(request):
         all_tasks += reserved[replica]
 
     # return response
-    data = {str(all_tasks)}
+    data = {"all_tasks": str(all_tasks)}
     response = Response(data, status=status.HTTP_200_OK)
     return response
