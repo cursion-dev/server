@@ -1,4 +1,4 @@
-from ...scanerr.celery import app
+from scanerr import celery
 from django.core.management.base import BaseCommand
 import time
 
@@ -10,7 +10,7 @@ class Command(BaseCommand):
 
         def get_task_list():
             # Inspect all nodes.
-            i = app.control.inspect()
+            i = celery.app.control.inspect()
             # Tasks received, but are still waiting to be executed.
             reserved = i.reserved()
             print(f'Reserved tasks -> {str(reserved)}')
