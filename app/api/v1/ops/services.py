@@ -1,10 +1,11 @@
-import json, boto3, asyncio
+import json, boto3, asyncio, os
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
+from scanerr import celery
 from .serializers import *
 from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
@@ -2838,3 +2839,29 @@ def get_site_stats(request):
     return response
 
 
+
+
+
+def get_celery_task_length(request):
+
+    # Inspect all nodes.
+    i = celery.app.control.inspect()
+    # Tasks received, but are still waiting to be executed.
+    reserved = i.reserved()
+    # Active tasks
+    active = i.active()
+    
+    # init task counter
+    all_tasks = 0
+
+    # loop through all reserved & active tasks and
+    # add length of array (tasks) to total
+    for replica in reserved:
+        all_tasks += len(reserved[replica])
+    for replica in active:
+        all_tasks += reserved[replica]
+
+    # return response
+    data = {"all_tasks": str(all_tasks)}
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
