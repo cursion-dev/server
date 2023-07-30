@@ -641,12 +641,12 @@ class SiteScreenshot(APIView):
 
 
 
-class CeleryTasks(APIView):
+class CeleryMetrics(APIView):
     authentication_classes = []
     permission_classes = (AllowAny,)
     http_method_names = ['get',]
     
     def get(self, request):
-        response = get_celery_task_length(request)
+        response = get_celery_metrics(request)
         return response
 

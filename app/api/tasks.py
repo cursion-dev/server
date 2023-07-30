@@ -6,11 +6,14 @@ from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
 from .v1.ops.tasks import (
-    create_site_task, create_scan_task, run_html_and_logs_task,
-    run_vrt_task, run_lighthouse_task, run_yellowlab_task, 
+    create_site_task, create_scan_task, 
     create_test_task, create_report_task, delete_report_s3,
     delete_site_s3, create_testcase_task, migrate_site_task,
     delete_testcase_s3,
+)
+from .utils.scanner import (
+    _html_and_logs, _vrt, _lighthouse, 
+    _yellowlab
 )
 from .models import *
 from django.contrib.auth.models import User
@@ -136,18 +139,18 @@ def crawl_site_bg(self, site_id=None, configs=None, *args, **kwargs):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def scan_page_bg(self, scan_id=None, configs=None, *args, **kwargs):
+def scan_page_bg(self, scan_id=None, test_id=None, automation_id=None, configs=None, *args, **kwargs):
     scan = Scan.objects.get(id=scan_id)
     
     # run each scan component in parallel
     if 'html' in scan.type or 'logs' in scan.type or 'full' in scan.type:
-        run_html_and_logs_bg.delay(scan_id=scan.id)
+        run_html_and_logs_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
     if 'lighthouse' in scan.type or 'full' in scan.type:
-        run_lighthouse_bg.delay(scan_id=scan.id)
+        run_lighthouse_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
     if 'yellowlab' in scan.type or 'full' in scan.type:
-        run_yellowlab_bg.delay(scan_id=scan.id)
+        run_yellowlab_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
     if 'vrt' in scan.type or 'full' in scan.type:
-        run_vrt_bg.delay(scan_id=scan.id)
+        run_vrt_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
 
     logger.info('created new Scan of Page')
 
@@ -206,23 +209,23 @@ def create_scan_bg(self, *args, **kwargs):
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_html_and_logs_bg(self, scan_id=None, *args, **kwargs):
-    run_html_and_logs_task(scan_id)
+def run_html_and_logs_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
+    _html_and_logs(scan_id, test_id, automation_id)
     logger.info('ran html & logs component')
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_vrt_bg(self, scan_id=None, *args, **kwargs):
-    run_vrt_task(scan_id)
+def run_vrt_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
+    _vrt(scan_id, test_id, automation_id)
     logger.info('ran vrt component')
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_lighthouse_bg(self, scan_id=None, *args, **kwargs):
-    run_lighthouse_task(scan_id)
+def run_lighthouse_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
+    _lighthouse(scan_id, test_id, automation_id)
     logger.info('ran lighthouse component')
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_yellowlab_bg(self, scan_id=None, *args, **kwargs):
-    run_yellowlab_task(scan_id)
+def run_yellowlab_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
+    _yellowlab(scan_id, test_id, automation_id)
     logger.info('ran yellowlab component')
 
 
@@ -301,6 +304,8 @@ def _create_test(
         )
         scan_page_bg.delay(
             scan_id=post_scan.id, 
+            test_id=created_test.id,
+            automation_id=automation_id,
             configs=configs,
         )
         
@@ -317,7 +322,11 @@ def _create_test(
     created_test.save()
     
     # monitor post_scan and run test after completion
-    check_scan_for_test.delay(test_id=created_test.id, automation_id=automation_id)
+    # check_scan_for_test.delay(test_id=created_test.id, automation_id=automation_id)
+
+    # check if pre and post scan are complete and start test if True
+    if pre_scan.time_completed is not None and post_scan.time_completed is not None:
+        run_test.delay(test_id=created_test.id, automation_id=automation_id)
     
     logger.info('Began Scan/Test process')
 

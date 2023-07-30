@@ -21,7 +21,7 @@ spec:
         - name: celery
           image: <IMAGE> # landonr/scanerr-server:7837ab3 # 
           imagePullPolicy: Always
-          command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info", "-c 2"]
+          command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info", "-c 3"]
           envFrom:
             - configMapRef:
                 name: app-configs
@@ -32,11 +32,11 @@ spec:
                   fieldPath: metadata.name
           resources:
             limits:
-              cpu: "2"
+              cpu: "1"
               memory: "4Gi"
             requests:
-              cpu: "2"
-              memory: "2Gi"
+              cpu: ".5"
+              memory: "1Gi"
           lifecycle:
             preStop:
               exec:

@@ -2,6 +2,8 @@ from .driver_s import driver_init as driver_s_init, quit_driver
 from .driver_s import driver_wait
 from .driver_p import get_data
 from ..models import *
+from .automations import automation
+from .tester import Tester
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
 from .lighthouse import Lighthouse
@@ -330,7 +332,7 @@ def update_page_info(scan):
 
 
 
-def check_scan_completion(scan):
+def check_scan_completion(scan, test_id, automation_id):
     """
         Method that checks if the scan has finished all 
         components. If so, method also updates Scan, Site, 
@@ -369,6 +371,14 @@ def check_scan_completion(scan):
         scan.time_completed = time_completed
         scan.save()
 
+        # start Test if test_id present
+        if test_id is not None:
+            print('\n-\n---------------\nScan Complete\nStarting Test...\n---------------\n')
+            test = Test.objects.get(id=test_id)
+            Tester(test=test).run_test()
+            if automation_id:
+                automation(automation_id, test.id)
+
     return scan
 
 
@@ -376,7 +386,7 @@ def check_scan_completion(scan):
 
 
 
-def _html_and_logs(scan_id):
+def _html_and_logs(scan_id, test_id, automation_id):
     """
         Method to run the 'html' and 'logs' component of the scan 
         allowing for multi-threading.
@@ -427,7 +437,7 @@ def _html_and_logs(scan_id):
 
 
     # checking if scan is done
-    scan = check_scan_completion(scan)
+    scan = check_scan_completion(scan, test_id, automation_id)
 
     return scan
 
@@ -435,7 +445,7 @@ def _html_and_logs(scan_id):
 
 
 
-def _vrt(scan_id):
+def _vrt(scan_id, test_id, automation_id):
     """
         Method to run the visual regression (vrt) component of the scan 
         allowing for multi-threading.
@@ -461,7 +471,7 @@ def _vrt(scan_id):
         print(e)
 
     # checking if scan is done
-    scan = check_scan_completion(scan)
+    scan = check_scan_completion(scan, test_id, automation_id)
 
     return scan
 
@@ -469,7 +479,7 @@ def _vrt(scan_id):
 
 
 
-def _lighthouse(scan_id):
+def _lighthouse(scan_id, test_id, automation_id):
     """
         Method to run the lighthouse component of the scan 
         allowing for multi-threading.
@@ -490,7 +500,7 @@ def _lighthouse(scan_id):
         print(e)
 
     # checking if scan is done
-    scan = check_scan_completion(scan)
+    scan = check_scan_completion(scan, test_id, automation_id)
 
     return scan
 
@@ -499,7 +509,7 @@ def _lighthouse(scan_id):
 
 
 
-def _yellowlab(scan_id):
+def _yellowlab(scan_id, test_id, automation_id):
     """
         Method to run the yellowlab component of the scan 
         allowing for multi-threading.
@@ -520,6 +530,6 @@ def _yellowlab(scan_id):
         print(e)
 
     # checking if scan is done
-    scan = check_scan_completion(scan)
+    scan = check_scan_completion(scan, test_id, automation_id)
 
     return scan
