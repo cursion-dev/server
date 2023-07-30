@@ -1,6 +1,6 @@
 # Scanerr Server (API repo)
 
-[![Build Status](https://github.com/scanerr-io/server/actions/workflows/workflow/badge.svg)](https://api.scanerr.io/)
+![Build Status](https://github.com/scanerr-io/server/actions/workflows/workflow.yml/badge.svg)
 
 This is the server repo for the Scanerr API, an error detection service designed to run front-end tests on web-apps and sites. This service is fully dockertized for local dev/testing as well as deployed environments. 
 
