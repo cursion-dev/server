@@ -1,8 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 from typing import Any
 from celery.utils.log import get_task_logger
-from celery import shared_task
-from celery import Task as BaseTask
+from celery import shared_task, Task
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
@@ -27,8 +26,7 @@ from scanerr import settings
 logger = get_task_logger(__name__)
 
 
-
-class BaseTaskWithRetry(celery.Task):
+class BaseTaskWithRetry(Task):
     autoretry_for = (Exception, KeyError)
     retry_kwargs = {'max_retries': 2}
     retry_backoff = True
