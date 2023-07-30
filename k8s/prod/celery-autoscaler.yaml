@@ -6,16 +6,15 @@ spec:
   scaleTargetRef:
     name: celery-deployment
   cooldownPeriod:  4000
-  pollingInterval: 10
+  pollingInterval: 15
   minReplicaCount: 2
   maxReplicaCount: 15
   triggers:
     - type: metrics-api
       metadata:
         targetValue: "5"
-        # activationTargetValue: "4"
-        url: "https://api.scanerr.io/v1/ops/metrics/celery/tasks"
-        valueLocation: "all_tasks"
+        url: "https://api.scanerr.io/v1/ops/metrics/celery"
+        valueLocation: "ratio"
 
 
 

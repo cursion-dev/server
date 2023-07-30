@@ -1190,7 +1190,7 @@ class Image():
                 # build two new images with differences highlighted
                 def highlight_diffs(pre_img_path, post_img_path, index):
                     '''
-                        Returns -> two new images with highlights
+                        Returns -> two new images with highlights & float(ssim_score)
                     '''
                     # Load the images
                     image1 = cv2.imread(pre_img_path)
@@ -1201,7 +1201,7 @@ class Image():
                     gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
 
                     # Compute the SSIM map
-                    (ssim_map, diff) = structural_similarity(gray1, gray2, full=True)
+                    (ssim_score, diff) = structural_similarity(gray1, gray2, full=True)
 
                     # Highlight the differences
                     diff = (diff * 255).astype("uint8")
@@ -1224,8 +1224,13 @@ class Image():
                     cv2.imwrite(temp_root + f"/{img_1_id}.png", image1)
                     cv2.imwrite(temp_root + f"/{img_2_id}.png", image2)                    
                     img_objs = save_images(img_1_id, img_2_id, index)
+                    
+                    data = {
+                        "img_objs": img_objs,
+                        "ssim_score": ssim_score
+                    }
 
-                    return img_objs
+                    return data
 
 
                 # saving old images to new test.id path
@@ -1310,10 +1315,13 @@ class Image():
 
                 # test images
                 try:
-                    # ssim scoring
-                    img_score_tupple = ssim(pre_img_array, post_img_array)
-                    img_score_list = list(img_score_tupple)
-                    ssim_img_score = statistics.fmean(img_score_list) * 100
+                    # generating new highlighted images and score via ssim
+                    ssim_results = highlight_diffs(pre_img_path, post_img_path, i)
+                    diff_imgs = ssim_results['img_objs']
+                    
+                    # img_score_tupple = ssim(pre_img_array, post_img_array)
+                    # img_score_list = list(img_score_tupple)  statistics.fmean(img_score_list)
+                    ssim_img_score =  ssim_results['ssim_score'] * 100
 
                     # pillow scoring
                     pil_img_score = pil_score(pre_img, post_img)
@@ -1323,9 +1331,6 @@ class Image():
 
                     # weighted average
                     img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
-
-                    # generating new highlighted images
-                    diff_imgs = highlight_diffs(pre_img_path, post_img_path, i)
 
                     # saving old images to test.id path
                     old_imgs = save_images(pre_img_obj['id'], post_img_obj['id'], i)

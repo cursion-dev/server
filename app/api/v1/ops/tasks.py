@@ -48,28 +48,6 @@ def create_scan_task(
 
 
 
-
-
-def run_html_and_logs_task(scan_id=None):
-    scan = _html_and_logs(scan_id)
-    return scan
-
-def run_vrt_task(scan_id=None):
-    scan = _vrt(scan_id)
-    return scan
-
-def run_lighthouse_task(scan_id=None):
-    scan = _lighthouse(scan_id)
-    return scan
-
-def run_yellowlab_task(scan_id=None):
-    scan = _yellowlab(scan_id)
-    return scan
-
-
-
-
-
 def create_test_task(
         test_id=None, 
         page_id=None,

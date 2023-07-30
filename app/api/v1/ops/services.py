@@ -2843,7 +2843,7 @@ def get_site_stats(request):
 
 
 
-def get_celery_task_length(request):
+def get_celery_metrics(request):
 
     # Inspect all nodes.
     i = celery.app.control.inspect()
@@ -2852,17 +2852,30 @@ def get_celery_task_length(request):
     # Active tasks
     active = i.active()
     
-    # init task counter
-    all_tasks = 0
+    # init task & replica counters
+    # & ratio 
+    num_tasks = 0
+    num_replicas = 0
+    ratio = 0
 
     # loop through all reserved & active tasks and
     # add length of array (tasks) to total
     for replica in reserved:
-        all_tasks += len(reserved[replica])
+        num_tasks += len(reserved[replica])
+        num_replicas += 1
     for replica in active:
-        all_tasks += len(active[replica])
+        num_tasks += len(active[replica])
+        num_replicas += 1
+
+    # build metrics
+    if num_replicas > 0:
+        ratio = num_tasks / num_replicas
 
     # return response
-    data = {"all_tasks": str(all_tasks)}
+    data = {
+        "num_tasks": num_tasks,
+        "num_replicas": num_replicas,
+        "ratio": ratio
+    }
     response = Response(data, status=status.HTTP_200_OK)
     return response
