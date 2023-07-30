@@ -28,6 +28,14 @@ logger = get_task_logger(__name__)
 
 
 
+class BaseTaskWithRetry(celery.Task):
+    autoretry_for = (Exception, KeyError)
+    retry_kwargs = {'max_retries': 2}
+    retry_backoff = True
+
+
+
+
 
 @shared_task
 def test_pupeteer():
@@ -35,15 +43,8 @@ def test_pupeteer():
     logger.info('Tested pupeteer instalation')
 
 
-@shared_task
-def create_site_bg(site_id=None, scan_id=None, configs=None, *args, **kwargs):
-    create_site_task(site_id, scan_id, configs)
-    logger.info('Created scan of new site')
-
-
-
-@shared_task
-def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def create_site_and_pages_bg(self, site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
     site.time_crawl_started = timezone.now()
     site.time_crawl_completed = None
@@ -83,8 +84,8 @@ def create_site_and_pages_bg(site_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task
-def crawl_site_bg(site_id=None, configs=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def crawl_site_bg(self, site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
     site.time_crawl_started = timezone.now()
     site.time_crawl_completed = None
@@ -136,8 +137,8 @@ def crawl_site_bg(site_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task
-def scan_page_bg(scan_id=None, configs=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def scan_page_bg(self, scan_id=None, configs=None, *args, **kwargs):
     scan = Scan.objects.get(id=scan_id)
     
     # run each scan component in parallel
@@ -154,8 +155,9 @@ def scan_page_bg(scan_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task
+@shared_task(bing=True, base=BaseTaskWithRetry)
 def _create_scan(
+        self,
         scan_id=None,
         page_id=None, 
         type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
@@ -177,8 +179,8 @@ def _create_scan(
 
 
 
-@shared_task
-def create_scan_bg(*args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def create_scan_bg(self, *args, **kwargs):
     # get data
     site_id = kwargs.get('site_id')
     page_id = kwargs.get('page_id')
@@ -205,31 +207,31 @@ def create_scan_bg(*args, **kwargs):
 
 
 
-@shared_task
-def run_html_and_logs_bg(scan_id=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def run_html_and_logs_bg(self, scan_id=None, *args, **kwargs):
     run_html_and_logs_task(scan_id)
     logger.info('ran html & logs component')
 
-@shared_task
-def run_vrt_bg(scan_id=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def run_vrt_bg(self, scan_id=None, *args, **kwargs):
     run_vrt_task(scan_id)
     logger.info('ran vrt component')
 
-@shared_task
-def run_lighthouse_bg(scan_id=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def run_lighthouse_bg(self, scan_id=None, *args, **kwargs):
     run_lighthouse_task(scan_id)
     logger.info('ran lighthouse component')
 
-@shared_task
-def run_yellowlab_bg(scan_id=None, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def run_yellowlab_bg(self, scan_id=None, *args, **kwargs):
     run_yellowlab_task(scan_id)
     logger.info('ran yellowlab component')
 
 
 
 
-@shared_task
-def run_test(test_id, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def run_test(self, test_id, *args, **kwargs):
     automation_id = kwargs.get('automation_id')
     test = Test.objects.get(id=test_id)
     T(test=test).run_test()
@@ -240,8 +242,8 @@ def run_test(test_id, *args, **kwargs):
     logger.info('Test completed')
 
 
-@shared_task
-def check_scan_for_test(test_id=None, max_wait_time=500, *args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def check_scan_for_test(self, test_id=None, max_wait_time=500, *args, **kwargs):
     automation_id = kwargs.get('automation_id')
     test = Test.objects.get(id=test_id)
     post_scan_id = test.post_scan.id
@@ -259,8 +261,9 @@ def check_scan_for_test(test_id=None, max_wait_time=500, *args, **kwargs):
     logger.info('Scan complete, begining Test')
 
 
-@shared_task
+@shared_task(bing=True, base=BaseTaskWithRetry)
 def _create_test(
+        self,
         test_id=None,
         page_id=None, 
         automation_id=None, 
@@ -305,7 +308,6 @@ def _create_test(
             configs=configs,
         )
         
-
     # updating parired scans
     pre_scan.paired_scan = post_scan
     post_scan.paried_scan = pre_scan
@@ -326,8 +328,8 @@ def _create_test(
 
 
 
-@shared_task
-def create_test_bg(*args, **kwargs):
+@shared_task(bing=True, base=BaseTaskWithRetry)
+def create_test_bg(self, *args, **kwargs):
     # get data
     site_id = kwargs.get('site_id')
     page_id = kwargs.get('page_id')
@@ -482,8 +484,9 @@ def purge_logs(username=None, *args, **kwargs):
     logger.info('Purged logs')
 
 
-@shared_task
+@shared_task(bing=True, base=BaseTaskWithRetry)
 def create_testcase_bg(
+        self, 
         testcase_id=None, 
         site_id=None, 
         case_id=None, 

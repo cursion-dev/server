@@ -5,17 +5,69 @@ metadata:
 spec:
   scaleTargetRef:
     name: celery-deployment
-  pollingInterval: 3
+  cooldownPeriod:  4000
+  pollingInterval: 10
   minReplicaCount: 2
   maxReplicaCount: 15
   triggers:
-    - type: redis
+    - type: metrics-api
       metadata:
-        address: redis.default.svc.cluster.local:6379  # Format must be host:port redis:6379
-        listName: celery # Required
-        listLength: "5" # Required
-        activationListLength: "5" # optional
-        enableTLS: "false" # optional
-        unsafeSsl: "false" # optional
-        databaseIndex: "0" # optional
+        targetValue: "5"
+        # activationTargetValue: "4"
+        url: "https://api.scanerr.io/v1/ops/metrics/celery/tasks"
+        valueLocation: "all_tasks"
+
+
+
+
+
+
+
+
+
+# apiVersion: keda.sh/v1alpha1
+# kind: ScaledObject
+# metadata:
+#   name: celery-scaler
+# spec:
+#   scaleTargetRef:
+#     name: celery-deployment
+#   pollingInterval: 3
+#   minReplicaCount: 2
+#   maxReplicaCount: 15
+#   triggers:
+#     - type: redis
+#       metadata:
+#         address: redis.default.svc.cluster.local:6379  # Format must be host:port redis:6379
+#         listName: celery # Required
+#         listLength: "5" # Required
+#         activationListLength: "5" # optional
+#         enableTLS: "false" # optional
+#         unsafeSsl: "false" # optional
+#         databaseIndex: "0" # optional
+
+
+
+
+# apiVersion: keda.sh/v1alpha1
+# kind: ScaledObject
+# metadata:
+#   name: celery-scaler
+# spec:
+#   scaleTargetRef:
+#     name: celery-deployment
+#   cooldownPeriod:  4000
+#   pollingInterval: 3
+#   minReplicaCount: 2
+#   maxReplicaCount: 15
+#   triggers:
+#   - type: rabbitmq
+#     metadata:
+#       host: amqp://rabbitmq.default.svc.cluster.local:5672 # rabbitmq.default.svc.cluster.local:5672 Optional. If not specified, it must be done by using TriggerAuthentication.
+#       mode: QueueLength # QueueLength or MessageRate
+#       value: "5" # message backlog or publish/sec. target per instance
+#       activationValue: "5" # Optional. Activation threshold
+#       queueName: celery
+
+
 

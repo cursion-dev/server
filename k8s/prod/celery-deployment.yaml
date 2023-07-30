@@ -14,7 +14,7 @@ spec:
       labels:
         app: celery-deployment
     spec:
-      terminationGracePeriodSeconds: 2000
+      terminationGracePeriodSeconds: 4000
       imagePullSecrets:
         - name: regcred
       containers:
