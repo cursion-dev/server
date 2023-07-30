@@ -13,7 +13,6 @@ spec:
     - type: metrics-api
       metadata:
         targetValue: "5"
-        # activationTargetValue: "4"
         url: "https://api.scanerr.io/v1/ops/metrics/celery/tasks"
         valueLocation: "all_tasks"
 
