@@ -2865,7 +2865,6 @@ def get_celery_metrics(request):
         num_replicas += 1
     for replica in active:
         num_tasks += len(active[replica])
-        num_replicas += 1
 
     # build metrics
     if num_replicas > 0:
