@@ -30,7 +30,7 @@ logger = get_task_logger(__name__)
 
 class BaseTaskWithRetry(celery.Task):
     autoretry_for = (Exception, KeyError)
-    retry_kwargs = {'max_retries': 5}
+    retry_kwargs = {'max_retries': 2}
     retry_backoff = True
 
 
