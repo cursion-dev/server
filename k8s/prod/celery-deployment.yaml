@@ -19,9 +19,9 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # landonr/scanerr-server:c6f563e #
+          image: <IMAGE> # landonr/scanerr-server:7837ab3 # 
           imagePullPolicy: Always
-          command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info"]
+          command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info", "-c 2"]
           envFrom:
             - configMapRef:
                 name: app-configs
@@ -35,8 +35,8 @@ spec:
               cpu: "2"
               memory: "4Gi"
             requests:
-              cpu: "1"
-              memory: "1Gi"
+              cpu: "2"
+              memory: "2Gi"
           lifecycle:
             preStop:
               exec:
