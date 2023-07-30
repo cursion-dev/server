@@ -232,8 +232,6 @@ def run_yellowlab_bg(self, scan_id=None, *args, **kwargs):
 def run_test(self, test_id, *args, **kwargs):
     automation_id = kwargs.get('automation_id')
     test = Test.objects.get(id=test_id)
-    T(test=test).run_test()
-
     test = T(test=test).run_test()
     if automation_id:
         automation(automation_id, test.id)
