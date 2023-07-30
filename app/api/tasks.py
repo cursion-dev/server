@@ -41,7 +41,7 @@ def test_pupeteer():
     logger.info('Tested pupeteer instalation')
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def create_site_and_pages_bg(self, site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
     site.time_crawl_started = timezone.now()
@@ -82,7 +82,7 @@ def create_site_and_pages_bg(self, site_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def crawl_site_bg(self, site_id=None, configs=None, *args, **kwargs):
     site = Site.objects.get(id=site_id)
     site.time_crawl_started = timezone.now()
@@ -135,7 +135,7 @@ def crawl_site_bg(self, site_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def scan_page_bg(self, scan_id=None, configs=None, *args, **kwargs):
     scan = Scan.objects.get(id=scan_id)
     
@@ -153,7 +153,7 @@ def scan_page_bg(self, scan_id=None, configs=None, *args, **kwargs):
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def _create_scan(
         self,
         scan_id=None,
@@ -177,7 +177,7 @@ def _create_scan(
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def create_scan_bg(self, *args, **kwargs):
     # get data
     site_id = kwargs.get('site_id')
@@ -195,6 +195,7 @@ def create_scan_bg(self, *args, **kwargs):
 
     for page in pages:
         _create_scan.delay(
+            self,
             page_id=page.id,
             type=type,
             configs=configs,
@@ -205,22 +206,22 @@ def create_scan_bg(self, *args, **kwargs):
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_html_and_logs_bg(self, scan_id=None, *args, **kwargs):
     run_html_and_logs_task(scan_id)
     logger.info('ran html & logs component')
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_vrt_bg(self, scan_id=None, *args, **kwargs):
     run_vrt_task(scan_id)
     logger.info('ran vrt component')
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_lighthouse_bg(self, scan_id=None, *args, **kwargs):
     run_lighthouse_task(scan_id)
     logger.info('ran lighthouse component')
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_yellowlab_bg(self, scan_id=None, *args, **kwargs):
     run_yellowlab_task(scan_id)
     logger.info('ran yellowlab component')
@@ -228,7 +229,7 @@ def run_yellowlab_bg(self, scan_id=None, *args, **kwargs):
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_test(self, test_id, *args, **kwargs):
     automation_id = kwargs.get('automation_id')
     test = Test.objects.get(id=test_id)
@@ -240,7 +241,7 @@ def run_test(self, test_id, *args, **kwargs):
     logger.info('Test completed')
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def check_scan_for_test(self, test_id=None, max_wait_time=500, *args, **kwargs):
     automation_id = kwargs.get('automation_id')
     test = Test.objects.get(id=test_id)
@@ -259,7 +260,7 @@ def check_scan_for_test(self, test_id=None, max_wait_time=500, *args, **kwargs):
     logger.info('Scan complete, begining Test')
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def _create_test(
         self,
         test_id=None,
@@ -302,6 +303,7 @@ def _create_test(
             configs=configs,
         )
         scan_page_bg.delay(
+            self,
             scan_id=post_scan.id, 
             configs=configs,
         )
@@ -326,7 +328,7 @@ def _create_test(
 
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def create_test_bg(self, *args, **kwargs):
     # get data
     site_id = kwargs.get('site_id')
@@ -349,6 +351,7 @@ def create_test_bg(self, *args, **kwargs):
 
         for page in pages:
             _create_test.delay(
+                self, 
                 page_id=page.id,
                 type=type,
                 configs=configs,
@@ -361,6 +364,7 @@ def create_test_bg(self, *args, **kwargs):
     if test_id is not None:
         test = Test.objects.get(id=test_id)
         _create_test.delay(
+            self,
             test_id=test_id,
             page_id=test.page.id,
             type=type,
@@ -482,7 +486,7 @@ def purge_logs(username=None, *args, **kwargs):
     logger.info('Purged logs')
 
 
-@shared_task(bing=True, base=BaseTaskWithRetry)
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def create_testcase_bg(
         self, 
         testcase_id=None, 
