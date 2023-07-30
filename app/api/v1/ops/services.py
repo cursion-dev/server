@@ -1249,7 +1249,8 @@ def create_test(request=None, delay=False, *args, **kwargs):
             type=test_type,
             tags=tags,
         )
-        
+        created_tests.append(str(test.id))
+
         if delay == True:
             create_test_bg.delay(
                 page_id=p.id,
