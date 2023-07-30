@@ -57,7 +57,6 @@ kind: Service
 metadata:
   name: app-service
 spec:
-  externalTrafficPolicy: Cluster
   selector:
     app:  app-deployment
   ports:
