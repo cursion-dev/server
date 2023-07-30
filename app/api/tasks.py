@@ -195,7 +195,6 @@ def create_scan_bg(self, *args, **kwargs):
 
     for page in pages:
         _create_scan.delay(
-            self,
             page_id=page.id,
             type=type,
             configs=configs,
@@ -303,7 +302,6 @@ def _create_test(
             configs=configs,
         )
         scan_page_bg.delay(
-            self,
             scan_id=post_scan.id, 
             configs=configs,
         )
@@ -351,7 +349,6 @@ def create_test_bg(self, *args, **kwargs):
 
         for page in pages:
             _create_test.delay(
-                self, 
                 page_id=page.id,
                 type=type,
                 configs=configs,
@@ -364,7 +361,6 @@ def create_test_bg(self, *args, **kwargs):
     if test_id is not None:
         test = Test.objects.get(id=test_id)
         _create_test.delay(
-            self,
             test_id=test_id,
             page_id=test.page.id,
             type=type,
