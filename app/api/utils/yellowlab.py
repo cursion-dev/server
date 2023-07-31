@@ -1,5 +1,6 @@
-import subprocess, json
+import subprocess, json, uuid, boto3, shutil
 from ..models import Site, Scan
+from scanerr import settings
 
 
 
@@ -93,9 +94,28 @@ class Yellowlab():
                     "serverConfig": serverConfig_score,
                 }
 
+                # save audits data as json file
+                file_id = uuid.uuid4()
+                with open(f'{file_id}.json', 'w') as fp:
+                    json.dump(audits, fp)
+                
+                # upload to s3 and return url
+                audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.png')
+                remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.png'
+                root_path = settings.AWS_S3_URL_PATH
+                audits_url = f'{root_path}/{remote_path}'
+            
+                # upload to s3
+                with open(audit_file, 'rb') as data:
+                    s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                    )
+                # remove local copy
+                os.remove(image)
+
                 data = {
                     "scores": scores, 
-                    "audits": audits,
+                    "audits": audits_url,
                     "failed": False
                 }
 
