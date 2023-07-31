@@ -1129,8 +1129,6 @@ class Image():
             - Structral Similarity Index (ssim)
             - PIL ImageChop Differences, Ratio
             - cv2 ORB Brute-force Matcher, Ratio
-
-        
         """
 
         # setup boto3 configurations
@@ -1165,11 +1163,6 @@ class Image():
             with open(pre_img_path, 'wb') as data:
                 s3.download_fileobj(str(settings.AWS_STORAGE_BUCKET_NAME), pre_img_obj["path"], data)
             
-            # open with PIL Image library
-            pre_img = I.open(pre_img_path)
-            # convert to array
-            pre_img_array = numpy.array(pre_img)
-
             # getting post_scan image
             try:
                 post_img_obj = test.post_scan.images[i]
@@ -1181,10 +1174,24 @@ class Image():
                 with open(post_img_path, 'wb') as data:
                     s3.download_fileobj(str(settings.AWS_STORAGE_BUCKET_NAME), post_img_obj["path"], data)
                 
-                # open with PIL Image library
+                # open images with PIL Image library
                 post_img = I.open(post_img_path)
-                # convert to array
-                post_img_array = numpy.array(post_img)
+                pre_img = I.open(pre_img_path)
+                
+                # check and reformat image sizes if necessary
+                pre_img_w, pre_img_h = pre_img.size
+                post_img_w, post_img_h = post_img.size
+
+                # pre_img is longer
+                if pre_img_h > post_img_h:
+                    new_pre_img = pre_img.crop((0, 0, pre_img_w, post_img_h))
+                    new_pre_img.save(pre_img_path, quality=100)
+                    pre_img = I.open(pre_img_path)
+                # post_img is longer
+                if post_img_h > pre_img_h:
+                    post_img = post_img.crop((0, 0, post_img_w, pre_img_h))
+                    new_post_img.save(post_img_path, quality=100)
+                    new_post_img = I.open(post_img_path)
 
 
                 # build two new images with differences highlighted
@@ -1284,9 +1291,13 @@ class Image():
 
 
                 # test with cv2
-                def cv2_score(pre_img_array, post_img_array):
+                def cv2_score(pre_img, post_img):
                     try:
                         orb = cv2.ORB_create()
+
+                        # convert to array
+                        pre_img_array = numpy.array(pre_img)
+                        post_img_array = numpy.array(post_img)
 
                         # detect keypoints and descriptors
                         kp_a, desc_a = orb.detectAndCompute(pre_img_array, None)
@@ -1317,7 +1328,8 @@ class Image():
                 try:
                     # generating new highlighted images and score via ssim
                     ssim_results = highlight_diffs(pre_img_path, post_img_path, i)
-                    diff_imgs = ssim_results['img_objs']
+                    pre_img_diff = ssim_results['img_objs'][0]
+                    post_img_diff = ssim_results['img_objs'][1]
                     
                     # img_score_tupple = ssim(pre_img_array, post_img_array)
                     # img_score_list = list(img_score_tupple)  statistics.fmean(img_score_list)
@@ -1334,18 +1346,24 @@ class Image():
 
                     # saving old images to test.id path
                     old_imgs = save_images(pre_img_obj['id'], post_img_obj['id'], i)
+                    pre_img = old_imgs[0]
+                    post_img = old_imgs[1]
 
                 except Exception as e:
                     print(e)
                     img_score = None
+                    pre_img = None
+                    post_img = None
+                    pre_img_diff = None
+                    post_img_diff = None
 
                 # create img test obj and add to array
                 img_test_obj = {
                     "index": i, 
-                    "pre_img": old_imgs[0],
-                    "post_img": old_imgs[1],
-                    "pre_img_diff": diff_imgs[0], 
-                    "post_img_diff": diff_imgs[1], 
+                    "pre_img": pre_img,
+                    "post_img": post_img,
+                    "pre_img_diff": pre_img_diff, 
+                    "post_img_diff": post_img_diff, 
                     "score": img_score,
                 }
 
