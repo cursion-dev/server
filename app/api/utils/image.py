@@ -1189,9 +1189,9 @@ class Image():
                     pre_img = I.open(pre_img_path)
                 # post_img is longer
                 if post_img_h > pre_img_h:
-                    post_img = post_img.crop((0, 0, post_img_w, pre_img_h))
+                    new_post_img = post_img.crop((0, 0, post_img_w, pre_img_h))
                     new_post_img.save(post_img_path, quality=100)
-                    new_post_img = I.open(post_img_path)
+                    post_img = I.open(post_img_path)
 
 
                 # build two new images with differences highlighted

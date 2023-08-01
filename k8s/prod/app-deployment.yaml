@@ -60,7 +60,7 @@ metadata:
     service: app
 spec:
   type: NodePort
-  externalTrafficPolicy: Local
+  externalTrafficPolicy: Cluster
   selector:
     app:  app-deployment
   ports:
