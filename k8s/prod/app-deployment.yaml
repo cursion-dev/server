@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server:9e5b01f # 
+          image: <IMAGE> # landonr/scanerr-server:04401a7 # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -59,8 +59,8 @@ metadata:
   labels:
     service: app
 spec:
-  type: NodePort
-  externalTrafficPolicy: Cluster
+  # type: NodePort
+  # externalTrafficPolicy: Cluster
   selector:
     app:  app-deployment
   ports:
