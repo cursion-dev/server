@@ -1339,7 +1339,7 @@ class Image():
                     pil_img_score = pil_score(pre_img, post_img)
                     
                     # pixel perfect scoring
-                    cv2_img_score = cv2_score(pre_img_array, post_img_array)
+                    cv2_img_score = cv2_score(pre_img, post_img)
 
                     # weighted average
                     img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8

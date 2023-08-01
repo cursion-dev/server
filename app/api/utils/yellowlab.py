@@ -100,18 +100,18 @@ class Yellowlab():
                     json.dump(audits, fp)
                 
                 # upload to s3 and return url
-                audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.png')
-                remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.png'
+                audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+                remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
                 root_path = settings.AWS_S3_URL_PATH
                 audits_url = f'{root_path}/{remote_path}'
             
                 # upload to s3
                 with open(audit_file, 'rb') as data:
                     s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
                     )
                 # remove local copy
-                os.remove(image)
+                os.remove(audit_file)
 
                 data = {
                     "scores": scores, 

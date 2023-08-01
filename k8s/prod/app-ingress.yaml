@@ -2,9 +2,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: app-ingress
-  ## ensure below section is commented out on first creation ##
-  # annotations:
-  #   cert-manager.io/cluster-issuer: letsencrypt-nginx     
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    ## ensure below section is commented out on first creation ##
+    # cert-manager.io/cluster-issuer: letsencrypt-nginx     
 spec:
   ## ensure below section is comented out on first creation ##
   # tls:
