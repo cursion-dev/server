@@ -24,13 +24,13 @@ class Tester():
 
         white_list = ['csrfmiddlewaretoken', '<!DOCTYPE html>',]
         tags = [
-            '<head', '<script', '<div', '<p', '<h1', '<wbr', '<ul', '<tr', '<u', '<title',  
+            '<head', '<script', '<div', '<p', '<h1', '<wbr', '<ul', '<tr', '<u', '<title', '<iframe',  
             '<section', '<source', '<style', '<q', '<option', '<nav', '<menu', '<mark', '<map', '<meta', '<keygen', '<link',
             '<li', '<legend', '<label', '<input', '<img', '<i', '<hr', '<hgroup', '<h2', '<h3', '<h4', '<h5', '<h6', '<form', 
             '<footer', '<figure', '<fieldset', '<embed', '<em', '<dt', '<dl', '<dialog', '<dfn', '<details', '<del', '<dd', 
             '<datalist', '<data', '<colgroup', '<col', '<code', '<cite', '<caption', '<canvas', '<button', '<body', '<blockquote',
             '<bdo', '<bdi', '<base', '<pre', '<b', '<br', '<audio', '<aside', '<article', '<area', '<address', '<abbr', '<a',
-            '<!DOCTYPE html>', '</head', '</script', '</div', '</p', '</h1', '</wbr', '</ul', '</tr', '</u', '</title',  
+            '<!DOCTYPE html>', '</head', '</script', '</div', '</p', '</h1', '</wbr', '</ul', '</tr', '</u', '</title', '</iframe',  
             '</section', '</source', '</style', '</q', '</option', '</nav', '</menu', '</mark', '</map', '</meta', '</keygen', '</link',
             '</li', '</legend', '</label', '</input', '</img', '</i', '</hr', '</hgroup', '</h2', '</h3', '</h4', '</h5', '</h6', '</form', 
             '</footer', '</figure', '</fieldset', '</embed', '</em', '</dt', '</dl', '</dialog', '</dfn', '</details', '</del', '</dd', 
@@ -411,14 +411,15 @@ class Tester():
                 if _test.score is not None:
                     tests.append(_test.score)
         
-        # calc site average of latest
-        site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
+        if len(tests) > 0:
+            # calc site average of latest
+            site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
 
-        site.info['latest_test']['id'] = str(test.id)
-        site.info['latest_test']['time_created'] = str(test.time_created)
-        site.info['latest_test']['time_completed'] = str(test.time_completed)
-        site.info['latest_test']['score'] = site_avg_test_score
-        site.save()
+            site.info['latest_test']['id'] = str(test.id)
+            site.info['latest_test']['time_created'] = str(test.time_created)
+            site.info['latest_test']['time_completed'] = str(test.time_completed)
+            site.info['latest_test']['score'] = site_avg_test_score
+            site.save()
 
         return site
 
