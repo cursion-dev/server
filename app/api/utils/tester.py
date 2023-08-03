@@ -411,14 +411,15 @@ class Tester():
                 if _test.score is not None:
                     tests.append(_test.score)
         
-        # calc site average of latest
-        site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
+        if len(tests) > 0:
+            # calc site average of latest
+            site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
 
-        site.info['latest_test']['id'] = str(test.id)
-        site.info['latest_test']['time_created'] = str(test.time_created)
-        site.info['latest_test']['time_completed'] = str(test.time_completed)
-        site.info['latest_test']['score'] = site_avg_test_score
-        site.save()
+            site.info['latest_test']['id'] = str(test.id)
+            site.info['latest_test']['time_created'] = str(test.time_created)
+            site.info['latest_test']['time_completed'] = str(test.time_completed)
+            site.info['latest_test']['score'] = site_avg_test_score
+            site.save()
 
         return site
 
