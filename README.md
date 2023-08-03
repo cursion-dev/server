@@ -13,6 +13,6 @@ Copyright © Scanerr 2023
 &nbsp;
 
 ## Guides
-- [Deployment (single Server)](notes/Deployment.md)
+- [Server Deployment](notes/Deployment.md)
 - [k8s Deployment](k8s/kubernetes-notes.md)
 &nbsp;
