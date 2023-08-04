@@ -31,7 +31,7 @@ class Reporter():
         else:
             self.scan = scan
 
-        #building paths & canvas template
+        # building paths & canvas template
         if os.path.exists(os.path.join(settings.BASE_DIR,  f'temp/')):
             self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
         else:
@@ -44,6 +44,13 @@ class Reporter():
         self.background_color = self.report.info['background_color']
         self.c = canvas.Canvas(self.local_path, letter)
         self.y = 9
+
+        # define s3 instance
+        self.s3 = boto3.client('s3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
 
     
     def setup_page(self):
@@ -71,15 +78,11 @@ class Reporter():
     def publish_report(self):
         self.c.save()
         remote_path = f'static/sites/{self.report.page.site.id}/{self.report.page.id}/{self.report.id}.pdf'
-        s3 = boto3.client('s3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-            region_name=str(settings.AWS_S3_REGION_NAME), 
-            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-        )
+        
 
         # uploading package to remote s3 
         with open(self.local_path, 'rb') as data:
-            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME),
+            self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME),
                 remote_path, ExtraArgs={
                     'ACL': 'public-read', 'ContentType': 'application/pdf'}
             )
@@ -250,6 +253,20 @@ class Reporter():
 
         return string
 
+    
+    
+    def get_audits(self, uri=str):
+        """
+        Downloads teh JSON file from the passed uri
+        and return the data as a python dict
+        """
+        uri = 'static/sites/' + uri.lstrip(f'{settings.AWS_S3_URL_PATH}')
+        audits_raw = self.s3.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=uri)['Body'].read().decode('utf-8')
+        audits = json.loads(audits_raw)
+
+        return audits
+
+
 
 
     def create_data(self, data_type=str):
@@ -257,11 +274,13 @@ class Reporter():
         
         if data_type == 'yellowlab':
             data = self.scan.yellowlab
+            data['audits'] = self.get_audits(data['audits'])
             page_title = 'Yellow Lab'
             avg_score = 'globalScore'
         
         if data_type == 'lighthouse':
             data = self.scan.lighthouse
+            data['audits'] = self.get_audits(data['audits'])
             page_title = 'Lighthouse'
             avg_score = 'average'
             

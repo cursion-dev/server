@@ -1156,6 +1156,16 @@ class Image():
             pre_scan_images = [test.pre_scan.images[index]]
             i = index
 
+        # catching user error when scan_type 
+        # did not include 'vrt'
+        if pre_scan_images is None:
+            images_delta = {
+                "average_score": None,
+                "images": None,
+            }
+            return images_delta
+
+
         for pre_img_obj in pre_scan_images:
             
             # getting pre_scan image
