@@ -371,7 +371,7 @@ class AutomationDetail(APIView):
         user = request.user
         account = Member.objects.get(user=user).account
 
-        if automation.user != request.user:
+        if automation.account != account:
             data = {'reason': 'you cannot retrieve Automations you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)

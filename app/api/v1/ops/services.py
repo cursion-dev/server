@@ -1958,13 +1958,13 @@ def create_or_update_automation(request):
         try:
             automation = Automation.objects.get(id=schedule.automation.id)
             if automation.account != account and automation.account != None:
-                data = {'reason': 'update a Automation you do not own',}
+                data = {'reason': 'You cannot update a Automation you do not own',}
                 record_api_call(request, data, '403')
                 return Response(data, status=status.HTTP_403_FORBIDDEN)
         except:
             automation = None
         if schedule.account != account and schedule.account != None:
-            data = {'reason': 'create a Automation of a Schedule you do not own',}
+            data = {'reason': 'You cannot create a Automation of a Schedule you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
     except:
@@ -2040,7 +2040,6 @@ def get_automations(request):
             data = {'reason': 'cannot find a Automation with that id'}
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
-
         if automation.account != account:
             data = {'reason': 'retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
