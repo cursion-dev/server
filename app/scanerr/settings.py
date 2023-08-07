@@ -190,10 +190,10 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 
-# Redis and Celery Conf
+# Redis and Celery Config
 CELERY_BROKER_URL = "redis://redis:6379"
 
-# RabbitMQ and Celery Conf
+# RabbitMQ and Celery Config
 # CELERY_BROKER_URL = "amqp://rabbitmq"
 
 
