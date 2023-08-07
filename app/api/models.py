@@ -449,7 +449,7 @@ class Report(models.Model):
     info = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.site.site_url}__report'
+        return f'{self.page.page_url}__report'
 
 
 
