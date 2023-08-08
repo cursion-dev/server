@@ -475,97 +475,112 @@ class Tester():
 
 
         if 'html' in self.test.type or 'full' in self.test.type:
-            # scores
-            html_score = self.compare_html()
-            delta_html_data = self.delta_html()
-            num_html_ratio = delta_html_data['num_html_ratio']
-            micro_diff_score = self.html_micro_diff_score(
+            try:
+                # scores
+                html_score = self.compare_html()
+                delta_html_data = self.delta_html()
+                num_html_ratio = delta_html_data['num_html_ratio']
+                micro_diff_score = self.html_micro_diff_score(
                     delta_html_data['post_micro_delta']['delta_parsed_diff']
                 )
-            
-            # weights
-            html_score_w = 1
-            num_html_w = 1
-            micro_diff_w = 2
-            
-            # data
-            html_delta_context = {
-                "pre_html_delta": delta_html_data['delta_html_pre'],
-                "post_html_delta": delta_html_data['delta_html_post'],
-                "pre_micro_delta": delta_html_data['pre_micro_delta'],
-                "post_micro_delta": delta_html_data['post_micro_delta'],
-            }
+                
+                # weights
+                html_score_w = 1
+                num_html_w = 1
+                micro_diff_w = 2
+                
+                # data
+                html_delta_context = {
+                    "pre_html_delta": delta_html_data['delta_html_pre'],
+                    "post_html_delta": delta_html_data['delta_html_post'],
+                    "pre_micro_delta": delta_html_data['pre_micro_delta'],
+                    "post_micro_delta": delta_html_data['post_micro_delta'],
+                }
+            except Exception as e:
+                print(e)
         
         
 
         if 'logs' in self.test.type or 'full' in self.test.type:
-            # scores
-            logs_score = self.compare_logs()
-            delta_logs_data = self.delta_logs()
-            num_logs_ratio = delta_logs_data['num_logs_ratio']
-            
-            # weights
-            logs_score_w = .5
-            num_logs_w = 2
+            try:
+                # scores
+                logs_score = self.compare_logs()
+                delta_logs_data = self.delta_logs()
+                num_logs_ratio = delta_logs_data['num_logs_ratio']
+                
+                # weights
+                logs_score_w = .5
+                num_logs_w = 2
 
-            # data
-            logs_delta_context = {
-                "pre_logs_delta": delta_logs_data['delta_logs_pre'],
-                "post_logs_delta": delta_logs_data['delta_logs_post'],
-            }
+                # data
+                logs_delta_context = {
+                    "pre_logs_delta": delta_logs_data['delta_logs_pre'],
+                    "post_logs_delta": delta_logs_data['delta_logs_post'],
+                }
+            except Exception as e:
+                print(e)
 
 
 
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
-            # scores & data
-            lighthouse_data = self.delta_lighthouse()
-            lighthouse_avg = lighthouse_data['scores']['average_delta']
-            if lighthouse_avg != None and lighthouse_avg > -100:
-                lighthouse_score = (100 + lighthouse_avg)/100
-            if lighthouse_avg != None and lighthouse_avg <= -100:
-                lighthouse_score = 0
+            try:
+                # scores & data
+                lighthouse_data = self.delta_lighthouse()
+                lighthouse_avg = lighthouse_data['scores']['average_delta']
+                if lighthouse_avg != None and lighthouse_avg > -100:
+                    lighthouse_score = (100 + lighthouse_avg)/100
+                if lighthouse_avg != None and lighthouse_avg <= -100:
+                    lighthouse_score = 0
 
-            # weights
-            if lighthouse_score == None:
-                delta_lh_w = 0
-            elif lighthouse_score > 1:
-                delta_lh_w = 1
-                lighthouse_score = 1
-            else:
-                delta_lh_w = 1
+                # weights
+                if lighthouse_score == None:
+                    delta_lh_w = 0
+                elif lighthouse_score > 1:
+                    delta_lh_w = 1
+                    lighthouse_score = 1
+                else:
+                    delta_lh_w = 1
+            except Exception as e:
+                print(e)
 
 
         
 
         if 'yellowlab' in self.test.type or 'full' in self.test.type:
-            # scores & data
-            yellowlab_data = self.delta_yellowlab()
-            yellowlab_avg = yellowlab_data['scores']['average_delta']
-            if yellowlab_avg != None and yellowlab_avg > -100:
-                yellowlab_score = (100 + yellowlab_avg)/100
-            if yellowlab_avg != None and yellowlab_avg <= -100:
-                yellowlab_score = 0
+            try:
+                # scores & data
+                yellowlab_data = self.delta_yellowlab()
+                yellowlab_avg = yellowlab_data['scores']['average_delta']
+                if yellowlab_avg != None and yellowlab_avg > -100:
+                    yellowlab_score = (100 + yellowlab_avg)/100
+                if yellowlab_avg != None and yellowlab_avg <= -100:
+                    yellowlab_score = 0
 
-            # weights
-            if yellowlab_score == None:
-                delta_yl_w = 0
-            elif yellowlab_score > 1:
-                delta_yl_w = 1
-                yellowlab_score = 1
-            else:
-                delta_yl_w = 1
+                # weights
+                if yellowlab_score == None:
+                    delta_yl_w = 0
+                elif yellowlab_score > 1:
+                    delta_yl_w = 1
+                    yellowlab_score = 1
+                else:
+                    delta_yl_w = 1
+            except Exception as e:
+                print(e)
 
 
 
 
         if 'vrt' in self.test.type or 'full' in self.test.type:
-            # scores & data
-            images_data = Image().test(test=self.test, index=index)
-            if images_data['average_score'] != None:
-                images_score = images_data['average_score'] / 100
+            try:
+                # scores & data
+                images_data = Image().test(test=self.test, index=index)
+                if images_data['average_score'] != None:
+                    images_score = images_data['average_score'] / 100
 
-            # weights
-            images_w = 4
+                # weights
+                images_w = 4
+            except Exception as e:
+                    print(e)
         
         
 
