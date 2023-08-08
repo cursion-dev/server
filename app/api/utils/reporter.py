@@ -1,5 +1,4 @@
 from ..models import *
-import time, os, sys, json, boto3, textwrap
 import PIL.Image as Img
 from scanerr import settings
 from datetime import datetime, timedelta
@@ -7,6 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
+import time, os, sys, json, boto3, textwrap, requests
 
 
 
