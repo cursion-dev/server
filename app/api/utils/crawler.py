@@ -16,6 +16,24 @@ class Crawler():
 
         follow_urls = []
         crawled_urls = [self.url,]
+
+        # validates url
+        def url_is_valid(url):
+            bad_str_list = ['cdn-cgi']
+            bad_end_list = [
+                '.png', '.jpg', '.pdf', '.jpeg', 
+                '.json', '.docs'
+            ]
+            if not (url.startswith(self.url) or url.startswith('/')):
+                return False
+            for bad_str in bad_str_list:
+                if bad_str in url:
+                    return False
+            for bad_end in bad_end_list:
+                if url.endswith(bad_end):
+                    return False
+            return True
+
         
         def add_urls(start_url):
             reqs = requests.get(start_url)
@@ -23,7 +41,7 @@ class Crawler():
             for link in soup.find_all('a'):
                 url = link.get('href')
                 if url is not None:
-                    if (url.startswith(self.url) or url.startswith('/')) and 'cdn-cgi' not in url:
+                    if url_is_valid(url):
                         if url.startswith('/'):
                             url = self.url + url
                         # check status of page
