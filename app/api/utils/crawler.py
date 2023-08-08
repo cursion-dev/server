@@ -22,7 +22,16 @@ class Crawler():
             bad_str_list = ['cdn-cgi']
             bad_end_list = [
                 '.png', '.jpg', '.pdf', '.jpeg', 
-                '.json', '.docs'
+                '.json', '.doc', '.svg', '.ppt', 
+                '.pptx', '.ods', '.docx', '.mp3',
+                '.mp4', '.wma', '.ogg', '.mpa', 
+                '.wpl', '.zip', '.pkg', '.tar.gz', 
+                '.deb', '.z', '.rpm', '.7z', '.bin', 
+                '.dmg', '.iso', '.toast', '.vcd',
+                '.csv', 'xml', '.db', '.dbf', '.dat',
+                '.log', '.mdb', '.sql', '.tar', '.sav',
+                '.webp', '.tiff', '.tif', '.psd', '.ps',
+                '.ico', '.gif', '.bmp'
             ]
             if not (url.startswith(self.url) or url.startswith('/')):
                 return False
