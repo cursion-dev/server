@@ -301,16 +301,20 @@ class GetBillingInfo(APIView):
     def post(self, request):  
         user = request.user
         if Account.objects.filter(user=user).exists():
-            card = Card.objects.get(user=user)
             account = Account.objects.get(user=user)
+            card = None
+            
+            if Card.objects.filter(user=user).exists():
+                _card = Card.objects.get(user=user)
+                card = {
+                    'brand': _card.brand,
+                    'exp_year': _card.exp_year,
+                    'exp_month': _card.exp_month,
+                    'last_four': _card.last_four,
+                }
 
             data = {
-                'card': {
-                    'brand': card.brand,
-                    'exp_year': card.exp_year,
-                    'exp_month': card.exp_month,
-                    'last_four': card.last_four,
-                },
+                'card': card,
                 'plan': {
                     'name': account.type,
                     'active': account.active,
