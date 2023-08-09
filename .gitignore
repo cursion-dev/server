@@ -12,8 +12,9 @@ __pycache__/
 env/.env.local
 env/.env.dev
 env/.env.prod
+env/.env.stage
 env/.env.prod.db
 app/static*
 # app/api/migrations/*_*.py
 k8s/*/*-configs.yaml
-env/.env.stage
+
