@@ -52,7 +52,7 @@ class Caser():
     @sync_to_async
     def format_element(self, element):
         elememt = json.dumps(element).rstrip('"').lstrip('"')
-        return element
+        return str(element)
 
 
 
@@ -150,7 +150,16 @@ class Caser():
         i = 0
         for step in self.steps:
             print(f'-- running step #{i+1} --')
-            # print(f'step contents: {step}')
+
+
+            # adding catch if nav is not first
+            if i == 0 and step['action']['type'] != 'navigate':
+                print(f'navigating to {self.site_url} before first step')
+                # using puppeteer, navigate to site root path & wait for page to load
+                await self.page.goto(f'{self.site_url}', self.page_options)
+                time.sleep(int(self.configs['min_wait_time']))
+
+
 
             if step['action']['type'] == 'navigate':
                 exception = None
@@ -196,9 +205,9 @@ class Caser():
                     print(f'clicking element -> {step["action"]["element"]}')
                     # using puppeteer, find and click on the 'element' 
                     selector = await self.format_element(step["action"]["element"])
-                    await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
+                    await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))                 
                     # scrolling to element using plain JavaScript
-                    await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
+                    await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
                     element = await self.page.J(selector)
                     await element.click()
                     time.sleep(int(self.configs['min_wait_time']))
@@ -233,7 +242,7 @@ class Caser():
                         selector = await self.format_element(step["action"]["element"])
                         await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                         # scrolling to element using plain JavaScript 
-                        await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
+                        await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
                         element = await self.page.J(selector)
                         await element.click(clickCount=3)
                     await self.page.keyboard.type(step["action"]["value"])
@@ -299,8 +308,8 @@ class Caser():
                     selector = await self.format_element(step["assertion"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                     # scrolling to element using plain JavaScript
-                    await self.page.evaluate(f'document.querySelector({selector}).scrollIntoView()')
-                    elementText = await self.page.evaluate(f'document.querySelector({selector}).textContent')
+                    await self.page.evaluate(f'document.querySelector("{selector}").scrollIntoView()')
+                    elementText = await self.page.evaluate(f'document.querySelector("{selector}").textContent')
                     elementText = elementText.strip()
                     print(f'elementText => {elementText}')
                     print(f'value => {step["assertion"]["value"]}')
