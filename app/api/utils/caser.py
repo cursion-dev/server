@@ -164,7 +164,6 @@ class Caser():
             if step['action']['type'] == 'navigate':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -175,6 +174,7 @@ class Caser():
                     # using puppeteer, navigate to requested path & wait for page to load
                     await self.page.goto(f'{self.site_url}{step["action"]["path"]}', self.page_options)
                     time.sleep(int(self.configs['min_wait_time']))
+                    image = await self.save_screenshot(page=self.page)
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
@@ -195,7 +195,6 @@ class Caser():
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -211,6 +210,7 @@ class Caser():
                     element = await self.page.J(selector)
                     await element.click()
                     time.sleep(int(self.configs['min_wait_time']))
+                    image = await self.save_screenshot(page=self.page)
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
@@ -229,7 +229,6 @@ class Caser():
             if step['action']['type'] == 'change':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -247,6 +246,7 @@ class Caser():
                         await element.click(clickCount=3)
                     await self.page.keyboard.type(step["action"]["value"])
                     time.sleep(int(self.configs['min_wait_time']))
+                    image = await self.save_screenshot(page=self.page)
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
@@ -265,7 +265,6 @@ class Caser():
             if step['action']['type'] == 'keyDown':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='action', 
                     start_time=datetime.now()
@@ -276,6 +275,7 @@ class Caser():
                     # using puppeteer, press the selected key
                     await self.page.keyboard.press(step['action']['key'])
                     time.sleep(int(self.configs['min_wait_time']))
+                    image = await self.save_screenshot(page=self.page)
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
@@ -296,7 +296,6 @@ class Caser():
             if step['assertion']['type'] == 'match':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='assertion', 
                     start_time=datetime.now()
@@ -314,6 +313,7 @@ class Caser():
                     print(f'elementText => {elementText}')
                     print(f'value => {step["assertion"]["value"]}')
                     assert elementText == step["assertion"]["value"]
+                    image = await self.save_screenshot(page=self.page)
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
@@ -332,7 +332,6 @@ class Caser():
             if step['assertion']['type'] == 'exists':
                 exception = None
                 passed = True
-                image = None
                 await self.update_testcase(
                     index=i, type='assertion', 
                     start_time=datetime.now()
@@ -344,6 +343,7 @@ class Caser():
                     selector = await self.format_element(step["assertion"]["element"])
                     await self.page.waitForSelector(selector, timeout=(int(self.configs['max_wait_time'])*1000))
                     await self.page.J(selector)
+                    image = await self.save_screenshot(page=self.page)
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
