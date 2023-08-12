@@ -1,8 +1,10 @@
 from ..models import *
-import time, os, sys, json, random, string, re
-from difflib import SequenceMatcher, HtmlDiff, Differ
 from datetime import datetime
 from .image import Image
+from scanerr import settings
+from difflib import SequenceMatcher, HtmlDiff, Differ
+import time, os, sys, json, random, string, re, requests, uuid, boto3
+
 
 
 
@@ -17,10 +19,20 @@ class Tester():
         self.delta_html_post = []
         self.delta_html_pre = []
 
+        # setup boto3 configurations
+        self.s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
 
     def clean_html(self):
-        pre_scan_html = self.test.pre_scan.html.splitlines()
-        post_scan_html = self.test.post_scan.html.splitlines()
+        pre_scan_html_raw = requests.get(self.test.pre_scan.html).text
+        post_scan_html_raw = requests.get(self.test.post_scan.html).text
+        pre_scan_html = pre_scan_html_raw.splitlines()
+        post_scan_html = post_scan_html_raw.splitlines()
 
         white_list = ['csrfmiddlewaretoken', '<!DOCTYPE html>',]
         tags = [
@@ -467,6 +479,7 @@ class Tester():
 
         # default data
         html_delta_context = None
+        html_delta_uri = None
         logs_delta_context = None
         lighthouse_data = None
         yellowlab_data = None
@@ -496,6 +509,28 @@ class Tester():
                     "pre_micro_delta": delta_html_data['pre_micro_delta'],
                     "post_micro_delta": delta_html_data['post_micro_delta'],
                 }
+
+                # save html_delta s3 json file
+                file_id = uuid.uuid4()
+                with open(f'{file_id}.json', 'w') as fp:
+                    json.dump(html_delta_context, fp)
+                
+                # upload to s3 and return url
+                html_delta_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+                remote_path = f'static/sites/{self.test.site.id}/{self.test.page.id}/{self.test.id}/{file_id}.json'
+                root_path = settings.AWS_S3_URL_PATH
+                html_delta_uri = f"{root_path}/{remote_path}"
+            
+                # upload to s3
+                with open(html_delta_file, 'rb') as data:
+                    self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+                    )
+                # remove local copy
+                os.remove(html_delta_file)
+
+                print(f'html_delta => {html_delta_uri}')
+
             except Exception as e:
                 print(e)
         
@@ -613,7 +648,7 @@ class Tester():
 
 
         self.test.time_completed = datetime.now()
-        self.test.html_delta = html_delta_context
+        self.test.html_delta = html_delta_uri
         self.test.logs_delta = logs_delta_context
         self.test.lighthouse_delta = lighthouse_data
         self.test.yellowlab_delta = yellowlab_data
