@@ -126,14 +126,7 @@ def get_lh_default():
             "crux": None, 
             "average": None
        },
-       "audits": {
-            "seo": [], 
-            "performance": [], 
-            "accessibility": [], 
-            "best-practices": [],
-            "pwa": [], 
-            "crux": []
-       },
+       "audits": None,
     }
     return lh_default
 
@@ -154,18 +147,7 @@ def get_yl_default():
             "fonts": None,
             "serverConfig": None,
        },
-       "audits": {
-            "pageWeight": [], 
-            "requests": [], 
-            "domComplexity": [], 
-            "javascriptComplexity": [],
-            "badJavascript": [],
-            "jQuery": [],
-            "cssComplexity": [],
-            "badCSS": [],
-            "fonts": [],
-            "serverConfig": [],
-       },
+       "audits": None,
     }
     return yl_default
 
@@ -349,7 +331,7 @@ class Scan(models.Model):
     type = models.JSONField(serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
-    html = models.TextField(serialize=True, null=True, blank=True)
+    html = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs = models.JSONField(serialize=True, null=True, blank=True)
     images = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
@@ -373,7 +355,7 @@ class Test(models.Model):
     post_scan = models.ForeignKey(Scan, on_delete=models.SET_NULL, serialize=True, null=True, blank=True, related_name='post_scan')
     score = models.FloatField(serialize=True, null=True, blank=True)
     component_scores = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_default)
-    html_delta = models.JSONField(serialize=True, null=True, blank=True)
+    html_delta = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
     yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)

@@ -10,7 +10,8 @@ from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .image import Image
 from datetime import datetime
-import time, os, sys, json, asyncio
+from scanerr import settings
+import time, os, sys, json, asyncio, uuid, boto3
 
 
 
@@ -394,6 +395,39 @@ def _html_and_logs(scan_id, test_id, automation_id):
         returns -> `Scan` <obj>
     """
     scan = Scan.objects.get(id=scan_id)
+    # setup boto3 configurations
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    def save_html(html, scan):
+        # save html data as text file
+        file_id = uuid.uuid4()
+        with open(f'{file_id}.txt', 'w') as fp:
+            fp.write(html)
+        
+        # upload to s3 and return url
+        html_file = os.path.join(settings.BASE_DIR, f'{file_id}.txt')
+        remote_path = f'static/sites/{scan.site.id}/{scan.page.id}/{scan.id}/{file_id}.txt'
+        root_path = settings.AWS_S3_URL_PATH
+        html_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(html_file, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "text/plain"}
+            )
+        
+        # save to scan obj
+        scan.html = html_url
+        scan.save()
+
+        # remove local copy
+        os.remove(html_file)
+
     try:
         if scan.configs['driver'] == 'selenium':
 
@@ -405,8 +439,7 @@ def _html_and_logs(scan_id, test_id, automation_id):
             if 'html' in scan.type or 'full' in scan.type:
                 html = driver.page_source
                 scan = Scan.objects.get(id=scan_id)
-                scan.html = html
-                scan.save()
+                save_html(html, scan)
             if 'logs' in scan.type or 'full' in scan.type:
                 logs = driver.get_log('browser')
                 scan = Scan.objects.get(id=scan_id)
@@ -425,8 +458,7 @@ def _html_and_logs(scan_id, test_id, automation_id):
             if 'html' in scan.type or 'full' in scan.type:
                 html = driver_data['html']
                 scan = Scan.objects.get(id=scan_id)
-                scan.html = html
-                scan.save()
+                save_html(html, scan)
             if 'logs' in scan.type or 'full' in scan.type:
                 logs = driver_data['logs']
                 scan = Scan.objects.get(id=scan_id)
