@@ -1785,7 +1785,7 @@ def create_or_update_schedule(request):
 
         else:
             if PeriodicTask.objects.filter(name=task_name).exists():
-                data = {'reason': 'Task has already be created',}
+                data = {'reason': 'Schedule already exists',}
                 record_api_call(request, data, '401')
                 return Response(data, status=status.HTTP_401_UNAUTHORIZED)
                 

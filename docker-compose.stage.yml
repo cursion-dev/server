@@ -45,6 +45,3 @@ services:
     depends_on:
       - redis
       - app
-
-volumes:
-  pgdata:
