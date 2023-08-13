@@ -84,7 +84,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Image().scan(scan=self.scan, driver=self.driver, configs=self.configs)
+                images = Image().scan_full(scan=self.scan, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -98,7 +98,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Image().scan_p(scan=self.scan, configs=self.configs))
+                images = asyncio.run(Image().scan_p_full(scan=self.scan, configs=self.configs))
         
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
             lh_data = Lighthouse(scan=self.scan, configs=self.configs).get_data() 
@@ -106,7 +106,7 @@ class Scanner():
             yl_data = Yellowlab(scan=self.scan, configs=self.configs).get_data()
 
         if html is not None:
-            self.scan.html = html
+            save_html(html, self.scan)
         if logs is not None:
             self.scan.logs = logs
         if images is not None:
@@ -162,7 +162,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = Image().scan(scan=second_scan, driver=self.driver, configs=self.configs)
+                images = Image().scan_full(scan=second_scan, driver=self.driver, configs=self.configs)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -176,7 +176,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = asyncio.run(Image().scan_p(scan=second_scan, configs=self.configs))
+                images = asyncio.run(Image().scan_p_full(scan=second_scan, configs=self.configs))
         
         if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
             lh_data = Lighthouse(scan=second_scan, configs=self.configs).get_data() 
@@ -184,7 +184,7 @@ class Scanner():
             yl_data = Yellowlab(scan=second_scan, configs=self.configs).get_data()
 
         if html is not None:
-            second_scan.html = html
+            save_html(html, second_scan)
         if logs is not None:
             second_scan.logs = logs
         if images is not None:
@@ -333,6 +333,53 @@ def update_page_info(scan):
 
 
 
+def save_html(html, scan):
+    """
+        Saves html page source as a '.txt' file and uploads 
+        to s3. Then saves the remote uri to the `scan` obj.
+
+        returns -> `Scan` <obj>
+    """
+
+    # setup boto3 configuration
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+    
+    # save html data as text file
+    file_id = uuid.uuid4()
+    with open(f'{file_id}.txt', 'w') as fp:
+        fp.write(html)
+    
+    # upload to s3 and return url
+    html_file = os.path.join(settings.BASE_DIR, f'{file_id}.txt')
+    remote_path = f'static/sites/{scan.site.id}/{scan.page.id}/{scan.id}/{file_id}.txt'
+    root_path = settings.AWS_S3_URL_PATH
+    html_url = f'{root_path}/{remote_path}'
+
+    # upload to s3
+    with open(html_file, 'rb') as data:
+        s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+            remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "text/plain"}
+        )
+    
+    # save to scan obj
+    scan.html = html_url
+    scan.save()
+
+    # remove local copy
+    os.remove(html_file)
+
+    return scan
+
+
+
+
+
+
 def check_scan_completion(scan, test_id, automation_id):
     """
         Method that checks if the scan has finished all 
@@ -395,38 +442,6 @@ def _html_and_logs(scan_id, test_id, automation_id):
         returns -> `Scan` <obj>
     """
     scan = Scan.objects.get(id=scan_id)
-    # setup boto3 configurations
-    s3 = boto3.client(
-        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-        region_name=str(settings.AWS_S3_REGION_NAME), 
-        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-    )
-
-    def save_html(html, scan):
-        # save html data as text file
-        file_id = uuid.uuid4()
-        with open(f'{file_id}.txt', 'w') as fp:
-            fp.write(html)
-        
-        # upload to s3 and return url
-        html_file = os.path.join(settings.BASE_DIR, f'{file_id}.txt')
-        remote_path = f'static/sites/{scan.site.id}/{scan.page.id}/{scan.id}/{file_id}.txt'
-        root_path = settings.AWS_S3_URL_PATH
-        html_url = f'{root_path}/{remote_path}'
-    
-        # upload to s3
-        with open(html_file, 'rb') as data:
-            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "text/plain"}
-            )
-        
-        # save to scan obj
-        scan.html = html_url
-        scan.save()
-
-        # remove local copy
-        os.remove(html_file)
 
     try:
         if scan.configs['driver'] == 'selenium':

@@ -226,7 +226,7 @@ class Image():
 
     def scan_full(self, scan, configs, driver=None,):
         """
-        Grabs multiple screenshots of the website and uploads 
+        Grabs full length screenshots of the website and uploads 
         them to s3.
         """
 
@@ -724,7 +724,7 @@ class Image():
 
     async def scan_p_full(self, scan, configs):
         """
-        Using Puppeteer, grabs multiple screenshots of the website and uploads 
+        Using Puppeteer, grabs full length screenshots of the website and uploads 
         them to s3.
         """
 
