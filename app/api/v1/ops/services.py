@@ -290,6 +290,9 @@ def delete_site(request, id):
     # remove s3 objects
     delete_site_s3_bg.delay(site_id=id)
     
+    # remove any associated tasks 
+    delete_tasks(site=site)
+    
     # remove site
     site.delete()
 
@@ -320,6 +323,7 @@ def delete_many_sites(request):
                 site = Site.objects.get(id=id)
                 if site.account == account:
                     delete_site_s3_bg.delay(site_id=id)
+                    delete_tasks(site=site)
                     site.delete()
                 num_succeeded += 1
                 succeeded.append(str(id))
@@ -637,6 +641,9 @@ def delete_page(request, id):
 
     # remove s3 objects
     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
+
+    # remove any schedules and associated tasks
+    delete_tasks(page=page)
     
     # remove page
     page.delete()
@@ -668,6 +675,7 @@ def delete_many_pages(request):
                 page = Page.objects.get(id=id)
                 if page.account == account:
                     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
+                    delete_tasks(page=page)
                     page.delete()
                 num_succeeded += 1
                 succeeded.append(str(id))
@@ -1939,6 +1947,19 @@ def delete_schedule(request, id):
 
 
 
+
+
+def delete_tasks(page=None, site=None):
+    # get any schedules
+    if page is not None:
+        schedules = Schedule.objects.filter(page=page)
+    if site is not None:
+        schedules = Schedule.objects.filter(site=site)
+    # remove any associated tasks
+    for schedule in schedules:
+        task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
+        task.delete()
+    return
 
 
 
