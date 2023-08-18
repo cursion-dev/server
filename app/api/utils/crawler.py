@@ -33,7 +33,7 @@ class Crawler():
                 '.webp', '.tiff', '.tif', '.psd', '.ps',
                 '.ico', '.gif', '.bmp'
             ]
-            if not (url.startswith(self.url) or url.startswith('/')):
+            if not url.startswith(self.url) and not url.startswith('/'):
                 return False
             for bad_str in bad_str_list:
                 if bad_str in url:
