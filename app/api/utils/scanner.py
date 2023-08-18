@@ -238,8 +238,9 @@ def update_site_info(scan):
                 scans.append(_scan.yellowlab['scores']['globalScore'])
     
     # calc average score
-    score = sum(scans)/len(scans)
-    
+    if len(scans) > 0:
+        score = sum(scans)/len(scans)
+        
     if score != 0:
         if score >= 75:
             health = 'Good'
