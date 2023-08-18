@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from .driver_s import driver_init, quit_driver
 
 
 
@@ -10,6 +11,7 @@ class Crawler():
         self.url = url
         self.sitemap = sitemap
         self.max_urls = max_urls
+        self.driver = driver_init()
 
     
     def get_links(self):
@@ -45,8 +47,8 @@ class Crawler():
 
         
         def add_urls(start_url):
-            reqs = requests.get(start_url)
-            soup = BeautifulSoup(reqs.text, 'html.parser')
+            self.driver.get(start_url)
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             for link in soup.find_all('a'):
                 url = link.get('href')
                 if url is not None:
@@ -54,10 +56,12 @@ class Crawler():
                         if url.startswith('/'):
                             url = self.url + url
                         # check status of page
-                        if requests.get(url).status_code == 200:
+                        req_status = requests.get(url).status_code
+                        bad_status = [404, 500, 301]
+                        if not (req_status in bad_status):
                             if url.endswith('/'):
                                 url = url.rstrip('/')
-                            if not url in follow_urls and '#' not in url:
+                            if not (url in follow_urls):
                                 follow_urls.append(url)
             
         # layer 0
@@ -74,7 +78,7 @@ class Crawler():
                     print('max pages reached')
                     break
 
-        
+        quit_driver(self.driver)
         return crawled_urls
 
 
