@@ -248,7 +248,6 @@ class Image():
             driver = driver_init()
             driver_present = False
 
-
         # request page_url 
         driver.get(page.page_url)
 
@@ -261,9 +260,10 @@ class Image():
         )
 
         # getting full_page_height
-        full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
-        sizes = configs.get('window_size', '1920,1080').split(',')
-        driver.set_window_size(int(sizes[0]), int(full_page_height))
+        if configs.get('frame_by_frame') == False:
+            full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
+            sizes = configs.get('window_size', '1920,1080').split(',')
+            driver.set_window_size(int(sizes[0]), int(full_page_height))
 
 
         if configs.get('disable_animations') == True:
@@ -315,7 +315,6 @@ class Image():
 
             # scroll single frame
             if index != 0:
-                # driver.execute_script("window.scrollBy(0, window.innerHeight);")
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
                 time.sleep(int(configs.get('min_wait_time', 10)))
 
@@ -750,7 +749,10 @@ class Image():
         site = await get_site()
         _page = await get_page()
 
-        driver = await driver_init_p(window_size=configs.get('window_size', '1920,1080'), wait_time=int(configs.get('max_wait_time', 30)))
+        driver = await driver_init_p(
+            window_size=configs.get('window_size', '1920,1080'), 
+            wait_time=int(configs.get('max_wait_time', 30))
+        )
         page = await driver.newPage()
 
         sizes = configs.get('window_size', '1920,1080').split(',')
@@ -766,12 +768,14 @@ class Image():
         # requesting page_url to get height of 
         await page.goto(_page.page_url, page_options)
 
-        # getting full_page_height
-        full_page_height = await page.evaluate("document.scrollingElement.scrollHeight;")
+        # getting full page_height
+        page_height = int(sizes[1])
+        if configs.get('frame_by_frame') == False:
+            page_height = await page.evaluate("document.scrollingElement.scrollHeight;")
 
         viewport = {
             'width': int(sizes[0]),
-            'height': int(full_page_height),
+            'height': int(page_height),
             'isMobile': is_mobile,
         }
         
