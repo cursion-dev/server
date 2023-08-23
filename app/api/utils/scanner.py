@@ -84,7 +84,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Image().scan_full(scan=self.scan, driver=self.driver, configs=self.configs)
+                images = Image(scan=self.scan, configs=self.configs).scan_s(driver=self.driver)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -98,7 +98,7 @@ class Scanner():
             if 'logs' in self.scan.type or 'full' in self.scan.type:
                 logs = driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Image().scan_p_full(scan=self.scan, configs=self.configs))
+                images = asyncio.run(Image(scan=self.scan, configs=self.configs).scan_p())
         
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
             lh_data = Lighthouse(scan=self.scan, configs=self.configs).get_data() 
@@ -162,7 +162,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = self.driver.get_log('browser')
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = Image().scan_full(scan=second_scan, driver=self.driver, configs=self.configs)
+                images = Image(scan=self.second_scan, configs=self.configs).scan_s(driver=self.driver)
             quit_driver(self.driver)
         else:
             driver_data = asyncio.run(
@@ -176,7 +176,7 @@ class Scanner():
             if 'logs' in second_scan.type or 'full' in second_scan.type:
                 logs = driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
-                images = asyncio.run(Image().scan_p_full(scan=second_scan, configs=self.configs))
+                images = asyncio.run(Image(scan=self.second_scan, configs=self.configs).scan_p())
         
         if 'lighthouse' in second_scan.type or 'full' in second_scan.type:
             lh_data = Lighthouse(scan=second_scan, configs=self.configs).get_data() 
@@ -505,11 +505,11 @@ def _vrt(scan_id, test_id, automation_id):
     try:
         if scan.configs['driver'] == 'selenium':
             driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
-            images = Image().scan_full(scan=scan, driver=driver, configs=scan.configs)
+            images = Image(scan=scan, configs=scan.configs).scan_s(driver=driver)
             quit_driver(driver)
 
         if scan.configs['driver'] == 'puppeteer':
-            images = asyncio.run(Image().scan_p_full(scan=scan, configs=scan.configs))
+            images = asyncio.run(Image(scan=scan, configs=scan.configs).scan_p())
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
