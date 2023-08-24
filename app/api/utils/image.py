@@ -5,7 +5,6 @@ from ..models import Site, Scan, Test, Mask
 from selenium.webdriver.chrome.options import Options
 from django.forms.models import model_to_dict
 from django.core.serializers.json import DjangoJSONEncoder
-from sewar.full_ref import uqi, mse, ssim, msssim, psnr, ergas, vifp, rase, sam, scc
 from skimage.metrics import structural_similarity
 from scanerr import settings
 from PIL import Image as I, ImageChops, ImageStat
@@ -43,7 +42,7 @@ class Image():
     """
 
 
-    def __init__(self, scan, configs):
+    def __init__(self, scan=None, configs=None):
 
         # main scan object
         self.scan = scan
