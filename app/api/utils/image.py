@@ -42,7 +42,7 @@ class Image():
     """
 
 
-    def __init__(self, scan, configs):
+    def __init__(self, scan=None, configs=None):
 
         # main scan object
         self.scan = scan
