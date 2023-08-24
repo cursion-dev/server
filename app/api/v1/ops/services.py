@@ -120,7 +120,8 @@ def create_site(request, delay=False):
                 'min_wait_time': 10,
                 'max_wait_time': 60,
                 'timeout': 300,
-                'disable_animations': False
+                'disable_animations': False,
+                'auto_height': True
             }
 
         if no_scan == False:
@@ -216,7 +217,8 @@ def crawl_site(request, id):
             'min_wait_time': 10,
             'max_wait_time': 60,
             'timeout': 300,
-            'disable_animations': False
+            'disable_animations': False,
+            'auto_height': True
         }
 
     # update site info
@@ -419,7 +421,8 @@ def create_page(request, delay=False):
                 'min_wait_time': 10,
                 'max_wait_time': 60,
                 'timeout': 300,
-                'disable_animations': False
+                'disable_animations': False,
+                'auto_height': True
             }
 
         if no_scan == False:
@@ -518,7 +521,8 @@ def create_many_pages(request, obj_response=False):
                     'min_wait_time': 10,
                     'max_wait_time': 60,
                     'timeout': 300,
-                    'disable_animations': False
+                    'disable_animations': False,
+                    'auto_height': True
                 }
 
             if no_scan == False:
@@ -784,7 +788,8 @@ def create_scan(request=None, delay=False, *args, **kwargs):
             'min_wait_time': 10,
             'max_wait_time': 60,
             'timeout': 300,
-            'disable_animations': False
+            'disable_animations': False,
+            'auto_height': True
         }
 
     if site_id is not None and page_id is None:
@@ -1193,7 +1198,8 @@ def create_test(request=None, delay=False, *args, **kwargs):
             'min_wait_time': 10,
             'max_wait_time': 60,
             'timeout': 300,
-            'disable_animations': False
+            'disable_animations': False,
+            'auto_height': True
         }
 
 
