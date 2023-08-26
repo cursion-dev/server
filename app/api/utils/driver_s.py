@@ -1,6 +1,6 @@
 from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver import ActionChains
+from selenium.webdriver.common.by import By
 import time, os, numpy, json, sys
 
 
@@ -29,7 +29,7 @@ def driver_init(
         ) 
     }
 
-    chromedriver_path = os.environ.get("CHROMEDRIVER")
+    # chromedriver_path = os.environ.get("CHROMEDRIVER")
     options = webdriver.ChromeOptions()
     options.binary_location = os.environ.get('CHROMIUM')
     options.add_argument("--no-sandbox")
@@ -40,14 +40,12 @@ def driver_init(
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--force-device-scale-factor=0.5")
     options.add_argument("--window-size=%s" % window_size) 
+    options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
 
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
-    caps = DesiredCapabilities.CHROME
-    caps['goog:loggingPrefs'] = {'performance': 'ALL'}
-
-    driver = webdriver.Chrome(executable_path=chromedriver_path, options=options, desired_capabilities=caps)
+    driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(load_timeout)
     driver.set_script_timeout(script_timeout)
     driver.implicitly_wait(wait_time)
@@ -111,7 +109,7 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
     def interact_with_page(driver):
         # simulate mouse movement and click on <html> tag
-        html_tag = driver.find_elements_by_tag_name('html')[0]
+        html_tag = driver.find_elements(By.TAG_NAME, 'html')[0]
         action = ActionChains(driver)
         action.move_to_element(html_tag).perform()
         return

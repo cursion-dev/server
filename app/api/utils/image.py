@@ -548,12 +548,14 @@ class Image():
 
                 # pre_img is longer
                 if pre_img_h > post_img_h:
-                    new_pre_img = pre_img.crop((0, 0, pre_img_w, post_img_h))
+                    print(f'pre_img is larger, adjusting...')
+                    new_pre_img = pre_img.crop((0, 0, pre_img_w, post_img_h)).convert(mode=post_img.mode)
                     new_pre_img.save(pre_img_path, quality=100)
                     pre_img = I.open(pre_img_path)
                 # post_img is longer
                 if post_img_h > pre_img_h:
-                    new_post_img = post_img.crop((0, 0, post_img_w, pre_img_h))
+                    print(f'post_img is larger, adjusting...')
+                    new_post_img = post_img.crop((0, 0, post_img_w, pre_img_h)).convert(mode=pre_img.mode)
                     new_post_img.save(post_img_path, quality=100)
                     post_img = I.open(post_img_path)
 
