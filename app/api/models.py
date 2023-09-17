@@ -246,7 +246,7 @@ class Account(models.Model):
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     max_sites = models.IntegerField(serialize=True, null=True, blank=True, default=1)
-    max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=25)
+    max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=5)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
