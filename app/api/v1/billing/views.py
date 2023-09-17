@@ -192,6 +192,7 @@ class CompleteSubscription(APIView):
                 'active': account.active,
                 'price_amount': account.price_amount,
                 'max_sites': account.max_sites,
+                'max_pages': account.max_pages,
                 'slack': {
                     'slack_name': account.slack['slack_name'], 
                     'bot_user_id': account.slack['bot_user_id'], 
@@ -219,12 +220,14 @@ class SetupSubscription(APIView):
         product_name = str(user.email + '_' + str(user.id) + '_' + name)
         price_amount = int(request.data.get('price_amount'))
         max_sites = int(request.data.get('max_sites'))
+        max_pages = int(request.data.get('max_pages'))
 
         if not Account.objects.filter(user=user).exists():
             create_or_update_account(
                 user=user,
                 type=name,
                 max_sites=max_sites,
+                max_pages=max_pages,
             )
 
         account = Account.objects.get(user=user)
@@ -280,6 +283,7 @@ class SetupSubscription(APIView):
             product_id = product.id,
             price_id = price.id,
             max_sites = max_sites,
+            max_pages = max_pages,
             price_amount = price_amount,
         )        
 
@@ -320,6 +324,7 @@ class GetBillingInfo(APIView):
                     'active': account.active,
                     'price_amount': account.price_amount,
                     'max_sites': account.max_sites,
+                    'max_pages': account.max_pages,
                     'slack': {
                         'slack_name': account.slack['slack_name'], 
                         'bot_user_id': account.slack['bot_user_id'], 

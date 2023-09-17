@@ -258,6 +258,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         type = request.data.get('type')
         code = request.data.get('code')
         max_sites = request.data.get('max_sites')
+        max_pages = request.data.get('max_pages')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
@@ -272,6 +273,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         type = kwargs.get('type')
         code = kwargs.get('code')
         max_sites = kwargs.get('max_sites')
+        max_pages = kwargs.get('max_pages')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
@@ -297,6 +299,8 @@ def create_or_update_account(request=None, *args, **kwargs):
             account.code = code
         if max_sites is not None:
             account.max_sites = max_sites
+        if max_pages is not None:
+            account.max_pages = max_pages
         if cust_id is not None:
             account.cust_id = cust_id
         if sub_id is not None:
@@ -325,6 +329,7 @@ def create_or_update_account(request=None, *args, **kwargs):
             type=type,
             code=code,
             max_sites=max_sites,
+            max_pages=max_pages,
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
