@@ -38,6 +38,7 @@ def driver_init(
     options.add_argument("start-maximized")
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("ignore-certificate-errors")
     options.add_argument("--force-device-scale-factor=0.5")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
