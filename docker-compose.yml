@@ -32,7 +32,7 @@ services:
     ports:
       - "5432"
     env_file:
-      - ./env/.env.dev
+      - ./env/.env.local
     volumes: 
       - pgdata:/var/lib/postgresql/data
   
