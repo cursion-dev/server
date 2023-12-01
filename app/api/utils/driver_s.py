@@ -58,6 +58,9 @@ def driver_init(
 def driver_test():
     
     print("Testing selenium instalation and integration...")
+    message = 'Selenium was unable to start\n\n'
+    status = 'Failed'
+
     try:
         driver = driver_init()
         driver.get('https://google.com')
@@ -65,18 +68,20 @@ def driver_test():
         assert title == 'Google'
         if title == 'Google':
             status = 'Success'
-        else:
-            status = 'Failed'
+            message = 'Selenium installed and working \N{check mark} \n\n'
+            
     except Exception as e:
         print(e)
-        status = 'Failed'
 
-    sys.stdout.write('--- ' + status + ' ---\n'
-        + 'Selenium installed and working \N{check mark} \n'
+    sys.stdout.write(
+            '--- ' + status + ' ---\n'+ message
         )
 
-    quit_driver(driver)
-    sys.exit(0)
+    try:
+        quit_driver(driver)
+        sys.exit(0)
+    except:
+        pass
 
 
 

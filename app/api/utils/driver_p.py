@@ -55,6 +55,8 @@ async def interact_with_page(page):
 async def driver_test(*args, **options):
 
     print("Testing puppeteer instalation and integration...")
+    message = 'Puppeteer was unable to start\n\n'
+    status = 'Failed'
 
     try:
         driver = await driver_init()
@@ -65,16 +67,19 @@ async def driver_test(*args, **options):
         assert title == 'Google'
         if title == 'Google':
             status = 'Success'
-        else:
-            status = 'Failed'
-        await driver.close()
+            message = 'Puppeteer installed and working \N{check mark} \n'
+
     except Exception as e:
         print(e)
-        status = 'Failed'
 
-    sys.stdout.write('--- ' + status + ' ---\n'
-        + 'Puppeteer installed and working \N{check mark} \n'
+    sys.stdout.write(
+            '--- ' + status + ' ---\n'+ message
         )
+
+    try:
+        await driver.close()
+    except:
+        pass
    
 
 

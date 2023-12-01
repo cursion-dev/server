@@ -1,0 +1,59 @@
+FROM --platform=linux/amd64 ubuntu:latest
+ENV PYTHONUNBUFFERED 1
+ENV DEBIAN_FRONTEND noninteractive
+
+# create the app user
+RUN addgroup --system app && adduser --system app 
+
+# installing python3 & pip
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+# installing system deps || chromium-browser chromium-driver
+RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
+    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig 
+    
+# extra packages
+RUN apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 libgl1
+
+# installing node and npm
+RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
+    && npm install -g n && n lts
+
+# installing google-chrome-stable
+RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN apt-get install -y ./google-chrome-stable_current_amd64.deb
+RUN rm google-chrome-stable_current_amd64.deb 
+
+# begin npm portion
+RUN npm cache clean --force
+
+# increasing allocated memory to node
+RUN export NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS=--max_old_space_size=7000
+ENV NODE_OPTIONS="--max-old-space-size=7000"
+
+# installing lighthouse & yellowlabtools
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
+
+# telling Puppeteer to skip installing Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
+
+# telling phantomas where Chromium binary is and that we're in docker
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome-stable
+ENV DOCKERIZED yes
+
+# setting --no-sandbox for Phantomas 
+RUN google-chrome-stable --no-sandbox --version
+
+# installing requirements
+COPY ./requirements.txt /requirements.txt
+RUN python3 -m pip install -r /requirements.txt
+
+# setting working dir
+RUN mkdir /app
+COPY ./app /app
+WORKDIR /app
+
+# setting ownership
+RUN chown -R app:app /app
+RUN chown -R app:app /usr/bin/google-chrome-stable
