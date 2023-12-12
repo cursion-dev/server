@@ -59,3 +59,6 @@ WORKDIR /app
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
+
+# removing chromium config
+RUN rm -rf ~/.config/chromium
