@@ -1,6 +1,17 @@
 FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
+# increasing allocated memory to node
+ENV NODE_OPTIONS=--max_old_space_size=262000
+ENV NODE_OPTIONS="--max-old-space-size=262000"
+
+# telling Puppeteer to skip installing Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
+
+# telling phantomas where Chromium binary is and that we're in docker
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
+ENV DOCKERIZED yes
+
 # create the app user
 RUN addgroup --system app && adduser --system app 
 
@@ -26,23 +37,11 @@ RUN apt-get update && apt-get install -y libfreetype6 \
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
     && npm install -g n && n lts
 
+# cleaning npm
 RUN npm cache clean --force
-
-# increasing allocated memory to node
-RUN export NODE_OPTIONS="--max-old-space-size=262000"
-RUN node --stack-size=262000
-ENV NODE_OPTIONS=--max_old_space_size=262000
-ENV NODE_OPTIONS="--max-old-space-size=262000"
 
 # installing lighthouse & yellowlabtools -> yellowlabtools
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
-
-# telling Puppeteer to skip installing Chrome
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
-
-# telling phantomas where Chromium binary is and that we're in docker
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
-ENV DOCKERIZED yes
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
 RUN chromium --no-sandbox --version
