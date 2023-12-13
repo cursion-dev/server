@@ -23,7 +23,7 @@ async def driver_init(
             'width': int(sizes[0]),
             'height': int(sizes[1]), 
         },
-        'timeout': wait_time * 1000
+        # 'timeout': wait_time * 1000  # replaced by 
     }
 
     driver = await launch(
@@ -49,6 +49,27 @@ async def interact_with_page(page):
 
 
 
+async def wait_for_page(page, max_wait_time=30):
+    """
+    Expcets the puppeteer page instance and waits 
+    for either the page to fully load or the max_wait_time
+    to expire before returning.
+
+    Returns -> Page <pypt:instance>
+    """
+
+    print(f'waiting for page load or {str(max_wait_time)} seconds')
+
+    timeout = 0
+    page_state = 'loading'
+
+    while timeout < max_wait_time and page_state != 'complete':
+        page_state = await page.evaluate('document.readyState')
+        print(f'document state is {page_state}')
+        time.sleep(1)
+        timeout += 1
+
+    return page
 
 
 

@@ -1,5 +1,5 @@
 from .driver_s import driver_init as driver_s_init, quit_driver
-from .driver_s import driver_wait
+from .driver_s import driver_wait, get_data as get_s_driver_data
 from .driver_p import get_data
 from ..models import *
 from .automations import automation
@@ -79,24 +79,28 @@ class Scanner():
         
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.page.page_url)
+            s_driver_data = get_s_driver_data(
+                driver=self.driver, 
+                max_wait_time=self.configs['max_wait_time']
+            )
             if 'html' in self.scan.type or 'full' in self.scan.type:
-                html = self.driver.page_source
+                html = s_driver_data['html']
             if 'logs' in self.scan.type or 'full' in self.scan.type:
-                logs = self.driver.get_log('browser')
+                logs = s_driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
                 images = Image(scan=self.scan, configs=self.configs).scan_s(driver=self.driver)
             quit_driver(self.driver)
         else:
-            driver_data = asyncio.run(
+            p_driver_data = asyncio.run(
                 get_data(
                     url=self.page.page_url, 
                     configs=self.configs
                 )
             )
             if 'html' in self.scan.type or 'full' in self.scan.type:
-                html = driver_data['html']
+                html = p_driver_data['html']
             if 'logs' in self.scan.type or 'full' in self.scan.type:
-                logs = driver_data['logs']
+                logs = p_driver_data['logs']
             if 'vrt' in self.scan.type or 'full' in self.scan.type:
                 images = asyncio.run(Image(scan=self.scan, configs=self.configs).scan_p())
         
@@ -157,24 +161,28 @@ class Scanner():
         
         if self.configs['driver'] == 'selenium':
             self.driver.get(self.page.page_url)
-            if 'html' in second_scan.type or 'full' in second_scan.type:
-                html = self.driver.page_source
-            if 'logs' in second_scan.type or 'full' in second_scan.type:
-                logs = self.driver.get_log('browser')
+            s_driver_data = get_s_driver_data(
+                driver=self.driver, 
+                max_wait_time=self.configs['max_wait_time']
+            )
+            if 'html' in self.scan.type or 'full' in self.scan.type:
+                html = s_driver_data['html']
+            if 'logs' in self.scan.type or 'full' in self.scan.type:
+                logs = s_driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
                 images = Image(scan=self.second_scan, configs=self.configs).scan_s(driver=self.driver)
             quit_driver(self.driver)
         else:
-            driver_data = asyncio.run(
+            p_driver_data = asyncio.run(
                 get_data(
                     url=self.page.page_url, 
                     configs=self.configs
                 )
             )
             if 'html' in second_scan.type or 'full' in second_scan.type:
-                html = driver_data['html']
+                html = p_driver_data['html']
             if 'logs' in second_scan.type or 'full' in second_scan.type:
-                logs = driver_data['logs']
+                logs = p_driver_data['logs']
             if 'vrt' in second_scan.type or 'full' in second_scan.type:
                 images = asyncio.run(Image(scan=self.second_scan, configs=self.configs).scan_p())
         
@@ -465,18 +473,18 @@ def _html_and_logs(scan_id, test_id, automation_id):
 
         if scan.configs['driver'] == 'puppeteer':
             
-            driver_data = asyncio.run(
+            p_driver_data = asyncio.run(
                 get_data(
                     url=scan.page.page_url, 
                     configs=scan.configs
                 )
             )
             if 'html' in scan.type or 'full' in scan.type:
-                html = driver_data['html']
+                html = p_driver_data['html']
                 scan = Scan.objects.get(id=scan_id)
                 save_html(html, scan)
             if 'logs' in scan.type or 'full' in scan.type:
-                logs = driver_data['logs']
+                logs = p_driver_data['logs']
                 scan = Scan.objects.get(id=scan_id)
                 scan.logs = logs
                 scan.save()

@@ -1,5 +1,5 @@
 from .driver_s import driver_init, driver_wait, quit_driver
-from .driver_p import driver_init as driver_init_p
+from .driver_p import driver_init as driver_init_p, wait_for_page
 from selenium import webdriver
 from ..models import Site, Scan, Test, Mask
 from selenium.webdriver.chrome.options import Options
@@ -323,11 +323,14 @@ class Image():
         
         page_options = {
             'waitUntil': 'networkidle0', 
-            'timeout': int(self.configs.get('max_wait_time', 30))*1000
+            # 'timeout': int(self.configs.get('max_wait_time', 30))*1000
         }
 
         # requesting page_url to get height of 
         await page.goto(_page.page_url, page_options)
+
+        # waiting for page to load
+        await wait_for_page(page=_page)
 
         # getting full page_height
         page_height = int(sizes[1])
@@ -435,6 +438,7 @@ class Image():
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
                 time.sleep(int(self.configs.get('min_wait_time', 10)))
+                await wait_for_page(page=_page)
             
                 # get screenshot
                 await page.screenshot({'path': f'{pic_id}.png'})
