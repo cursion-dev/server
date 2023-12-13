@@ -176,7 +176,7 @@ def get_data(driver, max_wait_time):
         timeout += 1
 
     try:
-        html = driver.page_source()
+        html = driver.page_source
         logs = driver.get_log('browser')
     except Exception as e:
         print(e)
