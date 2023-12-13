@@ -29,9 +29,13 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 RUN npm cache clean --force
 
 # increasing allocated memory to node
-RUN export NODE_OPTIONS="--max-old-space-size=4096"
+RUN export NODE_OPTIONS="--max-old-space-size=7000"
+RUN export NODE_OPTIONS="--stack-size=262000"
 ENV NODE_OPTIONS=--max_old_space_size=7000
 ENV NODE_OPTIONS="--max-old-space-size=7000"
+ENV NODE_OPTIONS=--stack-size=262000
+ENV NODE_OPTIONS="--stack-size=262000"
+
 
 # installing lighthouse & yellowlabtools
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
