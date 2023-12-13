@@ -30,7 +30,7 @@ RUN npm cache clean --force
 
 # increasing allocated memory to node
 RUN export NODE_OPTIONS="--max-old-space-size=262000"
-RUN "node --stack-size=262000"
+RUN node --stack-size=262000
 ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
 
