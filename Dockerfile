@@ -45,8 +45,8 @@ ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
 ENV DOCKERIZED yes
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
-RUN chromium --no-sandbox
-RUN chromium --disable-dev-shm-usage
+RUN chromium --no-sandbox --version
+RUN chromium --disable-dev-shm-usage  --version
 
 # installing requirements
 COPY ./requirements.txt /requirements.txt
