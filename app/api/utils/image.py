@@ -330,7 +330,7 @@ class Image():
         await page.goto(_page.page_url, page_options)
 
         # waiting for page to load
-        await wait_for_page(page=_page)
+        await wait_for_page(page=page)
 
         # getting full page_height
         page_height = int(sizes[1])
@@ -438,7 +438,7 @@ class Image():
                 await page.mouse.move(0, 0)
                 await page.mouse.move(0, 100)
                 time.sleep(int(self.configs.get('min_wait_time', 10)))
-                await wait_for_page(page=_page)
+                await wait_for_page(page=page)
             
                 # get screenshot
                 await page.screenshot({'path': f'{pic_id}.png'})

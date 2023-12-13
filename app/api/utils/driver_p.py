@@ -117,7 +117,6 @@ async def get_data(url, configs, *args, **options):
         # 'timeout': configs['max_wait_time']*1000
     }
 
-    
     viewport = {
         'width': int(sizes[0]),
         'height': int(sizes[1]),
