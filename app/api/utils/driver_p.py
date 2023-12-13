@@ -51,7 +51,7 @@ async def interact_with_page(page):
 
 async def wait_for_page(page, max_wait_time=30):
     """
-    Expcets the puppeteer page instance and waits 
+    Expects the puppeteer page instance and waits 
     for either the page to fully load or the max_wait_time
     to expire before returning.
 
@@ -114,8 +114,10 @@ async def get_data(url, configs, *args, **options):
 
     page_options = {
         'waitUntil': 'networkidle0', 
-        'timeout': configs['max_wait_time']*1000
+        # 'timeout': configs['max_wait_time']*1000
     }
+
+    
     viewport = {
         'width': int(sizes[0]),
         'height': int(sizes[1]),
@@ -190,6 +192,7 @@ async def get_data(url, configs, *args, **options):
     await page.goto(url, page_options) 
 
     # await page.waitForNavigation(navWaitOpt)
+    await wait_for_page(page=page)
     await interact_with_page(page)
     html = await page.content()
     
