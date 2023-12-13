@@ -33,7 +33,7 @@ RUN export NODE_OPTIONS="--max-old-space-size=7000"
 RUN export NODE_OPTIONS="--stack-size=262000"
 ENV NODE_OPTIONS=--max_old_space_size=7000
 ENV NODE_OPTIONS="--max-old-space-size=7000"
-ENV NODE_OPTIONS=--stack-size=262000
+ENV NODE_OPTIONS=--stack_size=262000
 ENV NODE_OPTIONS="--stack-size=262000"
 
 
