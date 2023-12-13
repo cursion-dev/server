@@ -35,7 +35,7 @@ ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
 
 # installing lighthouse & yellowlabtools -> yellowlabtools
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash 
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
 
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
@@ -45,7 +45,8 @@ ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
 ENV DOCKERIZED yes
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
-RUN chromium --no-sandbox --disable-dev-shm-usage --version
+RUN chromium --no-sandbox
+RUN chromium --disable-dev-shm-usage
 
 # installing requirements
 COPY ./requirements.txt /requirements.txt

@@ -61,20 +61,20 @@ services:
       - db
 
 
-  yellowlab:
-    container_name: yellowlab
-    privileged: true
-    restart: always
-    image: ousamabenyounes/yellowlabtools
-    ports:
-      - "8383"
-    env_file:
-      - ./env/.env.dev
-    depends_on:
-      - redis
-      - app
-      - celery
-      - db
+  # yellowlab:
+  #   container_name: yellowlab
+  #   privileged: true
+  #   restart: always
+  #   image: ousamabenyounes/yellowlabtools
+  #   ports:
+  #     - "8383"
+  #   env_file:
+  #     - ./env/.env.dev
+  #   depends_on:
+  #     - redis
+  #     - app
+  #     - celery
+  #     - db
 
 
   nginx-proxy:
