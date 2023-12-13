@@ -34,15 +34,18 @@ RUN node --stack-size=262000
 ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
 
-# installing lighthouse & yellowlabtools -> yellowlabtools
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
-
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 
 # telling phantomas where Chromium binary is and that we're in docker
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
 ENV DOCKERIZED yes
+
+# try installing puppeteer before yellowlabs
+RUN npm install -g puppeteer
+
+# installing lighthouse & yellowlabtools -> yellowlabtools
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
 RUN chromium --no-sandbox --version
