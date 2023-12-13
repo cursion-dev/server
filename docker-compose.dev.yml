@@ -2,6 +2,7 @@ version: '3'
 
 services:
   app:
+    container_name: scanerr-app
     privileged: true
     init: true
     build:
@@ -43,6 +44,7 @@ services:
 
 
   celery:
+    container_name: scanerr-celery
     privileged: true
     restart: always
     build:
@@ -56,6 +58,22 @@ services:
     depends_on:
       - redis
       - app
+      - db
+
+
+  yellowlab:
+    container_name: yellowlab
+    privileged: true
+    restart: always
+    image: ousamabenyounes/yellowlabtools
+    ports:
+      - "8383"
+    env_file:
+      - ./env/.env.dev
+    depends_on:
+      - redis
+      - app
+      - celery
       - db
 
 

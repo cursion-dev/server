@@ -34,8 +34,8 @@ RUN node --stack-size=262000
 ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
 
-# installing lighthouse & yellowlabtools
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
+# installing lighthouse & yellowlabtools -> yellowlabtools
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash 
 
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
