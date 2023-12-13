@@ -460,12 +460,16 @@ def _html_and_logs(scan_id, test_id, automation_id):
                 device=scan.configs['device']
             )
             driver.get(scan.page.page_url)
+            s_driver_data = get_s_driver_data(
+                driver=self.driver, 
+                max_wait_time=self.configs['max_wait_time']
+            )
             if 'html' in scan.type or 'full' in scan.type:
-                html = driver.page_source
+                html = s_driver_data['html']
                 scan = Scan.objects.get(id=scan_id)
                 save_html(html, scan)
             if 'logs' in scan.type or 'full' in scan.type:
-                logs = driver.get_log('browser')
+                logs = s_driver_data['logs']
                 scan = Scan.objects.get(id=scan_id)
                 scan.logs = logs
                 scan.save()
