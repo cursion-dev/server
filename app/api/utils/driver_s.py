@@ -6,11 +6,11 @@ import time, os, numpy, json, sys
 
 
 def driver_init(
-    window_size='1920,1080', 
-    device='desktop',
-    script_timeout=30,
-    load_timeout=30,
-    wait_time=15, 
+        window_size='1920,1080', 
+        device='desktop',
+        script_timeout=30,
+        load_timeout=30,
+        wait_time=15, 
     ):
 
     sizes = window_size.split(',')
@@ -47,9 +47,9 @@ def driver_init(
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
     driver = webdriver.Chrome(options=options)
-    driver.set_page_load_timeout(load_timeout)
-    driver.set_script_timeout(script_timeout)
-    driver.implicitly_wait(wait_time)
+    # driver.set_page_load_timeout(load_timeout)
+    # driver.set_script_timeout(script_timeout)
+    # driver.implicitly_wait(wait_time)
 
     
     return driver
@@ -58,6 +58,9 @@ def driver_init(
 def driver_test():
     
     print("Testing selenium instalation and integration...")
+    message = 'Selenium was unable to start\n\n'
+    status = 'Failed'
+
     try:
         driver = driver_init()
         driver.get('https://google.com')
@@ -65,18 +68,20 @@ def driver_test():
         assert title == 'Google'
         if title == 'Google':
             status = 'Success'
-        else:
-            status = 'Failed'
+            message = 'Selenium installed and working \N{check mark} \n\n'
+            
     except Exception as e:
         print(e)
-        status = 'Failed'
 
-    sys.stdout.write('--- ' + status + ' ---\n'
-        + 'Selenium installed and working \N{check mark} \n'
+    sys.stdout.write(
+            '--- ' + status + ' ---\n'+ message
         )
 
-    quit_driver(driver)
-    sys.exit(0)
+    try:
+        quit_driver(driver)
+        sys.exit(0)
+    except:
+        pass
 
 
 
@@ -117,24 +122,28 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
 
     resolved = False
+    page_state = 'loading'
     wait_time = 0
 
     # actions before comparing network logs
     interact_with_page(driver)
     time.sleep(min_wait_time)
 
-    while not resolved and wait_time < max_wait_time:
+    while wait_time < max_wait_time and page_state != 'complete':
         # get first set of logs
-        list_one = get_request_list(driver=driver)
+        # list_one = get_request_list(driver=driver)
         
         # wait 5 sec or <interval:int> sec for request to resolve
         time.sleep(interval)
         
         # get second set of logs
-        list_two = get_request_list(driver=driver)
+        # list_two = get_request_list(driver=driver)
         
         # check if logs are equal
-        resolved = numpy.array_equal(list_one, list_two)
+        # resolved = numpy.array_equal(list_one, list_two)
+
+        page_state = driver.execute_script('return document.readyState')
+        print(f'document state is {page_state}')
         
         wait_time += interval
 
@@ -142,11 +151,49 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
 
 
+def get_data(driver, max_wait_time):
+    """
+    Expects the driver instance and max_wait_time <int> 
+    then returns both the page-source (html) and console-logs (logs).
+
+    Method waits for the allocated `max_wait_time`
+    before continuing with data collection.
+
+    Returns -> data = {
+        "html": <str>,
+        "logs": <dict>
+    }
+    """
+    timeout = 0
+    page_state = 'loading'
+    html = None
+    logs = None
+
+    while timeout < max_wait_time and page_state != 'complete':
+        page_state = driver.execute_script('return document.readyState')
+        print(f'document state is {page_state}')
+        time.sleep(1)
+        timeout += 1
+
+    try:
+        html = driver.page_source
+        logs = driver.get_log('browser')
+    except Exception as e:
+        print(e)
+
+    data = {
+        "html": html,
+        "logs": logs
+    }
+
+    return data
+
+
 
 def quit_driver(driver):
-    ''' 
+    """ 
     Quits and reaps all child processes in docker
-    '''
+    """
     print('Quitting session: %s' % driver.session_id)
     driver.quit()
     try:

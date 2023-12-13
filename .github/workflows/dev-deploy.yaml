@@ -1,0 +1,30 @@
+name: Deploy to dev
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push request on the main branch for changes in the specified paths.
+  push:
+    branches:
+      - dev
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
+      - 'docker-compose.dev.yml'
+      - '.github/workflows/**'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: pulling latest dev commit and rebuilding app
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.DEV_HOST }}
+        username: ${{ secrets.DEV_USER }}
+        key: ${{ secrets.DEV_KEY }}
+        script: | 
+          cd ~/app
+          git pull origin dev
+          docker compose -f docker-compose.dev.yml down
+          docker compose -f docker-compose.dev.yml up -d --build

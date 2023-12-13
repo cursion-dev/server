@@ -23,7 +23,7 @@ async def driver_init(
             'width': int(sizes[0]),
             'height': int(sizes[1]), 
         },
-        'timeout': wait_time * 1000
+        # 'timeout': wait_time * 1000  # replaced by 
     }
 
     driver = await launch(
@@ -49,12 +49,35 @@ async def interact_with_page(page):
 
 
 
+async def wait_for_page(page, max_wait_time=30):
+    """
+    Expects the puppeteer page instance and waits 
+    for either the page to fully load or the max_wait_time
+    to expire before returning.
+
+    Returns -> Page <pypt:instance>
+    """
+
+    print(f'waiting for page load or {str(max_wait_time)} seconds')
+
+    timeout = 0
+    page_state = 'loading'
+
+    while timeout < max_wait_time and page_state != 'complete':
+        page_state = await page.evaluate('document.readyState')
+        print(f'document state is {page_state}')
+        time.sleep(1)
+        timeout += 1
+
+    return page
 
 
 
 async def driver_test(*args, **options):
 
     print("Testing puppeteer instalation and integration...")
+    message = 'Puppeteer was unable to start\n\n'
+    status = 'Failed'
 
     try:
         driver = await driver_init()
@@ -65,16 +88,19 @@ async def driver_test(*args, **options):
         assert title == 'Google'
         if title == 'Google':
             status = 'Success'
-        else:
-            status = 'Failed'
-        await driver.close()
+            message = 'Puppeteer installed and working \N{check mark} \n'
+
     except Exception as e:
         print(e)
-        status = 'Failed'
 
-    sys.stdout.write('--- ' + status + ' ---\n'
-        + 'Puppeteer installed and working \N{check mark} \n'
+    sys.stdout.write(
+            '--- ' + status + ' ---\n'+ message
         )
+
+    try:
+        await driver.close()
+    except:
+        pass
    
 
 
@@ -88,8 +114,9 @@ async def get_data(url, configs, *args, **options):
 
     page_options = {
         'waitUntil': 'networkidle0', 
-        'timeout': configs['max_wait_time']*1000
+        # 'timeout': configs['max_wait_time']*1000
     }
+
     viewport = {
         'width': int(sizes[0]),
         'height': int(sizes[1]),
@@ -164,6 +191,7 @@ async def get_data(url, configs, *args, **options):
     await page.goto(url, page_options) 
 
     # await page.waitForNavigation(navWaitOpt)
+    await wait_for_page(page=page)
     await interact_with_page(page)
     html = await page.content()
     
