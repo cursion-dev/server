@@ -19,7 +19,7 @@ class Yellowlab():
     def init_audit(self):
         proc = subprocess.Popen([
                 'yellowlabtools',
-                'DEBUG=ylt:*', 
+                'DEBUG=*', 
                 'node bin/cli.js',
                 self.page.page_url,
                 f'--device={self.configs["device"]}'
