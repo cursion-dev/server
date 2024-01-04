@@ -425,8 +425,8 @@ def delete_page_s3_bg(page_id, site_id, *args, **kwargs):
     try:
         bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/')).delete()
-    except:
-        pass
+    except Exception as e:
+        print(e)
     return
 
 @shared_task
@@ -442,8 +442,8 @@ def delete_scan_s3_bg(scan_id, site_id, page_id):
     try:
         bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/{scan_id}/')).delete()
-    except:
-        pass
+    except Exception as e:
+        print(e)
     return
     
 
@@ -460,8 +460,8 @@ def delete_test_s3_bg(test_id, site_id, page_id):
     try:
         bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/{test_id}/')).delete()
-    except:
-        pass
+    except Exception as e:
+        print(e)
     return
 
 
