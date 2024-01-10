@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 # cleaning npm
 RUN npm cache clean --force
 
-# installing lighthouse & yellowlabtools -> yellowlabtools
+# installing lighthouse & yellowlabtools
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
