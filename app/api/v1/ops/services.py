@@ -974,7 +974,7 @@ def get_scans(request):
     result_page = paginator.paginate_queryset(scans, request)
     serializer_context = {'request': request,}
     serialized = ScanSerializer(result_page, many=True, context=serializer_context)
-    if lean is not None:
+    if str(lean).lower() == 'true':
         serialized = SmallScanSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -1462,7 +1462,7 @@ def get_tests(request):
     result_page = paginator.paginate_queryset(tests, request)
     serializer_context = {'request': request,}
     serialized = TestSerializer(result_page, many=True, context=serializer_context)
-    if lean is not None:
+    if str(lean).lower() == 'true':
         serialized = SmallTestSerializer(result_page, many=True, context=serializer_context)
         
     response = paginator.get_paginated_response(serialized.data)
@@ -2559,7 +2559,7 @@ def get_testcases(request):
     result_page = paginator.paginate_queryset(testcases, request)
     serializer_context = {'request': request,}
     serialized = TestcaseSerializer(result_page, many=True, context=serializer_context)
-    if lean is not None:
+    if str(lean).lower() == 'true':
         serialized = SmallTestcaseSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
