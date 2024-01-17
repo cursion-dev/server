@@ -1,9 +1,11 @@
-Copyright (c) 2023 Scanerr
+Copyright (c) 2024 Scanerr
 
 
 Scanerr Commercial Software License Terms
 
 1.	Order. These terms, together with the order referencing them, make up a software license agreement. The software, the developer, and the customer are all identified on the order.
+(i)  Software: Scanerr 
+(ii) Developer: Grey Labs, LLC (https://greylabs.io)
 2.	Versions. This agreement covers the specific version of the software on the order, plus any new versions of the software that the vendor makes generally available, or specifically provides to the customer, while this agreement continues.
 3.	Modifications. The customer may make changes to the software’s source code, compile those changes, and run changed versions of the software.
 4.	Billing.
@@ -15,7 +17,7 @@ Scanerr Commercial Software License Terms
 6.	Use.
 (a)	Permitted Use. The customer may use the software only for its own computing needs and those of its subsidiaries and corporate affiliates.
 (b)	Prohibited Uses. The customer may not:
-(i)	sell, lease, license, or sublicense the software or documentation
+(i)	    sell, lease, license, or sublicense the software or documentation
 (ii)	allow access to the software by others not licensed under this agreement
 (iii)	share copies of the software or documentation with with others not licensed under this agreement
 (iv)	make so much of the functionality of the software available to others as software-as-a-service that the service competes with the software for customers
