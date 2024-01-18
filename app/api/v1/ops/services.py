@@ -143,13 +143,13 @@ def create_site(request, delay=False):
                                 user_id=request.user.id,
                                 delay=True
                             )
+                            site.time_crawl_started = datetime.now()
+                            site.time_crawl_completed = datetime.now()
+                            site.info["latest_scan"]["time_created"] = str(datetime.now())
+                            site.save()
                 else:
                     create_site_and_pages_bg.delay(site_id=site.id, configs=configs)
-                site.time_crawl_started = datetime.now()
-                site.time_crawl_completed = datetime.now()
-                site.info["latest_scan"]["time_created"] = str(datetime.now())
-                site.save()
-
+               
             else:
                 # running crawler
                 pages = Crawler(url=site.site_url, max_urls=account.max_pages).get_links()
