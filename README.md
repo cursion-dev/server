@@ -14,5 +14,5 @@ Copyright © Scanerr 2024
 
 ## Guides
 - [Server Deployment](notes/Deployment.md)
-- [k8s Deployment](k8s/kubernetes-notes.md)
+- [k8s Deployment](notes/Kubernetes.md)
 &nbsp;
