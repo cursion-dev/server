@@ -21,7 +21,8 @@ kwargs = {
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'is_active', 'date_joined', 'last_login']
+        fields = ['id', 'username', 'email', 'password', 'is_active', 
+        'date_joined', 'last_login', 'first_name', 'last_name']
 
 
 
@@ -50,7 +51,8 @@ class RegisterSerializer(UserSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'is_active', 'date_joined', 'last_login']
+        fields = ['id', 'username', 'email', 'password', 'is_active', 
+        'date_joined', 'last_login', 'first_name', 'last_name']
 
     def create(self, validated_data):
         try:
