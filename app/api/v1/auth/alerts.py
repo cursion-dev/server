@@ -71,7 +71,7 @@ def send_reset_link(email):
 
 def send_invite_link(member):
     if Member.objects.filter(email=member.email, status="pending").exists():
-        member = Member.objects.get(email=member.email)
+        member = Member.objects.get(id=member.id)
         link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={member.account.id}&code={member.account.code}&member={member.id}&email={member.email}'
         subject = 'Scanerr Invite'
         title = 'Scanerr Invite'
@@ -122,7 +122,7 @@ def send_invite_link(member):
 
 def send_remove_alert(member):
     if Member.objects.filter(email=member.email, status="removed").exists():
-        member = Member.objects.get(email=member.email)
+        member = Member.objects.get(id=member.id)
         subject = 'Removed From Account'
         title = 'Removed From Account'
         pre_header = 'Removed From Account'

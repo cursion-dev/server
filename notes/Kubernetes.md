@@ -35,7 +35,7 @@ kubectl exec -it celery-849f76858b-bvmqg -- /bin/sh
 
 ### Creating secrets for docker:
 ```shell
-kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=landonr --docker-password=Ljr500103! --docker-email=l.rodden52@gmail.com
+kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=landonr --docker-password=<docker-pass> --docker-email=<docker-email>
 ```
 
 #### - Then add this to both celery and app containers:
