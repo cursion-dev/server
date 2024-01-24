@@ -257,11 +257,9 @@ class Member(APIView):
 
         
 
-
-
 class Prospect(APIView):
     permission_classes = (AllowAny,)
-    http_method_names = ['get', ]
+    http_method_names = ['get',]
 
     def get(self, request):
         response = get_prospects(request)
