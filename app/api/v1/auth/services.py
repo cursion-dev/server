@@ -538,7 +538,7 @@ def get_prospects(request):
 
 
     # get all Accounts
-    accounts = Account.objects.all()
+    accounts = Account.objects.all().exclude(user__username='admin')
 
     # iterate throgh accounts 
     # and build list
