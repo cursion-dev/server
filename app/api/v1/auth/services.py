@@ -532,9 +532,9 @@ def get_prospects(request):
     try:
         # check if request.user is admin
         if request.user.username != 'admin':
-            return Response({'reason' 'not authorized'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'reason': 'not authorized'}, status=status.HTTP_403_FORBIDDEN)
     except:
-        return Response({'reason' 'not authorized'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'reason': 'not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
 
     # get all Accounts
