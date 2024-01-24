@@ -540,7 +540,7 @@ def get_prospects(request):
 
         # determinig user's 'status'
         if account.type == 'free':
-            if Sites.objects.filter(account=account).exists():
+            if Site.objects.filter(account=account).exists():
                 status = 'warm' # account has one site onboarded
             else:
                 status = 'cold' # account is free but no site onboarded
