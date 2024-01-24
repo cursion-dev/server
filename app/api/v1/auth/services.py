@@ -516,7 +516,7 @@ def get_member(request=None, id=None, *args, **kwargs):
 
 def get_prospects(request):
     """ 
-    This pulls all admin Member's and 
+    This pulls all admin Members and 
     builds a list to reflect the needed 
     attributes for `Landing.api.Prospect`
 
@@ -541,21 +541,21 @@ def get_prospects(request):
         # determinig user's 'status'
         if account.type == 'free':
             if Site.objects.filter(account=account).exists():
-                status = 'warm' # account has one site onboarded
+                _status = 'warm' # account has one site onboarded
             else:
-                status = 'cold' # account is free but no site onboarded
+                _status = 'cold' # account is free but no site onboarded
         if account.type != 'free':
             if account.active:
-                status = 'customer' # account is active and paid
+                _status = 'customer' # account is active and paid
             else:
-                status = 'warm' # account is paused and paid
+                _status = 'warm' # account is paused and paid
 
         # building prospect
         prospect = {
             'first_name': account.user.first_name,
             'last_name': account.user.last_name,
             'email': account.user.email,
-            'status': status
+            'status': _status
         }
 
         # adding to results
