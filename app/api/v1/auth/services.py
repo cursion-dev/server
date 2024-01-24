@@ -10,7 +10,7 @@ from django.forms.models import model_to_dict
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from rest_framework.authtoken.models import Token
-from ...models import Account, Card, Member
+from ...models import Account, Card, Member, Site
 from ..ops.services import record_api_call
 from slack_sdk.oauth import AuthorizeUrlGenerator
 from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
@@ -507,4 +507,66 @@ def get_member(request=None, id=None, *args, **kwargs):
     serialized = MemberSerializer(member, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+def get_prospects(request):
+    """ 
+    This pulls all admin Member's and 
+    builds a list to reflect the needed 
+    attributes for `Landing.api.Prospect`
+
+    Expects the following:
+        None
+
+    Returns -> data = {
+        'count':    <int> total number of prospects
+        'results':  <list> of Prospect objects
+    }
+    """
+
+    # get all Accounts
+    accounts = Account.objects.all()
+
+    # iterate throgh accounts 
+    # and build list
+    results = []
+    count = len(accounts)
+    for account in accounts:
+
+        # determinig user's 'status'
+        if account.type == 'free':
+            if Sites.objects.filter(account=account).exists():
+                status = 'warm' # account has one site onboarded
+            else:
+                status = 'cold' # account is free but no site onboarded
+        if account.type != 'free':
+            if account.active:
+                status = 'customer' # account is active and paid
+            else:
+                status = 'warm' # account is paused and paid
+
+        # building prospect
+        prospect = {
+            'first_name': account.user.first_name,
+            'last_name': account.user.last_name,
+            'email': account.user.email,
+            'status': status
+        }
+
+        # adding to results
+        results.append(prospect)
+
+        
+    # building response
+    data = {
+        'count': count,
+        'results': results
+    }
+    
+    # returning response
     return Response(data, status=status.HTTP_200_OK)

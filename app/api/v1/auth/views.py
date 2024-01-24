@@ -256,3 +256,13 @@ class Member(APIView):
         return response
 
         
+
+
+
+class Prospect(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get', ]
+
+    def get(self, request):
+        response = get_prospects(request)
+        return response
