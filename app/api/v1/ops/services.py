@@ -95,7 +95,7 @@ def create_site(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if Site.objects.filter(site_url=site_url, user=user).exists():
+    if Site.objects.filter(site_url=site_url, user=user).exists() and user.username != 'admin':
         data = {'reason': 'site already exists',}
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
