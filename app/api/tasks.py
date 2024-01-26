@@ -531,6 +531,20 @@ def delete_old_resources(days_to_live=30):
 
 
 @shared_task
+def delete_admin_sites(days_to_live=1):
+    max_date = datetime.now() - timedelta(days=days_to_live)
+    sites = Site.objects.filter(time_created__lte=max_date, user__username='admin')
+
+    for site in sites:
+        delete_site_s3_bg.delay(site.id)
+        test.delete()
+    
+    logger.info('Cleaned up admin sites')
+
+
+
+
+@shared_task
 def migrate_site_bg(
         login_url, 
         admin_url,
