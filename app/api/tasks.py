@@ -537,7 +537,7 @@ def delete_admin_sites(days_to_live=1):
 
     for site in sites:
         delete_site_s3_bg.delay(site.id)
-        test.delete()
+        site.delete()
     
     logger.info('Cleaned up admin sites')
 
