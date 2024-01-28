@@ -813,6 +813,10 @@ def create_scan(request=None, delay=False, *args, **kwargs):
         created_scans.append(str(created_scan.id))
         message = 'Scans are being created in the background'
 
+        # add scan_id to page.info.latest_scan.id
+        p.info['latest_scan']['id'] = str(created_scan)
+        p.save()
+
         if delay == True:
             # running scans in parallel 
             if 'html' in types or 'logs' in types or 'full' in types:
