@@ -814,7 +814,7 @@ def create_scan(request=None, delay=False, *args, **kwargs):
         message = 'Scans are being created in the background'
 
         # add scan_id to page.info.latest_scan.id
-        p.info['latest_scan']['id'] = str(created_scan)
+        p.info['latest_scan']['id'] = str(created_scan.id)
         p.save()
 
         if delay == True:
