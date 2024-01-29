@@ -48,25 +48,29 @@ class Yellowlab():
         }
 
         # setting up initial request
-        _res = requests.post(
+        res = requests.post(
             url=f'{settings.YELLOWLAB_ROOT}/api/runs',
             data=json.dumps(data),
             headers=headers
-        )
+        ).json()
 
-        # retrieve response
+        # retrieve runId
         run_id = res['runId']
         
         wait_time = 0
         max_wait = 1200
         done = False
+
+        # waiting for run to complete
         while not done and wait_time < max_wait:
 
+            # sending run request check
             res = requests.get(
                 url=f'{settings.YELLOWLAB_ROOT}/api/runs/{run_id}',
                 headers=headers
             ).json()
 
+            # checking status
             status = res['status']['statusCode']
             position = res['status'].get('position')
             if status == 'awaiting':
