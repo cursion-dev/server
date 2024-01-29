@@ -6,6 +6,9 @@ ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
 ENV YL_VERSION=develop
 
+# temp set working dir
+WORKDIR /usr/src/ylt
+
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 
@@ -40,9 +43,6 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 
 # cleaning npm
 RUN npm cache clean --force
-
-# temp set working dir
-WORKDIR /usr/src/ylt
 
 # install yellowlab
 RUN apt-get update \
