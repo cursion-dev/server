@@ -43,7 +43,7 @@ class Yellowlab():
         }
         data = {
             "url": self.page.page_url,
-            "waitForResponse": false,
+            "waitForResponse": False,
             "device": self.configs["device"]
         }
 
