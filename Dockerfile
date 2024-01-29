@@ -4,6 +4,7 @@ ENV PYTHONUNBUFFERED 1
 # increasing allocated memory to node
 ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
+ENV YL_VERSION=develop
 
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
@@ -41,7 +42,7 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 RUN npm cache clean --force
 
 # install yellowlab
-RUN apt-get update git clone https://github.com/gmetais/YellowLabTools.git -b develop . \
+RUN apt-get update git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
   && git checkout e9ab1fd \
   && npm install jpegoptim-bin --unsafe-perm=true --allow-root \
   && NODE_ENV=development && npm install --only=prod 
