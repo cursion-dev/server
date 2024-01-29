@@ -40,7 +40,7 @@ RUN apt-get update && apt-get install -y libfreetype6 git  \
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
     && npm install -g n \
-    && n 14.17.3
+    && n lts
 
 # cleaning npm
 RUN npm cache clean --force
