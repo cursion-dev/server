@@ -99,7 +99,7 @@ class Yellowlab():
 
 
     
-    def process_data(self, data: dict) -> dict:
+    def process_data(self, stdout_json: dict) -> dict:
         """ 
         Accepts JSON data from either CLI or API method 
         and parses into usable Scanerr data.
@@ -213,7 +213,7 @@ class Yellowlab():
 
                 # convert to dict
                 stdout_json = json.loads(stdout_value)
-                data = self.process_data(data=stdout_json)
+                data = self.process_data(stdout_json=stdout_json)
                 return data
                 
             else:
@@ -225,7 +225,7 @@ class Yellowlab():
 
             try:
                 raw_data = self.yellowlab_api()
-                data = self.process_data(data=raw_data)
+                data = self.process_data(stdout_json=raw_data)
                 return data
 
             except Exception as e:
