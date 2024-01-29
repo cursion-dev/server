@@ -132,7 +132,7 @@ class Yellowlab():
                 raise RuntimeError
 
         except Exception as e:
-            print(e)
+            print(f'YELLOWLAB FAILED --> {e}')
 
             scores = {
                 "globalScore": None,
