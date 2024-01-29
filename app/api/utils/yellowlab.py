@@ -110,6 +110,14 @@ class Yellowlab():
         Returns --> formatted YL data <dict> 
         """
 
+        # setup boto3 configurations
+        s3 = boto3.client(
+            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+            region_name=str(settings.AWS_S3_REGION_NAME), 
+            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+        )
+
         # initial audits object
         audits = {
             "pageWeight": [], 
@@ -191,14 +199,6 @@ class Yellowlab():
 
 
     def get_data(self):
-
-        # setup boto3 configurations
-        s3 = boto3.client(
-            's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-            aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-            region_name=str(settings.AWS_S3_REGION_NAME), 
-            endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-        )
         
         # try CLI method first
         try:
