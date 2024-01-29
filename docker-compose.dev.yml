@@ -61,10 +61,12 @@ services:
       - db
 
 
+
   yellowlab:
-    build:
-      context: .
-      dockerfile: ./yl/Dockerfile
+    image: ousamabenyounes/yellowlabtools 
+    # build:
+    #   context: .
+    #   dockerfile: ./yl/Dockerfile
     container_name: yellowlab
     privileged: true
     init: true
@@ -74,6 +76,7 @@ services:
       - yellowlab:/var/lib/yellowlab/data
     expose:
       - 8383
+
 
   nginx-proxy:
     container_name: nginx-proxy
