@@ -3,6 +3,7 @@
   - [Environment](#environment)
   - [Local](#local)
   - [Remote](#remote)
+  - [Deploy Yellowlabs](#deploy-yellowlabs)
   - [Scripts](#scripts)
 
 
@@ -111,6 +112,12 @@ $ docker compose -f docker-compose.prod.yml down
 ```shell
 $ docker-compose -f docker-compose.prod.yml down -v
 ```
+
+
+## Deploy Yellowlabs
+1. Run same server set-up untill the .git portion.
+2. ```docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools```
+
 
 
 &nbsp;
