@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     libfontconfig 
 
 # installing yellowlab-specific system deps
-RUN apt-get update && apt-get install -y libfreetype6 \ 
+RUN apt-get update && apt-get install -y libfreetype6 git \ 
     libatk-bridge2.0-0 gconf-service libasound2 \ 
     libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 \ 
     libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 \ 
@@ -40,8 +40,14 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 # cleaning npm
 RUN npm cache clean --force
 
-# installing lighthouse & yellowlabtools
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
+# install yellowlab
+RUN apt-get update git clone https://github.com/gmetais/YellowLabTools.git -b develop . \
+  && git checkout e9ab1fd \
+  && npm install jpegoptim-bin --unsafe-perm=true --allow-root \
+  && NODE_ENV=development && npm install --only=prod 
+
+# installing lighthouse & yellowlabtools --> yellowlabtools@2.2.0
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash 
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
 RUN chromium --no-sandbox --version
