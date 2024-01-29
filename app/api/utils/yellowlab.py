@@ -1,4 +1,5 @@
-import subprocess, json, uuid, boto3, shutil, os, requests
+import subprocess, json, uuid, boto3, \
+shutil, os, requests, time
 from ..models import Site, Scan
 from scanerr import settings
 
