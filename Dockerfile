@@ -42,7 +42,8 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 RUN npm cache clean --force
 
 # install yellowlab
-RUN apt-get update git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
+RUN apt-get update \
+  && git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
   && git checkout e9ab1fd \
   && npm install jpegoptim-bin --unsafe-perm=true --allow-root \
   && NODE_ENV=development && npm install --only=prod 
