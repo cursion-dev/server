@@ -4,10 +4,10 @@ ENV PYTHONUNBUFFERED 1
 # increasing allocated memory to node
 ENV NODE_OPTIONS=--max_old_space_size=262000
 ENV NODE_OPTIONS="--max-old-space-size=262000"
-ENV YL_VERSION=develop
+# ENV YL_VERSION=develop
 
 # temp set working dir
-WORKDIR /usr/src/ylt
+# WORKDIR /usr/src/ylt
 
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
@@ -28,8 +28,8 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     libfontconfig 
 
 # installing yellowlab-specific system deps
-RUN apt-get update && apt-get install -y libfreetype6 git \ 
-    libatk-bridge2.0-0 gconf-service libasound2 \ 
+RUN apt-get update && apt-get install -y libfreetype6 git  \ 
+    libatk-bridge2.0-0 gconf-service libasound2 make \ 
     libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 \ 
     libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 \ 
     libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 \ 
@@ -37,22 +37,23 @@ RUN apt-get update && apt-get install -y libfreetype6 git \
     libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 \ 
     libnss3 lsb-release libgbm1 xdg-utils wget -y --force-yes > /dev/null 2>&1
 
-# installing node and npm
+# installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
-    && npm install -g n && n lts
+    && npm install -g n \
+    && n 14.17.3
 
 # cleaning npm
 RUN npm cache clean --force
 
-# install yellowlab
-RUN apt-get update \
-  && git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
-  && git checkout e9ab1fd \
-  && npm install jpegoptim-bin --unsafe-perm=true --allow-root --force \
-  && NODE_ENV=development && npm install --only=prod --force
+# # install yellowlab
+# RUN apt-get update \
+#   && git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
+#   && git checkout e9ab1fd \
+#   && npm install jpegoptim-bin --unsafe-perm=true --allow-root --force \
+#   && NODE_ENV=development && npm install --only=prod --force
 
-# installing lighthouse & yellowlabtools --> yellowlabtools@2.2.0
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash 
+# installing lighthouse & yellowlabtools
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
 RUN chromium --no-sandbox --version
