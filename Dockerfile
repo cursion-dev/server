@@ -48,7 +48,7 @@ WORKDIR /usr/src/ylt
 RUN apt-get update \
   && git clone https://github.com/gmetais/YellowLabTools.git -b ${YL_VERSION} . \
   && git checkout e9ab1fd \
-  && npm install jpegoptim-bin --unsafe-perm=true --allow-root \
+  && npm install jpegoptim-bin --unsafe-perm=true --allow-root --force \
   && NODE_ENV=development && npm install --only=prod --force
 
 # installing lighthouse & yellowlabtools --> yellowlabtools@2.2.0
