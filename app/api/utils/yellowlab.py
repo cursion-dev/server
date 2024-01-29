@@ -94,7 +94,7 @@ class Yellowlab():
             headers=headers
         ).json()
     
-        return data
+        return res
 
 
 
@@ -105,7 +105,7 @@ class Yellowlab():
         and parses into usable Scanerr data.
 
         Expects the following:
-            data: <dict> or json from output
+            stdout_json: <dict> or json from output
             
         Returns --> formatted YL data <dict> 
         """
