@@ -249,7 +249,7 @@ class Account(models.Model):
     max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3)
     max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3)
-    testcases = BooleanField(default=False, serialize=False)
+    testcases = models.BooleanField(default=False, serialize=False)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
