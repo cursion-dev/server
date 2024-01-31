@@ -59,7 +59,7 @@ services:
       - redis
       - app
       - db
-
+      
 
   nginx-proxy:
     container_name: nginx-proxy
@@ -99,3 +99,4 @@ volumes:
   html:
   vhost:
   pgdata:
+  yellowlab:

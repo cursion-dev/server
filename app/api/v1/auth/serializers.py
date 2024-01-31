@@ -71,7 +71,8 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
         model = Account
         fields = ['id', 'active', 'time_created', 'type',
         'cust_id', 'sub_id', 'product_id', 'price_id', 'slack',
-        'user', 'code', 'name', 'price_amount',
+        'user', 'code', 'name', 'price_amount', 'max_sites', 
+        'max_pages', 'max_schedules', 'testcases', 'retention_days'
         ]
 
 

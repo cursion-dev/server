@@ -31,4 +31,5 @@ urlpatterns = [
     path('account/<uuid:id>/members', views.AccountMembers.as_view(), name='account-members'),
     path('member', views.Member.as_view(), name='member'),
     path('member/<uuid:id>', views.Member.as_view(), name='member-detail'),
+    path('prospect', views.Prospect.as_view(), name='prospect'),
 ]

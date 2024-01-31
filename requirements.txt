@@ -44,7 +44,7 @@ sendgrid==6.9.7
 six==1.16.0
 slack-sdk==3.11.2
 sqlparse==0.4.1
-stripe==2.60.0
+stripe==8.0.0
 tornado==6.1
 twilio==7.3.0
 urllib3==1.26.5

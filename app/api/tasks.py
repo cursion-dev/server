@@ -509,11 +509,17 @@ def create_testcase_bg(
 
 
 @shared_task
-def delete_old_resources(days_to_live=30):
+def delete_old_resources(account_id=None, days_to_live=30):
     max_date = datetime.now() - timedelta(days=days_to_live)
-    tests = Test.objects.filter(time_created__lte=max_date)
-    scans = Scan.objects.filter(time_created__lte=max_date)
-    testcases = Testcase.objects.filter(time_created__lte=max_date)
+
+    if account_id is not None:
+        tests = Test.objects.filter(account__id=account_id, time_created__lte=max_date)
+        scans = Scan.objects.filter(account__id=account_id, time_created__lte=max_date)
+        testcases = Testcase.objects.filter(account__id=account_id, time_created__lte=max_date)
+    else:
+        tests = Test.objects.filter(time_created__lte=max_date)
+        scans = Scan.objects.filter(time_created__lte=max_date)
+        testcases = Testcase.objects.filter(time_created__lte=max_date)
 
     for test in tests:
         delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
@@ -526,6 +532,36 @@ def delete_old_resources(days_to_live=30):
         testcase.delete()
     
     logger.info('Cleaned up resources')
+
+
+
+
+
+@shared_task
+def data_retention():
+    accounts = Account.objects.all()
+    for account in accounts:
+        delete_old_resources.delay(
+            account_id=account.id,
+            days_to_live=account.retention_days
+        )
+    
+    logger.info('Requested resource cleanup')
+
+
+
+
+
+@shared_task
+def delete_admin_sites(days_to_live=1):
+    max_date = datetime.now() - timedelta(days=days_to_live)
+    sites = Site.objects.filter(time_created__lte=max_date, user__username='admin')
+
+    for site in sites:
+        delete_site_s3_bg.delay(site.id)
+        site.delete()
+    
+    logger.info('Cleaned up admin sites')
 
 
 

@@ -142,6 +142,9 @@ kubectl port-forward service/app-service 8000:8000
 ---
 
 ## Migration Notes for DB:
-1. Ensure state is where you want it to be (i.e. local migration files are what you expect) or delete any new migration files that were generated during development
-2. Spinup staging env locally
-3. Push new migration changes to github
+1. Go to `models.py` and comment out all new additions
+2. Spinup staging env locally to create `00001_initial.py` migration as baseline
+3. Spin down staging env
+4. Un-comment all new additions in `models.py`
+5. Spinup staging env locally again and ensure a new migration file is created in `/migrations`
+3. Spin down staging env and merge `dev` branch on github
