@@ -259,6 +259,9 @@ def create_or_update_account(request=None, *args, **kwargs):
         code = request.data.get('code')
         max_sites = request.data.get('max_sites')
         max_pages = request.data.get('max_pages')
+        max_schedules = request.data.get('max_schedules')
+        retention_days = request.data.get('retention_days')
+        testcases = request.data.get('testcases')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
@@ -274,6 +277,9 @@ def create_or_update_account(request=None, *args, **kwargs):
         code = kwargs.get('code')
         max_sites = kwargs.get('max_sites')
         max_pages = kwargs.get('max_pages')
+        max_schedules = kwargs.get('max_schedules')
+        retention_days = kwargs.get('retention_days')
+        testcases = kwargs.get('testcases')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
@@ -301,6 +307,12 @@ def create_or_update_account(request=None, *args, **kwargs):
             account.max_sites = max_sites
         if max_pages is not None:
             account.max_pages = max_pages
+        if max_schedules is not None:
+            account.max_schedules = max_schedules
+        if retention_days is not None:
+            account.retention_days = retention_days
+        if testcases is not None:
+            account.testcases = testcases
         if cust_id is not None:
             account.cust_id = cust_id
         if sub_id is not None:
@@ -330,6 +342,9 @@ def create_or_update_account(request=None, *args, **kwargs):
             code=code,
             max_sites=max_sites,
             max_pages=max_pages,
+            max_schedules=max_schedules if max_schedules is not None else 0,
+            retention_days=retention_days if retention_days is not None else 3,
+            testcases=testcases if testcases is not None else False,
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,

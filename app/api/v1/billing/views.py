@@ -193,6 +193,9 @@ class CompleteSubscription(APIView):
                 'price_amount': account.price_amount,
                 'max_sites': account.max_sites,
                 'max_pages': account.max_pages,
+                'max_schedules': account.max_schedules,
+                'retention_days': account.retention_days,
+                'testcases': account.testcases,
                 'slack': {
                     'slack_name': account.slack['slack_name'], 
                     'bot_user_id': account.slack['bot_user_id'], 
@@ -221,6 +224,14 @@ class SetupSubscription(APIView):
         price_amount = int(request.data.get('price_amount'))
         max_sites = int(request.data.get('max_sites'))
         max_pages = int(request.data.get('max_pages'))
+        max_schedules = int(request.data.get('max_schedules'))
+        retention_days = int(request.data.get('retention_days'))
+        testcases = str(request.data.get('testcases', False))
+
+        if testcases.lower() == 'true':
+            testcases = True
+        if testcases.lower() == 'false':
+            testcases = False
 
         if not Account.objects.filter(user=user).exists():
             create_or_update_account(
@@ -228,6 +239,9 @@ class SetupSubscription(APIView):
                 type=name,
                 max_sites=max_sites,
                 max_pages=max_pages,
+                max_schedules=max_schedules,
+                retention_days=retention_days,
+                testcases=testcases
             )
 
         account = Account.objects.get(user=user)
@@ -285,6 +299,9 @@ class SetupSubscription(APIView):
             max_sites = max_sites,
             max_pages = max_pages,
             price_amount = price_amount,
+            max_schedules = max_schedules,
+            retention_days = retention_days,
+            testcases = testcases
         )        
 
         data = {
@@ -325,6 +342,9 @@ class GetBillingInfo(APIView):
                     'price_amount': account.price_amount,
                     'max_sites': account.max_sites,
                     'max_pages': account.max_pages,
+                    'max_schedules': account.max_schedules,
+                    'retention_days': account.retention_days,
+                    'testcases': account.testcases,
                     'slack': {
                         'slack_name': account.slack['slack_name'], 
                         'bot_user_id': account.slack['bot_user_id'], 
@@ -382,6 +402,12 @@ class AccountActivation(APIView):
                 'plan': {
                     'name': account.type,
                     'active': account.active,
+                    'price_amount': account.price_amount,
+                    'max_sites': account.max_sites,
+                    'max_pages': account.max_pages,
+                    'max_schedules': account.max_schedules,
+                    'retention_days': account.retention_days,
+                    'testcases': account.testcases,
                     'slack': {
                         'slack_name': account.slack['slack_name'], 
                         'bot_user_id': account.slack['bot_user_id'], 
@@ -389,7 +415,7 @@ class AccountActivation(APIView):
                         'bot_access_token': account.slack['bot_access_token'], 
                         'slack_channel_id': account.slack['slack_channel_id'], 
                         'slack_channel_name': account.slack['slack_channel_name'],
-                    },
+                    }
                 },
             }
 

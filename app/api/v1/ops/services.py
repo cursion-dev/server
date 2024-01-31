@@ -50,14 +50,68 @@ def record_api_call(request, data, status):
 
 
 
-def check_account(request=None, user=None):
+def check_account(request=None, user=None, resource=None, site_id=None):
+    
+    allowed = True
+    error = None
+    member = None
+
     if request is not None:
         user = request.user
     if Member.objects.filter(user=user).exists():
         member = Member.objects.get(user=user)
-        return member.account.active
+        account = member.account
+        allowed = member.account.active
+        if not allowed:
+            error = 'account not funded'
     else:
-        return False
+        allowed = False
+        error = 'no account assocation'
+    
+    # returning early bc account 
+    # is not funded or not associated
+    if not allowed:
+        data = {
+            'allowed': allowed,
+            'error': error 
+        }
+        return data
+
+    # checking resource limit
+    if resource is not None:
+        # checking pages
+        if resource == 'page':
+            current_page_count = Page.objects.filter(account=account, site__id=site_id).count()
+            if current_page_count >= account.max_pages:
+                allowed = False
+                error = 'max pages reached, please upgrade plan'
+        # checking sites
+        if resource == 'site':
+            current_site_count = Site.objects.filter(account=account).count()
+            if current_site_count >= account.max_sites:
+                allowed = False
+                error = 'max sites reached, please upgrade plan'
+        # checking schedules
+        if resource == 'schedule':
+            current_site_count = Schedule.objects.filter(account=account).count()
+            if current_site_count >= account.max_schedules:
+                allowed = False
+                error = 'max schedules reached, please upgrade plan'
+        # checking testcases
+        if resource == 'testcase':
+            if not account.testcases:
+                allowed = False
+                error = 'testcases not allowed, please upgrade plan'
+    
+    # returning data
+    data = {
+        'allowed': allowed,
+        'error': error 
+    }
+    return data
+        
+
+    
 
 
 
@@ -84,9 +138,9 @@ def create_site(request, delay=False):
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request, resource='site')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -189,9 +243,9 @@ def crawl_site(request, id):
     user = request.user
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
     try:
@@ -384,9 +438,9 @@ def create_page(request, delay=False):
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request, resource='page', site_id=site_id)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -474,13 +528,13 @@ def create_many_pages(request, obj_response=False):
     site = Site.objects.get(id=site_id)
     pages = Page.objects.filter(site=site)
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request, resource='page', site_id=site_id)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if pages.count() >= account.max_pages:
+    if (pages.count() + len(page_urls)) >= account.max_pages:
         data = {'reason': 'maximum number of pages reached',}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -732,9 +786,9 @@ def create_scan(request=None, delay=False, *args, **kwargs):
         user = User.objects.get(id=user_id)
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(user=user)
-    if not account_is_active:
-        data = {'reason': 'account not funded', 'success': False}
+    check_data = check_account(request=request)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'], 'success': False}
         if request is not None:
             record_api_call(request, data, '402')
             return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -1147,9 +1201,9 @@ def create_test(request=None, delay=False, *args, **kwargs):
         # get data from kwargs
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(user=user)
-    if not account_is_active:
-        data = {'reason': 'account not funded', 'success': False,}
+    check_data = check_account(request=request)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'], 'success': False}
         if request is not None:
             record_api_call(request, data, '402')
             return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -1617,9 +1671,9 @@ def create_or_update_schedule(request):
     user = request.user
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request, resource='schedule')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
     try:
@@ -1978,9 +2032,9 @@ def create_or_update_automation(request):
     user = request.user
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -2308,9 +2362,9 @@ def create_or_update_case(request):
     user = request.user
     account = Member.objects.get(user=user).account
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request)
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
@@ -2440,9 +2494,9 @@ def create_testcase(request, delay=False):
     account = Member.objects.get(user=user).account
 
 
-    account_is_active = check_account(request=request)
-    if not account_is_active:
-        data = {'reason': 'account not funded',}
+    check_data = check_account(request=request, resource='testcase')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
