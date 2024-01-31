@@ -93,12 +93,18 @@ $ cat ~/.ssh/id_ed25519.pub
 - copy key to clipboard and paste in GutHub
 
 
+*Add ssh_key.pub to {user} authorized_keys*
+```shell
+$ {your_ssh_key.pub} >> ~/.ssh/authorized_keys
+```
+
+
 *Create a dir to clone the app into*
 ``` shell
 $ cd ~
 $ mkdir app
 $ cd app
-$ git clone https://github.com/Scanerr-io/server.git
+$ git clone git@github.com:Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
