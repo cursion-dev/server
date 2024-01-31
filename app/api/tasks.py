@@ -513,8 +513,8 @@ def delete_old_resources(account_id=None, days_to_live=30):
     max_date = datetime.now() - timedelta(days=days_to_live)
 
     if account_id is not None:
-        tests = Test.objects.filter(account__id=account_id, time_created__lte=max_date)
-        scans = Scan.objects.filter(account__id=account_id, time_created__lte=max_date)
+        tests = Test.objects.filter(site__account__id=account_id, time_created__lte=max_date)
+        scans = Scan.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         testcases = Testcase.objects.filter(account__id=account_id, time_created__lte=max_date)
     else:
         tests = Test.objects.filter(time_created__lte=max_date)
