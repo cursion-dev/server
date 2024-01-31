@@ -786,13 +786,14 @@ def create_scan(request=None, delay=False, *args, **kwargs):
         user = User.objects.get(id=user_id)
     account = Member.objects.get(user=user).account
 
-    check_data = check_account(request=request)
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'], 'success': False}
-        if request is not None:
-            record_api_call(request, data, '402')
-            return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-        return data
+    if request is not None:
+        check_data = check_account(request=request)
+        if not check_data['allowed']:
+            data = {'reason': check_data['error'], 'success': False}
+            if request is not None:
+                record_api_call(request, data, '402')
+                return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+            return data
 
     if len(types) == 0:
         types = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
