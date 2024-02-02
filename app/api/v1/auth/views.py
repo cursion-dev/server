@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.viewsets import ModelViewSet, ViewSet
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import status, serializers
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken

@@ -7,9 +7,8 @@ from ...models import *
 from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
 from rest_framework.viewsets import ViewSet
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.pagination import LimitOffsetPagination
 from django.urls import resolve
