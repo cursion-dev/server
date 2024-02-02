@@ -167,7 +167,7 @@ def create_site(request, delay=False):
         # check if this is account's first site
         if Site.objects.filter(account=account).count() == 1:
             # send POST to landing/v1/ops/prospect
-            create_prospect.delay(user=user)
+            create_prospect.delay(user_id=user.id)
 
         if not configs:
             configs = {
