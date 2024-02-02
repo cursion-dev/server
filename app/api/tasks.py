@@ -567,10 +567,10 @@ def delete_admin_sites(days_to_live=1):
 
 
 @shared_task
-def create_prospect(user_id=None):
+def create_prospect(user_email=None):
 
     # get user by id
-    user = User.objects.get(id=id)
+    user = User.objects.get(email=user_email)
     
     # setup configs
     url = f'{settings.LANDING_API_ROOT}/v1/ops/prospect'
