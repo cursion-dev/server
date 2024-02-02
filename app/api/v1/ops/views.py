@@ -7,9 +7,8 @@ from ...models import *
 from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
 from rest_framework.viewsets import ViewSet
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.pagination import LimitOffsetPagination
 from django.urls import resolve
@@ -19,7 +18,7 @@ from .services import *
 
 
 class Sites(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
     pagination_class = LimitOffsetPagination
 
@@ -34,7 +33,7 @@ class Sites(APIView):
 
 
 class SiteDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -58,7 +57,7 @@ class SiteDetail(APIView):
 
 
 class SiteDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -68,7 +67,7 @@ class SiteDelay(APIView):
 
 
 class SiteCrawl(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request, id):
@@ -77,7 +76,7 @@ class SiteCrawl(APIView):
 
 
 class SitesDelete(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -88,7 +87,7 @@ class SitesDelete(APIView):
 
 
 class Pages(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
     pagination_class = LimitOffsetPagination
 
@@ -103,7 +102,7 @@ class Pages(APIView):
 
 
 class PageDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -127,7 +126,7 @@ class PageDetail(APIView):
 
 
 class PageDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -137,7 +136,7 @@ class PageDelay(APIView):
 
 
 class PagesDelete(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -148,7 +147,7 @@ class PagesDelete(APIView):
 
 
 class Scans(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get',]
     pagination_class = LimitOffsetPagination
 
@@ -162,7 +161,7 @@ class Scans(APIView):
 
 
 class ScanDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
@@ -188,7 +187,7 @@ class ScanDetail(APIView):
 
 
 class ScanLean(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', ]
 
     def get(self, request, id):
@@ -197,7 +196,7 @@ class ScanLean(APIView):
 
 
 class ScanDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -207,7 +206,7 @@ class ScanDelay(APIView):
 
 
 class ScansCreate(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -217,7 +216,7 @@ class ScansCreate(APIView):
 
 
 class ScansDelete(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -229,7 +228,7 @@ class ScansDelete(APIView):
 
 
 class Tests(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get',]
     pagination_class = LimitOffsetPagination
 
@@ -243,7 +242,7 @@ class Tests(APIView):
 
 
 class TestDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
@@ -268,7 +267,7 @@ class TestDetail(APIView):
 
 
 class TestLean(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id):
@@ -277,7 +276,7 @@ class TestLean(APIView):
 
 
 class TestDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -286,7 +285,7 @@ class TestDelay(APIView):
 
 
 class TestsCreate(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -295,7 +294,7 @@ class TestsCreate(APIView):
 
 
 class TestsDelete(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -308,7 +307,7 @@ class TestsDelete(APIView):
 
 
 class Schedules(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
 
     def post(self, request):
@@ -321,7 +320,7 @@ class Schedules(APIView):
 
 
 class ScheduleDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -349,7 +348,7 @@ class ScheduleDetail(APIView):
 
 
 class Automations(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
     pagination_class = LimitOffsetPagination
 
@@ -363,7 +362,7 @@ class Automations(APIView):
 
 
 class AutomationDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -391,7 +390,7 @@ class AutomationDetail(APIView):
 
 
 class Reports(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
 
     def post(self, request):
@@ -405,7 +404,7 @@ class Reports(APIView):
 
 
 class ReportDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -436,7 +435,7 @@ class ReportDetail(APIView):
 
 
 class Cases(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
 
     def post(self, request):
@@ -450,7 +449,7 @@ class Cases(APIView):
 
 
 class CasesSearch(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
 
     def get(self, request):
@@ -460,7 +459,7 @@ class CasesSearch(APIView):
 
 
 class CaseDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -486,7 +485,7 @@ class CaseDetail(APIView):
 
 
 class Testcases(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
 
     def post(self, request):
@@ -500,7 +499,7 @@ class Testcases(APIView):
 
 
 class TestcaseDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):
@@ -510,7 +509,7 @@ class TestcaseDelay(APIView):
 
 
 class TestcaseDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
@@ -538,7 +537,7 @@ class TestcaseDetail(APIView):
 
 
 class Logs(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
     pagination_class = LimitOffsetPagination
     
@@ -548,7 +547,7 @@ class Logs(APIView):
 
 
 class LogDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id):
@@ -566,7 +565,7 @@ class LogDetail(APIView):
 
 
 class HomeStats(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request):
@@ -576,7 +575,7 @@ class HomeStats(APIView):
 
 
 class SiteStats(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request):
@@ -586,7 +585,7 @@ class SiteStats(APIView):
 
 
 class Processes(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
     
     def get(self, request):
@@ -595,7 +594,7 @@ class Processes(APIView):
 
 
 class ProcessDetail(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id):
@@ -614,7 +613,7 @@ class ProcessDetail(APIView):
 
 
 class WordPressMigrateSite(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
     
     def post(self, request):
@@ -623,7 +622,7 @@ class WordPressMigrateSite(APIView):
 
 
 class WordPressMigrateSiteDelay(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
     
     def post(self, request):
@@ -632,7 +631,7 @@ class WordPressMigrateSiteDelay(APIView):
 
 
 class SiteScreenshot(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
     
     def post(self, request):

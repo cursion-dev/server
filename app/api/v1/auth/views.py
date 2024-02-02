@@ -3,7 +3,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.viewsets import ModelViewSet, ViewSet
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import status, serializers
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
@@ -138,7 +138,7 @@ class ResetPassword(APIView):
 
 
 class UpdateUser(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request): 
@@ -221,7 +221,7 @@ class SlackOauth(APIView):
 
 
 class Account(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
 
     def post(self, request, *args, **kwargs ):
@@ -235,7 +235,7 @@ class Account(APIView):
 
 
 class AccountMembers(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id=None, *args, **kwargs):
@@ -244,7 +244,7 @@ class AccountMembers(APIView):
 
 
 class Member(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
 
     def post(self, request, *args, **kwargs ):
@@ -258,7 +258,7 @@ class Member(APIView):
         
 
 class Prospect(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request):

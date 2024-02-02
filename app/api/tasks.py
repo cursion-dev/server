@@ -567,13 +567,13 @@ def delete_admin_sites(days_to_live=1):
 
 
 @shared_task
-def create_prospect(user_id=None):
+def create_prospect(user_email=None):
 
     # get user by id
-    user = User.objects.get(id=id)
+    user = User.objects.get(email=user_email)
     
     # setup configs
-    url = f'{settings.LANDING_API_ROOT}/v1/ops/prospect'
+    url = f'{settings.LANDING_API_ROOT}/ops/prospect'
     headers = {
         "content-type": "application/json",
         "Authorization" : f'Token {settings.LANDING_API_KEY}'
@@ -599,7 +599,7 @@ def create_prospect(user_id=None):
 
     except Exception as e:
         success = False
-        message = res
+        message = e
 
     data = {
         'success': success,
