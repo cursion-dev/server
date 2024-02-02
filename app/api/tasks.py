@@ -573,7 +573,7 @@ def create_prospect(user_email=None):
     user = User.objects.get(email=user_email)
     
     # setup configs
-    url = f'{settings.LANDING_API_ROOT}/v1/ops/prospect'
+    url = f'{settings.LANDING_API_ROOT}/ops/prospect'
     headers = {
         "content-type": "application/json",
         "Authorization" : f'Token {settings.LANDING_API_KEY}'
