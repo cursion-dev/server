@@ -599,7 +599,7 @@ def create_prospect(user_email=None):
 
     except Exception as e:
         success = False
-        message = res
+        message = e
 
     data = {
         'success': success,
