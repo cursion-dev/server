@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import status
 from django.contrib.auth.models import User
@@ -15,7 +15,7 @@ import os, stripe, json
 
 
 class StripeKey(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -27,7 +27,7 @@ class StripeKey(APIView):
 
 
 class CreateCustomer(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -46,7 +46,7 @@ class CreateCustomer(APIView):
 
 
 class CreateProduct(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -65,7 +65,7 @@ class CreateProduct(APIView):
 
 
 class CreatePrice(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -92,7 +92,7 @@ class CreatePrice(APIView):
 
 
 class CreateSubscription(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -119,7 +119,7 @@ class CreateSubscription(APIView):
 
 
 class CompleteSubscription(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -213,7 +213,7 @@ class CompleteSubscription(APIView):
 
 
 class SetupSubscription(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -316,7 +316,7 @@ class SetupSubscription(APIView):
 
 
 class GetBillingInfo(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request):  
@@ -365,7 +365,7 @@ class GetBillingInfo(APIView):
 
 
 class AccountActivation(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     https_method_names = ['post',]
 
     def post(self, request):
@@ -426,7 +426,7 @@ class AccountActivation(APIView):
 
 
 class StripeInvoice(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     https_method_names = ['get',]
 
     def get(self, request):

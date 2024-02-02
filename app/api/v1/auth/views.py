@@ -138,7 +138,7 @@ class ResetPassword(APIView):
 
 
 class UpdateUser(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
     def post(self, request): 
@@ -221,7 +221,7 @@ class SlackOauth(APIView):
 
 
 class Account(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
 
     def post(self, request, *args, **kwargs ):
@@ -235,7 +235,7 @@ class Account(APIView):
 
 
 class AccountMembers(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id=None, *args, **kwargs):
@@ -244,7 +244,7 @@ class AccountMembers(APIView):
 
 
 class Member(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
 
     def post(self, request, *args, **kwargs ):
@@ -258,7 +258,7 @@ class Member(APIView):
         
 
 class Prospect(APIView):
-    permission_classes = (AllowAny,)
+    permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request):
