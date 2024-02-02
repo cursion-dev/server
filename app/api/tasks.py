@@ -567,7 +567,10 @@ def delete_admin_sites(days_to_live=1):
 
 
 @shared_task
-def create_prospect(user):
+def create_prospect(user_id=None):
+
+    # get user by id
+    user = User.objects.get(id=id)
     
     # setup configs
     url = f'{settings.LANDING_API_ROOT}/v1/ops/prospect'
@@ -576,9 +579,9 @@ def create_prospect(user):
         "Authorization" : f'Token {settings.LANDING_API_KEY}'
     }
     data = {
-        'first_name': user.first_name,
-        'last_name': user.last_name,
-        'email': user.email,
+        'first_name': str(user.first_name),
+        'last_name': str(user.last_name),
+        'email': str(user.email),
         'status': 'warm',
         'source': 'app',
     }

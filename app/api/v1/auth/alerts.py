@@ -24,9 +24,11 @@ def send_reset_link(email):
         title = 'Reset Password'
         pre_header = 'Reset Password'
         pre_content = 'Click the link below to reset your password.'
+        greeting = f'Hi there,'
 
         subject = subject
         context = {
+            'greeting': greeting,
             'title' : title,
             'subject' : subject,
             'email': email,
@@ -40,17 +42,6 @@ def send_reset_link(email):
         }
 
         sendgrid_email(message_obj=context)
-
-        # html_message = render_to_string('api/alert_with_button.html', context)
-        # plain_message = strip_tags(html_message)
-        # send_mail(
-        #     from_email = os.getenv('EMAIL_HOST_USER'),
-        #     subject = subject,
-        #     message = plain_message,
-        #     recipient_list = [email],
-        #     html_message = html_message,
-        #     fail_silently = True,
-        # )
 
         data = {
             'success': True
@@ -77,9 +68,11 @@ def send_invite_link(member):
         title = 'Scanerr Invite'
         pre_header = 'Scanerr Invite'
         pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Scanerr. Now just click the link below to accept the invite!'
+        greeting = 'Hi there,'
 
         subject = subject
         context = {
+            'greeting': greeting,
             'title' : title,
             'subject' : subject,
             'email': member.email,
@@ -93,17 +86,6 @@ def send_invite_link(member):
         }
         
         sendgrid_email(message_obj=context)
-
-        # html_message = render_to_string('api/alert_with_button.html', context)
-        # plain_message = strip_tags(html_message)
-        # send_mail(
-        #     from_email = os.getenv('EMAIL_HOST_USER'),
-        #     subject = subject,
-        #     message = plain_message,
-        #     recipient_list = [member.email],
-        #     html_message = html_message,
-        #     fail_silently = True,
-        # )
 
         data = {
             'success': True
@@ -127,9 +109,11 @@ def send_remove_alert(member):
         title = 'Removed From Account'
         pre_header = 'Removed From Account'
         pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Scanerr. Please let us know if there\'s been a mistake.'
+        greeting = 'Hi there,'
 
         subject = subject
         context = {
+            'greeting' : greeting,
             'title' : title,
             'subject' : subject,
             'email': member.email,
@@ -145,17 +129,6 @@ def send_remove_alert(member):
 
         # delete member obj
         member.delete()
-
-        # html_message = render_to_string('api/alert_no_button.html', context)
-        # plain_message = strip_tags(html_message)
-        # send_mail(
-        #     from_email = os.getenv('EMAIL_HOST_USER'),
-        #     subject = subject,
-        #     message = plain_message,
-        #     recipient_list = [member.email],
-        #     html_message = html_message,
-        #     fail_silently = True,
-        # )
 
         data = {
             'success': True

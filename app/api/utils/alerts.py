@@ -268,6 +268,7 @@ def get_item(object_id):
 
 def automation_email(email=None, automation_id=None, object_id=None):
     if email and automation_id:
+        user = User.objects.get(email=email)
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
         if schedule.site is not None:
@@ -300,6 +301,7 @@ def automation_email(email=None, automation_id=None, object_id=None):
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
         subject = subject
+
         context = {
             'title' : title,
             'subject': subject,
@@ -315,17 +317,6 @@ def automation_email(email=None, automation_id=None, object_id=None):
         }
 
         sendgrid_email(message_obj=context)
-
-        # html_message = render_to_string('api/automation_email.html', context)
-        # plain_message = strip_tags(html_message)
-        # send_mail(
-        #     from_email = os.getenv('EMAIL_HOST_USER'),
-        #     subject = subject,
-        #     message = plain_message,
-        #     recipient_list = [email],
-        #     html_message = html_message,
-        #     fail_silently = True,
-        # )
 
         data = {
             'success': True
@@ -410,11 +401,11 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
 
 
 def automation_webhook(
-    request_type=None, 
-    request_url=None, 
-    request_data=None,
-    automation_id=None, 
-    object_id=None,
+        request_type=None, 
+        request_url=None, 
+        request_data=None,
+        automation_id=None, 
+        object_id=None,
     ):
     if request_type and automation_id and request_url and request_data and object_id:
         automation = Automation.objects.get(id=automation_id)
@@ -610,7 +601,8 @@ def sendgrid_email(message_obj):
             'email':        <str>,
             'template':     <str>,
             'object_url':   <str>,
-            'signature':    <str>
+            'signature':    <str>,
+            'greeting':     <str>,
         }
 
     Returns --> data: {
@@ -630,10 +622,12 @@ def sendgrid_email(message_obj):
     exp_list = message_obj.get('exp_list')
     object_url = message_obj.get('object_url')
     signature = message_obj.get('signature', '- Cheers!')
+    greeting = message_obj.get('greeting', 'Hi there,')
 
 
     # build template data
     template_data = {
+        'greeting': greeting,
         'title' : title,
         'pre_header' : pre_header,
         'pre_content' : pre_content,
