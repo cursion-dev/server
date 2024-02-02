@@ -83,7 +83,7 @@ kubectl port-forward service/app-service 8000:8000
 
       
 
-## Setps to Deploy Remotly
+## Setps to Deploy Remotely
 
 
 ### 1. Create docker secrets  
