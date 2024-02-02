@@ -1,4 +1,4 @@
-import json, boto3, asyncio, os
+import json, boto3, asyncio, os, requests
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
@@ -163,6 +163,11 @@ def create_site(request, delay=False):
             tags=tags,
             account=account
         )
+
+        # check if this is account's first site
+        if Site.objects.filter(account=account).count() == 1:
+            # send POST to landing/v1/ops/prospect
+            create_prospect.delay(user=user)
 
         if not configs:
             configs = {

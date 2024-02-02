@@ -21,7 +21,7 @@ from django.utils import timezone
 from .utils.driver_p import driver_test
 from .v1.auth.alerts import send_invite_link, send_remove_alert
 from asgiref.sync import async_to_sync
-import asyncio, boto3, time
+import asyncio, boto3, time, requests, json
 from datetime import datetime, timedelta, date
 from scanerr import settings
 
@@ -562,6 +562,48 @@ def delete_admin_sites(days_to_live=1):
         site.delete()
     
     logger.info('Cleaned up admin sites')
+
+
+
+
+@shared_task
+def create_prospect(user):
+    
+    # setup configs
+    url = f'{settings.LANDING_API_ROOT}/v1/ops/prospect'
+    headers = {
+        "content-type": "application/json",
+        "Authorization" : f'Token {settings.LANDING_API_KEY}'
+    }
+    data = {
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'email': user.email,
+        'status': 'warm',
+        'source': 'app',
+    }
+    
+    try:
+        # send the request
+        res = requests.post(
+            url=url, 
+            headers=headers, 
+            data=json.dumps(data)
+        ).json()
+
+        success = True
+        message = res
+
+    except Exception as e:
+        success = False
+        message = res
+
+    data = {
+        'success': success,
+        'message': message
+    }
+    
+    logger.info(f'Sent Prospect creation request -> {data}')
 
 
 

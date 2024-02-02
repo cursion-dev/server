@@ -25,7 +25,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
-LANDING_URL_ROOT = os.environ.get('LANDING_URL_ROOT')
+LANDING_API_ROOT = os.environ.get('LANDING_API_ROOT')
+LANDING_API_KEY = os.environ.get('LANDING_API_KEY')
 API_URL_ROOT = os.environ.get('API_URL_ROOT')
 YELLOWLAB_ROOT = os.environ.get('YELLOWLAB_ROOT')
 CORS_ORIGIN_ALLOW_ALL = True
