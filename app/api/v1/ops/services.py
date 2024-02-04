@@ -125,10 +125,16 @@ def check_account(request=None, user=None, resource=None, site_id=None):
 def create_site(request, delay=False):
     site_url = request.data.get('site_url')
     page_urls = request.data.get('page_urls')
+    onboarding = request.data.get('onboarding', None)
     user = request.user
     account = Member.objects.get(user=user).account
     sites = Site.objects.filter(account=account)
 
+    if onboarding is not None:
+        if str(onboarding).lower() == 'true':
+            onboarding = True
+        if str(onboarding).lower() == 'false':
+            onboarding = False
 
     if site_url.endswith('/'):
         site_url = site_url.rstrip('/')
@@ -164,8 +170,9 @@ def create_site(request, delay=False):
             account=account
         )
 
-        # check if this is account's first site
-        if Site.objects.filter(account=account).count() == 1:
+        # check if this is account's first site and onboarding = True
+        if Site.objects.filter(account=account).count() == 1 \
+            and onboarding == True:
             # send POST to landing/v1/ops/prospect
             create_prospect.delay(user_email=str(user.email))
 
