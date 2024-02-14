@@ -571,6 +571,9 @@ def create_prospect(user_email=None):
 
     # get user by id
     user = User.objects.get(email=user_email)
+
+    # get account by user
+    account = Account.objects.get(user=user)
     
     # setup configs
     url = f'{settings.LANDING_API_ROOT}/ops/prospect'
@@ -582,6 +585,7 @@ def create_prospect(user_email=None):
         'first_name': str(user.first_name),
         'last_name': str(user.last_name),
         'email': str(user.email),
+        'phone': str(account.phone),
         'status': 'warm',
         'source': 'app',
     }

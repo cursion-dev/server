@@ -583,6 +583,7 @@ def get_prospects(request):
             'first_name': account.user.first_name,
             'last_name': account.user.last_name,
             'email': account.user.email,
+            'phone': account.phone,
             'status': _status
         }
 
