@@ -56,16 +56,16 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     img = I.open(image)
     width, height = img.size
     left = 0
-    top = 75
+    top = 60
     right = width
-    bottom = height - (784)
+    bottom = height - (300)
     new_img_1 = img.crop((left, top, right, bottom))
     new_img_1.save(image, quality=100)
 
     # convert to pdf
     img = I.open(image)
     new_img_2 = img.convert('RGB')
-    new_img_2.save(pdf)
+    new_img_2.save(pdf, quality=100)
 
     # uploading to s3
     remote_path = f'static/landing/reports/{report_id}.pdf'
