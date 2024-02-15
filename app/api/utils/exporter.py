@@ -73,7 +73,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
 
     # upload to s3
     with open(pdf, 'rb') as data:
-        self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+        s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
             remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': 'application/pdf'}
         )
     
