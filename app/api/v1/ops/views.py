@@ -435,7 +435,7 @@ class ExportReport(APIView):
     http_method_names = ['post',]
 
     def post(self, request):
-        response = export_report(request)        
+        response = export_report(request) 
         return response
 
 
