@@ -5,6 +5,7 @@ from celery import shared_task, Task
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
+from .utils.exporter import create_and_send_report_export
 from .v1.ops.tasks import (
     create_site_task, create_scan_task, 
     create_test_task, create_report_task, delete_report_s3,
