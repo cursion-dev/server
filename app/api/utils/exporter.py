@@ -58,7 +58,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     left = 0
     top = 85
     right = width
-    bottom = height - (350)
+    bottom = height - (330)
     new_img_1 = img.crop((left, top, right, bottom))
     new_img_1.save(image, quality=95)
 
