@@ -616,6 +616,17 @@ def create_prospect(user_email=None):
 
 
 @shared_task
+def create_report_export_bg(report_id=None, email=None, first_name=None):
+    data = create_and_send_report_export(
+        report_id=report_id,
+        email=email,
+        first_name=first_name
+    )
+    logger.info(f'Created and sent report export -> {data}')
+
+
+
+@shared_task
 def migrate_site_bg(
         login_url, 
         admin_url,

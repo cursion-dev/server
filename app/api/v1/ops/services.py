@@ -2318,6 +2318,36 @@ def delete_report(request, id):
 
 
 
+
+
+def export_report(request):
+    # getting data from request
+    report_id = request.data.get('report_id')
+    email = request.data.get('email')
+    first_name = request.data.get('first_name')
+
+    # send task to background
+    create_report_export_bg.delay(
+        report_id=report_id,
+        email=email, 
+        first_name=first_name
+    )
+
+    # building response
+    data = {
+        'success': True,
+        'error': None
+    }
+
+    # returning response
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
 def get_processes(request):
     site_id = request.query_params.get('site_id', None)
     process_id = request.query_params.get('process_id', None)

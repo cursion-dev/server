@@ -44,6 +44,7 @@ urlpatterns = [
     path('testcase/<uuid:id>', views.TestcaseDetail.as_view(), name='testcase-detail'),
     path('beta/wordpress/migrate', views.WordPressMigrateSite.as_view(), name='migrate-site'),
     path('beta/wordpress/migrate/delay', views.WordPressMigrateSiteDelay.as_view(), name='migrate-site-delay'),
-    path('beta/site/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'),
+    path('beta/site/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'), 
+    path('beta/report/export', views.ExportReport.as_view(), name='export-report'), 
     path('metrics/celery', views.CeleryMetrics.as_view(), name='celery-metrics'),
 ]
