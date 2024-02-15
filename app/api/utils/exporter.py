@@ -76,6 +76,10 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
         s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
             remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': 'application/pdf'}
         )
+
+    # removing local copies
+    os.remove(image)
+    os.remove(pdf)
     
     # setting up email to prospect
     pre_content = 'The Scanerr performance report you requested has finished processing. \
