@@ -2,7 +2,7 @@ from .driver_s import driver_init, driver_wait, quit_driver
 from PIL import Image as I, ImageChops, ImageStat
 from .alerts import sendgrid_email
 from scanerr import settings
-import time, boto3
+import time, boto3, os
 
 
 # setting up s3 client
