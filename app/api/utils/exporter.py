@@ -32,7 +32,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     """
 
     # init driver
-    driver = driver_init()
+    driver = driver_init(scale_factor=1)
 
     # nav to report page
     driver.get(f'{settings.LANDING_API_ROOT}/report/{report_id}')
@@ -58,14 +58,14 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     left = 0
     top = 60
     right = width
-    bottom = height - (300)
+    bottom = height - (230)
     new_img_1 = img.crop((left, top, right, bottom))
-    new_img_1.save(image, quality=100)
+    new_img_1.save(image, quality=95)
 
     # convert to pdf
     img = I.open(image)
     new_img_2 = img.convert('RGB')
-    new_img_2.save(pdf, quality=100)
+    new_img_2.save(pdf, quality=95)
 
     # uploading to s3
     remote_path = f'static/landing/reports/{report_id}.pdf'
