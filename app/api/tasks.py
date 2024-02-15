@@ -5,6 +5,7 @@ from celery import shared_task, Task
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
+from .utils.exporter import create_and_send_report_export
 from .v1.ops.tasks import (
     create_site_task, create_scan_task, 
     create_test_task, create_report_task, delete_report_s3,
@@ -612,6 +613,17 @@ def create_prospect(user_email=None):
     
     logger.info(f'Sent Prospect creation request -> {data}')
 
+
+
+
+@shared_task
+def create_report_export_bg(report_id=None, email=None, first_name=None):
+    data = create_and_send_report_export(
+        report_id=report_id,
+        email=email,
+        first_name=first_name
+    )
+    logger.info(f'Created and sent report export -> {data}')
 
 
 

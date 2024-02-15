@@ -11,6 +11,8 @@ def driver_init(
         script_timeout=30,
         load_timeout=30,
         wait_time=15, 
+        pixel_ratio=1.0,
+        scale_factor=0.5
     ):
 
     sizes = window_size.split(',')
@@ -22,7 +24,7 @@ def driver_init(
     }
 
     mobile_emulation = {
-        "deviceMetrics": { "width": int(sizes[0]), "height": int(sizes[1]), "pixelRatio": 1.0 },
+        "deviceMetrics": { "width": int(sizes[0]), "height": int(sizes[1]), "pixelRatio": pixel_ratio },
         "userAgent": (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
             (KHTML, like Gecko) Chrome/99.0.4844.74 Mobile Safari/537.36"
@@ -39,7 +41,7 @@ def driver_init(
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
-    options.add_argument("--force-device-scale-factor=0.5")
+    options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
 
