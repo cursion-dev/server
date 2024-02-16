@@ -84,7 +84,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     # setting up email to prospect
     pre_content = 'The Scanerr performance report you requested has finished processing. \
          Now, just click the link below to view and download the PDF.'
-    content = 'If you have any questions about the report or want deeper insights, feel free to book a short call with me here -> https://calendly.com/scanerr/30min'
+    content = 'If you have any questions about the report or want deeper insights, feel free to book a short call with me here -> https://scanerr.io/booking'
     subject = f'{first_name}, your Scanerr Report is Ready'
     title = f'{first_name}, your Scanerr Report is Ready'
     pre_header = f'{first_name}, your Scanerr Report is Ready'
