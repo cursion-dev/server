@@ -462,7 +462,7 @@ class StripeInvoice(APIView):
                 obj = {
                     'id': invoice.id,
                     'status': invoice.status,
-                    'price_amount': invoice.lines.data[0]['price']['unit_amount'],
+                    'price_amount': invoice.amount_paid,
                     'created': invoice.created
                 }
                 i_list.append(obj)
