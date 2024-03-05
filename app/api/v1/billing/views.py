@@ -5,7 +5,8 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from django.core import serializers
 from django.forms.models import model_to_dict
-from ...models import Account, Card
+from ...models import Account, Card, Site
+from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from datetime import timedelta, datetime
 from scanerr import settings
@@ -442,6 +443,78 @@ class AccountActivation(APIView):
 
         return Response(data, status=status.HTTP_200_OK)
         
+
+
+
+
+
+class CancelSubscription(APIView):
+    permission_classes = (IsAuthenticated,)
+    https_method_names = ['post',]
+
+    def post(self, request):
+        account = Account.objects.get(user=request.user)
+        stripe.api_key = settings.STRIPE_PRIVATE
+
+        if account.active == True:
+            stripe.Subscription.modify(
+                account.sub_id,
+                pause_collection={
+                    'behavior': 'mark_uncollectible',
+                    },
+            )
+            account.type = 'free'
+            account.max_sites = 1
+            account.max_schedules = 0
+            account.max_pages = 1
+            account.retention_days = '3'
+            account.interval = 'month'
+            account.price_amount = 0
+            account.testcases = False
+            account.save()
+        
+        # remove sites
+        sites = Site.objects.filter(account=account)
+        site_count = len(sites)
+        for site in sites:
+            if site_count > 1:
+                delete_site(request=request, id=site.id)
+            site_count -= 1
+
+        card = Card.objects.get(account=account)
+
+        data = {
+                'card': {
+                    'brand': card.brand,
+                    'exp_year': card.exp_year,
+                    'exp_month': card.exp_month,
+                    'last_four': card.last_four,
+                },
+                'plan': {
+                    'name': account.type,
+                    'active': account.active,
+                    'price_amount': account.price_amount,
+                    'interval': account.interval,
+                    'max_sites': account.max_sites,
+                    'max_pages': account.max_pages,
+                    'max_schedules': account.max_schedules,
+                    'retention_days': account.retention_days,
+                    'testcases': account.testcases,
+                    'slack': {
+                        'slack_name': account.slack['slack_name'], 
+                        'bot_user_id': account.slack['bot_user_id'], 
+                        'slack_team_id': account.slack['slack_team_id'], 
+                        'bot_access_token': account.slack['bot_access_token'], 
+                        'slack_channel_id': account.slack['slack_channel_id'], 
+                        'slack_channel_name': account.slack['slack_channel_name'],
+                    }
+                },
+            }
+
+        return Response(data, status=status.HTTP_200_OK)
+        
+
+
 
 
 
