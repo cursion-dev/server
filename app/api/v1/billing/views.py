@@ -137,9 +137,9 @@ class SetupSubscription(APIView):
         retention_days = int(request.data.get('retention_days'))
         testcases = str(request.data.get('testcases', False))
 
-        if testcases.lower() == 'true':
+        if str(testcases).lower() == 'true':
             testcases = True
-        if testcases.lower() == 'false':
+        if str(testcases).lower() == 'false':
             testcases = False
 
         if not Account.objects.filter(user=user).exists():
