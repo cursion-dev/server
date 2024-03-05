@@ -136,6 +136,8 @@ class SetupSubscription(APIView):
         max_schedules = int(request.data.get('max_schedules'))
         retention_days = int(request.data.get('retention_days'))
         testcases = str(request.data.get('testcases', False))
+        initial_call = True
+        client_secret = None
 
         if str(testcases).lower() == 'true':
             testcases = True
@@ -161,6 +163,7 @@ class SetupSubscription(APIView):
             customer = stripe.Customer.create(email=request.user.email)
 
         if account.cust_id is not None:
+            initial_call = False
             product = stripe.Product.modify(account.product_id, name=product_name)
             customer = stripe.Customer.retrieve(account.cust_id)
 
@@ -215,11 +218,13 @@ class SetupSubscription(APIView):
             testcases = testcases
         )        
 
+        if initial_call:
+            client_secret = subscription.latest_invoice.payment_intent.client_secret
+        
         data = {
             'subscription_id' : subscription.id,
-            'client_secret' : subscription.latest_invoice.payment_intent.client_secret,
+            'client_secret' : client_secret,
         }
-
 
         return Response(data, status=status.HTTP_200_OK)
 
