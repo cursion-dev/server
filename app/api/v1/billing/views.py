@@ -160,7 +160,10 @@ class SetupSubscription(APIView):
         
         if account.cust_id is None:
             product = stripe.Product.create(name=product_name)
-            customer = stripe.Customer.create(email=request.user.email)
+            customer = stripe.Customer.create(
+                email=request.user.email,
+                name=f'{user.first_name} {user.last_name}'
+            )
 
         if account.cust_id is not None:
             initial_call = False
