@@ -475,11 +475,9 @@ class CancelSubscription(APIView):
         
         # remove sites
         sites = Site.objects.filter(account=account)
-        site_count = len(sites)
+        # site_count = len(sites)
         for site in sites:
-            if site_count > 1:
-                delete_site(request=request, id=site.id)
-            site_count -= 1
+            delete_site(request=request, id=site.id)
 
         card = Card.objects.get(account=account)
 
