@@ -256,7 +256,9 @@ class Account(models.Model):
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)
+    interval = models.CharField(max_length=50, serialize=True, null=True, blank=True, default='month')
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
+    meta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
         return self.user.email
