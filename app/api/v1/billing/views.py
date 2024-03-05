@@ -118,6 +118,114 @@ class CreateSubscription(APIView):
 
 
 
+
+
+class SetupSubscription(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):  
+        stripe.api_key = settings.STRIPE_PRIVATE
+        user = request.user
+        name = request.data.get('name')
+        interval = request.data.get('interval') # month or year
+        product_name = str(user.email + '_' + str(user.id) + '_' + name)
+        price_amount = int(request.data.get('price_amount'))
+        max_sites = int(request.data.get('max_sites'))
+        max_pages = int(request.data.get('max_pages'))
+        max_schedules = int(request.data.get('max_schedules'))
+        retention_days = int(request.data.get('retention_days'))
+        testcases = str(request.data.get('testcases', False))
+
+        if testcases.lower() == 'true':
+            testcases = True
+        if testcases.lower() == 'false':
+            testcases = False
+
+        if not Account.objects.filter(user=user).exists():
+            create_or_update_account(
+                user=user,
+                type=name,
+                max_sites=max_sites,
+                max_pages=max_pages,
+                max_schedules=max_schedules,
+                retention_days=retention_days,
+                testcases=testcases
+            )
+
+        account = Account.objects.get(user=user)
+        
+        if account.cust_id is None:
+            product = stripe.Product.create(name=product_name)
+            customer = stripe.Customer.create(email=request.user.email)
+
+        if account.cust_id is not None:
+            product = stripe.Product.modify(account.product_id, name=product_name)
+            customer = stripe.Customer.retrieve(account.cust_id)
+
+        price = stripe.Price.create(
+            product=product.id,
+            unit_amount=price_amount,
+            currency='usd',
+            recurring={'interval': interval,},
+        )
+
+        if account.sub_id is None:
+            subscription = stripe.Subscription.create(
+                customer=customer.id,
+                items=[{
+                    'price': price.id,
+                }],
+                payment_behavior='default_incomplete',
+                expand=['latest_invoice.payment_intent'],
+                # trial_period_days=7,
+            )
+
+        if account.sub_id is not None:
+            sub = stripe.Subscription.retrieve(account.sub_id)
+            subscription = stripe.Subscription.modify(
+                sub.id,
+                cancel_at_period_end=False,
+                proration_behavior='create_prorations',
+                items=[{
+                    'id': sub['items']['data'][0].id,
+                    'price': price.id,
+                }],
+                expand=['latest_invoice.payment_intent'],
+            )
+        
+            # updating price defaults and archiving old price
+            stripe.Product.modify(product.id, default_price=price,)
+            stripe.Price.modify(account.price_id, active=False)
+
+
+        Account.objects.filter(user=user).update(
+            type = name,
+            cust_id = customer.id,
+            sub_id = subscription.id,
+            product_id = product.id,
+            price_id = price.id,
+            max_sites = max_sites,
+            max_pages = max_pages,
+            price_amount = price_amount,
+            max_schedules = max_schedules,
+            retention_days = retention_days,
+            testcases = testcases
+        )        
+
+        data = {
+            'subscription_id' : subscription.id,
+            'client_secret' : subscription.latest_invoice.payment_intent.client_secret,
+        }
+
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+
+
 class CompleteSubscription(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -211,106 +319,6 @@ class CompleteSubscription(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-
-class SetupSubscription(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):  
-        stripe.api_key = settings.STRIPE_PRIVATE
-        user = request.user
-        name = request.data.get('name')
-        product_name = str(user.email + '_' + str(user.id) + '_' + name)
-        price_amount = int(request.data.get('price_amount'))
-        max_sites = int(request.data.get('max_sites'))
-        max_pages = int(request.data.get('max_pages'))
-        max_schedules = int(request.data.get('max_schedules'))
-        retention_days = int(request.data.get('retention_days'))
-        testcases = str(request.data.get('testcases', False))
-
-        if testcases.lower() == 'true':
-            testcases = True
-        if testcases.lower() == 'false':
-            testcases = False
-
-        if not Account.objects.filter(user=user).exists():
-            create_or_update_account(
-                user=user,
-                type=name,
-                max_sites=max_sites,
-                max_pages=max_pages,
-                max_schedules=max_schedules,
-                retention_days=retention_days,
-                testcases=testcases
-            )
-
-        account = Account.objects.get(user=user)
-        
-        if account.cust_id is None:
-            product = stripe.Product.create(name=product_name)
-            customer = stripe.Customer.create(email=request.user.email)
-
-        if account.cust_id is not None:
-            product = stripe.Product.modify(account.product_id, name=product_name)
-            customer = stripe.Customer.retrieve(account.cust_id)
-
-        price = stripe.Price.create(
-            product=product.id,
-            unit_amount=price_amount,
-            currency='usd',
-            recurring={'interval': 'month',},
-        )
-
-        if account.sub_id is None:
-            subscription = stripe.Subscription.create(
-                customer=customer.id,
-                items=[{
-                    'price': price.id,
-                }],
-                payment_behavior='default_incomplete',
-                expand=['latest_invoice.payment_intent'],
-                # trial_period_days=7,
-            )
-
-        if account.sub_id is not None:
-            sub = stripe.Subscription.retrieve(account.sub_id)
-            subscription = stripe.Subscription.modify(
-                sub.id,
-                cancel_at_period_end=False,
-                proration_behavior='create_prorations',
-                items=[{
-                    'id': sub['items']['data'][0].id,
-                    'price': price.id,
-                }],
-                expand=['latest_invoice.payment_intent'],
-            )
-        
-            # updating price defaults and archiving old price
-            stripe.Product.modify(product.id, default_price=price,)
-            stripe.Price.modify(account.price_id, active=False)
-
-
-        Account.objects.filter(user=user).update(
-            type = name,
-            cust_id = customer.id,
-            sub_id = subscription.id,
-            product_id = product.id,
-            price_id = price.id,
-            max_sites = max_sites,
-            max_pages = max_pages,
-            price_amount = price_amount,
-            max_schedules = max_schedules,
-            retention_days = retention_days,
-            testcases = testcases
-        )        
-
-        data = {
-            'subscription_id' : subscription.id,
-            'client_secret' : subscription.latest_invoice.payment_intent.client_secret,
-        }
-
-
-        return Response(data, status=status.HTTP_200_OK)
 
 
 
