@@ -40,7 +40,7 @@ RUN CHROMEDRIVER_VERSION=$(curl https://googlechromelabs.github.io/chrome-for-te
     unzip ~/chromedriver-linux64.zip -d ~/ && \
     rm ~/chromedriver-linux64.zip && \
     mv -f ~/chromedriver-linux64/chromedriver /usr/bin/chromedriver && \
-    rm ~/chromedriver-linux64
+    rm -rf ~/chromedriver-linux64
 
 # installing yellowlab-specific system deps
 RUN apt-get update && apt-get install -y libfreetype6 git  \ 
