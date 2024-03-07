@@ -26,17 +26,16 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     libfontconfig wget unzip gnupg
 
 # installing google-chrome-stable & chromedriver
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | \
+RUN apt-get install -y gnupg wget curl unzip --no-install-recommends; \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | \
     gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/google.gpg --import; \
     chmod 644 /etc/apt/trusted.gpg.d/google.gpg; \
     echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list; \
     apt-get update -y; \
-    apt-get install -y google-chrome-stable && \
-    CHROME_VERSION=$(google-chrome --product-version | grep -o "[^\.]*\.[^\.]*\.[^\.]*") && \
-    CHROME_DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION") && \
-    wget -q --continue -P /chromedriver "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" && \
-    unzip ~/chromedriver_linux64.zip -d ~/ && \
-    rm ~/chromedriver_linux64.zip && \
+    apt-get install -y google-chrome-stable; \
+    CHROME_VERSION=$(google-chrome --product-version | grep -o "[^\.]*\.[^\.]*\.[^\.]*"); \
+    CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION"); \
+    wget -q --continue -P /chromedriver "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"; \
     mv -f ~/chromedriver /usr/bin/chromedriver
 
 # installing yellowlab-specific system deps
