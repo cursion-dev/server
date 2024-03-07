@@ -6,7 +6,6 @@ services:
     privileged: true
     init: true
     build:
-      context: .
       dockerfile: Dockerfile.dev
     volumes:
       - ./app:/app
@@ -48,7 +47,6 @@ services:
     privileged: true
     restart: always
     build:
-      context: .
       dockerfile: Dockerfile.dev
     command: celery -A scanerr worker --beat --scheduler django --loglevel=info
     volumes:
