@@ -10,8 +10,8 @@ ENV GENERATE_SOURCEMAP false
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 
-# telling phantomas where Chromium binary is and that we're in docker
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
+# telling phantomas where Chrome binary is and that we're in docker
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome
 ENV DOCKERIZED yes
 
 # create the app user
@@ -20,17 +20,25 @@ RUN addgroup --system app && adduser --system app
 # installing python3 & pip
 RUN apt-get update && apt-get install -y python3 python3-pip
 
-# installing system deps (chromium-driver)
+# installing system deps (chromium-driver chromium-browser)
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
-    gfortran openssl libpq-dev curl libjpeg-dev chromium-browser \ 
-    libfontconfig wget unzip
+    gfortran openssl libpq-dev curl libjpeg-dev \ 
+    libfontconfig wget unzip gnupg
+
+# installing google-chrome-stable
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | \
+    gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/google.gpg --import; \
+    chmod 644 /etc/apt/trusted.gpg.d/google.gpg; \
+    echo "deb https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list; \
+    apt-get update -y; \
+    apt-get install -y google-chrome-stable;
 
 # install chromedriver
 RUN CHROME_DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE") && \
     wget -N http://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip -P ~/ && \
     unzip ~/chromedriver_linux64.zip -d ~/ && \
     rm ~/chromedriver_linux64.zip && \
-    mv -f ~/chromedriver /usr/local/bin/chromedriver
+    mv -f ~/chromedriver /usr/bin/chromedriver
 
 # installing yellowlab-specific system deps
 RUN apt-get update && apt-get install -y libfreetype6 git  \ 
@@ -43,9 +51,9 @@ RUN apt-get update && apt-get install -y libfreetype6 git  \
     libnss3 lsb-release libgbm1 xdg-utils wget -y --force-yes > /dev/null 2>&1
 
 # installing node and npm --> n lts
-RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
-    && npm install -g n \
-    && n lts
+RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends && \
+    npm install -g n && \
+    n lts
 
 # cleaning npm
 RUN npm cache clean --force
@@ -54,8 +62,8 @@ RUN npm cache clean --force
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
-RUN chromium --no-sandbox --version
-RUN chromium --disable-dev-shm-usage  --version
+RUN google-chrome --no-sandbox --version
+RUN google-chrome --disable-dev-shm-usage --version
 
 # installing requirements
 COPY ./requirements.txt /requirements.txt
@@ -68,7 +76,7 @@ WORKDIR /app
 
 # setting ownership
 RUN chown -R app:app /app
-RUN chown -R app:app /usr/bin/chromium
+RUN chown -R app:app /usr/bin/google-chrome
 
 # removing chromium config
-RUN rm -rf ~/.config/chromium
+# RUN rm -rf ~/.config/chromium
