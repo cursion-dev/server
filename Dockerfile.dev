@@ -3,12 +3,9 @@ ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
 
 # increasing allocated memory to node
-ENV NODE_OPTIONS=--max_old_space_size=2000
-ENV NODE_OPTIONS="--max-old-space-size=2000"
-ENV GENERATE_SOURCEMAP=false
-
-# trying to get latest version of chromedriver
-ENV CHROME_DRIVER_VERSION="curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE"
+ENV NODE_OPTIONS --max_old_space_size=2000
+ENV NODE_OPTIONS "--max-old-space-size=2000"
+ENV GENERATE_SOURCEMAP false
 
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
@@ -29,7 +26,8 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     libfontconfig wget
 
 # install chromedriver
-RUN wget -N http://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip -P ~/ && \
+RUN CHROME_DRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE") && \
+    wget -N http://chromedriver.storage.googleapis.com/$CHROME_DRIVER_VERSION/chromedriver_linux64.zip -P ~/ && \
     unzip ~/chromedriver_linux64.zip -d ~/ && \
     rm ~/chromedriver_linux64.zip && \
     sudo mv -f ~/chromedriver /usr/local/bin/chromedriver
