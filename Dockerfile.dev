@@ -36,7 +36,7 @@ RUN apt-get install -y gnupg wget curl unzip --no-install-recommends; \
     CHROME_VERSION=$(google-chrome --product-version | grep -o "[^\.]*\.[^\.]*\.[^\.]*"); \
     CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION"); \
     wget -q --continue -P /chromedriver "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"; \
-    mv -f ~/chromedriver /usr/bin/chromedriver
+    unzip /chromedriver/chromedriver* -d /usr/local/bin/
 
 # installing yellowlab-specific system deps
 RUN apt-get update && apt-get install -y libfreetype6 git  \ 
