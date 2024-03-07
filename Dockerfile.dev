@@ -1,5 +1,6 @@
 FROM ubuntu:latest
 ENV PYTHONUNBUFFERED 1
+ENV DEBIAN_FRONTEND noninteractive
 
 # increasing allocated memory to node
 ENV NODE_OPTIONS=--max_old_space_size=2000
