@@ -35,8 +35,8 @@ RUN apt-get install -y gnupg wget curl unzip --no-install-recommends; \
     apt-get install -y google-chrome-stable; \
     CHROMEDRIVER_VERSION=$(curl https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE); \
     wget -N https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip -P ~/ && \
-    unzip ~/chromedriver_linux64.zip -d ~/ && \
-    rm ~/chromedriver_linux64.zip && \
+    unzip ~/chromedriver-linux64.zip -d ~/ && \
+    rm ~/chromedriver-linux64.zip && \
     mv -f ~/chromedriver /usr/bin/chromedriver
 
 # installing yellowlab-specific system deps
