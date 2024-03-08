@@ -1,6 +1,11 @@
 FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
+# setting working dir
+RUN mkdir /app
+COPY ./app /app
+WORKDIR /app
+
 # increasing allocated memory to node
 ENV NODE_OPTIONS=--max_old_space_size=2000
 ENV NODE_OPTIONS="--max-old-space-size=2000"
@@ -56,11 +61,6 @@ RUN chromium --disable-dev-shm-usage  --version
 # installing requirements
 COPY ./requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt
-
-# setting working dir
-RUN mkdir /app
-COPY ./app /app
-WORKDIR /app
 
 # setting ownership
 RUN chown -R app:app /app
