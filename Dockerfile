@@ -32,12 +32,8 @@ RUN apt-get update && apt-get install -y libfreetype6 git  \
     libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 \ 
     libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 \ 
     libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 \ 
-    libnss3 lsb-release libgbm1 xdg-utils wget -y --force-yes > /dev/null 2>&1
-
-# installing more yellowlab-specific system deps
-RUN apt-get update && apt-get install -y gcc-c++ zlib-devel libjpeg-turbo-devel \
-    nasm automake autoconf libtool ca-certificates freetype freetype-devel harfbuzz nss \
-    cups-libs dbus-glib libXrandr libXcursor libXinerama cairo cairo-gobject pango
+    libnss3 lsb-release libgbm1 xdg-utils wget nasm automake autoconf libtool \
+    -y --force-yes > /dev/null 2>&1
 
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
