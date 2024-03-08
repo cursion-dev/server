@@ -34,6 +34,11 @@ RUN apt-get update && apt-get install -y libfreetype6 git  \
     libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 \ 
     libnss3 lsb-release libgbm1 xdg-utils wget -y --force-yes > /dev/null 2>&1
 
+# installing more yellowlab-specific system deps
+RUN pt-get update && apt-get install -y gcc-c++ zlib-devel libjpeg-turbo-devel \
+    nasm automake autoconf libtool ca-certificates freetype freetype-devel harfbuzz nss \
+    cups-libs dbus-glib libXrandr libXcursor libXinerama cairo cairo-gobject pango
+
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
     && npm install -g n \
@@ -41,6 +46,9 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 
 # cleaning npm
 RUN npm cache clean --force
+
+# installing more yellowlab stuff
+RUN npm install jpegoptim-bin --unsafe-perm=true --allow-root
 
 # installing lighthouse & yellowlabtools
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
