@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:18-alpine
+FROM node:18-alpine
 
 # Tell Puppeteer to skip installing Chrome. We'll be using the installed binary
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
