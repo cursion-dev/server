@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y libfreetype6 git  \
     libnss3 lsb-release libgbm1 xdg-utils wget -y --force-yes > /dev/null 2>&1
 
 # installing more yellowlab-specific system deps
-RUN pt-get update && apt-get install -y gcc-c++ zlib-devel libjpeg-turbo-devel \
+RUN apt-get update && apt-get install -y gcc-c++ zlib-devel libjpeg-turbo-devel \
     nasm automake autoconf libtool ca-certificates freetype freetype-devel harfbuzz nss \
     cups-libs dbus-glib libXrandr libXcursor libXinerama cairo cairo-gobject pango
 
