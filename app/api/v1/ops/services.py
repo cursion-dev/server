@@ -1227,6 +1227,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
             site = Site.objects.get(id=site_id)
         except:
             data = {'reason': 'cannot find a Site with that id', 'success': False,}
+            print(data)
             if request is not None:
                 record_api_call(request, data, '404')
                 return Response(data, status=status.HTTP_404_NOT_FOUND)
@@ -1234,6 +1235,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
 
         if site.account != account:
             data = {'reason': 'create a Test of a Site you do not own', 'success': False,}
+            print(data)
             if request is not None:
                 record_api_call(request, data, '403')
                 return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -1244,12 +1246,14 @@ def create_test(request=None, delay=False, *args, **kwargs):
             page = Page.objects.get(id=page_id)
         except:
             data = {'reason': 'cannot find a Page with that id', 'success': False,}
+            print(data)
             if request is not None:
                 record_api_call(request, data, '404')
                 return Response(data, status=status.HTTP_404_NOT_FOUND)
             return data
         if page.account != account:
             data = {'reason': 'create a Test of a Page you do not own', 'success': False,}
+            print(data)
             if request is not None:
                 record_api_call(request, data, '403')
                 return Response(data, status=status.HTTP_403_FORBIDDEN)
@@ -1293,6 +1297,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
                 pre_scan = Scan.objects.get(id=pre_scan_id)
             except:
                 data = {'reason': 'cannot find a Scan with that id - pre_scan', 'success': False,}
+                print(data)
                 if request is not None:
                     record_api_call(request, data, '404')
                     return Response(data, status=status.HTTP_404_NOT_FOUND)
@@ -1302,6 +1307,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
                 post_scan = Scan.objects.get(id=post_scan_id)
             except:
                 data = {'reason': 'cannot find a Scan with that id - post_scan', 'success': False,}
+                print(data)
                 if request is not None:
                     record_api_call(request, data, '404')
                     return Response(data, status=status.HTTP_404_NOT_FOUND)
@@ -1314,6 +1320,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         if pre_scan:
             if pre_scan.time_completed == None:
                 data = {'reason': 'pre_scan still running', 'success': False,}
+                print(data)
                 if request is not None:
                     record_api_call(request, data, '400')
                     return Response(data, status=status.HTTP_400_BAD_REQUEST)
@@ -1322,6 +1329,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         if post_scan:
             if post_scan.time_completed == None:
                 data = {'reason': 'post_scan still running', 'success': False,}
+                print(data)
                 if request is not None:
                     record_api_call(request, data, '400')
                     return Response(data, status=status.HTTP_400_BAD_REQUEST)
