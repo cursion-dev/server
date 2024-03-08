@@ -221,6 +221,7 @@ class Yellowlab():
         
         # try API method if CLI fails
         except Exception as e:
+            print(e)
             print(f'YELLOWLAB CLI FAILED, Trying API...')
 
             try:

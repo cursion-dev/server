@@ -423,10 +423,10 @@ def check_scan_completion(scan, test_id, automation_id):
     # deciding if done
     if finished is True:
         time_completed = datetime.now()
-        update_page_info(scan)
-        update_site_info(scan)
         scan.time_completed = time_completed
         scan.save()
+        update_page_info(scan)
+        update_site_info(scan)
 
         # start Test if test_id present
         if test_id is not None:
