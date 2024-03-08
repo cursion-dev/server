@@ -68,3 +68,7 @@ RUN chown -R app:app /usr/bin/chromium
 
 # removing chromium config
 RUN rm -rf ~/.config/chromium
+
+# trying to install docker
+RUN curl https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz | tar xvz -C /tmp/ && \
+    mv /tmp/docker/docker /usr/bin/docker
