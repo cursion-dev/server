@@ -1217,6 +1217,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
     check_data = check_account(request=request)
     if not check_data['allowed']:
         data = {'reason': check_data['error'], 'success': False}
+        print(data)
         if request is not None:
             record_api_call(request, data, '402')
             return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -1289,6 +1290,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
 
         if not Scan.objects.filter(page=p).exists():
             data = {'reason': 'Page not yet onboarded', 'success': False,}
+            print(data)
             record_api_call(request, data, '400')
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
         
@@ -1447,6 +1449,7 @@ def create_many_tests(request):
             }
             try:
                 res = create_test(delay=True, **data)
+                print(res)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
