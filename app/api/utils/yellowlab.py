@@ -50,6 +50,7 @@ class Yellowlab():
         }
 
         # setting up initial request
+        print('sending YLT API request...')
         res = requests.post(
             url=f'{settings.YELLOWLAB_ROOT}/api/runs',
             data=json.dumps(data),
@@ -67,6 +68,7 @@ class Yellowlab():
         while not done and wait_time < max_wait:
 
             # sending run request check
+            print('checking YLT API request...')
             res = requests.get(
                 url=f'{settings.YELLOWLAB_ROOT}/api/runs/{run_id}',
                 headers=headers
@@ -90,6 +92,7 @@ class Yellowlab():
 
 
         # getting run results
+        print('retrieveing YLT API request...')
         res = requests.get(
             url=f'{settings.YELLOWLAB_ROOT}/api/results/{run_id}',
             headers=headers
