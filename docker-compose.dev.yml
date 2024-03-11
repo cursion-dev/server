@@ -20,7 +20,7 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
-             docker run --privileged --name some-docker -d --network some-network --network-alias docker -e DOCKER_TLS_CERTDIR=/certs -v some-docker-certs-ca:/certs/ca -v some-docker-certs-client:/certs/client docker:dind &&
+             dockerd &> dockerd-logfile &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
@@ -52,7 +52,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "docker run --privileged --name some-docker -d --network some-network --network-alias docker -e DOCKER_TLS_CERTDIR=/certs -v some-docker-certs-ca:/certs/ca -v some-docker-certs-client:/certs/client docker:dind &&
+      sh -c "dockerd &> dockerd-logfile &&
              celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
