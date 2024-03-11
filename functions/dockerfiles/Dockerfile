@@ -15,7 +15,7 @@ ENV GENERATE_SOURCEMAP=false
 WORKDIR /usr/src/ylt
 
 RUN apk upgrade --update && apk --no-cache add git gcc make g++ zlib-dev libjpeg-turbo-dev nasm automake autoconf libtool \
-  && git clone https://github.com/YellowLabTools/YellowLabTools-server.git -b ${VERSION} . \
+  && git clone https://github.com/YellowLabTools/YellowLabTools-server.git -b main . \
   && NODE_ENV=production && export CPPFLAGS="-DPNG_ARM_NEON_OPT=0" && npm install --unsafe-perm=true --allow-root --legacy-peer-deps --omit=dev \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" > /etc/apk/repositories \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
