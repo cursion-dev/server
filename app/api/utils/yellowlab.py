@@ -33,7 +33,8 @@ class Yellowlab():
     def yellowlab_api(self) -> dict:
         """ 
         Serves as the backup method for collecting YL metrics.
-        Sends API requests to http://yellowlab.scanerr.io:8383.
+        Sends API requests to http://yellowlab.scanerr.io:8383
+        or localhost:8383
 
         Returns --> raw YL data
         """
