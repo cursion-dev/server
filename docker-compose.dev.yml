@@ -25,8 +25,7 @@ services:
       - 8000
     env_file:
       - ./env/.env.dev
-    networks:
-      - back-tier
+    
 
 
   db:
@@ -37,16 +36,14 @@ services:
       - ./env/.env.dev
     volumes: 
       - pgdata:/var/lib/postgresql/data
-    networks:
-      - back-tier
+    
 
 
   redis:
     image: redis:alpine
     ports:
       - "6379"
-    networks:
-      - back-tier
+    
 
 
   celery:
@@ -66,8 +63,7 @@ services:
       - redis
       - app
       - db
-    networks:
-      - back-tier
+    
 
     
   yellowlab:
@@ -82,8 +78,7 @@ services:
       - celery 
       - app
       - db
-    networks:
-      - back-tier
+    
       
 
   nginx-proxy:
@@ -116,9 +111,6 @@ services:
     depends_on:
       - nginx-proxy
 
-
-networks:
-  back-tier:
 
 volumes:
   static_volume:
