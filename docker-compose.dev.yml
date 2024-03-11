@@ -22,6 +22,7 @@ services:
              python3 manage.py driver_p_test && 
              sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start &&
+             sleep 10 &&
              docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
@@ -56,6 +57,7 @@ services:
     command: >
       sh -c "sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start &&
+             sleep 10 &&
              docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools &&
              celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
