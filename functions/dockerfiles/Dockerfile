@@ -48,6 +48,6 @@ ENV XDG_CACHE_HOME /tmp/.chromium
 
 ENV DEBUG *
 
-EXPOSE  8383
+EXPOSE 8383
 
-CMD     ["node", "bin/server.js"]
+CMD ["node", "bin/server.js"]
