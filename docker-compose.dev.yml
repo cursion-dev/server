@@ -74,7 +74,7 @@ services:
     container_name: yellowlab
     privileged: true
     restart: always
-    build: scanerr/ylt
+    image: scanerr/ylt
     ports:
       - 8383:8383
     depends_on:
