@@ -20,7 +20,7 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
-             dockerd &> dockerd-logfile &&
+             service docker start &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
@@ -52,7 +52,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "dockerd &> dockerd-logfile &&
+      sh -c "service docker start &&
              celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
