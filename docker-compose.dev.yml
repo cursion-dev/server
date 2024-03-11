@@ -20,6 +20,7 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
+             docker run --privileged --rm -ti --entrypoint sh docker:dind &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
@@ -50,7 +51,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A scanerr worker --beat --scheduler django --loglevel=info
+    command: >
+      sh -c "docker run --privileged --rm -ti --entrypoint sh docker:dind &&
+             celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
     env_file:

@@ -73,7 +73,6 @@ RUN rm -rf ~/.config/chromium
 RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
     sh get-docker.sh
 
-
 # RUN for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
 
 # RUN curl https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz | tar xvz -C /tmp/ && \
