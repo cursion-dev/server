@@ -46,7 +46,8 @@ USER nobody
 ENV XDG_CONFIG_HOME /tmp/.chromium
 ENV XDG_CACHE_HOME /tmp/.chromium
 
+ENV DEBUG *
 
+EXPOSE  8383
 
-# entry point
-ENTRYPOINT [ "yellowlabtools" ]
+CMD     ["node", "bin/server.js"]
