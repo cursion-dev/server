@@ -20,7 +20,6 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
-             echo "ulimits: $(ulimit -Sn):$(ulimit -Hn)"; 
              sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
@@ -54,8 +53,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "echo "ulimits: $(ulimit -Sn):$(ulimit -Hn)"; 
-             sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
+      sh -c "sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start &&
              celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
