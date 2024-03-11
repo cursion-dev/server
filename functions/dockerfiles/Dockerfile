@@ -7,11 +7,16 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium-browser
 ENV DOCKERIZED yes
 
+# increasing allocated memory to node
+ENV NODE_OPTIONS=--max_old_space_size=4000
+ENV NODE_OPTIONS="--max-old-space-size=4000"
+ENV GENERATE_SOURCEMAP=false
+
 WORKDIR /usr/src/ylt
 
 RUN apk upgrade --update && apk --no-cache add git gcc make g++ zlib-dev libjpeg-turbo-dev nasm automake autoconf libtool \
-  && NODE_ENV=production && export CPPFLAGS="-DPNG_ARM_NEON_OPT=0" \ 
-  && npm install -g yellowlabtools@2.2.0 --unsafe-perm=true --allow-root --legacy-peer-deps --omit=dev \
+  && git clone https://github.com/YellowLabTools/YellowLabTools-server.git -b ${VERSION} . \
+  && NODE_ENV=production && export CPPFLAGS="-DPNG_ARM_NEON_OPT=0" && npm install --unsafe-perm=true --allow-root --legacy-peer-deps --omit=dev \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" > /etc/apk/repositories \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories \
   && echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
