@@ -20,15 +20,13 @@ services:
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
              python3 manage.py driver_p_test && 
-             sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
-             service docker start &&
-             sleep 10 &&
-             docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
     env_file:
       - ./env/.env.dev
+    networks:
+      - back-tier
 
 
   db:
@@ -39,12 +37,16 @@ services:
       - ./env/.env.dev
     volumes: 
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - back-tier
 
 
   redis:
     image: redis:alpine
     ports:
       - "6379"
+    networks:
+      - back-tier
 
 
   celery:
@@ -55,11 +57,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
-             service docker start &&
-             sleep 10 &&
-             docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
-             celery -A scanerr worker --beat --scheduler django --loglevel=info"
+      sh -c "celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
     env_file:
@@ -68,6 +66,24 @@ services:
       - redis
       - app
       - db
+    networks:
+      - back-tier
+
+    
+  yellowlab:
+    container_name: yellowlab
+    privileged: true
+    restart: always
+    build: scanerr/ylt
+    ports:
+      - 8383:8383
+    depends_on:
+      - redis
+      - celery 
+      - app
+      - db
+    networks:
+      - back-tier
       
 
   nginx-proxy:
@@ -100,6 +116,9 @@ services:
     depends_on:
       - nginx-proxy
 
+
+networks:
+  back-tier:
 
 volumes:
   static_volume:
