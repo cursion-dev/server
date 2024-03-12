@@ -19,11 +19,7 @@ services:
              python3 manage.py wait_for_db &&
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
-             python3 manage.py driver_p_test && 
-             sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
-             service docker start && 
-             sleep 10 &&
-             docker run -d --privileged --env 'DEBUG=*' -p 8383:8383 ousamabenyounes/yellowlabtools &&
+             python3 manage.py driver_p_test &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
@@ -57,17 +53,28 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
-             service docker start && 
-             sleep 10 &&
-             docker run -d --privileged --env 'DEBUG=*' -p 8383:8383 ousamabenyounes/yellowlabtools &&
-             celery -A scanerr worker --beat --scheduler django --loglevel=info"
+      sh -c "celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
     env_file:
       - ./env/.env.dev
     depends_on:
       - redis
+      - app
+      - db
+    
+
+    
+  yellowlab:
+    container_name: yellowlab
+    privileged: true
+    restart: always
+    image: scanerr/ylt
+    ports:
+      - 8383:8383
+    depends_on:
+      - redis
+      - celery 
       - app
       - db
     
@@ -90,7 +97,6 @@ services:
       - app
   
   
-
   nginx-proxy-letsencrypt:
     image: nginxproxy/acme-companion  # LEGACY -> jrcs/letsencrypt-nginx-proxy-companion 
     env_file:
@@ -103,7 +109,6 @@ services:
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
-
 
 
 volumes:

@@ -43,7 +43,3 @@ RUN chown -R app:app /usr/bin/chromium
 
 # removing chromium config
 RUN rm -rf ~/.config/chromium
-
-# install docker
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
-    sh get-docker.sh
