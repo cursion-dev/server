@@ -33,7 +33,7 @@ class Yellowlab():
     def yellowlab_api(self) -> dict:
         """ 
         Serves as the backup method for collecting YL metrics.
-        Sends API requests to http://yellowlab.scanerr.io:8383
+        Sends API requests to http://yellowlab:8383
         or localhost:8383
 
         Returns --> raw YL data
@@ -207,70 +207,69 @@ class Yellowlab():
     def get_data(self):
         
         # try CLI method first
-        try:
-            stdout_value = self.init_audit() 
-            # decode bytes into string
-            stdout_string = stdout_value.decode('iso-8859-1')
+        # try:
+        #     stdout_value = self.init_audit() 
+        #     # decode bytes into string
+        #     stdout_string = stdout_value.decode('iso-8859-1')
         
-            if len(stdout_string) != 0:
-                if 'Runtime error encountered' in stdout_string:
-                    error = {'error': 'yellowlab ran into a problem',}
-                    return error
+        #     if len(stdout_string) != 0:
+        #         if 'Runtime error encountered' in stdout_string:
+        #             error = {'error': 'yellowlab ran into a problem',}
+        #             return error
 
-                # convert to dict
-                stdout_json = json.loads(stdout_value)
-                data = self.process_data(stdout_json=stdout_json)
-                return data
+        #         # convert to dict
+        #         stdout_json = json.loads(stdout_value)
+        #         data = self.process_data(stdout_json=stdout_json)
+        #         return data
                 
-            else:
-                raise RuntimeError
+        #     else:
+        #         raise RuntimeError
         
         # try API method if CLI fails
-        except Exception as e:
-            print(e)
-            print(f'YELLOWLAB CLI FAILED, Trying API...')
+        # except Exception as e:
+            # print(e)
 
-            # try:
+        try:
             raw_data = self.yellowlab_api()
             data = self.process_data(stdout_json=raw_data)
             return data
 
-            # except Exception as e:
-            #     print(f'YELLOWLAB API FAILED --> {e}')
+        except Exception as e:
+            print(f'YELLOWLAB API FAILED --> {e}')
 
-            #     scores = {
-            #         "globalScore": None,
-            #         "pageWeight": None, 
-            #         "requests": None, 
-            #         "domComplexity": None, 
-            #         "javascriptComplexity": None,
-            #         "badJavascript": None,
-            #         "jQuery": None,
-            #         "cssComplexity": None,
-            #         "badCSS": None,
-            #         "fonts": None,
-            #         "serverConfig": None,
-            #     }
+            scores = {
+                "globalScore": None,
+                "pageWeight": None, 
+                "requests": None, 
+                "domComplexity": None, 
+                "javascriptComplexity": None,
+                "badJavascript": None,
+                "jQuery": None,
+                "cssComplexity": None,
+                "badCSS": None,
+                "fonts": None,
+                "serverConfig": None,
+            }
 
-            #     audits = {
-            #         "pageWeight": [], 
-            #         "requests": [], 
-            #         "domComplexity": [], 
-            #         "javascriptComplexity": [],
-            #         "badJavascript": [],
-            #         "jQuery": [],
-            #         "cssComplexity": [],
-            #         "badCSS": [],
-            #         "fonts": [],
-            #         "serverConfig": [],
-            #     }
+            audits = {
+                "pageWeight": [], 
+                "requests": [], 
+                "domComplexity": [], 
+                "javascriptComplexity": [],
+                "badJavascript": [],
+                "jQuery": [],
+                "cssComplexity": [],
+                "badCSS": [],
+                "fonts": [],
+                "serverConfig": [],
+            }
 
-            #     data = {
-            #         "scores": scores, 
-            #         "audits": audits,
-            #         "failed": True
-            #     }
-            
-            #     return data
+            data = {
+                "scores": scores, 
+                "audits": audits,
+                "failed": True
+            }
+        
+            return data
         
 

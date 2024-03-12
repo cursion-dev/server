@@ -578,16 +578,16 @@ def _yellowlab(scan_id, test_id, automation_id):
     """ 
     scan = Scan.objects.get(id=scan_id)
     
-    # try:
-    # running yellowlab
-    yl_data = Yellowlab(scan=scan, configs=scan.configs).get_data()
-    
-    # updating Scan object
-    scan = Scan.objects.get(id=scan_id)
-    scan.yellowlab = yl_data
-    scan.save()
-    # except Exception as e:
-    #     print(e)
+    try:
+        # running yellowlab
+        yl_data = Yellowlab(scan=scan, configs=scan.configs).get_data()
+        
+        # updating Scan object
+        scan = Scan.objects.get(id=scan_id)
+        scan.yellowlab = yl_data
+        scan.save()
+    except Exception as e:
+        print(e)
 
     # checking if scan is done
     scan = check_scan_completion(scan, test_id, automation_id)
