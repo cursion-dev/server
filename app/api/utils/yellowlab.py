@@ -80,6 +80,8 @@ class Yellowlab():
                 headers=headers
             ).json()
 
+            print(f'res -> {res}')
+
             # checking status
             status = res['status']['statusCode']
             position = res['status'].get('position')
