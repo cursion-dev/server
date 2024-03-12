@@ -72,8 +72,3 @@ RUN rm -rf ~/.config/chromium
 # install docker
 RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
     sh get-docker.sh
-
-RUN sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker; \
-    service docker start && \
-    sleep 10 && \
-    docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt
