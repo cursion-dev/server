@@ -23,7 +23,7 @@ services:
              sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start && 
              sleep 10 &&
-             docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
+             docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools  &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
@@ -61,7 +61,7 @@ services:
       sh -c "sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
              service docker start && 
              sleep 10 &&
-             docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
+             docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools &&
              celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
@@ -74,18 +74,18 @@ services:
     
 
     
-  yellowlab:
-    container_name: yellowlab
-    privileged: true
-    restart: always
-    image: scanerr/ylt
-    ports:
-      - 8383:8383
-    depends_on:
-      - redis
-      - celery 
-      - app
-      - db
+  # yellowlab:
+  #   container_name: yellowlab
+  #   privileged: true
+  #   restart: always
+  #   image: scanerr/ylt
+  #   ports:
+  #     - 8383:8383
+  #   depends_on:
+  #     - redis
+  #     - celery 
+  #     - app
+  #     - db
     
       
 
