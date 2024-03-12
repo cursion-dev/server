@@ -7,6 +7,7 @@
   - [Scripts](#scripts)
     - [Install and run Docker in Containers](#install-and-run-docker-in-containers)
     - [Get \& Set Node Memory:](#get--set-node-memory)
+    - [Clean up Docker leftovers on Server](#clean-up-docker-leftovers-on-server)
 
 
 &nbsp;
@@ -163,4 +164,10 @@ export NODE_OPTIONS="--max-old-space-size=5120" # Increase to 5 GB
 export NODE_OPTIONS="--max-old-space-size=6144" # Increase to 6 GB
 export NODE_OPTIONS="--max-old-space-size=7168" # Increase to 7 GB
 export NODE_OPTIONS="--max-old-space-size=8192" # Increase to 8 GB
+```
+
+
+### Clean up Docker leftovers on Server
+```shell
+docker system prune --all --force --volumes
 ```
