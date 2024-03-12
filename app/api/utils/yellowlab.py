@@ -57,9 +57,11 @@ class Yellowlab():
             headers=headers
         ).json()
 
+        print(res)
+
         # retrieve runId & pod_ip if present
         run_id = res['runId']
-        pod_ip = res['pod_ip']
+        pod_ip = res.get('pod_ip')
 
         NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip else settings.YELLOWLAB_ROOT
         
