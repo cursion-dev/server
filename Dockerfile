@@ -45,8 +45,4 @@ RUN rm -rf ~/.config/chromium
 
 # install docker
 RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
-    sh get-docker.sh && \
-    sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker; \
-    service docker start && \
-    sleep 20 && \
-    docker pull ousamabenyounes/yellowlabtools
+    sh get-docker.sh
