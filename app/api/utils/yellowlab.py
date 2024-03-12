@@ -57,6 +57,8 @@ class Yellowlab():
             headers=headers
         ).json()
 
+        print(f'res -> {res}')
+
         # retrieve runId
         # run_id = res['runId']
         
