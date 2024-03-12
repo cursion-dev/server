@@ -63,7 +63,8 @@ class Yellowlab():
         run_id = res['runId']
         pod_ip = res.get('pod_ip')
 
-        NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip else settings.YELLOWLAB_ROOT
+        NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip != None else settings.YELLOWLAB_ROOT
+        print(f'setting NEW_ROOT to -> {NEW_ROOT}')
         
         wait_time = 0
         max_wait = 1200
