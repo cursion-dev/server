@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
 # setting working dir
@@ -48,4 +48,8 @@ RUN rm -rf ~/.config/chromium
 
 # install docker
 RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
-    sh get-docker.sh
+    sh get-docker.sh && \
+    sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker; \
+    service docker start && \
+    sleep 10 && \
+    docker pull ousamabenyounes/yellowlabtools
