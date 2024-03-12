@@ -3,7 +3,7 @@ from datetime import datetime
 from .image import Image
 from scanerr import settings
 from difflib import SequenceMatcher, HtmlDiff, Differ
-import time, os, sys, json, random, string, re, images, uuid, boto3
+import time, os, sys, json, random, string, re, requests, uuid, boto3
 
 
 
@@ -29,8 +29,8 @@ class Tester():
 
 
     def clean_html(self):
-        pre_scan_html_raw = images.get(self.test.pre_scan.html).text
-        post_scan_html_raw = images.get(self.test.post_scan.html).text
+        pre_scan_html_raw = requests.get(self.test.pre_scan.html).text
+        post_scan_html_raw = requests.get(self.test.post_scan.html).text
         pre_scan_html = pre_scan_html_raw.splitlines()
         post_scan_html = post_scan_html_raw.splitlines()
 
