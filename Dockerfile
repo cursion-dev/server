@@ -25,9 +25,6 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 # cleaning npm
 RUN npm cache clean --force
 
-# installing more yellowlab stuff
-RUN npm install jpegoptim-bin --unsafe-perm=true --allow-root
-
 # installing lighthouse
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash
 
@@ -51,5 +48,5 @@ RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
     sh get-docker.sh && \
     sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker; \
     service docker start && \
-    sleep 10 && \
+    sleep 20 && \
     docker pull ousamabenyounes/yellowlabtools
