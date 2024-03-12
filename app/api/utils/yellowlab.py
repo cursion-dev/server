@@ -57,48 +57,49 @@ class Yellowlab():
             headers=headers
         ).json()
 
-        print(f'res -> {res}')
+        # retrieve runId & pod_ip if present
+        run_id = res['runId']
+        pod_ip = res['pod_ip']
 
-        # retrieve runId
-        # run_id = res['runId']
+        NEW_ROOT = f'http://{pod_ip}' if pod_ip else settings.YELLOWLAB_ROOT
         
-        # wait_time = 0
-        # max_wait = 1200
-        # done = False
+        wait_time = 0
+        max_wait = 1200
+        done = False
 
-        # # waiting for run to complete
-        # while not done and wait_time < max_wait:
+        # waiting for run to complete
+        while not done and wait_time < max_wait:
 
-        #     # sending run request check
-        #     print('checking YLT API request...')
-        #     res = requests.get(
-        #         url=f'{settings.YELLOWLAB_ROOT}/api/runs/{run_id}',
-        #         headers=headers
-        #     ).json()
+            # sending run request check
+            print('checking YLT API request...')
+            res = requests.get(
+                url=f'{NEW_ROOT}/api/runs/{run_id}',
+                headers=headers
+            ).json()
 
-        #     # checking status
-        #     status = res['status']['statusCode']
-        #     position = res['status'].get('position')
-        #     if status == 'awaiting':
-        #         max_wait = (120 * position)
-        #     if status == 'complete':
-        #         done = True
-        #     if status == 'failed':
-        #         print('YELLOWLAB API FAILED')
-        #         raise RuntimeError
-        #         break
+            # checking status
+            status = res['status']['statusCode']
+            position = res['status'].get('position')
+            if status == 'awaiting':
+                max_wait = (120 * position)
+            if status == 'complete':
+                done = True
+            if status == 'failed':
+                print('YELLOWLAB API FAILED')
+                raise RuntimeError
+                break
 
-        #     # incrementing time
-        #     time.sleep(5)
-        #     wait_time += 5
+            # incrementing time
+            time.sleep(5)
+            wait_time += 5
 
 
-        # # getting run results
-        # print('retrieveing YLT API request...')
-        # res = requests.get(
-        #     url=f'{settings.YELLOWLAB_ROOT}/api/results/{run_id}',
-        #     headers=headers
-        # ).json()
+        # getting run results
+        print('retrieveing YLT API request...')
+        res = requests.get(
+            url=f'{NEW_ROOT}/api/results/{run_id}',
+            headers=headers
+        ).json()
     
         return res
 

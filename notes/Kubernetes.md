@@ -114,6 +114,12 @@ kubectl port-forward service/app-service 8000:8000
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-autoscaler.yaml`
 
 
+#### 4.a  Spin up YLT deploymemt, service, and autoscaler
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-deployment.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-service.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-autoscaler.yaml`
+
+
 ### 5. Add app Ingress
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
 
