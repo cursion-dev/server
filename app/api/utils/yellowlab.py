@@ -125,7 +125,7 @@ class Yellowlab():
         # initial audits object
         audits = {
             "pageWeight": [], 
-            "requests": [], 
+            "images": [], 
             "domComplexity": [], 
             "javascriptComplexity": [],
             "badJavascript": [],
@@ -133,58 +133,46 @@ class Yellowlab():
             "cssComplexity": [],
             "badCSS": [],
             "fonts": [],
-            "serverConfig": stdout_json,
+            "serverConfig": [],
         }
 
         # iterating through categories to get relevant yl_audits and store them in their respective `audits = {}` obj
-        # for cat in audits:
-        #     cat_audits = stdout_json["scoreProfiles"]["generic"]["categories"][cat]["rules"]
-        #     for a in cat_audits:
-        #         try:
-        #             audit = stdout_json["rules"][a]
-        #             audits[cat].append(audit)
-        #         except:
-        #             pass
+        for cat in audits:
+            cat_audits = stdout_json["scoreProfiles"]["generic"]["categories"][cat]["rules"]
+            for a in cat_audits:
+                try:
+                    audit = stdout_json["rules"][a]
+                    audits[cat].append(audit)
+                except:
+                    pass
 
-        # # get scores from each category
-        # globalScore = stdout_json["scoreProfiles"]["generic"]["globalScore"]
-        # pageWeight_score = stdout_json["scoreProfiles"]["generic"]["categories"]["pageWeight"]["categoryScore"]
+        # get scores from each category
+        globalScore = stdout_json["scoreProfiles"]["generic"]["globalScore"]
+        pageWeight_score = stdout_json["scoreProfiles"]["generic"]["categories"]["pageWeight"]["categoryScore"]
         # requests_score = stdout_json["scoreProfiles"]["generic"]["categories"]["requests"]["categoryScore"]
-        # domComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["domComplexity"]["categoryScore"]
-        # javascriptComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["javascriptComplexity"]["categoryScore"]
-        # badJavascript_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badJavascript"]["categoryScore"]
-        # jQuery_score = stdout_json["scoreProfiles"]["generic"]["categories"]["jQuery"]["categoryScore"]
-        # cssComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["cssComplexity"]["categoryScore"]
-        # badCSS_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badCSS"]["categoryScore"]
-        # fonts_score = stdout_json["scoreProfiles"]["generic"]["categories"]["fonts"]["categoryScore"]
-        # serverConfig_score = stdout_json["scoreProfiles"]["generic"]["categories"]["serverConfig"]["categoryScore"]
-        
-        # scores = {
-        #     "globalScore": globalScore,
-        #     "pageWeight": pageWeight_score, 
-        #     "requests": requests_score, 
-        #     "domComplexity": domComplexity_score, 
-        #     "javascriptComplexity": javascriptComplexity_score,
-        #     "badJavascript": badJavascript_score,
-        #     "jQuery": jQuery_score,
-        #     "cssComplexity": cssComplexity_score,
-        #     "badCSS": badCSS_score,
-        #     "fonts": fonts_score,
-        #     "serverConfig": serverConfig_score,
-        # }
+        images_score = stdout_json["scoreProfiles"]["generic"]["categories"]["images"]["categoryScore"]
+        domComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["domComplexity"]["categoryScore"]
+        javascriptComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["javascriptComplexity"]["categoryScore"]
+        badJavascript_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badJavascript"]["categoryScore"]
+        jQuery_score = stdout_json["scoreProfiles"]["generic"]["categories"]["jQuery"]["categoryScore"]
+        cssComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["cssComplexity"]["categoryScore"]
+        badCSS_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badCSS"]["categoryScore"]
+        fonts_score = stdout_json["scoreProfiles"]["generic"]["categories"]["fonts"]["categoryScore"]
+        serverConfig_score = stdout_json["scoreProfiles"]["generic"]["categories"]["serverConfig"]["categoryScore"]
 
         scores = {
-            "globalScore": 0,
-            "pageWeight": 0, 
-            "requests": 0, 
-            "domComplexity": 0, 
-            "javascriptComplexity": 0,
-            "badJavascript": 0,
-            "jQuery": 0,
-            "cssComplexity": 0,
-            "badCSS": 0,
-            "fonts": 0,
-            "serverConfig": 0,
+            "globalScore": globalScore,
+            "pageWeight": pageWeight_score, 
+            # "requests": requests_score,
+            "images": images_score,  
+            "domComplexity": domComplexity_score, 
+            "javascriptComplexity": javascriptComplexity_score,
+            "badJavascript": badJavascript_score,
+            "jQuery": jQuery_score,
+            "cssComplexity": cssComplexity_score,
+            "badCSS": badCSS_score,
+            "fonts": fonts_score,
+            "serverConfig": serverConfig_score,
         }
 
         # save audits data as json file

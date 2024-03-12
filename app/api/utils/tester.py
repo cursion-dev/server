@@ -3,7 +3,7 @@ from datetime import datetime
 from .image import Image
 from scanerr import settings
 from difflib import SequenceMatcher, HtmlDiff, Differ
-import time, os, sys, json, random, string, re, requests, uuid, boto3
+import time, os, sys, json, random, string, re, images, uuid, boto3
 
 
 
@@ -29,8 +29,8 @@ class Tester():
 
 
     def clean_html(self):
-        pre_scan_html_raw = requests.get(self.test.pre_scan.html).text
-        post_scan_html_raw = requests.get(self.test.post_scan.html).text
+        pre_scan_html_raw = images.get(self.test.pre_scan.html).text
+        post_scan_html_raw = images.get(self.test.post_scan.html).text
         pre_scan_html = pre_scan_html_raw.splitlines()
         post_scan_html = post_scan_html_raw.splitlines()
 
@@ -338,7 +338,7 @@ class Tester():
         try:
             pre_globalScore = int(self.test.pre_scan.yellowlab["scores"]['globalScore'])
             pre_pageWeight = int(self.test.pre_scan.yellowlab["scores"]['pageWeight'])
-            pre_requests = int(self.test.pre_scan.yellowlab["scores"]['requests'])
+            pre_images = int(self.test.pre_scan.yellowlab["scores"]['images'])
             pre_domComplexity = int(self.test.pre_scan.yellowlab["scores"]['domComplexity'])
             pre_javascriptComplexity = int(self.test.pre_scan.yellowlab["scores"]['javascriptComplexity'])
             pre_badJavascript = int(self.test.pre_scan.yellowlab["scores"]['badJavascript'])
@@ -350,7 +350,7 @@ class Tester():
 
             post_globalScore = int(self.test.post_scan.yellowlab["scores"]['globalScore'])
             post_pageWeight = int(self.test.post_scan.yellowlab["scores"]['pageWeight'])
-            post_requests = int(self.test.post_scan.yellowlab["scores"]['requests'])
+            post_images = int(self.test.post_scan.yellowlab["scores"]['images'])
             post_domComplexity = int(self.test.post_scan.yellowlab["scores"]['domComplexity'])
             post_javascriptComplexity = int(self.test.post_scan.yellowlab["scores"]['javascriptComplexity'])
             post_badJavascript = int(self.test.post_scan.yellowlab["scores"]['badJavascript'])
@@ -361,7 +361,7 @@ class Tester():
             post_serverConfig = int(self.test.post_scan.yellowlab["scores"]['serverConfig'])
 
             pageWeight_delta = post_pageWeight - pre_pageWeight
-            requests_delta = post_requests - pre_requests
+            images_delta = post_images - pre_images
             domComplexity_delta = post_domComplexity - pre_domComplexity
             javascriptComplexity_delta = post_javascriptComplexity - pre_javascriptComplexity
             badJavascript_delta = post_badJavascript - pre_badJavascript
@@ -376,7 +376,7 @@ class Tester():
 
         except:
             pageWeight_delta = None
-            requests_delta = None
+            images_delta = None
             domComplexity_delta = None
             javascriptComplexity_delta = None
             badJavascript_delta = None
@@ -391,7 +391,7 @@ class Tester():
         data = {
             "scores": {
                 "pageWeight_delta": pageWeight_delta, 
-                "requests_delta": requests_delta, 
+                "images_delta": images_delta, 
                 "domComplexity_delta": domComplexity_delta, 
                 "javascriptComplexity_delta": javascriptComplexity_delta,
                 "badJavascript_delta": badJavascript_delta,

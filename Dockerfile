@@ -52,7 +52,7 @@ RUN npm cache clean --force
 RUN npm install jpegoptim-bin --unsafe-perm=true --allow-root
 
 # installing lighthouse & yellowlabtools
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools@2.2.0
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
 
 # setting --no-sandbox & --disable-dev-shm-usage for Phantomas 
 RUN chromium --no-sandbox --version
@@ -69,6 +69,11 @@ RUN chown -R app:app /usr/bin/chromium
 # removing chromium config
 RUN rm -rf ~/.config/chromium
 
-# trying to install docker
+# install docker
 RUN curl -fsSL https://get.docker.com -o get-docker.sh && \ 
     sh get-docker.sh
+
+RUN sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker; \
+    service docker start && \
+    sleep 10 && \
+    docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt

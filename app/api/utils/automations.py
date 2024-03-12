@@ -115,8 +115,8 @@ def automation(automation_id, object_id):
                 data_type = 'float(test.yellowlab_delta["scores"]["current_average"])'
             elif 'pageWeight_delta' in expression['data_type']:
                 data_type = 'float(test.yellowlab_delta["scores"]["pageWeight_delta"])'
-            elif 'requests_delta' in expression['data_type']:
-                data_type = 'float(test.yellowlab_delta["scores"]["requests_delta"])'
+            elif 'images_delta' in expression['data_type']:
+                data_type = 'float(test.yellowlab_delta["scores"]["images_delta"])'
             elif 'domComplexity_delta' in expression['data_type']:
                 data_type = 'float(test.yellowlab_delta["scores"]["domComplexity_delta"])'
             elif 'javascriptComplexity_delta' in expression['data_type']:
@@ -138,8 +138,8 @@ def automation(automation_id, object_id):
                 data_type = 'float(scan.yellowlab["scores"]["globalScore"])'
             elif 'pageWeight' in expression['data_type']:
                 data_type = 'float(scan.yellowlab["scores"]["pageWeight"])'
-            elif 'requests' in expression['data_type']:
-                data_type = 'float(scan.yellowlab["scores"]["requests"])'
+            elif 'images' in expression['data_type']:
+                data_type = 'float(scan.yellowlab["scores"]["images"])'
             elif 'domComplexity' in expression['data_type']:
                 data_type = 'float(scan.yellowlab["scores"]["domComplexity"])'
             elif 'javascriptComplexity' in expression['data_type']:
