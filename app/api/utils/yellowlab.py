@@ -47,6 +47,14 @@ class Yellowlab():
 
     
     def yellowlab_cli(self):
+        """ 
+        Serves as the CLI method for collecting YL metrics.
+        Creates a sub process running yellowlabtools CLI
+
+        Returns --> raw YL data (Dict)
+        """
+
+        # initiating subprocess for YLT CLI
         proc = subprocess.Popen([
                 'yellowlabtools',
                 self.page.page_url,
@@ -55,17 +63,23 @@ class Yellowlab():
             stdout=subprocess.PIPE,
             user='app',
         )
+
+        # retrieving data from process
         stdout_value = proc.communicate()[0]
-        return stdout_value
+
+        # converting stdout str into Dict
+        stdout_json = json.loads(stdout_value)
+        return stdout_json
+
 
 
     def yellowlab_api(self) -> dict:
         """ 
-        Serves as the primary method for collecting YL metrics.
+        Serves as the API method for collecting YL metrics.
         Sends API requests to http://yellowlab:8383
         or localhost:8383
 
-        Returns --> raw YL data
+        Returns --> raw YL data (Dict)
         """
 
         # defaults
