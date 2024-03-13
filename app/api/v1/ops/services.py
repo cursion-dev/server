@@ -2756,6 +2756,71 @@ def get_logs(request):
 
 
 
+def search_resources(request):
+    """
+    This method will search for any `Page` or `Site`
+    that is associated with the user's `Account` and
+    matches the query string.
+
+    Expects:
+        'query': <str> the query string
+    
+    Returns:
+        data -> [
+            {
+                'name': <str>,
+                'type': <str>,
+                'path': <str>,
+            }
+            ...
+        ]
+    """
+
+    # get data
+    query = request.query_params.get('query')
+    user = request.user
+    account = Member.objects.get(user=user).account
+    data = []
+
+    # search for sites
+    sites = Site.objects.filter(account=account).filter(
+        site_url__icontains=query
+    )
+
+    # search for pages
+    pages = Pages.objects.filter(account=account).filter(
+        page_url__icontains=query
+    )
+
+    # adding first 5 sites if present
+    i = 0
+    while i <= 5 and i <= (len(sites)-1):
+        data.append({
+            'name': str(sites[i].site_url),
+            'path': f'/site/{sites[i].id}',
+            'type': 'site',
+        })
+        i+=1
+    
+    # adding first 5 pages if present
+    i = 0
+    while i <= 5 and i <= (len(pages)-1):
+        data.append({
+            'name': str(pages[i].page_url),
+            'path': f'/page/{pages[i].id}',
+            'type': 'page',
+        })
+        i+=1
+        
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+
+
 
 def migrate_site(request, delay=False):
     login_url = request.data.get('login_url', None)
