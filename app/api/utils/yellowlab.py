@@ -230,7 +230,7 @@ class Yellowlab():
                     self.process_data(stdout_json=raw_data)
                 
                 # API after first attempt
-                if attempts > 1:
+                if attempts >= 1:
                     raw_data = self.yellowlab_api()
                     self.process_data(stdout_json=raw_data)
 
