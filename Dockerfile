@@ -2,11 +2,6 @@
 FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
-# setting working dir
-RUN mkdir /app
-COPY ./app /app
-WORKDIR /app
-
 # increasing allocated memory to node
 ENV NODE_OPTIONS --max_old_space_size=2000
 ENV NODE_OPTIONS "--max-old-space-size=2000"
@@ -73,3 +68,8 @@ ENV XDG_CACHE_HOME /tmp/.chromium
 
 # removing chromium config
 RUN rm -rf ~/.config/chromium
+
+# setting working dir
+RUN mkdir /app
+COPY ./app /app
+WORKDIR /app
