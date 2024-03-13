@@ -46,7 +46,7 @@ class Yellowlab():
         }
 
     
-    def init_audit(self):
+    def yellowlab_cli(self):
         proc = subprocess.Popen([
                 'yellowlabtools',
                 self.page.page_url,
@@ -222,26 +222,33 @@ class Yellowlab():
     def get_data(self):
 
         scan_complete = False
+        failed = False
         attemps = 0
         
         # trying yellowlab scan untill success or 2 attempts
         while not scan_complete and attempts >= 2:
 
             try:
-                raw_data = self.yellowlab_api()
+                raw_data = self.yellowlab_cli()
                 self.process_data(stdout_json=raw_data)
+
+                # raw_data = self.yellowlab_api()
+                # self.process_data(stdout_json=raw_data)
+
                 scan_complete = True
+                failed = False
 
             except Exception as e:
                 print(f'YELLOWLAB API FAILED --> {e}')
                 scan_complete = True
+                failed = True
                 attemps += 1
 
         data = {
             "scores": self.scores, 
-            "audits": audits,
-            "failed": True
+            "audits": self.audits,
+            "failed": failed
         }
             
         # returning final data
-        return data
+        return attempts

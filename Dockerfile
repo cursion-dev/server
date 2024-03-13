@@ -7,6 +7,18 @@ RUN mkdir /app
 COPY ./app /app
 WORKDIR /app
 
+# increasing allocated memory to node
+ENV NODE_OPTIONS --max_old_space_size=2000
+ENV NODE_OPTIONS "--max-old-space-size=2000"
+ENV GENERATE_SOURCEMAP false
+
+# telling Puppeteer to skip installing Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
+
+# telling phantomas where Chrome binary is and that we're in docker
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome
+ENV DOCKERIZED yes
+
 # create the app user
 RUN addgroup --system app && adduser --system app 
 
@@ -18,6 +30,17 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     gfortran openssl libpq-dev curl libjpeg-dev chromium chromium-driver \ 
     libfontconfig 
 
+# installing yellowlab-specific system deps
+RUN apt-get update && apt-get install -y libfreetype6 git  \ 
+    libatk-bridge2.0-0 gconf-service libasound2 make \ 
+    libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 \ 
+    libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 \ 
+    libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 \ 
+    libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 \ 
+    libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 \ 
+    libnss3 lsb-release libgbm1 xdg-utils wget nasm automake autoconf libtool \
+    -y --force-yes > /dev/null 2>&1
+
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
     && npm install -g n \
@@ -26,8 +49,11 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 # cleaning npm
 RUN npm cache clean --force
 
+# installing more yellowlab stuff
+RUN npm install jpegoptim-bin --unsafe-perm=true --allow-root
+
 # installing lighthouse
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash
+RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
 
 # setting --no-sandbox & --disable-dev-shm-usage
 RUN chromium --no-sandbox --version
@@ -40,6 +66,10 @@ RUN python3 -m pip install -r /requirements.txt
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
+
+# Set up the Chromium environment
+ENV XDG_CONFIG_HOME /tmp/.chromium
+ENV XDG_CACHE_HOME /tmp/.chromium
 
 # removing chromium config
 RUN rm -rf ~/.config/chromium
