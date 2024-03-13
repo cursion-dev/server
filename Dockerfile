@@ -44,9 +44,6 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 # cleaning npm
 RUN npm cache clean --force
 
-# installing more yellowlab stuff
-RUN npm install jpegoptim-bin --unsafe-perm=true --allow-root
-
 # installing lighthouse
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
 
