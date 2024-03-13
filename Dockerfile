@@ -11,7 +11,7 @@ ENV GENERATE_SOURCEMAP false
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 
 # telling phantomas where Chrome binary is and that we're in docker
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
 ENV DOCKERIZED yes
 
 # create the app user
