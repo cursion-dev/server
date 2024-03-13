@@ -2794,7 +2794,7 @@ def search_resources(request):
 
     # adding first 5 sites if present
     i = 0
-    while i <= 5 and i <= (len(sites)-1):
+    while i <= 3 and i <= (len(sites)-1):
         data.append({
             'name': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
@@ -2804,7 +2804,7 @@ def search_resources(request):
     
     # adding first 5 pages if present
     i = 0
-    while i <= 5 and i <= (len(pages)-1):
+    while i <= 4 and i <= (len(pages)-1):
         data.append({
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
