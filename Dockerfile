@@ -55,10 +55,6 @@ RUN chromium --disable-dev-shm-usage  --version
 COPY ./requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt
 
-# setting ownership
-RUN chown -R app:app /app
-RUN chown -R app:app /usr/bin/chromium
-
 # Set up the Chromium environment
 ENV XDG_CONFIG_HOME /tmp/.chromium
 ENV XDG_CACHE_HOME /tmp/.chromium
@@ -70,3 +66,7 @@ RUN rm -rf ~/.config/chromium
 RUN mkdir /app
 COPY ./app /app
 WORKDIR /app
+
+# setting ownership
+RUN chown -R app:app /app
+RUN chown -R app:app /usr/bin/chromium
