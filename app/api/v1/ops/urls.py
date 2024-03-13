@@ -3,6 +3,7 @@ from . import views as views
 
 
 urlpatterns = [
+    path('search', views.Search.as_view(), name='search'),
     path('site', views.Sites.as_view(), name='site'),
     path('site/<uuid:id>', views.SiteDetail.as_view(), name='site-detail'),
     path('site/<uuid:id>/crawl', views.SiteCrawl.as_view(), name='site-crawl'),

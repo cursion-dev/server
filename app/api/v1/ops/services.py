@@ -84,24 +84,24 @@ def check_account(request=None, user=None, resource=None, site_id=None):
             current_page_count = Page.objects.filter(account=account, site__id=site_id).count()
             if current_page_count >= account.max_pages:
                 allowed = False
-                error = 'max pages reached, please upgrade plan'
+                error = 'max pages reached, please upgrade'
         # checking sites
         if resource == 'site':
             current_site_count = Site.objects.filter(account=account).count()
             if current_site_count >= account.max_sites:
                 allowed = False
-                error = 'max sites reached, please upgrade plan'
+                error = 'max sites reached, please upgrade'
         # checking schedules
         if resource == 'schedule':
             current_site_count = Schedule.objects.filter(account=account).count()
             if current_site_count >= account.max_schedules:
                 allowed = False
-                error = 'max schedules reached, please upgrade plan'
+                error = 'max schedules reached, please upgrade'
         # checking testcases
         if resource == 'testcase':
             if not account.testcases:
                 allowed = False
-                error = 'testcases not allowed, please upgrade plan'
+                error = 'testcases not allowed, please upgrade'
     
     # returning data
     data = {
@@ -2748,6 +2748,71 @@ def get_logs(request):
     serializer_context = {'request': request,}
     serialized = LogSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
+    return response
+
+
+
+
+
+
+
+def search_resources(request):
+    """
+    This method will search for any `Page` or `Site`
+    that is associated with the user's `Account` and
+    matches the query string.
+
+    Expects:
+        'query': <str> the query string
+    
+    Returns:
+        data -> [
+            {
+                'name': <str>,
+                'type': <str>,
+                'path': <str>,
+            }
+            ...
+        ]
+    """
+
+    # get data
+    query = request.query_params.get('query')
+    user = request.user
+    account = Member.objects.get(user=user).account
+    data = []
+
+    # search for sites
+    sites = Site.objects.filter(account=account).filter(
+        site_url__icontains=query
+    )
+
+    # search for pages
+    pages = Page.objects.filter(account=account).filter(
+        page_url__icontains=query
+    )
+
+    # adding first 5 sites if present
+    i = 0
+    while i <= 3 and i <= (len(sites)-1):
+        data.append({
+            'name': str(sites[i].site_url),
+            'path': f'/site/{sites[i].id}',
+            'type': 'site',
+        })
+        i+=1
+    
+    # adding first 5 pages if present
+    i = 0
+    while i <= 4 and i <= (len(pages)-1):
+        data.append({
+            'name': str(pages[i].page_url),
+            'path': f'/page/{pages[i].id}',
+            'type': 'page',
+        })
+        i+=1
+        
+    response = Response(data, status=status.HTTP_200_OK)
     return response
 
 

@@ -16,8 +16,45 @@ class Yellowlab():
         self.page = self.scan.page
         self.configs = configs
 
+        # initial audits object
+        self.audits = {
+            "pageWeight": [], 
+            "images": [], 
+            "domComplexity": [], 
+            "javascriptComplexity": [],
+            "badJavascript": [],
+            "jQuery": [],
+            "cssComplexity": [],
+            "badCSS": [],
+            "fonts": [],
+            "serverConfig": [],
+        }
+        
+        # initial scores object
+        self.scores = {
+            "globalScore": None,
+            "pageWeight": None, 
+            "images": None, 
+            "domComplexity": None, 
+            "javascriptComplexity": None,
+            "badJavascript": None,
+            "jQuery": None,
+            "cssComplexity": None,
+            "badCSS": None,
+            "fonts": None,
+            "serverConfig": None,
+        }
+
     
-    def init_audit(self):
+    def yellowlab_cli(self):
+        """ 
+        Serves as the CLI method for collecting YL metrics.
+        Creates a sub process running yellowlabtools CLI
+
+        Returns --> raw YL data (Dict)
+        """
+
+        # initiating subprocess for YLT CLI
         proc = subprocess.Popen([
                 'yellowlabtools',
                 self.page.page_url,
@@ -26,17 +63,23 @@ class Yellowlab():
             stdout=subprocess.PIPE,
             user='app',
         )
+
+        # retrieving data from process
         stdout_value = proc.communicate()[0]
-        return stdout_value
+
+        # converting stdout str into Dict
+        stdout_json = json.loads(stdout_value)
+        return stdout_json
+
 
 
     def yellowlab_api(self) -> dict:
         """ 
-        Serves as the backup method for collecting YL metrics.
+        Serves as the API method for collecting YL metrics.
         Sends API requests to http://yellowlab:8383
         or localhost:8383
 
-        Returns --> raw YL data
+        Returns --> raw YL data (Dict)
         """
 
         # defaults
@@ -50,21 +93,16 @@ class Yellowlab():
         }
 
         # setting up initial request
-        print('sending YLT API request...')
         res = requests.post(
             url=f'{settings.YELLOWLAB_ROOT}/api/runs',
             data=json.dumps(data),
             headers=headers
         ).json()
 
-        print(res)
-
         # retrieve runId & pod_ip if present
         run_id = res['runId']
         pod_ip = res.get('pod_ip')
-
         NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip != None else settings.YELLOWLAB_ROOT
-        print(f'setting NEW_ROOT to -> {NEW_ROOT}')
         
         wait_time = 0
         max_wait = 1200
@@ -74,13 +112,10 @@ class Yellowlab():
         while not done and wait_time < max_wait:
 
             # sending run request check
-            print('checking YLT API request...')
             res = requests.get(
                 url=f'{NEW_ROOT}/api/runs/{run_id}',
                 headers=headers
             ).json()
-
-            print(f'res -> {res}')
 
             # checking status
             status = res['run']['status']['statusCode']
@@ -90,7 +125,6 @@ class Yellowlab():
             if status == 'complete':
                 done = True
             if status == 'failed':
-                print('YELLOWLAB API FAILED')
                 raise RuntimeError
                 break
 
@@ -100,7 +134,6 @@ class Yellowlab():
 
 
         # getting run results
-        print('retrieveing YLT API request...')
         res = requests.get(
             url=f'{NEW_ROOT}/api/results/{run_id}',
             headers=headers
@@ -130,63 +163,29 @@ class Yellowlab():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        # initial audits object
-        audits = {
-            "pageWeight": [], 
-            "images": [], 
-            "domComplexity": [], 
-            "javascriptComplexity": [],
-            "badJavascript": [],
-            "jQuery": [],
-            "cssComplexity": [],
-            "badCSS": [],
-            "fonts": [],
-            "serverConfig": [],
-        }
-
-        # iterating through categories to get relevant yl_audits and store them in their respective `audits = {}` obj
-        for cat in audits:
+        # iterating through categories to get relevant yl_audits 
+        # and store them in their respective `audits = {}` obj
+        for cat in self.audits:
             cat_audits = stdout_json["scoreProfiles"]["generic"]["categories"][cat]["rules"]
             for a in cat_audits:
                 try:
                     audit = stdout_json["rules"][a]
-                    audits[cat].append(audit)
+                    self.audits[cat].append(audit)
                 except:
                     pass
 
         # get scores from each category
-        globalScore = stdout_json["scoreProfiles"]["generic"]["globalScore"]
-        pageWeight_score = stdout_json["scoreProfiles"]["generic"]["categories"]["pageWeight"]["categoryScore"]
-        # requests_score = stdout_json["scoreProfiles"]["generic"]["categories"]["requests"]["categoryScore"]
-        images_score = stdout_json["scoreProfiles"]["generic"]["categories"]["images"]["categoryScore"]
-        domComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["domComplexity"]["categoryScore"]
-        javascriptComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["javascriptComplexity"]["categoryScore"]
-        badJavascript_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badJavascript"]["categoryScore"]
-        jQuery_score = stdout_json["scoreProfiles"]["generic"]["categories"]["jQuery"]["categoryScore"]
-        cssComplexity_score = stdout_json["scoreProfiles"]["generic"]["categories"]["cssComplexity"]["categoryScore"]
-        badCSS_score = stdout_json["scoreProfiles"]["generic"]["categories"]["badCSS"]["categoryScore"]
-        fonts_score = stdout_json["scoreProfiles"]["generic"]["categories"]["fonts"]["categoryScore"]
-        serverConfig_score = stdout_json["scoreProfiles"]["generic"]["categories"]["serverConfig"]["categoryScore"]
+        for key in self.scores:
+            if key == 'globalScore':
+                self.scores['globalScore'] = stdout_json["scoreProfiles"]["generic"]["globalScore"]
+            else:
+                self.scores[key] = stdout_json["scoreProfiles"]["generic"]["categories"][key]["categoryScore"]
 
-        scores = {
-            "globalScore": globalScore,
-            "pageWeight": pageWeight_score, 
-            # "requests": requests_score,
-            "images": images_score,  
-            "domComplexity": domComplexity_score, 
-            "javascriptComplexity": javascriptComplexity_score,
-            "badJavascript": badJavascript_score,
-            "jQuery": jQuery_score,
-            "cssComplexity": cssComplexity_score,
-            "badCSS": badCSS_score,
-            "fonts": fonts_score,
-            "serverConfig": serverConfig_score,
-        }
 
         # save audits data as json file
         file_id = uuid.uuid4()
         with open(f'{file_id}.json', 'w') as fp:
-            json.dump(audits, fp)
+            json.dump(self.audits, fp)
         
         # upload to s3 and return url
         audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
@@ -202,9 +201,12 @@ class Yellowlab():
         # remove local copy
         os.remove(audit_file)
 
+        # updating opjects
+        self.audits = audits_url
+
         data = {
-            "scores": scores, 
-            "audits": audits_url,
+            "scores": self.scores, 
+            "audits": self.audits,
             "failed": False
         }
 
@@ -214,47 +216,38 @@ class Yellowlab():
 
     def get_data(self):
 
-        try:
-            raw_data = self.yellowlab_api()
-            data = self.process_data(stdout_json=raw_data)
-            return data
-
-        except Exception as e:
-            print(f'YELLOWLAB API FAILED --> {e}')
-
-            scores = {
-                "globalScore": None,
-                "pageWeight": None, 
-                "requests": None, 
-                "domComplexity": None, 
-                "javascriptComplexity": None,
-                "badJavascript": None,
-                "jQuery": None,
-                "cssComplexity": None,
-                "badCSS": None,
-                "fonts": None,
-                "serverConfig": None,
-            }
-
-            audits = {
-                "pageWeight": [], 
-                "requests": [], 
-                "domComplexity": [], 
-                "javascriptComplexity": [],
-                "badJavascript": [],
-                "jQuery": [],
-                "cssComplexity": [],
-                "badCSS": [],
-                "fonts": [],
-                "serverConfig": [],
-            }
-
-            data = {
-                "scores": scores, 
-                "audits": audits,
-                "failed": True
-            }
+        scan_complete = False
+        failed = None
+        attempts = 0
         
-            return data
-        
+        # trying yellowlab scan untill success or 2 attempts
+        while not scan_complete and attempts < 2:
 
+            try:
+                # CLI on first attempt
+                if attempts < 1:
+                    raw_data = self.yellowlab_cli()
+                    self.process_data(stdout_json=raw_data)
+                
+                # API after first attempt
+                if attempts >= 1:
+                    raw_data = self.yellowlab_api()
+                    self.process_data(stdout_json=raw_data)
+
+                scan_complete = True
+                failed = False
+
+            except Exception as e:
+                print(f'YELLOWLAB FAILED (attempt {attempts}) --> {e}')
+                scan_complete = False
+                failed = True
+                attempts += 1
+
+        data = {
+            "scores": self.scores, 
+            "audits": self.audits,
+            "failed": failed
+        }
+            
+        # returning final data
+        return data

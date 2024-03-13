@@ -591,6 +591,17 @@ class SiteStats(APIView):
 
 
 
+class Search(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = search_resources(request)
+        return response
+
+
+
+
 class Processes(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
