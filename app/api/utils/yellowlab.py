@@ -34,7 +34,7 @@ class Yellowlab():
         self.scores = {
             "globalScore": None,
             "pageWeight": None, 
-            "requests": None, 
+            "images": None, 
             "domComplexity": None, 
             "javascriptComplexity": None,
             "badJavascript": None,
