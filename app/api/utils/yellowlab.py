@@ -159,7 +159,8 @@ class Yellowlab():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        # iterating through categories to get relevant yl_audits and store them in their respective `audits = {}` obj
+        # iterating through categories to get relevant yl_audits 
+        # and store them in their respective `audits = {}` obj
         for cat in self.audits:
             cat_audits = stdout_json["scoreProfiles"]["generic"]["categories"][cat]["rules"]
             for a in cat_audits:
@@ -171,29 +172,16 @@ class Yellowlab():
 
         # get scores from each category
         for key in self.scores:
-            if key != 'globalScore':
+            if key == 'globalScore':
+                self.scores['globalScore'] = stdout_json["scoreProfiles"]["generic"]["globalScore"]
+            else:
                 self.scores[key] = stdout_json["scoreProfiles"]["generic"]["categories"][key]["categoryScore"]
 
-        # adding globalScore
-        self.scores['globalScore'] = stdout_json["scoreProfiles"]["generic"]["globalScore"]
-
-
-        # self.scores['pageWeight'] = stdout_json["scoreProfiles"]["generic"]["categories"]["pageWeight"]["categoryScore"]
-        # # self.scores['requests'] = stdout_json["scoreProfiles"]["generic"]["categories"]["requests"]["categoryScore"]
-        # self.scores['images'] = stdout_json["scoreProfiles"]["generic"]["categories"]["images"]["categoryScore"]
-        # self.scores['domComplexity'] = stdout_json["scoreProfiles"]["generic"]["categories"]["domComplexity"]["categoryScore"]
-        # self.scores['javascriptComplexity'] = stdout_json["scoreProfiles"]["generic"]["categories"]["javascriptComplexity"]["categoryScore"]
-        # self.scores['badJavascript'] = stdout_json["scoreProfiles"]["generic"]["categories"]["badJavascript"]["categoryScore"]
-        # self.scores['jQuery'] = stdout_json["scoreProfiles"]["generic"]["categories"]["jQuery"]["categoryScore"]
-        # self.scores['cssComplexity'] = stdout_json["scoreProfiles"]["generic"]["categories"]["cssComplexity"]["categoryScore"]
-        # self.scores['badCSS'] = stdout_json["scoreProfiles"]["generic"]["categories"]["badCSS"]["categoryScore"]
-        # self.scores['fonts'] = stdout_json["scoreProfiles"]["generic"]["categories"]["fonts"]["categoryScore"]
-        # self.scores['serverConfig'] = stdout_json["scoreProfiles"]["generic"]["categories"]["serverConfig"]["categoryScore"]
 
         # save audits data as json file
         file_id = uuid.uuid4()
         with open(f'{file_id}.json', 'w') as fp:
-            json.dump(audits, fp)
+            json.dump(self.audits, fp)
         
         # upload to s3 and return url
         audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
@@ -209,9 +197,12 @@ class Yellowlab():
         # remove local copy
         os.remove(audit_file)
 
+        # updating opjects
+        self.audits = audits_url
+
         data = {
-            "scores": scores, 
-            "audits": audits_url,
+            "scores": self.scores, 
+            "audits": self.audits,
             "failed": False
         }
 
@@ -222,11 +213,11 @@ class Yellowlab():
     def get_data(self):
 
         scan_complete = False
-        failed = False
+        failed = None
         attempts = 0
         
         # trying yellowlab scan untill success or 2 attempts
-        while not scan_complete and attempts <= 2:
+        while not scan_complete and attempts < 2:
 
             try:
                 raw_data = self.yellowlab_cli()
@@ -251,4 +242,4 @@ class Yellowlab():
         }
             
         # returning final data
-        return attempts
+        return data
