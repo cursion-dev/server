@@ -38,21 +38,21 @@ jobs:
     
     # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
     - name: Build container image
-      run: docker build -t ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7) .
+      run: docker build -t ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7) .
 
     - name: Log in to DigitalOcean Container Registry with short-lived credentials
       # run: doctl registry login --expiry-seconds 1200
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
 
     - name: Push image to DigitalOcean Container Registry
-      run: docker image push ${{ secrets.REGISTRY_NAME }}/scanerr-server:$(echo $GITHUB_SHA | head -c7)
+      run: docker image push ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7)
 
     # Update deployment files to reflect new build.
     - name: Update app deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
+      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
     
     - name: Update celery deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/scanerr-server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
+      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
 
     - name: Save DigitalOcean kubeconfig with short-lived credentials
       run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 ${{ secrets.CLUSTER_NAME }}

@@ -213,29 +213,6 @@ class Yellowlab():
 
 
     def get_data(self):
-        
-        # try CLI method first
-        # try:
-        #     stdout_value = self.init_audit() 
-        #     # decode bytes into string
-        #     stdout_string = stdout_value.decode('iso-8859-1')
-        
-        #     if len(stdout_string) != 0:
-        #         if 'Runtime error encountered' in stdout_string:
-        #             error = {'error': 'yellowlab ran into a problem',}
-        #             return error
-
-        #         # convert to dict
-        #         stdout_json = json.loads(stdout_value)
-        #         data = self.process_data(stdout_json=stdout_json)
-        #         return data
-                
-        #     else:
-        #         raise RuntimeError
-        
-        # try API method if CLI fails
-        # except Exception as e:
-            # print(e)
 
         try:
             raw_data = self.yellowlab_api()

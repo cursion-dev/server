@@ -14,6 +14,7 @@ spec:
       labels:
         app: ylt-deployment
     spec:
+      terminationGracePeriodSeconds: 4000
       containers:
       - name: yellowlab
         image: scanerr/ylt

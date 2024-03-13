@@ -87,12 +87,12 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 1. Create docker secrets  
-- `kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=<username> --docker-password=<password> --docker-email=<email>` 
+- `kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username='<username>' --docker-password='<password>' --docker-email='<email>'` 
 
 
 ### 1. Build Dockerfile into image
-- `docker build . -t landonr/scanerr-server:latest`
-- `docker image push landonr/scanerr-server:latest`
+- `docker build . -t scanerr/server:latest`
+- `docker image push scanerr/server:latest`
 
 
 ### 2. Install nginx ingress controler on cluster
@@ -116,7 +116,6 @@ kubectl port-forward service/app-service 8000:8000
 
 #### 4.a  Spin up YLT deploymemt, service, and autoscaler
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-service.yaml`
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-autoscaler.yaml`
 
 
