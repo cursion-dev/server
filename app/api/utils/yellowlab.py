@@ -223,7 +223,7 @@ class Yellowlab():
 
         scan_complete = False
         failed = False
-        attemps = 0
+        attempts = 0
         
         # trying yellowlab scan untill success or 2 attempts
         while not scan_complete and attempts >= 2:
@@ -242,7 +242,7 @@ class Yellowlab():
                 print(f'YELLOWLAB API FAILED --> {e}')
                 scan_complete = True
                 failed = True
-                attemps += 1
+                attempts += 1
 
         data = {
             "scores": self.scores, 
