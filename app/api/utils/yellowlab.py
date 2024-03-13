@@ -66,7 +66,6 @@ class Yellowlab():
 
         # retrieving data from process
         stdout_value = proc.communicate()[0]
-        print(stdout_value)
 
         # converting stdout str into Dict
         stdout_json = json.loads(stdout_value)
@@ -232,23 +231,27 @@ class Yellowlab():
         attempts = 0
         
         # trying yellowlab scan untill success or 2 attempts
-        # while not scan_complete and attempts < 2:
+        while not scan_complete and attempts < 2:
 
-            # try:
-        raw_data = self.yellowlab_cli()
-        self.process_data(stdout_json=raw_data)
+            try:
+                # CLI on first attempt
+                if attempts < 1:
+                    raw_data = self.yellowlab_cli()
+                    self.process_data(stdout_json=raw_data)
+                
+                # API after first attempt
+                if attempts > 1:
+                    raw_data = self.yellowlab_api()
+                    self.process_data(stdout_json=raw_data)
 
-        # raw_data = self.yellowlab_api()
-        # self.process_data(stdout_json=raw_data)
+                scan_complete = True
+                failed = False
 
-        scan_complete = True
-        failed = False
-
-            # except Exception as e:
-            #     print(f'YELLOWLAB API FAILED --> {e}')
-            #     scan_complete = True
-            #     failed = True
-            #     attempts += 1
+            except Exception as e:
+                print(f'YELLOWLAB API FAILED --> {e}')
+                scan_complete = True
+                failed = True
+                attempts += 1
 
         data = {
             "scores": self.scores, 
