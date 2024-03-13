@@ -84,24 +84,24 @@ def check_account(request=None, user=None, resource=None, site_id=None):
             current_page_count = Page.objects.filter(account=account, site__id=site_id).count()
             if current_page_count >= account.max_pages:
                 allowed = False
-                error = 'max pages reached, please upgrade plan'
+                error = 'max pages reached, please upgrade'
         # checking sites
         if resource == 'site':
             current_site_count = Site.objects.filter(account=account).count()
             if current_site_count >= account.max_sites:
                 allowed = False
-                error = 'max sites reached, please upgrade plan'
+                error = 'max sites reached, please upgrade'
         # checking schedules
         if resource == 'schedule':
             current_site_count = Schedule.objects.filter(account=account).count()
             if current_site_count >= account.max_schedules:
                 allowed = False
-                error = 'max schedules reached, please upgrade plan'
+                error = 'max schedules reached, please upgrade'
         # checking testcases
         if resource == 'testcase':
             if not account.testcases:
                 allowed = False
-                error = 'testcases not allowed, please upgrade plan'
+                error = 'testcases not allowed, please upgrade'
     
     # returning data
     data = {
