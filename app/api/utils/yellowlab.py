@@ -226,7 +226,7 @@ class Yellowlab():
         attempts = 0
         
         # trying yellowlab scan untill success or 2 attempts
-        while not scan_complete and attempts >= 2:
+        while not scan_complete and attempts <= 2:
 
             try:
                 raw_data = self.yellowlab_cli()
