@@ -5,6 +5,9 @@
   - [Remote](#remote)
   - [Deploy Yellowlabs](#deploy-yellowlabs)
   - [Scripts](#scripts)
+    - [Install and run Docker in Containers](#install-and-run-docker-in-containers)
+    - [Get \& Set Node Memory:](#get--set-node-memory)
+    - [Clean up Docker leftovers on Server](#clean-up-docker-leftovers-on-server)
 
 
 &nbsp;
@@ -137,4 +140,34 @@ $ docker-compose -f docker-compose.prod.yml down -v
 *ssh into container*
 ``` shell
 $ docker exec -it <container:id> /bin/sh
+```
+
+
+### Install and run Docker in Containers
+```shell
+sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
+service docker start &&
+sleep 10 &&
+docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
+```
+
+
+### Get & Set Node Memory:
+Get Current Memory
+```shell
+node -e 'console.log(v8.getHeapStatistics().heap_size_limit/(1024*1024))'
+```
+Set New Memory
+```shell
+export NODE_OPTIONS="--max-old-space-size=4080" # Increase to 4 GB
+export NODE_OPTIONS="--max-old-space-size=5120" # Increase to 5 GB
+export NODE_OPTIONS="--max-old-space-size=6144" # Increase to 6 GB
+export NODE_OPTIONS="--max-old-space-size=7168" # Increase to 7 GB
+export NODE_OPTIONS="--max-old-space-size=8192" # Increase to 8 GB
+```
+
+
+### Clean up Docker leftovers on Server
+```shell
+docker system prune --all --force --volumes
 ```

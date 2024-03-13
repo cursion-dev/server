@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ylt-deployment
+  labels:
+    deployment: yellowlab
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ylt-deployment
+  template:
+    metadata:
+      labels:
+        app: ylt-deployment
+    spec:
+      terminationGracePeriodSeconds: 4000
+      containers:
+      - name: yellowlab
+        image: scanerr/ylt
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        ports:
+        - containerPort: 8383
+        securityContext:
+          privileged: true
+        resources:
+          limits:
+            cpu: "1"
+            memory: "4Gi"
+          requests:
+            cpu: ".5"
+            memory: "1Gi"
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ylt-service
+  labels:
+    service: ylt
+spec:
+  selector:
+    app: ylt-deployment
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8383

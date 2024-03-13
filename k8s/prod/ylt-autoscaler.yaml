@@ -1,0 +1,17 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ylt-scaler
+spec:
+  scaleTargetRef:
+    name: ylt-deployment
+  cooldownPeriod:  4000
+  pollingInterval: 15
+  minReplicaCount: 2
+  maxReplicaCount: 15
+  triggers:
+    - type: metrics-api
+      metadata:
+        targetValue: "5"
+        url: "https://api.scanerr.io/v1/ops/metrics/celery"
+        valueLocation: "num_tasks"

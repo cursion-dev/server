@@ -67,8 +67,8 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Yellow Lab Avg:\t'+str(item.yellowlab_delta["scores"]["current_average"])+'\n\t'
         elif 'pageWeight_delta' in e['data_type']:
             data_type = 'Page Weight Delta:\t'+str(item.yellowlab_delta["scores"]["pageWeight_delta"])+'\n\t'
-        elif 'requests_delta' in e['data_type']:
-            data_type = 'Requests Delta:\t'+str(item.yellowlab_delta["scores"]["requests_delta"])+'\n\t'
+        elif 'images_delta' in e['data_type']:
+            data_type = 'Requests Delta:\t'+str(item.yellowlab_delta["scores"]["images_delta"])+'\n\t'
         elif 'domComplexity_delta' in e['data_type']:
             data_type = 'DOM Complex. Delta:\t'+str(item.yellowlab_delta["scores"]["domComplexity_delta"])+'\n\t'
         elif 'javascriptComplexity_delta' in e['data_type']:
@@ -91,8 +91,8 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Yellow Lab Avg:\t'+str(item.yellowlab["scores"]["globalScore"])+'\n\t'
         elif 'pageWeight' in e['data_type']:
             data_type = 'Page Weight:\t'+str(item.yellowlab["scores"]["pageWeight"])+'\n\t'
-        elif 'requests' in e['data_type']:
-            data_type = 'Requests:\t'+str(item.yellowlab["scores"]["requests"])+'\n\t'
+        elif 'images' in e['data_type']:
+            data_type = 'Requests:\t'+str(item.yellowlab["scores"]["images"])+'\n\t'
         elif 'domComplexity' in e['data_type']:
             data_type = 'DOM Complex.:\t'+str(item.yellowlab["scores"]["domComplexity"])+'\n\t'
         elif 'javascriptComplexity' in e['data_type']:
@@ -184,8 +184,8 @@ def create_json_data(data, obj):
             json_data[key] = item.yellowlab_delta["scores"]["current_average"]
         elif 'pageWeight_delta' == json_data[key]:
             json_data[key] = item.yellowlab_delta["scores"]["pageWeight_delta"]
-        elif 'requests_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["requests_delta"]
+        elif 'images_delta' == json_data[key]:
+            json_data[key] = item.yellowlab_delta["scores"]["images_delta"]
         elif 'domComplexity_delta' == json_data[key]:
             json_data[key] = item.yellowlab_delta["scores"]["domComplexity_delta"]
         elif 'javascriptComplexity_delta' == json_data[key]:
@@ -207,8 +207,8 @@ def create_json_data(data, obj):
             json_data[key] = item.yellowlab["scores"]["globalScore"]
         elif 'pageWeight' == json_data[key]:
             json_data[key] = item.yellowlab["scores"]["pageWeight"]
-        elif 'requests' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["requests"]
+        elif 'images' == json_data[key]:
+            json_data[key] = item.yellowlab["scores"]["images"]
         elif 'domComplexity' == json_data[key]:
             json_data[key] = item.yellowlab["scores"]["domComplexity"]
         elif 'javascriptComplexity' == json_data[key]:

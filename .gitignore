@@ -18,3 +18,4 @@ app/static*
 app/api/migrations/*_*.py
 k8s/*/*-configs.yaml
 
+app/api/v1/ops/test.py

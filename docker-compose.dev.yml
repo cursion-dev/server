@@ -19,13 +19,13 @@ services:
              python3 manage.py wait_for_db &&
              python3 manage.py create_admin &&
              python3 manage.py driver_s_test &&
-             python3 manage.py driver_p_test && 
+             python3 manage.py driver_p_test &&
              gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000"
     expose:
       - 8000
     env_file:
       - ./env/.env.dev
-
+    
 
   db:
     image: postgres:10-alpine
@@ -35,12 +35,14 @@ services:
       - ./env/.env.dev
     volumes: 
       - pgdata:/var/lib/postgresql/data
+    
 
 
   redis:
     image: redis:alpine
     ports:
       - "6379"
+    
 
 
   celery:
@@ -50,7 +52,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A scanerr worker --beat --scheduler django --loglevel=info
+    command: >
+      sh -c "celery -A scanerr worker --beat --scheduler django --loglevel=info"
     volumes:
       - ./app:/scanerr
     env_file:
@@ -59,6 +62,22 @@ services:
       - redis
       - app
       - db
+    
+
+    
+  yellowlab:
+    container_name: yellowlab
+    privileged: true
+    restart: always
+    image: scanerr/ylt
+    ports:
+      - 8383:8383
+    depends_on:
+      - redis
+      - celery 
+      - app
+      - db
+    
       
 
   nginx-proxy:

@@ -33,7 +33,7 @@ def get_info_default():
             'yellowlab': {
                 'globalScore': None,
                 'pageWeight': None,
-                'requests': None, 
+                'images': None, 
                 'domComplexity': None, 
                 'javascriptComplexity': None,
                 'badJavascript': None,
@@ -100,7 +100,7 @@ def get_yl_delta_default():
         "scores": {
             "average_delta": None,
             "pageWeight_delta": None, 
-            "requests_delta": None, 
+            "images_delta": None, 
             "domComplexity_delta": None, 
             "javascriptComplexity_delta": None,
             "badJavascript_delta": None,
@@ -137,7 +137,7 @@ def get_yl_default():
        "scores": {
             "globalScore": None,
             "pageWeight": None, 
-            "requests": None, 
+            "images": None, 
             "domComplexity": None, 
             "javascriptComplexity": None,
             "badJavascript": None,
