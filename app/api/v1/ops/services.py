@@ -2788,7 +2788,7 @@ def search_resources(request):
     )
 
     # search for pages
-    pages = Pages.objects.filter(account=account).filter(
+    pages = Page.objects.filter(account=account).filter(
         page_url__icontains=query
     )
 
