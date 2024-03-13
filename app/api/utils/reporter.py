@@ -224,7 +224,7 @@ class Reporter():
             string = 'Bad CSS'
         elif cat == 'jQuery':
             string = 'jQuery'
-        elif cat == 'requests':
+        elif cat == 'images':
             string = 'Requests'
         elif cat == 'pageWeight':
             string = 'Page Weight'
@@ -260,12 +260,8 @@ class Reporter():
         Downloads teh JSON file from the passed uri
         and return the data as a python dict
         """
-        # uri = 'static/sites/' + uri.lstrip(f'{settings.AWS_S3_URL_PATH}')
-        # audits_raw = self.s3.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=uri)['Body'].read().decode('utf-8')
         res = requests.get(uri)
         audits = res.json()
-        # audits = json.loads(audits_raw)
-
         return audits
 
 
