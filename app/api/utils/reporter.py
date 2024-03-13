@@ -225,7 +225,7 @@ class Reporter():
         elif cat == 'jQuery':
             string = 'jQuery'
         elif cat == 'images':
-            string = 'Requests'
+            string = 'Images'
         elif cat == 'pageWeight':
             string = 'Page Weight'
         elif cat == 'serverConfig':
