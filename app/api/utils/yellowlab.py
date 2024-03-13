@@ -93,21 +93,16 @@ class Yellowlab():
         }
 
         # setting up initial request
-        print('sending YLT API request...')
         res = requests.post(
             url=f'{settings.YELLOWLAB_ROOT}/api/runs',
             data=json.dumps(data),
             headers=headers
         ).json()
 
-        print(res)
-
         # retrieve runId & pod_ip if present
         run_id = res['runId']
         pod_ip = res.get('pod_ip')
-
         NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip != None else settings.YELLOWLAB_ROOT
-        print(f'setting NEW_ROOT to -> {NEW_ROOT}')
         
         wait_time = 0
         max_wait = 1200
@@ -117,13 +112,10 @@ class Yellowlab():
         while not done and wait_time < max_wait:
 
             # sending run request check
-            print('checking YLT API request...')
             res = requests.get(
                 url=f'{NEW_ROOT}/api/runs/{run_id}',
                 headers=headers
             ).json()
-
-            print(f'res -> {res}')
 
             # checking status
             status = res['run']['status']['statusCode']
@@ -133,7 +125,6 @@ class Yellowlab():
             if status == 'complete':
                 done = True
             if status == 'failed':
-                print('YELLOWLAB API FAILED')
                 raise RuntimeError
                 break
 
@@ -143,7 +134,6 @@ class Yellowlab():
 
 
         # getting run results
-        print('retrieveing YLT API request...')
         res = requests.get(
             url=f'{NEW_ROOT}/api/results/{run_id}',
             headers=headers
@@ -248,7 +238,7 @@ class Yellowlab():
                 failed = False
 
             except Exception as e:
-                print(f'YELLOWLAB API FAILED --> {e}')
+                print(f'YELLOWLAB FAILED (attempt {attempts}) --> {e}')
                 scan_complete = True
                 failed = True
                 attempts += 1
