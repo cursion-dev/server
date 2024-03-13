@@ -239,7 +239,7 @@ class Yellowlab():
 
             except Exception as e:
                 print(f'YELLOWLAB FAILED (attempt {attempts}) --> {e}')
-                scan_complete = True
+                scan_complete = False
                 failed = True
                 attempts += 1
 
