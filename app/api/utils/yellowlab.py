@@ -237,47 +237,47 @@ class Yellowlab():
         # except Exception as e:
             # print(e)
 
-        try:
-            raw_data = self.yellowlab_api()
-            data = self.process_data(stdout_json=raw_data)
-            return data
+        # try:
+        raw_data = self.yellowlab_api()
+        data = self.process_data(stdout_json=raw_data)
+        return data
 
-        except Exception as e:
-            print(f'YELLOWLAB API FAILED --> {e}')
+        # except Exception as e:
+        #     print(f'YELLOWLAB API FAILED --> {e}')
 
-            scores = {
-                "globalScore": None,
-                "pageWeight": None, 
-                "requests": None, 
-                "domComplexity": None, 
-                "javascriptComplexity": None,
-                "badJavascript": None,
-                "jQuery": None,
-                "cssComplexity": None,
-                "badCSS": None,
-                "fonts": None,
-                "serverConfig": None,
-            }
+        #     scores = {
+        #         "globalScore": None,
+        #         "pageWeight": None, 
+        #         "requests": None, 
+        #         "domComplexity": None, 
+        #         "javascriptComplexity": None,
+        #         "badJavascript": None,
+        #         "jQuery": None,
+        #         "cssComplexity": None,
+        #         "badCSS": None,
+        #         "fonts": None,
+        #         "serverConfig": None,
+        #     }
 
-            audits = {
-                "pageWeight": [], 
-                "requests": [], 
-                "domComplexity": [], 
-                "javascriptComplexity": [],
-                "badJavascript": [],
-                "jQuery": [],
-                "cssComplexity": [],
-                "badCSS": [],
-                "fonts": [],
-                "serverConfig": [],
-            }
+        #     audits = {
+        #         "pageWeight": [], 
+        #         "requests": [], 
+        #         "domComplexity": [], 
+        #         "javascriptComplexity": [],
+        #         "badJavascript": [],
+        #         "jQuery": [],
+        #         "cssComplexity": [],
+        #         "badCSS": [],
+        #         "fonts": [],
+        #         "serverConfig": [],
+        #     }
 
-            data = {
-                "scores": scores, 
-                "audits": audits,
-                "failed": True
-            }
+        #     data = {
+        #         "scores": scores, 
+        #         "audits": audits,
+        #         "failed": True
+        #     }
         
-            return data
+        #     return data
         
 
