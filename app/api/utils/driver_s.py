@@ -9,7 +9,7 @@ def driver_init(
         window_size='1920,1080', 
         device='desktop',
         script_timeout=30,
-        load_timeout=30,
+        load_timeout=120,
         wait_time=15, 
         pixel_ratio=1.0,
         scale_factor=0.5
@@ -49,7 +49,7 @@ def driver_init(
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
     driver = webdriver.Chrome(options=options)
-    # driver.set_page_load_timeout(load_timeout)
+    driver.set_page_load_timeout(load_timeout)
     # driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)
 
