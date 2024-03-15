@@ -38,7 +38,7 @@ def driver_init(
     options.add_argument("disable-blink-features=AutomationControlled")
     options.add_experimental_option('prefs',prefs)
     options.add_argument("start-maximized")
-    options.add_argument("--headless")
+    # options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
