@@ -41,7 +41,7 @@ def driver_init(
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
-    chrome_options.add_argument('--hide-scrollbars')
+    options.add_argument('--hide-scrollbars')
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
