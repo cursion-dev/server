@@ -1,5 +1,7 @@
 from pyppeteer import launch
-import time, os, numpy, json, sys, datetime, asyncio
+from scanerr import settings
+import time, os, numpy, json, \
+sys, datetime, asyncio, subprocess
 
 
 
@@ -63,7 +65,7 @@ async def wait_for_page(page, max_wait_time=30):
     timeout = 0
     page_state = 'loading'
 
-    while timeout < max_wait_time and page_state != 'complete':
+    while int(timeout) < int(max_wait_time) and page_state != 'complete':
         page_state = await page.evaluate('document.readyState')
         print(f'document state is {page_state}')
         time.sleep(1)
@@ -124,7 +126,7 @@ async def get_data(url, configs, *args, **options):
     
     userAgent = (
         "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
-        (KHTML, like Gecko) Chrome/99.0.4812.0 Safari/537.36"
+        (KHTML, like Gecko) Chrome/122.0.6261.119 Safari/537.36"
     )
 
     await page.setViewport(viewport)
@@ -203,3 +205,25 @@ async def get_data(url, configs, *args, **options):
     }
 
     return data
+
+
+
+
+def test_puppeteer():
+    # initiating subprocess for Puppeteer
+    js_file = os.path.join(settings.BASE_DIR, "api/utils/puppeteer.mjs")
+    proc = subprocess.Popen(
+        [
+            'node',
+            js_file,
+        ], 
+        stdout=subprocess.PIPE,
+        user='app',
+    )
+
+    # retrieving data from process
+    stdout_value = proc.communicate()[0]
+
+    # converting stdout str into Dict
+    stdout_json = json.loads(stdout_value)
+    return stdout_json

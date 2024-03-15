@@ -59,3 +59,5 @@ WORKDIR /app
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
+RUN chown -R app:app /usr/bin/chromedriver
+RUN chmod +x /usr/bin/chromedriver

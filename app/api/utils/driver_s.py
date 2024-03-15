@@ -27,7 +27,7 @@ def driver_init(
         "deviceMetrics": { "width": int(sizes[0]), "height": int(sizes[1]), "pixelRatio": pixel_ratio },
         "userAgent": (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
-            (KHTML, like Gecko) Chrome/99.0.4844.74 Mobile Safari/537.36"
+            (KHTML, like Gecko) Chrome/122.0.6261.119 Mobile Safari/537.36"
         ) 
     }
 
@@ -41,13 +41,16 @@ def driver_init(
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
+    options.add_argument('--hide-scrollbars')
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
+    options.page_load_strategy = 'none'
 
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
+    # service = webdriver.ChromeService(executable_path=chromedriver_path)
     driver = webdriver.Chrome(options=options)
     # driver.set_page_load_timeout(load_timeout)
     # driver.set_script_timeout(script_timeout)
@@ -131,7 +134,7 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     interact_with_page(driver)
     time.sleep(min_wait_time)
 
-    while wait_time < max_wait_time and page_state != 'complete':
+    while int(wait_time) < int(max_wait_time) and page_state != 'complete':
         # get first set of logs
         # list_one = get_request_list(driver=driver)
         
@@ -171,7 +174,7 @@ def get_data(driver, max_wait_time):
     html = None
     logs = None
 
-    while timeout < max_wait_time and page_state != 'complete':
+    while int(timeout) < int(max_wait_time) and page_state != 'complete':
         page_state = driver.execute_script('return document.readyState')
         print(f'document state is {page_state}')
         time.sleep(1)
