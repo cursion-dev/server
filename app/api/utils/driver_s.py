@@ -8,8 +8,8 @@ import time, os, numpy, json, sys
 def driver_init(
         window_size='1920,1080', 
         device='desktop',
-        script_timeout=30,
-        load_timeout=120,
+        script_timeout=300,
+        load_timeout=300,
         wait_time=15, 
         pixel_ratio=1.0,
         scale_factor=0.5
@@ -27,7 +27,7 @@ def driver_init(
         "deviceMetrics": { "width": int(sizes[0]), "height": int(sizes[1]), "pixelRatio": pixel_ratio },
         "userAgent": (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
-            (KHTML, like Gecko) Chrome/99.0.4844.74 Mobile Safari/537.36"
+            (KHTML, like Gecko) Chrome/122.0.6261.119 Mobile Safari/537.36"
         ) 
     }
 
@@ -50,7 +50,7 @@ def driver_init(
 
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(load_timeout)
-    # driver.set_script_timeout(script_timeout)
+    driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)
 
     

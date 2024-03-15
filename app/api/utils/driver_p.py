@@ -124,7 +124,7 @@ async def get_data(url, configs, *args, **options):
     
     userAgent = (
         "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
-        (KHTML, like Gecko) Chrome/99.0.4812.0 Safari/537.36"
+        (KHTML, like Gecko) Chrome/122.0.6261.119 Safari/537.36"
     )
 
     await page.setViewport(viewport)
