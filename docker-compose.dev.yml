@@ -53,7 +53,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "celery -A scanerr worker --beat --scheduler django --loglevel=info"
+      sh -c "celery -A scanerr worker --beat --scheduler django --loglevel=info --uid=app --gid=app"
     volumes:
       - ./app:/scanerr
     env_file:
