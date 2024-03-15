@@ -1,5 +1,7 @@
 from pyppeteer import launch
-import time, os, numpy, json, sys, datetime, asyncio
+from scanerr import settings
+import time, os, numpy, json, \
+sys, datetime, asyncio, subprocess
 
 
 
@@ -203,3 +205,25 @@ async def get_data(url, configs, *args, **options):
     }
 
     return data
+
+
+
+
+def test_puppeteer():
+    # initiating subprocess for Puppeteer
+    js_file = os.path.join(settings.BASE_DIR, "api/utils//puppeteer.js")
+    proc = subprocess.Popen(
+        [
+            'node',
+            js_file,
+        ], 
+        stdout=subprocess.PIPE,
+        user='app',
+    )
+
+    # retrieving data from process
+    stdout_value = proc.communicate()[0]
+
+    # converting stdout str into Dict
+    stdout_json = json.loads(stdout_value)
+    return stdout_json
