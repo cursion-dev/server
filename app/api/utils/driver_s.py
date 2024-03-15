@@ -33,7 +33,7 @@ def driver_init(
 
     chromedriver_path = os.environ.get("CHROMEDRIVER")
     options = webdriver.ChromeOptions()
-    options.binary_location = os.environ.get('GOOGLECHROME')
+    options.binary_location = os.environ.get('CHROMIUM')
     options.add_argument("--no-sandbox")
     options.add_argument("disable-blink-features=AutomationControlled")
     options.add_experimental_option('prefs',prefs)
