@@ -44,6 +44,7 @@ def driver_init(
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
+    options.page_load_strategy = 'eager'
 
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
