@@ -211,7 +211,7 @@ async def get_data(url, configs, *args, **options):
 
 def test_puppeteer():
     # initiating subprocess for Puppeteer
-    js_file = os.path.join(settings.BASE_DIR, "api/utils//puppeteer.js")
+    js_file = os.path.join(settings.BASE_DIR, "api/utils//puppeteer.mjs")
     proc = subprocess.Popen(
         [
             'node',
