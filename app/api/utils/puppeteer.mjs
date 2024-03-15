@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import puppeteer from '/usr/local/bin/puppeteer';
 
 (async () => {
   // Launch the browser and open a new blank page
