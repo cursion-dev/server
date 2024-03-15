@@ -13,7 +13,7 @@ async def driver_init(
     sizes = window_size.split(',')
 
     options = {
-        'executablePath': os.environ.get('GOOGLECHROME'),
+        'executablePath': os.environ.get('CHROMIUM'),
         'args': [
             '--no-sandbox', 
             '--disable-dev-shm-usage',
@@ -65,7 +65,7 @@ async def wait_for_page(page, max_wait_time=30):
     timeout = 0
     page_state = 'loading'
 
-    while timeout < max_wait_time and page_state != 'complete':
+    while int(timeout) < int(max_wait_time) and page_state != 'complete':
         page_state = await page.evaluate('document.readyState')
         print(f'document state is {page_state}')
         time.sleep(1)

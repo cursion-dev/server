@@ -8,8 +8,8 @@ import time, os, numpy, json, sys
 def driver_init(
         window_size='1920,1080', 
         device='desktop',
-        script_timeout=300,
-        load_timeout=300,
+        script_timeout=30,
+        load_timeout=30,
         wait_time=15, 
         pixel_ratio=1.0,
         scale_factor=0.5
@@ -31,7 +31,7 @@ def driver_init(
         ) 
     }
 
-    chromedriver_path = os.environ.get("CHROMEDRIVER")
+    # chromedriver_path = os.environ.get("CHROMEDRIVER")
     options = webdriver.ChromeOptions()
     options.binary_location = os.environ.get('CHROMIUM')
     options.add_argument("--no-sandbox")
@@ -41,6 +41,7 @@ def driver_init(
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
+    chrome_options.add_argument('--hide-scrollbars')
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
     options.add_argument("--window-size=%s" % window_size) 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
@@ -49,10 +50,10 @@ def driver_init(
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
-    service = webdriver.ChromeService(executable_path=chromedriver_path)
-    driver = webdriver.Chrome(options=options, service=service)
-    driver.set_page_load_timeout(load_timeout)
-    driver.set_script_timeout(script_timeout)
+    # service = webdriver.ChromeService(executable_path=chromedriver_path)
+    driver = webdriver.Chrome(options=options)
+    # driver.set_page_load_timeout(load_timeout)
+    # driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)
 
     
@@ -133,7 +134,7 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     interact_with_page(driver)
     time.sleep(min_wait_time)
 
-    while wait_time < max_wait_time and page_state != 'complete':
+    while int(wait_time) < int(max_wait_time) and page_state != 'complete':
         # get first set of logs
         # list_one = get_request_list(driver=driver)
         
@@ -173,7 +174,7 @@ def get_data(driver, max_wait_time):
     html = None
     logs = None
 
-    while timeout < max_wait_time and page_state != 'complete':
+    while int(timeout) < int(max_wait_time) and page_state != 'complete':
         page_state = driver.execute_script('return document.readyState')
         print(f'document state is {page_state}')
         time.sleep(1)
