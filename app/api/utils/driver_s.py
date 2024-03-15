@@ -31,7 +31,7 @@ def driver_init(
         ) 
     }
 
-    # chromedriver_path = os.environ.get("CHROMEDRIVER")
+    chromedriver_path = os.environ.get("CHROMEDRIVER")
     options = webdriver.ChromeOptions()
     options.binary_location = os.environ.get('CHROMIUM')
     options.add_argument("--no-sandbox")
@@ -49,7 +49,7 @@ def driver_init(
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(options=options, executable_path=chromedriver_path)
     driver.set_page_load_timeout(load_timeout)
     driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)
