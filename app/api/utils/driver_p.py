@@ -13,7 +13,7 @@ async def driver_init(
     sizes = window_size.split(',')
 
     options = {
-        'executablePath': os.environ.get('CHROMIUM'),
+        'executablePath': os.environ.get('GOOGLECHROME'),
         'args': [
             '--no-sandbox', 
             '--disable-dev-shm-usage',

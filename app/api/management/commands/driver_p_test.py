@@ -1,4 +1,4 @@
-from ...utils.driver_p import driver_test, test_puppeteer
+from ...utils.driver_p import driver_test
 from django.core.management.base import BaseCommand
 import asyncio
 
@@ -8,8 +8,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         asyncio.run(driver_test())
-        print('testing puppeteer JS')
-        test_puppeteer()
 
     
 
