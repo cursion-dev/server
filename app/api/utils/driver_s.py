@@ -49,7 +49,8 @@ def driver_init(
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
-    driver = webdriver.Chrome(options=options, executable_path=chromedriver_path)
+    service = webdriver.ChromeService(executable_path=chromedriver_path)
+    driver = webdriver.Chrome(options=options, service=service)
     driver.set_page_load_timeout(load_timeout)
     driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)

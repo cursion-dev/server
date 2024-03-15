@@ -60,3 +60,4 @@ WORKDIR /app
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
 RUN chown -R app:app /usr/bin/chromedriver
+RUN chmod +x chromedriver
