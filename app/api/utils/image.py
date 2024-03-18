@@ -93,7 +93,7 @@ class Image():
         """
         current = datetime.now()
         diff = current - start_time
-        if diff.total_seconds() >= timeout:
+        if diff.total_seconds() >= int(timeout):
             print('exceeded timeout')
             return True
         else:
