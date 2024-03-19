@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from .driver_s import driver_init, quit_driver
+from .driver_s import *
 
 
 
@@ -48,6 +48,14 @@ class Crawler():
         
         def add_urls(start_url):
             self.driver.get(start_url)
+
+            # wait for page to load
+            driver_wait(
+                driver=self.driver,
+                max_wait_time=20, 
+                interval=2
+            )
+
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             for link in soup.find_all('a'):
                 url = link.get('href')
