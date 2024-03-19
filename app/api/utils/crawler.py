@@ -51,6 +51,7 @@ class Crawler():
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             for link in soup.find_all('a'):
                 url = link.get('href')
+                print(f'found this link -> {url}')
                 if url is not None:
                     if url_is_valid(url):
                         if url.startswith('/'):
@@ -68,6 +69,7 @@ class Crawler():
         add_urls(self.url)
 
         # iterate through layers
+        print(f'follow_urls > {str(len(follow_urls))} | crawled_urls > {str(len(crawled_urls))} | max_urls > {str(self.max_urls)}')
         while (len(follow_urls) > len(crawled_urls)) and (len(crawled_urls) < self.max_urls):
             for url in follow_urls:
                 if not url in crawled_urls:
