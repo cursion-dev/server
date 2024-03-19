@@ -20,8 +20,6 @@ async def driver_init(
             '--force-device-scale-factor=0.5',
             'ignore-certificate-errors',
             '--hide-scrollbars',
-            'start-maximized'
-            'disable-blink-features=AutomationControlled'
             f'--window-size={window_size}',
         ],
         'defaultViewport': {
