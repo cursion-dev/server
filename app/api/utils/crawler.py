@@ -49,7 +49,7 @@ class Crawler():
         def add_urls(start_url):
             self.driver.get(start_url)
 
-            # adding wait for crawler
+            # wait for page to load
             driver_wait(
                 driver=self.driver,
                 max_wait_time=20, 
@@ -57,12 +57,8 @@ class Crawler():
             )
 
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            print(self.driver.page_source)
-            print(soup)
-            print(soup.find_all('a'))
             for link in soup.find_all('a'):
                 url = link.get('href')
-                print(f'found this link -> {url}')
                 if url is not None:
                     if url_is_valid(url):
                         if url.startswith('/'):
@@ -81,7 +77,6 @@ class Crawler():
 
         # iterate through layers
         while (len(follow_urls) > len(crawled_urls)) and (len(crawled_urls) < self.max_urls):
-            print(f'follow_urls > {str(len(follow_urls))} | crawled_urls > {str(len(crawled_urls))} | max_urls > {str(self.max_urls)}')
             for url in follow_urls:
                 if not url in crawled_urls:
                     crawled_urls.append(url)
