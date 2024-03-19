@@ -49,6 +49,7 @@ class Crawler():
         def add_urls(start_url):
             self.driver.get(start_url)
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            print(self.driver.page_source)
             print(soup)
             print(soup.find_all('a'))
             for link in soup.find_all('a'):
