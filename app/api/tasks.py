@@ -52,6 +52,7 @@ def create_site_and_pages_bg(self, site_id=None, configs=None, *args, **kwargs):
     site.time_crawl_completed = None
     site.save()
     # crawl site 
+    print(f'crawling a max of {str(site.account.max_pages)} pages')
     pages = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
     for url in pages:
         # add new page
