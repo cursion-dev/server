@@ -93,7 +93,7 @@ class Image():
         """
         current = datetime.now()
         diff = current - start_time
-        if diff.total_seconds() >= timeout:
+        if diff.total_seconds() >= int(timeout):
             print('exceeded timeout')
             return True
         else:
@@ -240,6 +240,9 @@ class Image():
             # get current position and compare to previous
             new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
             height_diff = new_height - last_height
+
+            print(f'new_height => {new_height} | height_diff => {height_diff}')
+
             if height_diff > 20:
                 last_height = new_height
                 pic_id = uuid.uuid4()

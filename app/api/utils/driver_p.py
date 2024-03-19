@@ -18,7 +18,8 @@ async def driver_init(
             '--no-sandbox', 
             '--disable-dev-shm-usage',
             '--force-device-scale-factor=0.5',
-            'ignore-certificate-errors'
+            'ignore-certificate-errors',
+            '--hide-scrollbars',
             f'--window-size={window_size}',
         ],
         'defaultViewport': {
