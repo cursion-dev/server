@@ -289,7 +289,7 @@ class Caser():
                     )                
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    element = find_element(By.CSS_SELECTOR, selector)
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     element.click()
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
@@ -405,7 +405,7 @@ class Caser():
                     )
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    element = find_element(By.CSS_SELECTOR, selector)
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
                     elementText = elementText.strip()
                     print(f'elementText => {elementText}')
@@ -447,7 +447,7 @@ class Caser():
                     )
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    element = find_element(By.CSS_SELECTOR, selector)
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     image = self.save_screenshot_s()
 
                 except Exception as e:
