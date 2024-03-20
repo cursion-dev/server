@@ -189,7 +189,7 @@ class Caser():
         pic_id = uuid.uuid4()
         
         # get screenshot
-        self.driver.save_screenshot({'path': f'{pic_id}.png'})
+        self.driver.save_screenshot(f'{pic_id}.png')
 
         # seting up paths
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
@@ -244,7 +244,7 @@ class Caser():
                     print(f'navigating to {self.site_url}{step["action"]["path"]}')
                     # using selenium, navigate to requested path & wait for page to load
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
@@ -282,7 +282,7 @@ class Caser():
                     # using selenium, find and click on the 'element' 
                     selector = self.format_element_s(step["action"]["element"])
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
@@ -322,7 +322,7 @@ class Caser():
                     # using puppeteer, find and click on the 'element'
                     selector = self.format_element_s(step["action"]["element"])
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
@@ -358,7 +358,7 @@ class Caser():
                 
                 try:
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
@@ -398,7 +398,7 @@ class Caser():
                     # using selenium, find elememt and assert if element.text == assertion.text
                     selector = self.format_element_s(step["action"]["element"])
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
@@ -440,7 +440,7 @@ class Caser():
                     # using puppeteer, find elememt and assert it exists
                     selector = self.format_element_s(step["action"]["element"])
                     driver_wait(
-                        driver=driver, 
+                        driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
