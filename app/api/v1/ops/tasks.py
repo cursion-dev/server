@@ -209,21 +209,9 @@ def create_testcase_task(
         automation_id=None
     ):
 
-   
-
     if testcase_id != None:
         testcase = Testcase.objects.get(id=testcase_id)
         configs = testcase.configs
-
-    if configs is None:
-        configs = {
-            'window_size': '1920,1080',
-            'device': 'desktop',
-            'driver': 'puppeteer',
-            'interval': 5,
-            'min_wait_time': 10,
-            'max_wait_time': 30,
-        }
     
     else:
         case = Case.objects.get(id=case_id)
@@ -255,7 +243,16 @@ def create_testcase_task(
             steps = steps
         )
 
-    
+    if configs is None:
+        configs = {
+            'window_size': '1920,1080',
+            'device': 'desktop',
+            'driver': 'puppeteer',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 30,
+        }
+
     # running testcase
     if configs.get('driver', 'puppeteer') == 'puppeteer':
         testresult = asyncio.run(
