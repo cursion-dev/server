@@ -290,7 +290,7 @@ class Caser():
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    element.click()
+                    self.driver.execute_script(f'document.querySelector("{selector}").click()')
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
                 
