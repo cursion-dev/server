@@ -381,6 +381,7 @@ class Caser():
 
                     # using selenium, press the selected key
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    element.click()
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
