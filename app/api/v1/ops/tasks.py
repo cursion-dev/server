@@ -209,6 +209,16 @@ def create_testcase_task(
         automation_id=None
     ):
 
+    if configs is None:
+        configs = {
+            'window_size': '1920,1080',
+            'device': 'desktop',
+            'driver': 'puppeteer',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 30,
+        }
+
     if testcase_id != None:
         testcase = Testcase.objects.get(id=testcase_id)
     
@@ -232,16 +242,7 @@ def create_testcase_task(
         if updates != None:
             for update in updates:
                 steps[int(update['index'])]['action']['value'] = update['value']
-
-        if configs is None:
-            configs = {
-                'window_size': '1920,1080',
-                'device': 'desktop',
-                'interval': 5,
-                'min_wait_time': 10,
-                'max_wait_time': 30,
-            }
-            
+    
         testcase = Testcase.objects.create(
             case = case,
             case_name = case.name,
