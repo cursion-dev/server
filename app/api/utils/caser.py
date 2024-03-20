@@ -290,7 +290,8 @@ class Caser():
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    self.driver.execute_script(f'document.querySelector("{selector}").click()')
+                    # self.driver.execute_script(f'document.querySelector("{selector}").click()')
+                    element.click()
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
                 
@@ -329,9 +330,11 @@ class Caser():
                     )                
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     # changing value of element
                     value = step["action"]["value"]
-                    self.driver.execute_script(f'document.querySelector("{selector}").setAttribute("value", "{value}")')
+                    # self.driver.execute_script(f'document.querySelector("{selector}").setAttribute("value", "{value}")')
+                    element.send_keys(value)
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
                 
@@ -358,8 +361,7 @@ class Caser():
                 )
                 
                 try:
-                    print(f'keyDown action for key -> {step["action"]["key"]} | {self.s_keys.get(step["action"]["key"], step["action"]["key"])}')
-                
+                    print(f'keyDown action for key -> {step["action"]["key"]}')
                     # getting last known element
                     n = (i - 1)
                     elm = None
@@ -368,7 +370,6 @@ class Caser():
                         if elm != None and len(elm) != 0:
                             break
                         n -= 1
-
                     selector = self.format_element_s(elm)
                     driver_wait(
                         driver=self.driver, 
@@ -378,10 +379,8 @@ class Caser():
                     )                
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-
                     # using selenium, press the selected key
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    element.click()
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
