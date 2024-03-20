@@ -22,6 +22,39 @@ class Caser():
         self.steps = self.testcase.steps
         self.case_name = self.testcase.case.name
         self.configs = self.testcase.configs
+        self.s_keys = {
+            '+':            Keys.ADD,
+            'Alt':          Keys.ALT,
+            'ArrowDown':    Keys.ARROW_DOWN,
+            'ArrowLeft':    Keys.ARROW_LEFT,
+            'ArrowRight':   Keys.ARROW_RIGHT,
+            'ArrowUp':      Keys.ARROW_UP,
+            'Backspace':    Keys.BACKSPACE,
+            'Control':      Keys.CONTROL,
+            '.':            Keys.DECIMAL,
+            'Delete':       Keys.DELETE,
+            '/':            Keys.DIVIDE,
+            'Enter':        Keys.ENTER,
+            '=':            Keys.EQUALS,
+            'Escape':       Keys.ESCAPE,
+            'Meta':         Keys.META,
+            '*':            Keys.MULTIPLY,
+            '0':            Keys.NUMPAD0,
+            '1':            Keys.NUMPAD1,
+            '2':            Keys.NUMPAD2,
+            '3':            Keys.NUMPAD3,
+            '4':            Keys.NUMPAD4,
+            '5':            Keys.NUMPAD5,
+            '6':            Keys.NUMPAD6,
+            '7':            Keys.NUMPAD7,
+            '8':            Keys.NUMPAD8,
+            '9':            Keys.NUMPAD9,
+            ';':            Keys.SEMICOLON,
+            'Shift':        Keys.SHIFT,
+            'Space':        Keys.SPACE,
+            '-':            Keys.SUBTRACT,
+            'Tab':          Keys.TAB
+        }
 
 
 
@@ -135,7 +168,7 @@ class Caser():
 
 
     
-    def save_screenshot_s(self, page):
+    def save_screenshot_s(self):
         '''
         Grabs & uploads a screenshot of the `page` 
         passed in the params. 
@@ -722,36 +755,4 @@ class Caser():
     
     
     
-    self.s_keys = {
-        '+':            Keys.ADD,
-        'Alt':          Keys.ALT,
-        'ArrowDown':    Keys.ARROW_DOWN,
-        'ArrowLeft':    Keys.ARROW_LEFT,
-        'ArrowRight':   Keys.ARROW_RIGHT,
-        'ArrowUp':      Keys.ARROW_UP,
-        'Backspace':    Keys.BACKSPACE,
-        'Control':      Keys.CONTROL,
-        '.':            Keys.DECIMAL,
-        'Delete':       Keys.DELETE,
-        '/':            Keys.DIVIDE,
-        'Enter':        Keys.ENTER,
-        '=':            Keys.EQUALS,
-        'Escape':       Keys.ESCAPE,
-        'Meta':         Keys.META,
-        '*':            Keys.MULTIPLY,
-        '0':            Keys.NUMPAD0,
-        '1':            Keys.NUMPAD1,
-        '2':            Keys.NUMPAD2,
-        '3':            Keys.NUMPAD3,
-        '4':            Keys.NUMPAD4,
-        '5':            Keys.NUMPAD5,
-        '6':            Keys.NUMPAD6,
-        '7':            Keys.NUMPAD7,
-        '8':            Keys.NUMPAD8,
-        '9':            Keys.NUMPAD9,
-        ';':            Keys.SEMICOLON,
-        'Shift':        Keys.SHIFT,
-        'Space':        Keys.SPACE,
-        '-':            Keys.SUBTRACT,
-        'Tab':          Keys.TAB
-    }
+    
