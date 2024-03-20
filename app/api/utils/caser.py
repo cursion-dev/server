@@ -330,7 +330,8 @@ class Caser():
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     # changing value of element
-                    self.driver.execute_script(f'document.querySelector("{selector}").setAttribute("value", {step["action"]["value"]})')
+                    value = step["action"]["value"]
+                    self.driver.execute_script(f'document.querySelector("{selector}").setAttribute("value", "{value}")')
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
                 
@@ -357,15 +358,30 @@ class Caser():
                 )
                 
                 try:
+                    print(f'keyDown action for key -> {step["action"]["key"]} | {self.s_keys.get(step["action"]["key"], step["action"]["key"])}')
+                
+                    # getting last known element
+                    n = (i - 1)
+                    elm = None
+                    while True:
+                        elm = self.steps[n]['action']['element']
+                        if elm != None and len(elm) != 0:
+                            break
+                        n -= 1
+
+                    selector = self.format_element_s(elm)
                     driver_wait(
                         driver=self.driver, 
                         interval=int(self.configs.get('interval', 5)),  
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )
-                    print(f'keyDown action for key -> {step["action"]["key"]} | {self.s_keys.get(step["action"]["key"], step["action"]["key"])}')
+                    )                
+                    # scrolling to element using plain JavaScript
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
+
                     # using selenium, press the selected key
-                    self.driver.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
                 
