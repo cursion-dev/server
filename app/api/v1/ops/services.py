@@ -2596,6 +2596,7 @@ def create_testcase(request, delay=False):
         configs = {
             'window_size': '1920,1080',
             'device': 'desktop',
+            'driver': 'puppeteer',
             'interval': 5,
             'min_wait_time': 10,
             'max_wait_time': 30,
@@ -2616,9 +2617,13 @@ def create_testcase(request, delay=False):
         create_testcase_bg.delay(testcase_id=testcase.id)
     else:
         # running testcase
-        asyncio.run(
-            Caser(testcase=testcase).run()
-        )
+        if configs.get('driver', 'puppeteer') == 'puppeteer':
+            testresult = asyncio.run(
+                Caser(testcase=testcase).run_p()
+            )
+        if configs.get('driver', 'puppeteer') == 'selenium':
+            testresult = Caser(testcase=testcase).run_s()
+
         testcase = Testcase.objects.get(id=testcase.id)
 
     serializer_context = {'request': request,}
