@@ -249,7 +249,7 @@ class Caser():
                         min_wait_time=int(self.configs.get('min_wait_time', 10)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
                     )
-                    self.driver.get(f'{self.site_url}{step["action"]["path"]}', self.page_options)
+                    self.driver.get(f'{self.site_url}{step["action"]["path"]}')
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
 
@@ -351,7 +351,7 @@ class Caser():
             if step['action']['type'] == 'keyDown':
                 exception = None
                 passed = True
-                update_testcase_s(
+                self.update_testcase_s(
                     index=i, type='action', 
                     start_time=datetime.now()
                 )
@@ -388,7 +388,7 @@ class Caser():
             if step['assertion']['type'] == 'match':
                 exception = None
                 passed = True
-                update_testcase_s(
+                self.update_testcase_s(
                     index=i, type='action', 
                     start_time=datetime.now()
                 )
