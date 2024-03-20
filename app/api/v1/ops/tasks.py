@@ -253,10 +253,12 @@ def create_testcase_task(
 
     
     # running testcase
-    # testresult = asyncio.run(
-    #     Caser(testcase=testcase).run()
-    # )
-    testresult = Caser(testcase=testcase).run_s()
+    if configs.get('driver', 'puppeteer') == 'puppeteer':
+        testresult = asyncio.run(
+            Caser(testcase=testcase).run_p()
+        )
+    if configs.get('driver', 'puppeteer') == 'selenium':
+        testresult = Caser(testcase=testcase).run_s()
 
     if automation_id:
         automation(automation_id, testcase.id)

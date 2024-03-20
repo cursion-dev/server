@@ -491,10 +491,6 @@ class Caser():
 
 
 
-    
-
-
-
 
 
 
@@ -506,7 +502,7 @@ class Caser():
             using case {self.case_name}')
         
         # initate driver
-        self.driver = await driver_init()
+        self.driver = await driver_p_init()
         
         # init page obj 
         self.page = await self.driver.newPage()
