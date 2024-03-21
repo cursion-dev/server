@@ -220,6 +220,9 @@ class Caser():
             device=self.configs['device']
         )
 
+        # setting implict wait_time for driver
+        self.driver.implicitly_wait(self.configs['max_wait_time'])
+
         i = 0
         for step in self.steps:
             print(f'-- running step #{i+1} --')
@@ -281,16 +284,9 @@ class Caser():
                     print(f'clicking element -> {step["action"]["element"]}')
                     # using selenium, find and click on the 'element' 
                     selector = self.format_element_s(step["action"]["element"])
-                    driver_wait(
-                        driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                        max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )                
+                                    
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
-                    # self.driver.execute_script(f'document.querySelector("{selector}").click()')
                     element.click()
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
@@ -320,20 +316,12 @@ class Caser():
                 
                 try:
                     print(f'changing element to value -> {step["action"]["value"]}') 
-                    # using puppeteer, find and click on the 'element'
+                    # using selenium, find and click on the 'element'
                     selector = self.format_element_s(step["action"]["element"])
-                    driver_wait(
-                        driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                        max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )                
-                    # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
+                                    
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     # changing value of element
                     value = step["action"]["value"]
-                    # self.driver.execute_script(f'document.querySelector("{selector}").setAttribute("value", "{value}")')
                     element.send_keys(value)
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
@@ -371,14 +359,7 @@ class Caser():
                             break
                         n -= 1
                     selector = self.format_element_s(elm)
-                    driver_wait(
-                        driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                        max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )                
-                    # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
+                                    
                     # using selenium, press the selected key
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
@@ -413,14 +394,8 @@ class Caser():
                     print(f'asserting that element value -> {step["assertion"]["element"]} matches {step["assertion"]["value"]}')
                     # using selenium, find elememt and assert if element.text == assertion.text
                     selector = self.format_element_s(step["action"]["element"])
-                    driver_wait(
-                        driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                        max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )
+                    
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
                     elementText = elementText.strip()
@@ -455,12 +430,7 @@ class Caser():
                     print(f'asserting that element -> {step["assertion"]["element"]} exists')
                     # using puppeteer, find elememt and assert it exists
                     selector = self.format_element_s(step["action"]["element"])
-                    driver_wait(
-                        driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                        max_wait_time=int(self.configs.get('max_wait_time', 30)),
-                    )
+                    
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
