@@ -63,7 +63,10 @@ class Image():
 
         # scripts
         self.pause_video_script = (
-            "const video = document.querySelectorAll('video').forEach(vid => vid.pause());"
+            """
+            document.querySelectorAll('video').forEach(vid => vid.pause());
+            document.querySelectorAll('video').forEach(vid => vid.currentTime=0);
+            """ 
         )
 
         self.set_jquery = (
