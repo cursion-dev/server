@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # landonr/scanerr-server:04401a7 # 
+          image: <IMAGE> # scanerr/server:80a9a46 # 
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
