@@ -3,8 +3,8 @@ FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
 # increasing allocated memory to node
-ENV NODE_OPTIONS --max_old_space_size=2000
-ENV NODE_OPTIONS "--max-old-space-size=2000"
+ENV NODE_OPTIONS --max_old_space_size=20000
+ENV NODE_OPTIONS "--max-old-space-size=20000"
 ENV GENERATE_SOURCEMAP false
 
 # telling Puppeteer to skip installing Chrome

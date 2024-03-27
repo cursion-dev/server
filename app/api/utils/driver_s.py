@@ -120,7 +120,7 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
     def interact_with_page(driver):
         # simulate mouse movement and click on <html> tag
-        html_tag = driver.find_elements(By.TAG_NAME, 'html')[0]
+        html_tag = driver.find_elements(By.TAG_NAME, 'div')[0]
         action = ActionChains(driver)
         action.move_to_element(html_tag).perform()
         return

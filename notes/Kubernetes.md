@@ -96,11 +96,12 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 2. Install nginx ingress controler on cluster
-- `kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-loadbalancer.yaml`
 - Then add and `A` record for domain that points to new loadbalancer
+  - ref -> https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml
 
 
-### 3. Update ingress-nginx-controler "Service file" with domain
+### 3. Update ingress-nginx-controler "Service file" with domain - if not already updated.
 - add the below annotation 
 - `service.beta.kubernetes.io/do-loadbalancer-hostname: "api.scanerr.io"`
 
