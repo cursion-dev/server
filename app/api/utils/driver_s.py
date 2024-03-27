@@ -1,5 +1,5 @@
 from selenium import webdriver
-from selenium.webdriver import ActionChains
+from selenium.webdriver import ActionChains, ActionBuilder
 from selenium.webdriver.common.by import By
 import time, os, numpy, json, sys
 
@@ -120,7 +120,7 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
 
     def interact_with_page(driver):
         # simulate mouse movement
-        action = ActionChains(driver)
+        action = ActionBuilder(driver)
         action.pointer_action.move_to_location(0, 0).perform()
         time.sleep(1)
         action.pointer_action.move_to_location(0, 50).perform()
