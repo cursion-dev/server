@@ -1,6 +1,7 @@
 from selenium import webdriver
-from selenium.webdriver import ActionChains, ActionBuilder
+from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.actions.action_builder import ActionBuilder
 import time, os, numpy, json, sys
 
 
