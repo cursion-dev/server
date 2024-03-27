@@ -122,9 +122,12 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     def interact_with_page(driver):
         # simulate mouse movement
         action = ActionBuilder(driver)
-        action.pointer_action.move_to_location(0, 0).perform()
+        action.pointer_action.move_to_location(0, 0)
+        action.perform()
+        # wait for 1s
         time.sleep(1)
-        action.pointer_action.move_to_location(0, 50).perform()
+        action.pointer_action.move_to_location(0, 50)
+        action.perform()
         return
 
 
