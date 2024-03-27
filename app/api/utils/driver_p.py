@@ -46,7 +46,7 @@ async def driver_init(
 async def interact_with_page(page):
     # simulate mouse movement
     await page.mouse.move(0, 0)
-    await page.mouse.move(0, 100)
+    await page.mouse.move(0, 50)
 
     return page
 
