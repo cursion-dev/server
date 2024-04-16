@@ -1817,6 +1817,7 @@ def create_or_update_schedule(request):
                 'page_id': page_id,
                 'updates': updates,
                 'configs': configs,
+                'case_id': case_id,
                 'automation_id': auto_id,
             }
 
