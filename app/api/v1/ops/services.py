@@ -3030,7 +3030,7 @@ def get_site_stats(request):
     page_count = pages.count()
     test_count = 0
     scan_count = 0
-    schedule_count = 0
+    schedule_count = Schedule.objects.filter(site=site).count()
     for page in pages:
         tests = Test.objects.filter(page=page)
         scans = Scan.objects.filter(page=page)

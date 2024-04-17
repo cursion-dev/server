@@ -239,6 +239,7 @@ def create_testcase_task(
             case_name = case.name,
             site = site,
             user = site.user,
+            account = site.account,
             configs = configs,
             steps = steps
         )
