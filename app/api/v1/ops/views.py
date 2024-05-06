@@ -491,6 +491,16 @@ class CaseDetail(APIView):
 
 
 
+
+class AutoCases(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post']
+
+    def post(self, request):
+        response = create_auto_cases(request)  
+
+
+
 class Testcases(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']

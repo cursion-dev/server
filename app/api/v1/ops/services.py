@@ -6,6 +6,7 @@ from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
 from scanerr import celery
+from scanerr import settings
 from .serializers import *
 from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
@@ -19,6 +20,14 @@ from ...utils.caser import Caser
 from ...utils.crawler import Crawler
 
 
+
+# setup boto3 configurations
+s3 = boto3.client(
+    's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+    aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+    region_name=str(settings.AWS_S3_REGION_NAME), 
+    endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+)
 
 
 
@@ -1006,7 +1015,7 @@ def get_scans(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if scan.site.account != account:
-            data = {'reason': 'retrieve Scans of a Site you do not own',}
+            data = {'reason': 'cannot retrieve Scans you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -1026,7 +1035,7 @@ def get_scans(request):
     
 
     if page.account != account:
-        data = {'reason': 'retrieve Scans of a Site you do not own',}
+        data = {'reason': 'cannot retrieve Scans you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1066,7 +1075,7 @@ def get_scan_lean(request, id):
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if scan.site.account != account:
-        data = {'reason': 'retrieve Scans of a Site you do not own'}
+        data = {'reason': 'cannot retrieve Scans you do not own'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1497,7 +1506,7 @@ def get_tests(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if test.site.account != account:
-            data = {'reason': 'retrieve Tests of a Site you do not own'}
+            data = {'reason': 'cannot retrieve Tests you do not own'}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -1523,7 +1532,7 @@ def get_tests(request):
         return Response(data, status=this_status)
 
     if page.site.account != account:
-        data = {'reason': 'retrieve Tests of a Site you do not own',}
+        data = {'reason': 'cannot retrieve Tests you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
@@ -1567,7 +1576,7 @@ def get_test_lean(request, id):
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if test.site.account != account:
-        data = {'reason': 'retrieve Tests of a Site you do not own'}
+        data = {'reason': 'cannot retrieve Tests you do not own'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -2151,7 +2160,7 @@ def get_automations(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         if automation.account != account:
-            data = {'reason': 'retrieve an Automation you do not own',}
+            data = {'reason': 'cannot retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         serializer_context = {'request': request,}
         serialized = AutomationSerializer(automation, context=serializer_context)
@@ -2404,7 +2413,34 @@ def get_processes(request):
 
 
 
+def save_case_steps(steps):
 
+    # create .json file for steps and upload to s3
+    steps_id = uuid.uuid4()
+
+    # saving as json file temporarily
+    with open(f'{steps_id}.json', 'w') as fp:
+        json.dump(steps, fp)
+    
+    # seting up paths
+    steps_file = os.path.join(settings.BASE_DIR, f'{steps_id}.json')
+    remote_path = f'static/cases/steps/{steps_id}.json'
+    root_path = settings.AWS_S3_URL_PATH
+    steps_url = f'{root_path}/{remote_path}'
+
+    # upload to s3
+    with open(steps_file, 'rb') as data:
+        s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+            remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+        )
+
+    # remove local copy
+    os.remove(steps_file)
+
+    return {
+        'num_steps': len(steps),
+        'url': steps_url
+    }
 
 
 
@@ -2432,21 +2468,27 @@ def create_or_update_case(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         
         if case.account != account:
-            data = {'reason': 'retrieve Cases you do not own',}
+            data = {'reason': 'cannot retrieve Cases you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         else:
-            case.steps = steps
-            case.name = name
-            case.tags = tags
+            if steps is not None:
+                steps_data = save_case_steps(steps)
+                case.steps = steps_data
+            if name is not None:
+                case.name = name
+            if tags is not None:
+                case.tags = tags
             case.save()
     
     else:
+        setps_data = save_case_steps(steps)
+
         case = Case.objects.create(
             user = request.user,
             name = name, 
-            tags = tags,
-            steps = steps,
+            tags = tags if tags is not None else ["recorded"],
+            steps = steps_data,
             account = account
         )
 
@@ -2474,7 +2516,7 @@ def get_cases(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if case.account != account:
-            data = {'reason': 'retrieve an Case you do not own',}
+            data = {'reason': 'cannot retrieve an Case you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -2526,6 +2568,10 @@ def delete_case(request, id):
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
+    # delete s3 steps object
+    bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    bucket.objects.filter(Prefix=str(f'static/cases/{case.id}.json')).delete()
+
     case.delete()
 
     data = {'message': 'Case has been deleted',}
@@ -2535,6 +2581,45 @@ def delete_case(request, id):
 
 
 
+
+
+
+def create_auto_cases(request):
+    # get data
+    site_id = request.data.get('site_id')
+    site_url = request.data.get('site_url')
+    max_cases = request.data.get('max_cases', 4)
+    max_layers = request.data.get('max_layers', 6)
+    configs = request.data.get('configs')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+
+    # get site if only site_url present
+    if site_id is None and site_url is not None:
+        site = Site.objects.filter(account=account, site_url=site_url)[0]
+        site_id = str(site.id)
+    else:
+        # return error response
+        data = {'reason': 'site not found',}
+        record_api_call(request, data, '404')
+        response = Response(data, status=status.HTTP_404_NOT_FOUND)
+        return response
+
+
+    # send data to bg_autocase_task
+    create_auto_cases_bg.delay(
+        site_id=site_id,
+        max_cases=max_cases,
+        max_layers=max_layers,
+        configs=configs
+    )
+
+    # return response
+    data = {'message': 'Cases are generating',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
 
 
 
@@ -2575,13 +2660,14 @@ def create_testcase(request, delay=False):
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
 
-    steps = case.steps
+    steps = requests.get(case.steps['url']).json()
     for step in steps:
         if step['action']['type'] != None:
             step['action']['time_created'] = None
             step['action']['time_completed'] = None
             step['action']['exception'] = None
             step['action']['passed'] = None
+            step['action']['img'] = None
 
         if step['assertion']['type'] != None:
             step['assertion']['time_created'] = None
@@ -2652,7 +2738,7 @@ def get_testcases(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if testcase.account != account:
-            data = {'reason': 'retrieve an Testcase you do not own',}
+            data = {'reason': 'cannot retrieve an Testcase you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -2730,7 +2816,7 @@ def get_logs(request):
     if log_id != None:
         log = Log.objects.get(id=log_id)
         if log.user != request.user:
-            data = {'reason': 'retrieve Logs you do not own',}
+            data = {'reason': 'cannot retrieve Logs you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         

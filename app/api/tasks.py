@@ -6,6 +6,7 @@ from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
 from .utils.exporter import create_and_send_report_export
+from .utils.autocaser import AutoCaser
 from .v1.ops.tasks import (
     create_site_task, create_scan_task, 
     create_test_task, create_report_task, delete_report_s3,
@@ -488,6 +489,32 @@ def purge_logs(username=None, *args, **kwargs):
         Log.objects.all().delete()
 
     logger.info('Purged logs')
+
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def create_auto_cases_bg(
+    self, 
+    site_id=None,
+    max_cases=None,
+    max_layers=None,
+    configs=None
+):
+    # get site
+    site = Site.objects.get(id=id)
+
+    # init AutoCaser
+    AC = AutoCaser(
+        site=site,
+        max_cases=max_cases,
+        max_layers=max_layers,
+    )
+
+    # build cases
+    AC.build_cases()
+    logger.info('Built new auto Cases')
+
+
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)

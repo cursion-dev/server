@@ -179,7 +179,7 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Case
         fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags', 'account',
+        'tags', 'account', 'site',
         ]
 
 
