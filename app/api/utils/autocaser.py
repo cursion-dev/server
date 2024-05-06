@@ -624,9 +624,6 @@ class AutoCaser():
         # run get_elements
         elements = self.get_elements()
 
-        # temp cases definition
-        cases = []
-
         # get/decide on value for element
         def get_elem_value(element):
             if element['value'] == None or len(element['value']) <= 0:
