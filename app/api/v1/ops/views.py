@@ -498,6 +498,7 @@ class AutoCases(APIView):
 
     def post(self, request):
         response = create_auto_cases(request)  
+        return response
 
 
 
