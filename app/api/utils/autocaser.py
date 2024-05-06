@@ -345,7 +345,7 @@ class AutoCaser():
         start_page = self.driver.current_url
 
         # record all forms and sub_elements on page
-        elements = self.record_forms(elements=elements, driver=self.driver)
+        elements = self.record_forms(elements=elements)
     
         # grab all buttons
         buttons = self.driver.find_elements(By.TAG_NAME, "button")
@@ -492,7 +492,6 @@ class AutoCaser():
                                 # record form into sub_elements list
                                 sub_elements = self.record_forms(
                                     elements=sub_elements, 
-                                    driver=self.driver,
                                     form=elem
                                 )
 
@@ -549,8 +548,7 @@ class AutoCaser():
                     if elem.tag_name == 'form':
                         # record form into sub_elements list
                         sub_elements = self.record_forms(
-                            elements=sub_elements, 
-                            driver=self.driver,
+                            elements=sub_elements,
                             form=elem
                         )
 
