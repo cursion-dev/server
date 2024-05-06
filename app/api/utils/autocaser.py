@@ -359,7 +359,6 @@ class AutoCaser():
         # sorting start_elems
         sorted_elements = self.get_priority_elements(
             elements=start_elms, 
-            driver=self.driver
         )
         priority_elements = sorted_elements['priority_elements']
         non_priority_elements = sorted_elements['non_priority_elements']
@@ -513,8 +512,7 @@ class AutoCaser():
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
-                        elements=new_elements, 
-                        driver=self.driver
+                        elements=new_elements,
                     )
                     priority_elements = sorted_elements['priority_elements']
                     non_priority_elements = sorted_elements['non_priority_elements']
