@@ -17,7 +17,7 @@ class AutoCaser():
     def __init__(self, site, max_cases: int=4, max_layers: int=5):
          
         # main site object & configs
-        self.scan = site
+        self.site = site
         self.max_cases = max_cases
         self.max_layers = max_layers
 
