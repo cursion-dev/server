@@ -148,7 +148,7 @@ class AutoCaser():
             print(f'recording form -> {form_selector}')
 
             # getting form text
-            elem_text = self.get_elem_text(selector=form_selector, driver=driver)
+            elem_text = self.get_elem_text(selector=form_selector, driver=self.driver)
 
             # get form image
             form_img = self.get_element_image(element=form)
@@ -345,7 +345,7 @@ class AutoCaser():
         start_page = self.driver.current_url
 
         # record all forms and sub_elements on page
-        elements = self.record_forms(elements=elements, driver=driver)
+        elements = self.record_forms(elements=elements, driver=self.driver)
     
         # grab all buttons
         buttons = self.driver.find_elements(By.TAG_NAME, "button")
@@ -359,7 +359,7 @@ class AutoCaser():
         # sorting start_elems
         sorted_elements = self.get_priority_elements(
             elements=start_elms, 
-            driver=driver
+            driver=self.driver
         )
         priority_elements = sorted_elements['priority_elements']
         non_priority_elements = sorted_elements['non_priority_elements']
@@ -411,14 +411,14 @@ class AutoCaser():
             # ensuring we're at start_page
             if self.driver.current_url != start_page:
                 self.driver.get(start_page)
-                driver_wait(driver=driver)
+                driver_wait(driver=self.driver)
 
             # get element info
             element = self.driver.find_element(By.CSS_SELECTOR, selector)
             element_img = self.get_element_image(element=element)
             element_type = element.tag_name
             elem_relative_url = self.get_relative_url(self.driver.current_url)
-            elem_text = self.get_elem_text(selector=selector, driver=driver)
+            elem_text = self.get_elem_text(selector=selector, driver=self.driver)
 
             print(f'working on this start element -> {selector}')
 
@@ -444,7 +444,7 @@ class AutoCaser():
                 print(f'layers -> {layers} | run -> {run}')
 
                 # driver wait
-                driver_wait(driver=driver)
+                driver_wait(driver=self.driver)
 
                 # check current page
                 if self.driver.current_url == previous_url:
@@ -492,7 +492,7 @@ class AutoCaser():
                                 # record form into sub_elements list
                                 sub_elements = self.record_forms(
                                     elements=sub_elements, 
-                                    driver=driver,
+                                    driver=self.driver,
                                     form=elem
                                 )
 
@@ -510,12 +510,12 @@ class AutoCaser():
                     self.driver.current_url.startswith(self.get_url_root(previous_url)):
 
                     # get new elements and randomly choose 1 (with priority)
-                    new_elements = self.get_current_elements(driver=driver)
+                    new_elements = self.get_current_elements(driver=self.driver)
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
                         elements=new_elements, 
-                        driver=driver
+                        driver=self.driver
                     )
                     priority_elements = sorted_elements['priority_elements']
                     non_priority_elements = sorted_elements['non_priority_elements']
@@ -550,7 +550,7 @@ class AutoCaser():
                         # record form into sub_elements list
                         sub_elements = self.record_forms(
                             elements=sub_elements, 
-                            driver=driver,
+                            driver=self.driver,
                             form=elem
                         )
 
