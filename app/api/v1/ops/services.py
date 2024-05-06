@@ -2594,18 +2594,17 @@ def create_auto_cases(request):
     user = request.user
     account = Member.objects.get(user=user).account
 
-
     # get site if only site_url present
     if site_id is None and site_url is not None:
         site = Site.objects.filter(account=account, site_url=site_url)[0]
         site_id = str(site.id)
-    else:
+
+    if site_id is None and site_url is None:
         # return error response
         data = {'reason': 'site not found',}
         record_api_call(request, data, '404')
         response = Response(data, status=status.HTTP_404_NOT_FOUND)
         return response
-
 
     # send data to bg_autocase_task
     create_auto_cases_bg.delay(
