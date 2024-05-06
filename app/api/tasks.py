@@ -501,7 +501,7 @@ def create_auto_cases_bg(
     configs=None
 ):
     # get site
-    site = Site.objects.get(id=id)
+    site = Site.objects.get(id=site_id)
 
     # init AutoCaser
     AC = AutoCaser(
