@@ -143,12 +143,12 @@ class AutoCaser():
         for form in forms:
             
             # get form selector
-            form_selector = self.driver.execute_script(selector_script, form)
+            form_selector = self.driver.execute_script(self.selector_script, form)
 
             print(f'recording form -> {form_selector}')
 
             # getting form text
-            elem_text = self.get_elem_text(selector=form_selector, driver=self.driver)
+            elem_text = self.get_elem_text(selector=form_selector)
 
             # get form image
             form_img = self.get_element_image(element=form)
@@ -162,7 +162,7 @@ class AutoCaser():
                 
                 if i.get_attribute('type') not in self.blacklist:
                     # get input data
-                    input_selector = self.driver.execute_script(selector_script, i)
+                    input_selector = self.driver.execute_script(self.selector_script, i)
                     placeholder = i.get_attribute('placeholder')
                     value = i.get_attribute('value')
                     type = i.get_attribute('type')
@@ -189,7 +189,7 @@ class AutoCaser():
             for iframe in iframes:
                 
                 # get iframe data
-                iframe_selector = self.driver.execute_script(selector_script, iframe)
+                iframe_selector = self.driver.execute_script(self.selector_script, iframe)
                 iframe_img = self.get_element_image(element=iframe)
                 relative_url = self.get_relative_url(self.driver.current_url)
                 
@@ -202,7 +202,7 @@ class AutoCaser():
                     
                     if i.get_attribute('type') not in self.blacklist:
                         # get input data
-                        input_selector = self.driver.execute_script(selector_script, i)
+                        input_selector = self.driver.execute_script(self.selector_script, i)
                         placeholder = i.get_attribute('placeholder')
                         value = i.get_attribute('value')
                         type = i.get_attribute('type')
@@ -246,7 +246,7 @@ class AutoCaser():
             for btn in btns:
 
                 # get button data
-                btn_selector = self.driver.execute_script(selector_script, btn)
+                btn_selector = self.driver.execute_script(self.selector_script, btn)
                 type = btn.get_attribute('type')
                 btn_img = self.get_element_image(element=btn)
                 relative_url = self.get_relative_url(self.driver.current_url)
@@ -302,7 +302,7 @@ class AutoCaser():
         for element in elements:
 
             # get element's innerText
-            elem_selector = self.driver.execute_script(selector_script, element)
+            elem_selector = self.driver.execute_script(self.selector_script, element)
             elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
 
             # check each priority word against element innerText
@@ -372,7 +372,7 @@ class AutoCaser():
                 random.randint(0, (len(priority_elements) - 1))
             ]
             final_start_elements.append(
-                self.driver.execute_script(selector_script, choosen)
+                self.driver.execute_script(self.selector_script, choosen)
             )
 
         # adding random elements until 
@@ -386,7 +386,7 @@ class AutoCaser():
             ]
 
             # check if element exists in final_start_elements[]
-            selector = self.driver.execute_script(selector_script, choosen)
+            selector = self.driver.execute_script(self.selector_script, choosen)
             if selector in final_start_elements:
                 iterations += 1
                 continue
@@ -418,12 +418,12 @@ class AutoCaser():
             element_img = self.get_element_image(element=element)
             element_type = element.tag_name
             elem_relative_url = self.get_relative_url(self.driver.current_url)
-            elem_text = self.get_elem_text(selector=selector, driver=self.driver)
+            elem_text = self.get_elem_text(selector=selector)
 
             print(f'working on this start element -> {selector}')
 
             # get all current elements and url before action
-            old_elements = self.get_current_elements(driver)
+            old_elements = self.get_current_elements()
             previous_url = self.driver.current_url
 
             # perform first action
@@ -450,12 +450,12 @@ class AutoCaser():
                 if self.driver.current_url == previous_url:
                     
                     # check for new element
-                    new_elements = self.get_current_elements(driver)
+                    new_elements = self.get_current_elements()
                     for elem in new_elements:
                         if elem not in old_elements:
 
                             # get sub element info
-                            elem_selector = self.driver.execute_script(selector_script, elem)
+                            elem_selector = self.driver.execute_script(self.selector_script, elem)
                             elem_img = self.get_element_image(element=elem)
                             relative_url = self.get_relative_url(self.driver.current_url)
                             
@@ -509,7 +509,7 @@ class AutoCaser():
                     self.driver.current_url.startswith(self.get_url_root(previous_url)):
 
                     # get new elements and randomly choose 1 (with priority)
-                    new_elements = self.get_current_elements(driver=self.driver)
+                    new_elements = self.get_current_elements()
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
@@ -540,7 +540,7 @@ class AutoCaser():
                         break
 
                     # get sub element info
-                    elem_selector = self.driver.execute_script(selector_script, elem)
+                    elem_selector = self.driver.execute_script(self.selector_script, elem)
                     elem_img = self.get_element_image(element=elem)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
