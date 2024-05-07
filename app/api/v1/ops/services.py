@@ -2448,6 +2448,7 @@ def create_or_update_case(request):
     steps = request.data.get('steps')
     name = request.data.get('name')
     tags = request.data.get('tags')
+    _type = request.data.get('type')
     user = request.user
     account = Member.objects.get(user=user).account
 
@@ -2485,7 +2486,7 @@ def create_or_update_case(request):
         case = Case.objects.create(
             user = request.user,
             name = name, 
-            tags = tags if tags is not None else ["recorded"],
+            type = _type if _type is not None else "recorded",
             steps = steps_data,
             account = account
         )
@@ -2573,7 +2574,7 @@ def delete_case(request, id):
         region_name=str(settings.AWS_S3_REGION_NAME), 
         endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
     )
-    
+
     # delete s3 steps object
     bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
     bucket.objects.filter(Prefix=str(f'static/cases/{case.id}.json')).delete()

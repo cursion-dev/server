@@ -451,10 +451,11 @@ class Case(models.Model):
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.name}'
+        return f'{self.name}' if len(self.name) > 0 else str(id)
 
 
 
