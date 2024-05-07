@@ -333,6 +333,24 @@ class AutoCaser():
 
 
 
+    def check_for_duplicates(self, elements: list, selector: str) -> bool:
+        found_duplicate = False
+        for elem in elements:
+            # check if selector exists already
+            if elem['selector'] == selector:
+                found_duplicate = True
+                break
+
+            # check if sub_elements exists
+            if elem['elements'] != None:
+                self.check_for_duplicates(elem['elements'])
+
+        # return result
+        return found_duplicate
+
+
+
+
     def get_elements(self):
 
         # high-level elemets array.
@@ -440,7 +458,7 @@ class AutoCaser():
             sub_elements = []
             while layers < self.max_layers and run:
 
-                print(f'layers -> {layers} | run -> {run}')
+                print(f'on layer -> {layers}')
 
                 # driver wait
                 driver_wait(driver=self.driver)
@@ -457,47 +475,51 @@ class AutoCaser():
                             elem_selector = self.driver.execute_script(self.selector_script, elem)
                             elem_img = self.get_element_image(element=elem)
                             relative_url = self.get_relative_url(self.driver.current_url)
+
+                            # check if element is duplicate
+                            if not self.check_for_duplicates(sub_elements, elem_selector):
                             
-                            # found new element, decide on action
-                            if elem.tag_name == 'a' or elem.tag_name == 'button':
+                                # found new element, record, click, & continue
+                                if elem.tag_name == 'a' or elem.tag_name == 'button':
 
-                                # record element
-                                sub_elements.append({
-                                    'selector': elem_selector,
-                                    'elem_type': elem.tag_name,
-                                    'placeholder': None,
-                                    'value': None,
-                                    'type': None,
-                                    'data': None,
-                                    'action': 'click',
-                                    'path': relative_url,
-                                    'img': elem_img,
-                                    'elements': None,
-                                })
+                                    # record element
+                                    sub_elements.append({
+                                        'selector': elem_selector,
+                                        'elem_type': elem.tag_name,
+                                        'placeholder': None,
+                                        'value': None,
+                                        'type': None,
+                                        'data': None,
+                                        'action': 'click',
+                                        'path': relative_url,
+                                        'img': elem_img,
+                                        'elements': None,
+                                    })
 
-                                # click element
-                                try:
-                                    elem.click()
-                                except Exception as e:
-                                    print('Element not Clickable, removing')
-                                    sub_elements.pop()
+                                    # click element
+                                    try:
+                                        elem.click()
+                                    except Exception as e:
+                                        print('Element not Clickable, removing')
+                                        sub_elements.pop()
 
-                                # add to layers and ending internal loop
-                                layers += 1
-                                break
-
-                            if elem.tag_name == 'form':
+                                    # add to layers and ending internal loop
+                                    layers += 1
+                                    break
                                 
-                                # record form into sub_elements list
-                                sub_elements = self.record_forms(
-                                    elements=sub_elements, 
-                                    form=elem
-                                )
+                                # found new form, record and end run
+                                if elem.tag_name == 'form':
+                                    
+                                    # record form into sub_elements list
+                                    sub_elements = self.record_forms(
+                                        elements=sub_elements, 
+                                        form=elem
+                                    )
 
-                                # add to layers and ending case
-                                layers += 1
-                                run = False
-                                break
+                                    # add to layers and ending case
+                                    layers += 1
+                                    run = False
+                                    break
                     
                     # add to layers
                     layers += 1
