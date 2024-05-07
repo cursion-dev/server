@@ -62,7 +62,7 @@ class AutoCaser():
             "image":            {'test_data': None, 'action': None},
             "month":            {'test_data': '2024-04', 'action': 'change'},
             "number":           {'test_data': '1', 'action': 'change'},
-            "password":         {'test_data': 'pass123456!@', 'action': 'click'},
+            "password":         {'test_data': 'pass123456!@', 'action': 'change'},
             "radio":            {'test_data': None, 'action': 'click'},
             "range":            {'test_data': 1, 'action': 'change'},
             "reset":            {'test_data': None, 'action': None},
