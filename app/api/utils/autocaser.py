@@ -377,7 +377,7 @@ class AutoCaser():
         # adding random elements until 
         # "max_cases" is reached
         iterations = 0
-        while len(final_start_elements) < self.max_cases and iterations < (5 * max_cases):
+        while len(final_start_elements) < self.max_cases and iterations < (5 * self.max_cases):
 
             # random choice
             choosen = non_priority_elements[
