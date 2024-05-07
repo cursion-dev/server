@@ -733,7 +733,7 @@ class AutoCaser():
                 id      = case_id,
                 site    = self.site,
                 user    = self.site.user,
-                account = self.site.user.account,
+                account = self.site.account,
                 name    = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
                 tags    = ["generated"],
                 steps   = {
