@@ -21,15 +21,6 @@ from ...utils.crawler import Crawler
 
 
 
-# setup boto3 configurations
-s3 = boto3.client(
-    's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-    aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-    region_name=str(settings.AWS_S3_REGION_NAME), 
-    endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-)
-
-
 
 
 def record_api_call(request, data, status):
@@ -2414,6 +2405,13 @@ def get_processes(request):
 
 
 def save_case_steps(steps):
+    # setup boto3 configurations
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
 
     # create .json file for steps and upload to s3
     steps_id = uuid.uuid4()
@@ -2567,6 +2565,14 @@ def delete_case(request, id):
         data = {'reason': 'delete an Case you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
+    
+    # setup boto3 configurations
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
 
     # delete s3 steps object
     bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
