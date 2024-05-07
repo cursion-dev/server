@@ -732,7 +732,9 @@ class AutoCaser():
             Case.objects.create(
                 id      = case_id,
                 site    = self.site,
-                name    = element['elem_text'],
+                user    = self.site.user,
+                account = self.site.user.account,
+                name    = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
                 tags    = ["generated"],
                 steps   = {
                     'url':  steps_url,
