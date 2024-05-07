@@ -679,21 +679,22 @@ class AutoCaser():
                 if element['elements'] != None:
                     for elem in elements:
                         # add step
-                        steps.append({
-                            "action":{
-                                "key": "",
-                                "path": elem['path'],
-                                "type": elem['action'],
-                                "value": get_elem_value(elem),
-                                "element": elem['selector'],
-                                "img": elem['img']
-                            },
-                            "assertion":{
-                                "type": "",
-                                "value": "",
-                                "element": ""
-                            }
-                        })
+                        if elem['action'] is not None:
+                            steps.append({
+                                "action":{
+                                    "key": "",
+                                    "path": elem['path'],
+                                    "type": elem['action'],
+                                    "value": get_elem_value(elem),
+                                    "element": elem['selector'],
+                                    "img": elem['img']
+                                },
+                                "assertion":{
+                                    "type": "",
+                                    "value": "",
+                                    "element": ""
+                                }
+                            })
 
                         # check if sub_elements exists
                         if elem['elements'] != None:
