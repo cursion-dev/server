@@ -2567,13 +2567,13 @@ def delete_case(request, id):
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
     # setup boto3 configurations
-    s3 = boto3.client(
-        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
         aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
         region_name=str(settings.AWS_S3_REGION_NAME), 
         endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
     )
-
+    
     # delete s3 steps object
     bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
     bucket.objects.filter(Prefix=str(f'static/cases/{case.id}.json')).delete()
