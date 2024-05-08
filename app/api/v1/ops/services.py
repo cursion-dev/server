@@ -173,7 +173,9 @@ def create_site(request, delay=False):
 
         # auto gen Cases using bg_autocase_task
         create_auto_cases_bg.delay(
-            site_id=site.id
+            site_id=site.id,
+            max_cases=3,
+            max_layers=5
         )
         
         # check if this is account's first site and onboarding = True
