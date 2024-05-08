@@ -449,6 +449,7 @@ class Case(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    site_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)

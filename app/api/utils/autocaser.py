@@ -753,13 +753,14 @@ class AutoCaser():
 
             # save new Case
             Case.objects.create(
-                id      = case_id,
-                site    = self.site,
-                user    = self.site.user,
-                account = self.site.account,
-                name    = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
-                type    = "generated",
-                steps   = {
+                id       = case_id,
+                site     = self.site,
+                site_url = self.site.site_url,
+                user     = self.site.user,
+                account  = self.site.account,
+                name     = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
+                type     = "generated",
+                steps    = {
                     'url':  steps_url,
                     'num_steps': len(steps)
                 },

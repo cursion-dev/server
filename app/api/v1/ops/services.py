@@ -2446,11 +2446,13 @@ def save_case_steps(steps):
 def create_or_update_case(request):
     case_id = request.data.get('case_id')
     steps = request.data.get('steps')
+    site_url = request.data.get('site_url')
     name = request.data.get('name')
     tags = request.data.get('tags')
     _type = request.data.get('type')
     user = request.user
     account = Member.objects.get(user=user).account
+    site = None
 
     check_data = check_account(request=request)
     if not check_data['allowed']:
@@ -2482,11 +2484,19 @@ def create_or_update_case(request):
     
     else:
         setps_data = save_case_steps(steps)
+        
+        if site_url is not None:
+            try:
+                site = Site.objects.filter(account=account, site_url=site_url)[0]
+            except:
+                pass
 
         case = Case.objects.create(
             user = request.user,
             name = name, 
             type = _type if _type is not None else "recorded",
+            site = site,
+            site_url = site_url,
             steps = steps_data,
             account = account
         )
