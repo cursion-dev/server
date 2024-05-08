@@ -2879,6 +2879,9 @@ def search_resources(request):
     user = request.user
     account = Member.objects.get(user=user).account
     data = []
+    cases = []
+    pages = []
+    sites = []
 
     # check for object specification i.e 'site: or case:'
     resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
