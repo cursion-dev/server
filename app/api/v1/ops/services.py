@@ -2405,7 +2405,7 @@ def get_processes(request):
 
 
 
-def save_case_steps(steps):
+def save_case_steps(steps, steps_id):
     # setup boto3 configurations
     s3 = boto3.client(
         's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
@@ -2413,9 +2413,6 @@ def save_case_steps(steps):
         region_name=str(settings.AWS_S3_REGION_NAME), 
         endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
     )
-
-    # create .json file for steps and upload to s3
-    steps_id = uuid.uuid4()
 
     # saving as json file temporarily
     with open(f'{steps_id}.json', 'w') as fp:
@@ -2484,7 +2481,8 @@ def create_or_update_case(request):
             case.save()
     
     else:
-        setps_data = save_case_steps(steps)
+        case_id = uuid.uuid4()
+        setps_data = save_case_steps(steps, case_id)
         
         if site_url is not None:
             try:
@@ -2493,6 +2491,7 @@ def create_or_update_case(request):
                 pass
 
         case = Case.objects.create(
+            id = case_id,
             user = request.user,
             name = name, 
             type = _type if _type is not None else "recorded",
@@ -2666,15 +2665,23 @@ def copy_case(request):
         data = {'reason': 'you must provide case_id'}
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
+
+    # download steps 
+    steps = requests.get(case.steps['url']).json()
     
+    # save steps as new s3 obj
+    new_case_id = uuid.uuid4()
+    setps_data = save_case_steps(steps, new_case_id)
+
     # create new case
     new_case = Case.objects.create(
+        id = new_case_id,
         user = request.user,
         name = f'Copy - {case.name}', 
         type = case.type,
         site = case.site,
         site_url = case.site_url,
-        steps = case.steps_data,
+        steps = steps_data,
         account = account
     )
 
