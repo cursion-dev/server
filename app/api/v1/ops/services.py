@@ -171,6 +171,11 @@ def create_site(request, delay=False):
             account=account
         )
 
+        # auto gen Cases using bg_autocase_task
+        create_auto_cases_bg.delay(
+            site_id=site.id
+        )
+        
         # check if this is account's first site and onboarding = True
         if Site.objects.filter(account=account).count() == 1 \
             and onboarding == True:
