@@ -2,6 +2,7 @@ import json, boto3, asyncio, os, requests
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
+from django.db.models import Q
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
@@ -2547,10 +2548,17 @@ def get_cases(request):
 
 
 def search_cases(request):
+    # get data
     user = request.user
     account = Member.objects.get(user=user).account
     query = request.query_params.get('query')
-    cases = Case.objects.filter(account=account, name__icontains=query).order_by('-time_created')
+    
+    # search for cases
+    cases = Case.objects.filter(
+        Q(account=account, name__icontains=query) |
+        Q(account=account, site_url__icontains=query) 
+    ).order_by('-time_created')
+    
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
     serializer_context = {'request': request,}
