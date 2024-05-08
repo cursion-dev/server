@@ -2880,15 +2880,27 @@ def search_resources(request):
     account = Member.objects.get(user=user).account
     data = []
 
+    # check for object specification i.e 'site: or case:'
+    resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
+    query = query.replace('https://', '').replace('http://', '').split(':')[-1]
+
     # search for sites
-    sites = Site.objects.filter(account=account).filter(
-        site_url__icontains=query
-    )
+    if resource_type == 'site' or resource_type == query:
+        sites = Site.objects.filter(account=account).filter(
+            site_url__icontains=query
+        )
 
     # search for pages
-    pages = Page.objects.filter(account=account).filter(
-        page_url__icontains=query
-    )
+    if resource_type == 'page' or resource_type == query:
+        pages = Page.objects.filter(account=account).filter(
+            page_url__icontains=query
+        )
+
+    # search for cases
+    if resource_type == 'case' or resource_type == query:
+        cases = Case.objects.filter(account=account).filter(
+            name__icontains=query
+        )
 
     # adding first 5 sites if present
     i = 0
@@ -2907,6 +2919,16 @@ def search_resources(request):
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
             'type': 'page',
+        })
+        i+=1
+    
+    # adding first 5 cases if present
+    i = 0
+    while i <= 4 and i <= (len(cases)-1):
+        data.append({
+            'name': str(case[i].name),
+            'path': f'/case/{case[i].id}',
+            'type': 'case',
         })
         i+=1
         
