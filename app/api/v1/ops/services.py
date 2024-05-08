@@ -2908,6 +2908,7 @@ def search_resources(request):
         data.append({
             'name': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
+            'id'  : str(sites[i].id),
             'type': 'site',
         })
         i+=1
@@ -2918,6 +2919,7 @@ def search_resources(request):
         data.append({
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
+            'id'  : str(pages[i].id),
             'type': 'page',
         })
         i+=1
@@ -2926,8 +2928,9 @@ def search_resources(request):
     i = 0
     while i <= 4 and i <= (len(cases)-1):
         data.append({
-            'name': str(case[i].name),
-            'path': f'/case/{case[i].id}',
+            'name': str(cases[i].name),
+            'path': f'/case/{cases[i].id}',
+            'id'  : str(cases[i].id),
             'type': 'case',
         })
         i+=1
