@@ -2649,6 +2649,51 @@ def create_auto_cases(request):
 
 
 
+def copy_case(request):
+    case_id = request.data.get('case_id')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check data
+    if case_id:
+        try:
+            case = Case.objects.get(id=case_id, account=account)
+        except:
+            data = {'reason': 'cannot find a Case with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    else:
+        data = {'reason': 'you must provide case_id'}
+        record_api_call(request, data, '409')
+        return Response(data, status=status.HTTP_409_CONFLICT)
+    
+    # create new case
+    new_case = Case.objects.create(
+        user = request.user,
+        name = f'Copy - {case.name}', 
+        type = case.type,
+        site = case.site,
+        site_url = case.site_url,
+        steps = case.steps_data,
+        account = account
+    )
+
+    # return response
+    serializer_context = {'request': request,}
+    data = CaseSerializer(new_case, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+    
+
+
+
+
+
+
+
+
+
 def create_testcase(request, delay=False):
     case_id = request.data.get('case_id')
     site_id = request.data.get('site_id')
@@ -2664,7 +2709,7 @@ def create_testcase(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if case_id and site_id:
+    if case_id:
         try:
             case = Case.objects.get(id=case_id, account=account)
         except:

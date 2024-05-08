@@ -41,6 +41,7 @@ urlpatterns = [
     path('case/<uuid:id>', views.CaseDetail.as_view(), name='case-detail'),
     path('case/search', views.CasesSearch.as_view(), name='case-search'),
     path('case/auto', views.AutoCases.as_view(), name='case-auto'),
+    path('case/copy', views.CopyCases.as_view(), name='case-copy'),
     path('testcase', views.Testcases.as_view(), name='testcase'),
     path('testcase/delay', views.TestcaseDelay.as_view(), name='testcase-delay'),
     path('testcase/<uuid:id>', views.TestcaseDetail.as_view(), name='testcase-detail'),
