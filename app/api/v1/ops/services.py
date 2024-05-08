@@ -2472,7 +2472,7 @@ def create_or_update_case(request):
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         else:
             if steps is not None:
-                steps_data = save_case_steps(steps)
+                steps_data = save_case_steps(steps, case_id)
                 case.steps = steps_data
             if name is not None:
                 case.name = name
@@ -2482,7 +2482,7 @@ def create_or_update_case(request):
     
     else:
         case_id = uuid.uuid4()
-        setps_data = save_case_steps(steps, case_id)
+        steps_data = save_case_steps(steps, case_id)
         
         if site_url is not None:
             try:
@@ -2671,7 +2671,7 @@ def copy_case(request):
     
     # save steps as new s3 obj
     new_case_id = uuid.uuid4()
-    setps_data = save_case_steps(steps, new_case_id)
+    steps_data = save_case_steps(steps, new_case_id)
 
     # create new case
     new_case = Case.objects.create(
