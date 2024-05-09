@@ -501,7 +501,7 @@ class Process(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
     success = models.BooleanField(serialize=True, default=False)
-    info = models.JSONField(serialize=True, default=False)
+    info = models.JSONField(serialize=True, null=True, blank=True)
     info_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     progress = models.FloatField(serialize=True, null=True, blank=True)
 
