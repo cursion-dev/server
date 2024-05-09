@@ -175,7 +175,8 @@ def create_site(request, delay=False):
         process = Process.objects.create(
             site=site,
             type='case',
-            account=account
+            account=account,
+            progress=1
         )
 
         # auto gen Cases using bg_autocase_task
@@ -2618,7 +2619,8 @@ def create_auto_cases(request):
     process = Process.objects.create(
         site=site,
         type='case',
-        account=account
+        account=account,
+        progress=1
     )
 
     # send data to bg_autocase_task

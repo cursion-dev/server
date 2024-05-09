@@ -115,6 +115,8 @@ class AutoCaser():
             success = True
         if not complete:
             progress = float((current/total) * final_progress)
+
+        print(f'updating process --> {progress}%')
         
         # update Process obj
         self.process.progress = progress
