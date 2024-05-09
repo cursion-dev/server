@@ -2591,9 +2591,19 @@ def create_auto_cases(request):
     account = Member.objects.get(user=user).account
 
     # get site if only site_url present
-    if site_id is None and site_url is not None:
+    if site_url is not None:
         site = Site.objects.filter(account=account, site_url=site_url)[0]
         site_id = str(site.id)
+
+    # get site if only site_id present
+    if site_id is not None:
+        site = Site.objects.get(id=site_id)
+        if site.account != account:
+            # return error response
+            data = {'reason': 'site not found',}
+            record_api_call(request, data, '404')
+            response = Response(data, status=status.HTTP_404_NOT_FOUND)
+            return response
 
     if site_id is None and site_url is None:
         # return error response
@@ -2602,15 +2612,7 @@ def create_auto_cases(request):
         response = Response(data, status=status.HTTP_404_NOT_FOUND)
         return response
 
-    # get site if only site_id present
-    if site_id is not None and site_url is not None:
-        site = Site.objects.get(id=site_id)
-        if site.account != account:
-            # return error response
-            data = {'reason': 'site not found',}
-            record_api_call(request, data, '404')
-            response = Response(data, status=status.HTTP_404_NOT_FOUND)
-            return response
+            
 
     # create process obj
     process = Process.objects.create(
