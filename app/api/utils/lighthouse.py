@@ -78,6 +78,9 @@ class Lighthouse():
                 "pwa": []
             }
 
+            for key in stdout_json["categories"]:
+                print(f'this is the audit -> {key}')
+
             # iterating through categories to get relevant lh_audits 
             # and store them in their respective `audits = {}` obj
             for cat in audits:
