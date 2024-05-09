@@ -14,10 +14,17 @@ import time, os, json, sys, uuid, random, boto3
 class AutoCaser():
 
 
-    def __init__(self, site, max_cases: int=4, max_layers: int=5):
+    def __init__(
+        self, 
+        site,
+        process, 
+        max_cases: int=4, 
+        max_layers: int=5,
+    ):
          
-        # main site object & configs
+        # main objects & configs
         self.site = site
+        self.process = process
         self.max_cases = max_cases
         self.max_layers = max_layers
 
@@ -86,6 +93,34 @@ class AutoCaser():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
         
+
+
+
+
+    def update_process(
+        self, 
+        current: int, 
+        total: int, 
+        complete: bool=False, 
+        exception: str=None
+    ) -> object:
+        # calculate the current progress of the
+        # task based on current iteration and total 
+        # iterations expected
+        final_progress = 90
+        progress = 0
+        success = False
+        if complete:
+            progress = 100
+            success = True
+        if not complete:
+            progress = float((current/total) * final_progress)
+        
+        # update Process obj
+        self.process.progress = progress
+        self.process.success = success
+        self.process.save()
+
 
 
 
@@ -426,6 +461,7 @@ class AutoCaser():
 
 
         # begin elem iteration
+        iterations = 0
         for selector in final_start_elements:
 
             # ensuring we're at start_page
@@ -635,7 +671,12 @@ class AutoCaser():
                 'elements': sub_elements,
             })
 
-        
+            # counting for process 
+            iterations += 1
+
+            # update process
+            self.update_process(current=iterations, total=len(final_start_elements))
+
         # quit driver session
         quit_driver(self.driver)
 
@@ -771,6 +812,9 @@ class AutoCaser():
                     'num_steps': len(steps)
                 },
             )
+
+        # update process
+        self.update_process(current=1, total=1, complete=True)
 
 
         return None

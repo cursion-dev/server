@@ -171,11 +171,19 @@ def create_site(request, delay=False):
             account=account
         )
 
+        # create process obj
+        process = Process.objects.create(
+            site=site,
+            type='case',
+            account=account
+        )
+
         # auto gen Cases using bg_autocase_task
         create_auto_cases_bg.delay(
             site_id=site.id,
-            max_cases=3,
-            max_layers=5
+            process_id=process.id,
+            max_cases=4,
+            max_layers=6
         )
         
         # check if this is account's first site and onboarding = True
@@ -2368,49 +2376,6 @@ def export_report(request):
 
 
 
-def get_processes(request):
-    site_id = request.query_params.get('site_id', None)
-    process_id = request.query_params.get('process_id', None)
-
-    if site_id:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        processes = Process.objects.filter(site=site).order_by('-time_created')
-
-    if process_id:
-        try:
-            process = Process.objects.get(id=process_id)
-            serializer_context = {'request': request,}
-            data = ProcessSerializer(process, context=serializer_context).data
-            record_api_call(request, data, '200')
-            response = Response(data, status=status.HTTP_200_OK)
-            return response
-        except:
-            data = {'reason': 'cannot find a Process with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-
-    if site_id is None and report_id is None:
-        processes = Process.objects.all().order_by('-time_created')
-
-    paginator = LimitOffsetPagination()
-    result_page = paginator.paginate_queryset(processes, request)
-    serializer_context = {'request': request,}
-    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
-    response = paginator.get_paginated_response(serialized.data)
-    record_api_call(request, response.data, '200')
-    return response
-
-
-
-
-
-
-
 
 def save_case_steps(steps, steps_id):
     # setup boto3 configurations
@@ -2637,16 +2602,28 @@ def create_auto_cases(request):
         response = Response(data, status=status.HTTP_404_NOT_FOUND)
         return response
 
+
+    # create process obj
+    process = Process.objects.create(
+        site=site,
+        type='case',
+        account=account
+    )
+
     # send data to bg_autocase_task
     create_auto_cases_bg.delay(
         site_id=site_id,
+        process_id=process.id,
         max_cases=max_cases,
         max_layers=max_layers,
         configs=configs
     )
 
     # return response
-    data = {'message': 'Cases are generating',}
+    data = {
+        'message': 'Cases are generating',
+        'process': str(process.id),
+    }
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -2883,6 +2860,52 @@ def delete_testcase(request, id):
 
 
 
+
+
+
+
+
+def get_processes(request):
+    site_id = request.query_params.get('site_id', None)
+    process_id = request.query_params.get('process_id', None)
+    _type = request.query_params.get('type', None)
+    account = Account.objects.get(user=request.user)
+
+    if site_id:
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        processes = Process.objects.filter(site=site).order_by('-time_created')
+
+    if process_id:
+        try:
+            process = Process.objects.get(id=process_id)
+            serializer_context = {'request': request,}
+            data = ProcessSerializer(process, context=serializer_context).data
+            record_api_call(request, data, '200')
+            response = Response(data, status=status.HTTP_200_OK)
+            return response
+        except:
+            data = {'reason': 'cannot find a Process with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if site_id is None and process_id is None:
+        if _type is None:
+            processes = Process.objects.filter(account=account).order_by('-time_created')
+        if _type is not None:
+            processes = Process.objects.filter(account=account, type=_type).order_by('-time_created')
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(processes, request)
+    serializer_context = {'request': request,}
+    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
 
 
 

@@ -496,16 +496,19 @@ def purge_logs(username=None, *args, **kwargs):
 def create_auto_cases_bg(
     self, 
     site_id=None,
+    process_id=None,
     max_cases=None,
     max_layers=None,
     configs=None
 ):
-    # get site
+    # get objects
     site = Site.objects.get(id=site_id)
+    process = Process.objects.get(id=process_id)
 
     # init AutoCaser
     AC = AutoCaser(
         site=site,
+        process=process,
         max_cases=max_cases,
         max_layers=max_layers,
     )

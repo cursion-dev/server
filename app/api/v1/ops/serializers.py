@@ -29,7 +29,7 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Process
         fields = ['id', 'site', 'type', 'time_created', 'time_completed',
-        'success', 'info_url', 'progress', 'info'
+        'success', 'info_url', 'progress', 'info', 'exception'
         ]
 
 
