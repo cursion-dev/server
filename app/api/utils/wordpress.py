@@ -518,7 +518,7 @@ class Wordpress():
             # <h1 class="font-36 color-0E134F proxima-regular mt-1 mb-2">Your migration is complete!</h1>
             # get full page div 
             if new_progress >= 100 or done_text in self.driver.page_source:
-                self.process.successful = True
+                self.process.success = True
                 self.process.time_completed = datetime.now()
                 done = True
 
