@@ -335,10 +335,13 @@ class AutoCaser():
 
     def check_for_duplicates(self, elements: list, selector: str) -> bool:
         found_duplicate = False
+        print('checking for duplicates...')
         for elem in elements:
             # check if selector exists already
+            print(f'{selector} <||> {ele["selector"]}')
             if elem['selector'] == selector:
                 found_duplicate = True
+                print('element is a duplicate')
                 break
 
             # check if sub_elements exists
