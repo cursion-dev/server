@@ -548,16 +548,16 @@ def _lighthouse(scan_id, test_id, automation_id):
     """
     scan = Scan.objects.get(id=scan_id)
 
-    try:
-        # running lighthouse
-        lh_data = Lighthouse(scan=scan, configs=scan.configs).get_data() 
-        
-        # updating Scan object
-        scan = Scan.objects.get(id=scan_id)
-        scan.lighthouse = lh_data
-        scan.save()
-    except Exception as e:
-        print(e)
+    # try:
+    # running lighthouse
+    lh_data = Lighthouse(scan=scan, configs=scan.configs).get_data() 
+    
+    # updating Scan object
+    scan = Scan.objects.get(id=scan_id)
+    scan.lighthouse = lh_data
+    scan.save()
+    # except Exception as e:
+    #     print(e)
 
     # checking if scan is done
     scan = check_scan_completion(scan, test_id, automation_id)
