@@ -372,13 +372,10 @@ class AutoCaser():
 
     def check_for_duplicates(self, elements: list, selector: str) -> bool:
         found_duplicate = False
-        print('checking for duplicates...')
         for elem in elements:
             # check if selector exists already
-            print(f'{selector} <||> {elem["selector"]}')
             if elem['selector'] == selector:
                 found_duplicate = True
-                print('element is a duplicate')
                 break
 
             # check if sub_elements exists
@@ -471,8 +468,16 @@ class AutoCaser():
                 self.driver.get(start_page)
                 driver_wait(driver=self.driver)
 
+            # getting element by selector
+            try:
+                element = self.driver.find_element(By.CSS_SELECTOR, selector)
+            except Exception as e:
+                print('Element not Reachable, removing')
+                final_start_elements.remove(selector)
+                iterations += 1
+                continue
+            
             # get element info
-            element = self.driver.find_element(By.CSS_SELECTOR, selector)
             element_img = self.get_element_image(element=element)
             element_type = element.tag_name
             elem_relative_url = self.get_relative_url(self.driver.current_url)
