@@ -338,7 +338,7 @@ class AutoCaser():
         print('checking for duplicates...')
         for elem in elements:
             # check if selector exists already
-            print(f'{selector} <||> {ele["selector"]}')
+            print(f'{selector} <||> {elem["selector"]}')
             if elem['selector'] == selector:
                 found_duplicate = True
                 print('element is a duplicate')
@@ -567,42 +567,45 @@ class AutoCaser():
                     elem_img = self.get_element_image(element=elem)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
-                    # check the type of element
-                    if elem.tag_name == 'form':
-                        # record form into sub_elements list
-                        sub_elements = self.record_forms(
-                            elements=sub_elements,
-                            form=elem
-                        )
+                    # check if element is duplicate
+                    if not self.check_for_duplicates(sub_elements, elem_selector):
 
-                        # add to layers and ending case
-                        layers += 1
-                        run = False
-                
-                    if elem.tag_name == 'a' or elem.tag_name == 'button':
-                        # record element
-                        sub_elements.append({
-                            'selector': elem_selector,
-                            'elem_type': elem.tag_name,
-                            'placeholder': None,
-                            'value': None,
-                            'type': None,
-                            'data': None,
-                            'action': 'click',
-                            'path': relative_url,
-                            'img': elem_img,
-                            'elements': None,
-                        })
+                        # check the type of element
+                        if elem.tag_name == 'form':
+                            # record form into sub_elements list
+                            sub_elements = self.record_forms(
+                                elements=sub_elements,
+                                form=elem
+                            )
 
-                        # add to layers
-                        layers += 1
+                            # add to layers and ending case
+                            layers += 1
+                            run = False
+                    
+                        if elem.tag_name == 'a' or elem.tag_name == 'button':
+                            # record element
+                            sub_elements.append({
+                                'selector': elem_selector,
+                                'elem_type': elem.tag_name,
+                                'placeholder': None,
+                                'value': None,
+                                'type': None,
+                                'data': None,
+                                'action': 'click',
+                                'path': relative_url,
+                                'img': elem_img,
+                                'elements': None,
+                            })
 
-                        # click element
-                        try:
-                            elem.click()
-                        except Exception as e:
-                            print('Element not Clickable, removing')
-                            sub_elements.pop()
+                            # add to layers
+                            layers += 1
+
+                            # click element
+                            try:
+                                elem.click()
+                            except Exception as e:
+                                print('Element not Clickable, removing')
+                                sub_elements.pop()
 
 
                 # catching all other situations
