@@ -56,6 +56,22 @@ class AutoCaser():
             """
         )
 
+        # setting selector script
+        self.visible_script = (
+            """
+            const isVisible = (elm) => {
+                if (window.getComputedStyle(x).visibility === 'hidden' || window.getComputedStyle(x).display === 'none'){
+                    return false
+                } else {
+                    return true
+                }
+            }
+
+            return isVisible(arguments[0])
+            
+            """
+        )
+
         # setting defaults for inputs
         self.input_types = {
             "button":           {'test_data': None, 'action': 'click'},
@@ -126,7 +142,13 @@ class AutoCaser():
 
 
 
-
+    def is_element_visible(self, element: object) -> bool: 
+        resp = self.driver.execute_script(self.visible_script, elememt)
+        resp = str(resp).lower()
+        if resp == 'true':
+            return True
+        if resp == 'false':
+            return False
 
 
 
@@ -190,14 +212,15 @@ class AutoCaser():
             # get form image
             form_img = self.get_element_image(element=form)
             
+            # defining form.elements
+            sub_elements = []
+
             # get all input fields in form
             inputs = form.find_elements(By.TAG_NAME, "input")
-
             # iterate through each input
-            sub_elements = []
             for i in inputs:
                 
-                if i.get_attribute('type') not in self.blacklist:
+                if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
                     # get input data
                     input_selector = self.driver.execute_script(self.selector_script, i)
                     placeholder = i.get_attribute('placeholder')
@@ -219,9 +242,36 @@ class AutoCaser():
                         'elements': None,
                     })
 
+
+            # get all textarea fields in form
+            textareas = form.find_elements(By.TAG_NAME, "textarea")
+            # iterate through each input
+            for i in textareas:
+                
+                if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
+                    # get input data
+                    input_selector = self.driver.execute_script(self.selector_script, i)
+                    placeholder = i.get_attribute('placeholder')
+                    type = i.get_attribute('type')
+                    img = self.get_element_image(element=i)
+                    relative_url = self.get_relative_url(self.driver.current_url)
+
+                    sub_elements.append({
+                        'selector': input_selector,
+                        'elem_type': i.tag_name,
+                        'placeholder': placeholder,
+                        'value': None,
+                        'type': type,
+                        'data': 'This is longer example text for testing.',
+                        'action': 'change',
+                        'path': relative_url,
+                        'img': img,
+                        'elements': None,
+                    })
+
+
             # get all iframes elements in form
             iframes = form.find_elements(By.TAG_NAME, "iframe")
-
             # iterate through iframes and save data
             for iframe in iframes:
                 
@@ -237,7 +287,7 @@ class AutoCaser():
                 iframe_elements = []
                 for i in iframe_inputs:
                     
-                    if i.get_attribute('type') not in self.blacklist:
+                    if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
                         # get input data
                         input_selector = self.driver.execute_script(self.selector_script, i)
                         placeholder = i.get_attribute('placeholder')
@@ -275,32 +325,31 @@ class AutoCaser():
                 })
 
 
-
             # get all button elements in form
             btns = form.find_elements(By.TAG_NAME, "button")
-
             # iterate through each btn
             for btn in btns:
 
-                # get button data
-                btn_selector = self.driver.execute_script(self.selector_script, btn)
-                type = btn.get_attribute('type')
-                btn_img = self.get_element_image(element=btn)
-                relative_url = self.get_relative_url(self.driver.current_url)
+                if self.is_element_visible(btn):
+                    # get button data
+                    btn_selector = self.driver.execute_script(self.selector_script, btn)
+                    type = btn.get_attribute('type')
+                    btn_img = self.get_element_image(element=btn)
+                    relative_url = self.get_relative_url(self.driver.current_url)
 
-                sub_elements.append({
-                    'selector': btn_selector,
-                    'elem_type': 'button',
-                    'placeholder': None,
-                    'value': None,
-                    'type': type,
-                    'data': None,
-                    'elements': None,
-                    'action': 'click',
-                    'path': relative_url,
-                    'img': btn_img,
-                    'elements': None,
-                })
+                    sub_elements.append({
+                        'selector': btn_selector,
+                        'elem_type': 'button',
+                        'placeholder': None,
+                        'value': None,
+                        'type': type,
+                        'data': None,
+                        'elements': None,
+                        'action': 'click',
+                        'path': relative_url,
+                        'img': btn_img,
+                        'elements': None,
+                    })
 
 
             # save elem data
@@ -344,7 +393,7 @@ class AutoCaser():
 
             # check each priority word against element innerText
             for word in priority_words:
-                if word in elm_text.lower():
+                if word in elm_text.lower() or elm_text.lower() in word:
                     priority_elements.append(element)
                     break
                 elif element not in non_priority_elements:
@@ -438,6 +487,11 @@ class AutoCaser():
             choosen = non_priority_elements[
                 random.randint(0, (len(non_priority_elements) - 1))
             ]
+
+            # checking if chosen element is visible
+            if not self.is_element_visible(choosen):
+                iterations += 1
+                continue
 
             # check if element exists in final_start_elements[]
             selector = self.driver.execute_script(self.selector_script, choosen)
