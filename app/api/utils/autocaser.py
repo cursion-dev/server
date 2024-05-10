@@ -424,8 +424,10 @@ class AutoCaser():
 
 
 
-    def check_for_duplicates(self, selector: str, elements: list=self.elements) -> bool:
+    def check_for_duplicates(self, selector: str, elements: list=None) -> bool:
         found_duplicate = False
+        if elements is None:
+            elements = self.elements
 
         for elem in elements:
             # check if selector exists already
