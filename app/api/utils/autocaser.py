@@ -449,7 +449,7 @@ class AutoCaser():
         cleaned_elements = []
         current_url = self.driver.current_url
 
-        for elem in new_elements:
+        for elem in elements:
             # get slector
             elem_selector = self.driver.execute_script(self.selector_script, elem)
             
