@@ -479,7 +479,7 @@ class AutoCaser():
         start_page = self.driver.current_url
 
         # record all forms and sub_elements on page
-        elements = self.record_forms(elements=elements)
+        elements = self.record_forms(elements=self.elements)
     
         # grab all buttons
         buttons = self.driver.find_elements(By.TAG_NAME, "button")
@@ -749,7 +749,7 @@ class AutoCaser():
                     
                 
             # adding final info to elememt list
-            elements.append({
+            self.elements.append({
                 'selector': selector,
                 'elem_type': element_type,
                 'elem_text': elem_text,
