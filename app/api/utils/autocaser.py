@@ -464,7 +464,7 @@ class AutoCaser():
                     continue
 
             # add to cleaned conditions passed
-            current_url.append(elem)
+            cleaned_elements.append(elem)
         
         # return cleaned elements
         return cleaned_elements
