@@ -418,7 +418,14 @@ class AutoCaser():
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
+        
+        # shuffle elements in place
+        random.shuffle(forms)
+        random.shuffle(buttons)
+        random.shuffle(forms)
+        
         current_elements = forms + buttons + links
+
         return current_elements
 
 
@@ -618,6 +625,7 @@ class AutoCaser():
                     # cleaning new elements
                     cleaned_elements = self.get_clean_elements(new_elements, check_against=sub_elements)
 
+                    # iterating through each elem 
                     for elem in cleaned_elements:
 
                         # get sub element info
@@ -724,6 +732,7 @@ class AutoCaser():
                         # add to layers and ending case
                         layers += 1
                         run = False
+                        break
                 
                     if elem.tag_name == 'a' or elem.tag_name == 'button':
                         # record element
