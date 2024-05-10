@@ -704,6 +704,17 @@ class AutoCaser():
                                 print('Element not Clickable, removing')
                                 sub_elements.pop()
 
+                   
+                    # catching all other situations
+                    # naving back to previous_url   
+                    else:
+                        print('no coditions were met')
+
+                        # add to layers
+                        layers += 1
+
+                        # going back
+                        self.driver.get(previous_url)
 
                 # catching all other situations
                 # naving back to previous_url   
