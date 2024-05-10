@@ -383,7 +383,8 @@ class AutoCaser():
             'cart', 'checkout', 'add to cart', 'add to the cart', 
             'add to basket', 'add to shopping basket', 'add to shopping cart', 
             'add to the cart', 'billing', 'address', 'payment', 'purchase now',
-            'order now', 'order', 'shop now', 'continue to payment',
+            'order now', 'order', 'shop now', 'continue to payment', 'contact', 
+            'apply', 'submit', 
         ]
 
         priority_elements = []
