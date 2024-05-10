@@ -60,7 +60,7 @@ class AutoCaser():
         self.visible_script = (
             """
             const isVisible = (elm) => {
-                if (window.getComputedStyle(x).visibility === 'hidden' || window.getComputedStyle(x).display === 'none'){
+                if (window.getComputedStyle(elm).visibility === 'hidden' || window.getComputedStyle(elm).display === 'none'){
                     return false
                 } else {
                     return true
