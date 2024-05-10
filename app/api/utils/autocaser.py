@@ -27,6 +27,11 @@ class AutoCaser():
         self.process = process
         self.max_cases = max_cases
         self.max_layers = max_layers
+        
+        # high-level elemets array.
+        # All elememts represent the 
+        # begining of a new Case.
+        self.elements = []
 
         # starting driver
         self.driver = driver_init()
@@ -419,8 +424,9 @@ class AutoCaser():
 
 
 
-    def check_for_duplicates(self, elements: list, selector: str) -> bool:
+    def check_for_duplicates(self, selector: str, elements: list=self.elements) -> bool:
         found_duplicate = False
+
         for elem in elements:
             # check if selector exists already
             if elem['selector'] == selector:
@@ -429,7 +435,7 @@ class AutoCaser():
 
             # check if sub_elements exists
             if elem['elements'] != None:
-                self.check_for_duplicates(elem['elements'])
+                self.check_for_duplicates(selector=selector, elements=elem['elements'])
 
         # return result
         return found_duplicate
@@ -437,12 +443,34 @@ class AutoCaser():
 
 
 
-    def get_elements(self):
+    def get_clean_elements(new_elements: list) -> list:
+        cleaned_elements = []
+        current_url = self.driver.current_url
 
-        # high-level elemets array.
-        # All elememts represent the 
-        # begining of a new Case.
-        elements = []
+        for elem in new_elements:
+            # get slector
+            elem_selector = self.driver.execute_script(self.selector_script, elem)
+            
+            # check duplicates
+            if self.check_for_duplicates(selector=elem_selector):
+                continue
+            
+            # check url if <a>
+            if elem.tag_name == 'a':
+                # check if action will reload page
+                if current_url == elem.get_attribute('href'):
+                    continue
+
+            # add to cleaned conditions passed
+            current_url.append(elem)
+        
+        # return cleaned elements
+        return cleaned_elements
+
+
+
+
+    def get_elements(self):
 
         # get site page
         self.driver.get(self.site.site_url)
@@ -568,58 +596,61 @@ class AutoCaser():
                     
                     # check for new element
                     new_elements = self.get_current_elements()
+                    
+                    # cleaning new elements
+                    new_elements = self.get_clean_elements(new_elements)
+
                     for elem in new_elements:
-                        if elem not in old_elements:
 
-                            # get sub element info
-                            elem_selector = self.driver.execute_script(self.selector_script, elem)
-                            elem_img = self.get_element_image(element=elem)
-                            relative_url = self.get_relative_url(self.driver.current_url)
+                        # get sub element info
+                        elem_selector = self.driver.execute_script(self.selector_script, elem)
+                        elem_img = self.get_element_image(element=elem)
+                        relative_url = self.get_relative_url(self.driver.current_url)
 
-                            # check if element is duplicate
-                            if not self.check_for_duplicates(sub_elements, elem_selector):
+                        # # check if element is duplicate
+                        # if not self.check_for_duplicates(selector=elem_selector, elements=sub_elements):
+                        
+                        # found new element, record, click, & continue
+                        if elem.tag_name == 'a' or elem.tag_name == 'button':
+
+                            # record element
+                            sub_elements.append({
+                                'selector': elem_selector,
+                                'elem_type': elem.tag_name,
+                                'placeholder': None,
+                                'value': None,
+                                'type': None,
+                                'data': None,
+                                'action': 'click',
+                                'path': relative_url,
+                                'img': elem_img,
+                                'elements': None,
+                            })
+
+                            # click element
+                            try:
+                                elem.click()
+                            except Exception as e:
+                                print('Element not Clickable, removing')
+                                sub_elements.pop()
+
+                            # add to layers and ending internal loop
+                            layers += 1
+                            break
+                        
+                        # found new form, record and end run
+                        if elem.tag_name == 'form':
                             
-                                # found new element, record, click, & continue
-                                if elem.tag_name == 'a' or elem.tag_name == 'button':
+                            # record form into sub_elements list
+                            sub_elements = self.record_forms(
+                                elements=sub_elements, 
+                                form=elem
+                            )
 
-                                    # record element
-                                    sub_elements.append({
-                                        'selector': elem_selector,
-                                        'elem_type': elem.tag_name,
-                                        'placeholder': None,
-                                        'value': None,
-                                        'type': None,
-                                        'data': None,
-                                        'action': 'click',
-                                        'path': relative_url,
-                                        'img': elem_img,
-                                        'elements': None,
-                                    })
-
-                                    # click element
-                                    try:
-                                        elem.click()
-                                    except Exception as e:
-                                        print('Element not Clickable, removing')
-                                        sub_elements.pop()
-
-                                    # add to layers and ending internal loop
-                                    layers += 1
-                                    break
-                                
-                                # found new form, record and end run
-                                if elem.tag_name == 'form':
-                                    
-                                    # record form into sub_elements list
-                                    sub_elements = self.record_forms(
-                                        elements=sub_elements, 
-                                        form=elem
-                                    )
-
-                                    # add to layers and ending case
-                                    layers += 1
-                                    run = False
-                                    break
+                            # add to layers and ending case
+                            layers += 1
+                            run = False
+                            break
                     
                     # add to layers
                     layers += 1
@@ -631,6 +662,9 @@ class AutoCaser():
 
                     # get new elements and randomly choose 1 (with priority)
                     new_elements = self.get_current_elements()
+
+                    # cleaning new elements
+                    new_elements = self.get_clean_elements(new_elements)
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
@@ -664,66 +698,50 @@ class AutoCaser():
                     elem_img = self.get_element_image(element=elem)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
-                    # check if element is duplicate
-                    if not self.check_for_duplicates(sub_elements, elem_selector):
+                    # check the type of element
+                    if elem.tag_name == 'form':
+                        # record form into sub_elements list
+                        sub_elements = self.record_forms(
+                            elements=sub_elements,
+                            form=elem
+                        )
 
-                        # check the type of element
-                        if elem.tag_name == 'form':
-                            # record form into sub_elements list
-                            sub_elements = self.record_forms(
-                                elements=sub_elements,
-                                form=elem
-                            )
-
-                            # add to layers and ending case
-                            layers += 1
-                            run = False
-                    
-                        if elem.tag_name == 'a' or elem.tag_name == 'button':
-                            # record element
-                            sub_elements.append({
-                                'selector': elem_selector,
-                                'elem_type': elem.tag_name,
-                                'placeholder': None,
-                                'value': None,
-                                'type': None,
-                                'data': None,
-                                'action': 'click',
-                                'path': relative_url,
-                                'img': elem_img,
-                                'elements': None,
-                            })
-
-                            # add to layers
-                            layers += 1
-
-                            # click element
-                            try:
-                                elem.click()
-                            except Exception as e:
-                                print('Element not Clickable, removing')
-                                sub_elements.pop()
-
-                   
-                    # catching all other situations
-                    # naving back to previous_url   
-                    else:
-                        print('no coditions were met')
+                        # add to layers and ending case
+                        layers += 1
+                        run = False
+                
+                    if elem.tag_name == 'a' or elem.tag_name == 'button':
+                        # record element
+                        sub_elements.append({
+                            'selector': elem_selector,
+                            'elem_type': elem.tag_name,
+                            'placeholder': None,
+                            'value': None,
+                            'type': None,
+                            'data': None,
+                            'action': 'click',
+                            'path': relative_url,
+                            'img': elem_img,
+                            'elements': None,
+                        })
 
                         # add to layers
                         layers += 1
 
-                        # going back
-                        self.driver.get(previous_url)
+                        # click element
+                        try:
+                            elem.click()
+                        except Exception as e:
+                            print('Element not Clickable, removing')
+                            sub_elements.pop()
+
 
                 # catching all other situations
                 # naving back to previous_url   
                 else:
                     print('no coditions were met')
-
                     # add to layers
                     layers += 1
-
                     # going back
                     self.driver.get(previous_url)
                     
