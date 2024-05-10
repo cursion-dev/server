@@ -455,7 +455,7 @@ class AutoCaser():
             
             # check local duplicates 
             if check_against is not None:
-                if self.check_for_duplicates(selector=elem_selector, elements=existing_elems):
+                if self.check_for_duplicates(selector=elem_selector, elements=check_against):
                     print(f'found local duplicate => {elem_selector}')
                     continue
             
@@ -472,7 +472,6 @@ class AutoCaser():
                     print('elem reloads page')
                     continue
                 # check if action will nav to new site
-                print(f'current_url: "current_url" ')
                 if not elem_link.startswith(self.site.site_url):
                     print(f'elem links to different site')
                     continue
