@@ -468,7 +468,7 @@ class AutoCaser():
             if elem.tag_name == 'a':
                 # check if action will reload page or site root
                 elem_link = elem.get_attribute('href')
-                if current_url == elem_link or elem_link == self.site.site_url:
+                if current_url == elem_link or elem_link == self.site.site_url or elem_link == '/':
                     print('elem reloads page')
                     continue
                 # check if action will nav to new site
