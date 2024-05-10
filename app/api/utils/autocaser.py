@@ -445,7 +445,7 @@ class AutoCaser():
 
 
 
-    def get_clean_elements(self, elements: list) -> list:
+    def get_clean_elements(self, elements: list, check_against: list=None) -> list:
         cleaned_elements = []
         current_url = self.driver.current_url
 
@@ -453,19 +453,27 @@ class AutoCaser():
             # get slector
             elem_selector = self.driver.execute_script(self.selector_script, elem)
             
-            # check duplicates
+            # check local duplicates 
+            if check_against is not None:
+                if self.check_for_duplicates(selector=elem_selector, elements=existing_elems):
+                    print(f'found local duplicate => {elem_selector}')
+                    continue
+            
+            # check global duplicates
             if self.check_for_duplicates(selector=elem_selector):
-                print(f'found duplicate => {elem_selector}')
+                print(f'found global duplicate => {elem_selector}')
                 continue
             
             # check url if <a>
             if elem.tag_name == 'a':
                 # check if action will reload page
-                if current_url == elem.get_attribute('href'):
+                elem_link = elem.get_attribute('href')
+                if current_url == elem_link:
                     print('elem reloads page')
                     continue
                 # check if action will nav to new site
-                if not current_url.startswith(self.site.site_url):
+                print(f'current_url: "current_url" ')
+                if not elem_link.startswith(self.site.site_url):
                     print(f'elem links to different site')
                     continue
 
@@ -609,7 +617,7 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
                     
                     # cleaning new elements
-                    cleaned_elements = self.get_clean_elements(new_elements)
+                    cleaned_elements = self.get_clean_elements(new_elements, check_against=sub_elements)
 
                     for elem in cleaned_elements:
 
@@ -672,7 +680,7 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
 
                     # cleaning new elements
-                    cleaned_elements = self.get_clean_elements(new_elements)
+                    cleaned_elements = self.get_clean_elements(new_elements, check_against=sub_elements)
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
