@@ -445,7 +445,7 @@ class AutoCaser():
 
 
 
-    def get_clean_elements(new_elements: list) -> list:
+    def get_clean_elements(elements: list) -> list:
         cleaned_elements = []
         current_url = self.driver.current_url
 
@@ -479,7 +479,7 @@ class AutoCaser():
         start_page = self.driver.current_url
 
         # record all forms and sub_elements on page
-        elements = self.record_forms(elements=self.elements)
+        self.elements = self.record_forms(elements=self.elements)
     
         # grab all buttons
         buttons = self.driver.find_elements(By.TAG_NAME, "button")
@@ -490,9 +490,12 @@ class AutoCaser():
         # combine buttons and links
         start_elms = buttons + links
 
+        # clean start element
+        cleaned_start_elems = self.get_clean_elements(start_elms)
+
         # sorting start_elems
         sorted_elements = self.get_priority_elements(
-            elements=start_elms, 
+            elements=cleaned_start_elems, 
         )
         priority_elements = sorted_elements['priority_elements']
         non_priority_elements = sorted_elements['non_priority_elements']
@@ -600,7 +603,7 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
                     
                     # cleaning new elements
-                    new_elements = self.get_clean_elements(new_elements)
+                    new_elements = self.get_clean_elements(elements)
 
                     for elem in new_elements:
 
@@ -608,9 +611,6 @@ class AutoCaser():
                         elem_selector = self.driver.execute_script(self.selector_script, elem)
                         elem_img = self.get_element_image(element=elem)
                         relative_url = self.get_relative_url(self.driver.current_url)
-
-                        # # check if element is duplicate
-                        # if not self.check_for_duplicates(selector=elem_selector, elements=sub_elements):
                         
                         # found new element, record, click, & continue
                         if elem.tag_name == 'a' or elem.tag_name == 'button':
@@ -666,7 +666,7 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
 
                     # cleaning new elements
-                    new_elements = self.get_clean_elements(new_elements)
+                    new_elements = self.get_clean_elements(elements)
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
