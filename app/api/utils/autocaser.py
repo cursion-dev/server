@@ -603,9 +603,9 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
                     
                     # cleaning new elements
-                    new_elements = self.get_clean_elements(elements)
+                    cleaned_elements = self.get_clean_elements(new_elements)
 
-                    for elem in new_elements:
+                    for elem in cleaned_elements:
 
                         # get sub element info
                         elem_selector = self.driver.execute_script(self.selector_script, elem)
@@ -666,11 +666,11 @@ class AutoCaser():
                     new_elements = self.get_current_elements()
 
                     # cleaning new elements
-                    new_elements = self.get_clean_elements(elements)
+                    cleaned_elements = self.get_clean_elements(new_elements)
 
                     # sort new elements
                     sorted_elements = self.get_priority_elements(
-                        elements=new_elements,
+                        elements=cleaned_elements,
                     )
                     priority_elements = sorted_elements['priority_elements']
                     non_priority_elements = sorted_elements['non_priority_elements']
