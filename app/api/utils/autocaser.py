@@ -418,7 +418,7 @@ class AutoCaser():
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
-        current_elements = buttons + links + forms
+        current_elements = forms + buttons + links
         return current_elements
 
 
@@ -455,12 +455,18 @@ class AutoCaser():
             
             # check duplicates
             if self.check_for_duplicates(selector=elem_selector):
+                print(f'found duplicate => {elem_selector}')
                 continue
             
             # check url if <a>
             if elem.tag_name == 'a':
                 # check if action will reload page
                 if current_url == elem.get_attribute('href'):
+                    print('elem reloads page')
+                    continue
+                # check if action will nav to new site
+                if not current_url.startswith(self.site.site_url):
+                    print(f'elem links to different site')
                     continue
 
             # add to cleaned conditions passed
@@ -736,7 +742,6 @@ class AutoCaser():
                         except Exception as e:
                             print('Element not Clickable, removing')
                             sub_elements.pop()
-
 
                 # catching all other situations
                 # naving back to previous_url   
