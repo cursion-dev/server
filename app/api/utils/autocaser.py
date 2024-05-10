@@ -445,7 +445,7 @@ class AutoCaser():
 
 
 
-    def get_clean_elements(elements: list) -> list:
+    def get_clean_elements(self, elements: list) -> list:
         cleaned_elements = []
         current_url = self.driver.current_url
 
