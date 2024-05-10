@@ -143,7 +143,7 @@ class AutoCaser():
 
 
     def is_element_visible(self, element: object) -> bool: 
-        resp = self.driver.execute_script(self.visible_script, elememt)
+        resp = self.driver.execute_script(self.visible_script, element)
         resp = str(resp).lower()
         if resp == 'true':
             return True
