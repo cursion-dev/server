@@ -497,6 +497,7 @@ def create_auto_cases_bg(
     self, 
     site_id=None,
     process_id=None,
+    start_url=None,
     max_cases=None,
     max_layers=None,
     configs=None
@@ -542,15 +543,18 @@ def create_testcase_bg(
 @shared_task
 def delete_old_resources(account_id=None, days_to_live=30):
     max_date = datetime.now() - timedelta(days=days_to_live)
+    max_proc_date = datetime.now() - timedelta(days=1)
 
     if account_id is not None:
         tests = Test.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         scans = Scan.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         testcases = Testcase.objects.filter(account__id=account_id, time_created__lte=max_date)
+        processes = Process.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
     else:
         tests = Test.objects.filter(time_created__lte=max_date)
         scans = Scan.objects.filter(time_created__lte=max_date)
         testcases = Testcase.objects.filter(time_created__lte=max_date)
+        processes = Process.objects.filter(time_created__lte=max_proc_date)
 
     for test in tests:
         delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
@@ -561,6 +565,9 @@ def delete_old_resources(account_id=None, days_to_live=30):
     for testcase in testcases:
         delete_testcase_s3_bg.delay(testcase.id)
         testcase.delete()
+    for process in processes:
+        process.delete()
+    
     
     logger.info('Cleaned up resources')
 
