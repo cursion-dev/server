@@ -171,6 +171,10 @@ def create_site(request, delay=False):
             account=account
         )
 
+        # get/set configs
+        if not configs:
+            configs = settings.CONFIGS
+
         # create process obj
         process = Process.objects.create(
             site=site,
@@ -183,6 +187,8 @@ def create_site(request, delay=False):
         create_auto_cases_bg.delay(
             site_id=site.id,
             process_id=process.id,
+            start_url=str(site.site_url),
+            configs=configs,
             max_cases=4,
             max_layers=6
         )
@@ -192,9 +198,6 @@ def create_site(request, delay=False):
             and onboarding == True:
             # send POST to landing/v1/ops/prospect
             create_prospect.delay(user_email=str(user.email))
-
-        if not configs:
-            configs = settings.CONFIGS
 
         if no_scan == False:
             if delay == True:
@@ -2509,6 +2512,7 @@ def create_auto_cases(request):
     # get data
     site_id = request.data.get('site_id')
     site_url = request.data.get('site_url')
+    start_url = request.data.get('start_url')
     max_cases = request.data.get('max_cases', 4)
     max_layers = request.data.get('max_layers', 6)
     configs = request.data.get('configs')
@@ -2537,7 +2541,10 @@ def create_auto_cases(request):
         response = Response(data, status=status.HTTP_404_NOT_FOUND)
         return response
 
-            
+    
+    # get/set configs
+    if not configs:
+        configs = settings.CONFIGS
 
     # create process obj
     process = Process.objects.create(
@@ -2551,9 +2558,10 @@ def create_auto_cases(request):
     create_auto_cases_bg.delay(
         site_id=site_id,
         process_id=process.id,
+        start_url=start_url,
+        configs=configs,
         max_cases=max_cases,
         max_layers=max_layers,
-        configs=configs
     )
 
     # return response

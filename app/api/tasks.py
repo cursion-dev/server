@@ -510,6 +510,8 @@ def create_auto_cases_bg(
     AC = AutoCaser(
         site=site,
         process=process,
+        start_url=start_url,
+        configs=configs,
         max_cases=max_cases,
         max_layers=max_layers,
     )

@@ -17,7 +17,9 @@ class AutoCaser():
     def __init__(
         self, 
         site,
-        process, 
+        process,
+        start_url: str=None,
+        configs: dict=settings.CONFIGS,
         max_cases: int=4, 
         max_layers: int=5,
     ):
@@ -25,6 +27,8 @@ class AutoCaser():
         # main objects & configs
         self.site = site
         self.process = process
+        self.start_url = start_url
+        self.configs = configs
         self.max_cases = max_cases
         self.max_layers = max_layers
         
@@ -34,7 +38,10 @@ class AutoCaser():
         self.elements = []
 
         # starting driver
-        self.driver = driver_init()
+        self.driver = driver_init(
+            window_size=self.configs.get('window_size'),
+            device=self.configs.get('device'),
+        )
 
         # setting selector script
         self.selector_script = (
@@ -193,7 +200,12 @@ class AutoCaser():
     def record_forms(self, elements: list, form: object=None) -> list:
 
         # wait for page to load 
-        driver_wait(driver=self.driver)
+        driver_wait(
+            driver=self.driver,
+            interval=self.configs.get('interval'),
+            max_wait_time=self.configs.get('max_wait_time'),
+            min_wait_time=self.configs.get('min_wait_time'),
+        )
 
         # building forms list
         if form is None:
@@ -496,7 +508,10 @@ class AutoCaser():
     def get_elements(self):
 
         # get site page
-        self.driver.get(self.site.site_url)
+        if self.start_url is not None:
+            self.driver.get(self.start_url)
+        if self.start_url is None:
+            self.driver.get(self.site.site_url)
         start_page = self.driver.current_url
 
         # record all forms and sub_elements on page
@@ -574,7 +589,12 @@ class AutoCaser():
             # ensuring we're at start_page
             if self.driver.current_url != start_page:
                 self.driver.get(start_page)
-                driver_wait(driver=self.driver)
+                driver_wait(
+                    driver=self.driver,
+                    interval=self.configs.get('interval'),
+                    max_wait_time=self.configs.get('max_wait_time'),
+                    min_wait_time=self.configs.get('min_wait_time'),
+                )
 
             # getting element by selector
             try:
@@ -615,7 +635,12 @@ class AutoCaser():
                 print(f'on layer -> {layers}')
 
                 # driver wait
-                driver_wait(driver=self.driver)
+                driver_wait(
+                    driver=self.driver,
+                    interval=self.configs.get('interval'),
+                    max_wait_time=self.configs.get('max_wait_time'),
+                    min_wait_time=self.configs.get('min_wait_time'),
+                )
 
                 # check current page
                 if self.driver.current_url == previous_url:
