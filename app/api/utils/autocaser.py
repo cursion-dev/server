@@ -431,13 +431,34 @@ class AutoCaser():
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
+        inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+        textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
+        inputs_textareas_buttons = inputs + textareas + buttons
+
+        # get all form inputs, textareas, & buttons
+        form_elems = []
+        for form in forms:
+            # form inputs
+            form_inputs = form.find_elements(By.TAG_NAME, 'input')
+            inputs_textareas_buttons += form_inputs
+            # textarea inputs
+            form_textares = form.find_elements(By.TAG_NAME, 'textarea')
+            inputs_textareas_buttons += form_textares
+            # textarea inputs
+            form_buttons = form.find_elements(By.TAG_NAME, 'button')
+            inputs_textareas_buttons += form_buttons
+        
+        # then remove duplicates
+        for elem in inputs_textareas_buttons:
+            if elem in form_elems:
+                inputs_textareas_buttons.remove(elem)
         
         # shuffle elements in place
         random.shuffle(forms)
-        random.shuffle(buttons)
-        random.shuffle(forms)
+        random.shuffle(inputs_textareas_buttons)
+        random.shuffle(links)
         
-        current_elements = forms + buttons + links
+        current_elements = forms + inputs_textareas_buttons + links
 
         return current_elements
 
