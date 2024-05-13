@@ -194,18 +194,7 @@ def create_site(request, delay=False):
             create_prospect.delay(user_email=str(user.email))
 
         if not configs:
-            configs = {
-                'window_size': '1920,1080',
-                'interval': 5,
-                'driver': 'selenium',
-                'device': 'desktop',
-                'mask_ids': None,
-                'min_wait_time': 10,
-                'max_wait_time': 60,
-                'timeout': 300,
-                'disable_animations': False,
-                'auto_height': True
-            }
+            configs = settings.CONFIGS
 
         if no_scan == False:
             if delay == True:
@@ -291,18 +280,7 @@ def crawl_site(request, id):
     
     configs = request.data.get('configs', None)
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
     # update site info
     site.time_crawl_completed = None
@@ -495,18 +473,7 @@ def create_page(request, delay=False):
         )
 
         if not configs:
-            configs = {
-                'window_size': '1920,1080',
-                'interval': 5,
-                'driver': 'selenium',
-                'device': 'desktop',
-                'mask_ids': None,
-                'min_wait_time': 10,
-                'max_wait_time': 60,
-                'timeout': 300,
-                'disable_animations': False,
-                'auto_height': True
-            }
+            configs = settings.CONFIGS
 
         if no_scan == False:
 
@@ -595,18 +562,7 @@ def create_many_pages(request, obj_response=False):
             )
 
             if not configs:
-                configs = {
-                    'window_size': '1920,1080',
-                    'interval': 5,
-                    'driver': 'selenium',
-                    'device': 'desktop',
-                    'mask_ids': None,
-                    'min_wait_time': 10,
-                    'max_wait_time': 60,
-                    'timeout': 300,
-                    'disable_animations': False,
-                    'auto_height': True
-                }
+                configs = settings.CONFIGS
 
             if no_scan == False:
 
@@ -863,18 +819,7 @@ def create_scan(request=None, delay=False, *args, **kwargs):
             return data
 
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
     if site_id is not None and page_id is None:
         pages = Page.objects.filter(site=site)
@@ -1282,18 +1227,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
     
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
 
     if site_id is not None and page_id is None:
@@ -1765,17 +1699,7 @@ def create_or_update_schedule(request):
         page_id = str(page_id)
 
     if configs is None:
-        configs = {
-            'window_size': '1920,1080',
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'interval': 5,
-            'min_wait_time': 10,
-            'max_wait_time': 30,
-            'timeout': 300,
-            'disable_animations': False
-        }
+        configs = settings.CONFIGS
 
     if schedule_status != None and schedule != None:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
@@ -2753,14 +2677,7 @@ def create_testcase(request, delay=False):
             steps[int(update['index'])]['action']['value'] = update['value']
 
     if configs is None:
-        configs = {
-            'window_size': '1920,1080',
-            'device': 'desktop',
-            'driver': 'puppeteer',
-            'interval': 5,
-            'min_wait_time': 10,
-            'max_wait_time': 30,
-        }
+        configs = settings.CONFIGS
         
     testcase = Testcase.objects.create(
         case = case,
