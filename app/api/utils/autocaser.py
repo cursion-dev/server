@@ -167,6 +167,8 @@ class AutoCaser():
     def get_element_image(self, element: object):
         try:
             image = element.screenshot_as_base64
+            # sleep for .5 seconds to let image process
+            time.sleep(.5)
         except:
             image = None
         return image
