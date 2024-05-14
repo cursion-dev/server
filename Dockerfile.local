@@ -1,16 +1,17 @@
 FROM --platform=linux/amd64 ubuntu:latest
+ENV DOCKER_DEFAULT_PLATFORM linux/amd64 
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
 
 # create the app user
-RUN addgroup --system app && adduser --system app 
+RUN groupadd --system app & useradd --system app 
 
 # installing python3 & pip
-RUN apt-get update && apt-get install -y python3 python3-pip
+RUN apt-get update && apt-get install -y python3.10 python3-pip
 
 # installing system deps || chromium-browser chromium-driver
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
-    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig 
+    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig
     
 # extra packages
 RUN apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 libgl1
@@ -46,8 +47,9 @@ ENV DOCKERIZED yes
 RUN google-chrome-stable --no-sandbox --version
 
 # installing requirements
-COPY ./requirements.txt /requirements.txt
-RUN python3 -m pip install -r /requirements.txt
+RUN python3 -m pip install --break-system-packages --upgrade setuptools
+COPY ./requirements.txt /requirements-staging.txt
+RUN python3 -m pip install --break-system-packages -r /requirements-staging.txt
 
 # setting working dir
 RUN mkdir /app
