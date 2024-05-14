@@ -711,7 +711,7 @@ class AutoCaser():
                             break
                         
                         # found new form, record and end run
-                        if elem.tag_name == 'form':
+                        elif elem.tag_name == 'form':
                             
                             # record form into sub_elements list
                             sub_elements = self.record_forms(
@@ -783,7 +783,7 @@ class AutoCaser():
                         run = False
                         break
                 
-                    if elem.tag_name == 'a' or elem.tag_name == 'button':
+                    elif elem.tag_name == 'a' or elem.tag_name == 'button':
                         # record element
                         sub_elements.append({
                             'selector': elem_selector,
@@ -807,6 +807,15 @@ class AutoCaser():
                         except Exception as e:
                             print('Element not Clickable, removing')
                             sub_elements.pop()
+                    
+                    # catching all other situations
+                    # naving back to previous_url   
+                    else:
+                        print('no coditions were met')
+                        # add to layers
+                        layers += 1
+                        # going back
+                        self.driver.get(previous_url)
 
                 # catching all other situations
                 # naving back to previous_url   
