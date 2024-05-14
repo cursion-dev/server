@@ -78,7 +78,8 @@ class Lighthouse():
                     "pwa": []
                 }
 
-                # iterating through categories to get relevant lh_audits and store them in their respective `audits = {}` obj
+                # iterating through categories to get relevant lh_audits 
+                # and store them in their respective `audits = {}` obj
                 for cat in audits:
                     cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
                     if cat_audits is not None:
@@ -152,7 +153,7 @@ class Lighthouse():
 
             else:
                 raise RuntimeError
-            
+        
         except Exception as e:
             print(e)
 

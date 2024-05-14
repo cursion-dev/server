@@ -80,8 +80,9 @@ kubectl port-forward service/app-service 8000:8000
     - ``` kubectl apply db-deployment.yaml ``` 
 11. port forwarding to app deployment
    -  ``` kubectl port-forward service/app-service 8000:8000 ```
+  
 
-      
+---
 
 ## Setps to Deploy Remotely
 
@@ -136,6 +137,11 @@ kubectl port-forward service/app-service 8000:8000
 ### 8. Update app Ingress for TLS 
 - Uncomment the "TLS section" & "cert-manager.io/cluster-issuer annotation" then reapply 
 - `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+
+
+### 9. Install kubeip dameon & service
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-service.yaml`
+- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-daemon.yaml`
 
 
 ### NOTES:

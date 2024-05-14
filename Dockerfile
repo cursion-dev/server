@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 RUN npm cache clean --force
 
 # installing lighthouse
-RUN npm install -g lighthouse lighthouse-plugin-crux lodash yellowlabtools
+RUN npm install -g lighthouse@11.7.1 lighthouse-plugin-crux lodash yellowlabtools
 
 # setting --no-sandbox & --disable-dev-shm-usage
 RUN chromium --no-sandbox --version

@@ -399,7 +399,7 @@ class Wordpress():
     def update_process(self, successful=False, info_url=None, time_completed=None, progress=None):
         if info_url is not None:
             self.process.info_url = info_url
-        self.process.successful = successful
+        self.process.success = successful
         if time_completed is not None:
             self.process.time_completed = time_completed
         if progress is not None:

@@ -230,3 +230,18 @@ if os.environ.get('STRIPE_ENV') == 'prod':
 if os.environ.get('STRIPE_ENV') == 'dev':
     STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_TEST')
     STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_TEST')
+
+
+# global configs object 
+CONFIGS = {
+    'window_size': '1920,1080',
+    'driver': 'selenium',
+    'device': 'desktop',
+    'mask_ids': None,
+    'interval': 1,
+    'min_wait_time': 3,
+    'max_wait_time': 30,
+    'timeout': 300,
+    'disable_animations': False,
+    'auto_height': True
+}

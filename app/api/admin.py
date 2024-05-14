@@ -72,7 +72,7 @@ class AutomationAdmin(admin.ModelAdmin):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'time_created',  'time_completed', 'progress', 'successful')
+    list_display = ('__str__', 'time_created',  'time_completed', 'progress', 'success')
 
 
 @admin.register(Case)

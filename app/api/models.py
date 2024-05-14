@@ -448,12 +448,15 @@ class Case(models.Model):
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    site_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.name}'
+        return f'{self.name}' if len(self.name) > 0 else str(id)
 
 
 
@@ -494,10 +497,13 @@ class Mask(models.Model):
 class Process(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) 
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # Test, Testcase, Case, Flow, Scan, Crawl
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
-    successful = models.BooleanField(serialize=True, default=False)
+    success = models.BooleanField(serialize=True, default=False)
+    exception = models.TextField(serialize=True, null=True, blank=True)
+    info = models.JSONField(serialize=True, null=True, blank=True)
     info_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     progress = models.FloatField(serialize=True, null=True, blank=True)
 

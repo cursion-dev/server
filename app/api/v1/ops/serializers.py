@@ -29,7 +29,7 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Process
         fields = ['id', 'site', 'type', 'time_created', 'time_completed',
-        'successful', 'info_url', 'progress',
+        'success', 'info_url', 'progress', 'info', 'exception'
         ]
 
 
@@ -175,11 +175,12 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
 
     class Meta:
         model = Case
         fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags', 'account',
+        'tags', 'account', 'site', 'type', 'site_url',
         ]
 
 

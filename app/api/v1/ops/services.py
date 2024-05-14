@@ -2,10 +2,12 @@ import json, boto3, asyncio, os, requests
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
+from django.db.models import Q
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
 from scanerr import celery
+from scanerr import settings
 from .serializers import *
 from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
@@ -17,7 +19,6 @@ from ...utils.wordpress import Wordpress as W
 from ...utils.wordpress_p import Wordpress as W_P
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
-
 
 
 
@@ -170,25 +171,33 @@ def create_site(request, delay=False):
             account=account
         )
 
+        # get/set configs
+        if not configs:
+            configs = settings.CONFIGS
+
+        # create process obj
+        process = Process.objects.create(
+            site=site,
+            type='case',
+            account=account,
+            progress=1
+        )
+
+        # auto gen Cases using bg_autocase_task
+        create_auto_cases_bg.delay(
+            site_id=site.id,
+            process_id=process.id,
+            start_url=str(site.site_url),
+            configs=configs,
+            max_cases=4,
+            max_layers=6
+        )
+        
         # check if this is account's first site and onboarding = True
         if Site.objects.filter(account=account).count() == 1 \
             and onboarding == True:
             # send POST to landing/v1/ops/prospect
             create_prospect.delay(user_email=str(user.email))
-
-        if not configs:
-            configs = {
-                'window_size': '1920,1080',
-                'interval': 5,
-                'driver': 'selenium',
-                'device': 'desktop',
-                'mask_ids': None,
-                'min_wait_time': 10,
-                'max_wait_time': 60,
-                'timeout': 300,
-                'disable_animations': False,
-                'auto_height': True
-            }
 
         if no_scan == False:
             if delay == True:
@@ -274,18 +283,7 @@ def crawl_site(request, id):
     
     configs = request.data.get('configs', None)
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
     # update site info
     site.time_crawl_completed = None
@@ -478,18 +476,7 @@ def create_page(request, delay=False):
         )
 
         if not configs:
-            configs = {
-                'window_size': '1920,1080',
-                'interval': 5,
-                'driver': 'selenium',
-                'device': 'desktop',
-                'mask_ids': None,
-                'min_wait_time': 10,
-                'max_wait_time': 60,
-                'timeout': 300,
-                'disable_animations': False,
-                'auto_height': True
-            }
+            configs = settings.CONFIGS
 
         if no_scan == False:
 
@@ -578,18 +565,7 @@ def create_many_pages(request, obj_response=False):
             )
 
             if not configs:
-                configs = {
-                    'window_size': '1920,1080',
-                    'interval': 5,
-                    'driver': 'selenium',
-                    'device': 'desktop',
-                    'mask_ids': None,
-                    'min_wait_time': 10,
-                    'max_wait_time': 60,
-                    'timeout': 300,
-                    'disable_animations': False,
-                    'auto_height': True
-                }
+                configs = settings.CONFIGS
 
             if no_scan == False:
 
@@ -846,18 +822,7 @@ def create_scan(request=None, delay=False, *args, **kwargs):
             return data
 
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
     if site_id is not None and page_id is None:
         pages = Page.objects.filter(site=site)
@@ -1006,7 +971,7 @@ def get_scans(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if scan.site.account != account:
-            data = {'reason': 'retrieve Scans of a Site you do not own',}
+            data = {'reason': 'cannot retrieve Scans you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -1026,7 +991,7 @@ def get_scans(request):
     
 
     if page.account != account:
-        data = {'reason': 'retrieve Scans of a Site you do not own',}
+        data = {'reason': 'cannot retrieve Scans you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1066,7 +1031,7 @@ def get_scan_lean(request, id):
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if scan.site.account != account:
-        data = {'reason': 'retrieve Scans of a Site you do not own'}
+        data = {'reason': 'cannot retrieve Scans you do not own'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1265,18 +1230,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
     
     if not configs:
-        configs = {
-            'window_size': '1920,1080',
-            'interval': 5,
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'min_wait_time': 10,
-            'max_wait_time': 60,
-            'timeout': 300,
-            'disable_animations': False,
-            'auto_height': True
-        }
+        configs = settings.CONFIGS
 
 
     if site_id is not None and page_id is None:
@@ -1497,7 +1451,7 @@ def get_tests(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if test.site.account != account:
-            data = {'reason': 'retrieve Tests of a Site you do not own'}
+            data = {'reason': 'cannot retrieve Tests you do not own'}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -1523,7 +1477,7 @@ def get_tests(request):
         return Response(data, status=this_status)
 
     if page.site.account != account:
-        data = {'reason': 'retrieve Tests of a Site you do not own',}
+        data = {'reason': 'cannot retrieve Tests you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
     
@@ -1567,7 +1521,7 @@ def get_test_lean(request, id):
         return Response(data, status=status.HTTP_404_NOT_FOUND)
 
     if test.site.account != account:
-        data = {'reason': 'retrieve Tests of a Site you do not own'}
+        data = {'reason': 'cannot retrieve Tests you do not own'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -1748,17 +1702,7 @@ def create_or_update_schedule(request):
         page_id = str(page_id)
 
     if configs is None:
-        configs = {
-            'window_size': '1920,1080',
-            'driver': 'selenium',
-            'device': 'desktop',
-            'mask_ids': None,
-            'interval': 5,
-            'min_wait_time': 10,
-            'max_wait_time': 30,
-            'timeout': 300,
-            'disable_animations': False
-        }
+        configs = settings.CONFIGS
 
     if schedule_status != None and schedule != None:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
@@ -2151,7 +2095,7 @@ def get_automations(request):
             record_api_call(request, data, '404')
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         if automation.account != account:
-            data = {'reason': 'retrieve an Automation you do not own',}
+            data = {'reason': 'cannot retrieve an Automation you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         serializer_context = {'request': request,}
         serialized = AutomationSerializer(automation, context=serializer_context)
@@ -2360,51 +2304,39 @@ def export_report(request):
 
 
 
-def get_processes(request):
-    site_id = request.query_params.get('site_id', None)
-    process_id = request.query_params.get('process_id', None)
 
-    if site_id:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        processes = Process.objects.filter(site=site).order_by('-time_created')
+def save_case_steps(steps, steps_id):
+    # setup boto3 configurations
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
 
-    if process_id:
-        try:
-            process = Process.objects.get(id=process_id)
-            serializer_context = {'request': request,}
-            data = ProcessSerializer(process, context=serializer_context).data
-            record_api_call(request, data, '200')
-            response = Response(data, status=status.HTTP_200_OK)
-            return response
-        except:
-            data = {'reason': 'cannot find a Process with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # saving as json file temporarily
+    with open(f'{steps_id}.json', 'w') as fp:
+        json.dump(steps, fp)
+    
+    # seting up paths
+    steps_file = os.path.join(settings.BASE_DIR, f'{steps_id}.json')
+    remote_path = f'static/cases/steps/{steps_id}.json'
+    root_path = settings.AWS_S3_URL_PATH
+    steps_url = f'{root_path}/{remote_path}'
 
-    if site_id is None and report_id is None:
-        processes = Process.objects.all().order_by('-time_created')
+    # upload to s3
+    with open(steps_file, 'rb') as data:
+        s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+            remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+        )
 
-    paginator = LimitOffsetPagination()
-    result_page = paginator.paginate_queryset(processes, request)
-    serializer_context = {'request': request,}
-    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
-    response = paginator.get_paginated_response(serialized.data)
-    record_api_call(request, response.data, '200')
-    return response
+    # remove local copy
+    os.remove(steps_file)
 
-
-
-
-
-
-
-
-
+    return {
+        'num_steps': len(steps),
+        'url': steps_url
+    }
 
 
 
@@ -2412,10 +2344,13 @@ def get_processes(request):
 def create_or_update_case(request):
     case_id = request.data.get('case_id')
     steps = request.data.get('steps')
+    site_url = request.data.get('site_url')
     name = request.data.get('name')
     tags = request.data.get('tags')
+    _type = request.data.get('type')
     user = request.user
     account = Member.objects.get(user=user).account
+    site = None
 
     check_data = check_account(request=request)
     if not check_data['allowed']:
@@ -2432,21 +2367,37 @@ def create_or_update_case(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
         
         if case.account != account:
-            data = {'reason': 'retrieve Cases you do not own',}
+            data = {'reason': 'cannot retrieve Cases you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         else:
-            case.steps = steps
-            case.name = name
-            case.tags = tags
+            if steps is not None:
+                steps_data = save_case_steps(steps, case_id)
+                case.steps = steps_data
+            if name is not None:
+                case.name = name
+            if tags is not None:
+                case.tags = tags
             case.save()
     
     else:
+        case_id = uuid.uuid4()
+        steps_data = save_case_steps(steps, case_id)
+        
+        if site_url is not None:
+            try:
+                site = Site.objects.filter(account=account, site_url=site_url)[0]
+            except:
+                pass
+
         case = Case.objects.create(
+            id = case_id,
             user = request.user,
             name = name, 
-            tags = tags,
-            steps = steps,
+            type = _type if _type is not None else "recorded",
+            site = site,
+            site_url = site_url,
+            steps = steps_data,
             account = account
         )
 
@@ -2474,7 +2425,7 @@ def get_cases(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if case.account != account:
-            data = {'reason': 'retrieve an Case you do not own',}
+            data = {'reason': 'cannot retrieve an Case you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -2496,10 +2447,17 @@ def get_cases(request):
 
 
 def search_cases(request):
+    # get data
     user = request.user
     account = Member.objects.get(user=user).account
     query = request.query_params.get('query')
-    cases = Case.objects.filter(account=account, name__icontains=query).order_by('-time_created')
+    
+    # search for cases
+    cases = Case.objects.filter(
+        Q(account=account, name__icontains=query) |
+        Q(account=account, site_url__icontains=query) 
+    ).order_by('-time_created')
+    
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
     serializer_context = {'request': request,}
@@ -2525,6 +2483,18 @@ def delete_case(request, id):
         data = {'reason': 'delete an Case you do not own',}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
+    
+    # setup boto3 configurations
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    # delete s3 steps object
+    bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    bucket.objects.filter(Prefix=str(f'static/cases/{case.id}.json')).delete()
 
     case.delete()
 
@@ -2532,6 +2502,126 @@ def delete_case(request, id):
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
+
+
+
+
+
+
+def create_auto_cases(request):
+    # get data
+    site_id = request.data.get('site_id')
+    site_url = request.data.get('site_url')
+    start_url = request.data.get('start_url')
+    max_cases = request.data.get('max_cases', 4)
+    max_layers = request.data.get('max_layers', 6)
+    configs = request.data.get('configs')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # get site if only site_url present
+    if site_url is not None:
+        site = Site.objects.filter(account=account, site_url=site_url)[0]
+        site_id = str(site.id)
+
+    # get site if only site_id present
+    if site_id is not None:
+        site = Site.objects.get(id=site_id)
+        if site.account != account:
+            # return error response
+            data = {'reason': 'site not found',}
+            record_api_call(request, data, '404')
+            response = Response(data, status=status.HTTP_404_NOT_FOUND)
+            return response
+
+    if site_id is None and site_url is None:
+        # return error response
+        data = {'reason': 'site not found',}
+        record_api_call(request, data, '404')
+        response = Response(data, status=status.HTTP_404_NOT_FOUND)
+        return response
+
+    
+    # get/set configs
+    if not configs:
+        configs = settings.CONFIGS
+
+    # create process obj
+    process = Process.objects.create(
+        site=site,
+        type='case',
+        account=account,
+        progress=1
+    )
+
+    # send data to bg_autocase_task
+    create_auto_cases_bg.delay(
+        site_id=site_id,
+        process_id=process.id,
+        start_url=start_url,
+        configs=configs,
+        max_cases=max_cases,
+        max_layers=max_layers,
+    )
+
+    # return response
+    data = {
+        'message': 'Cases are generating',
+        'process': str(process.id),
+    }
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+
+def copy_case(request):
+    case_id = request.data.get('case_id')
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check data
+    if case_id:
+        try:
+            case = Case.objects.get(id=case_id, account=account)
+        except:
+            data = {'reason': 'cannot find a Case with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    else:
+        data = {'reason': 'you must provide case_id'}
+        record_api_call(request, data, '409')
+        return Response(data, status=status.HTTP_409_CONFLICT)
+
+    # download steps 
+    steps = requests.get(case.steps['url']).json()
+    
+    # save steps as new s3 obj
+    new_case_id = uuid.uuid4()
+    steps_data = save_case_steps(steps, new_case_id)
+
+    # create new case
+    new_case = Case.objects.create(
+        id = new_case_id,
+        user = request.user,
+        name = f'Copy - {case.name}', 
+        type = case.type,
+        site = case.site,
+        site_url = case.site_url,
+        steps = steps_data,
+        account = account
+    )
+
+    # return response
+    serializer_context = {'request': request,}
+    data = CaseSerializer(new_case, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+    
+
 
 
 
@@ -2555,7 +2645,7 @@ def create_testcase(request, delay=False):
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    if case_id and site_id:
+    if case_id:
         try:
             case = Case.objects.get(id=case_id, account=account)
         except:
@@ -2575,13 +2665,14 @@ def create_testcase(request, delay=False):
         record_api_call(request, data, '409')
         return Response(data, status=status.HTTP_409_CONFLICT)
 
-    steps = case.steps
+    steps = requests.get(case.steps['url']).json()
     for step in steps:
         if step['action']['type'] != None:
             step['action']['time_created'] = None
             step['action']['time_completed'] = None
             step['action']['exception'] = None
             step['action']['passed'] = None
+            step['action']['img'] = None
 
         if step['assertion']['type'] != None:
             step['assertion']['time_created'] = None
@@ -2594,14 +2685,7 @@ def create_testcase(request, delay=False):
             steps[int(update['index'])]['action']['value'] = update['value']
 
     if configs is None:
-        configs = {
-            'window_size': '1920,1080',
-            'device': 'desktop',
-            'driver': 'puppeteer',
-            'interval': 5,
-            'min_wait_time': 10,
-            'max_wait_time': 30,
-        }
+        configs = settings.CONFIGS
         
     testcase = Testcase.objects.create(
         case = case,
@@ -2652,7 +2736,7 @@ def get_testcases(request):
             return Response(data, status=status.HTTP_404_NOT_FOUND)
 
         if testcase.account != account:
-            data = {'reason': 'retrieve an Testcase you do not own',}
+            data = {'reason': 'cannot retrieve an Testcase you do not own',}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
         serializer_context = {'request': request,}
@@ -2719,6 +2803,52 @@ def delete_testcase(request, id):
 
 
 
+def get_processes(request):
+    site_id = request.query_params.get('site_id', None)
+    process_id = request.query_params.get('process_id', None)
+    _type = request.query_params.get('type', None)
+    account = Account.objects.get(user=request.user)
+
+    if site_id:
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        processes = Process.objects.filter(site=site).order_by('-time_created')
+
+    if process_id:
+        try:
+            process = Process.objects.get(id=process_id)
+            serializer_context = {'request': request,}
+            data = ProcessSerializer(process, context=serializer_context).data
+            record_api_call(request, data, '200')
+            response = Response(data, status=status.HTTP_200_OK)
+            return response
+        except:
+            data = {'reason': 'cannot find a Process with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    if site_id is None and process_id is None:
+        if _type is None:
+            processes = Process.objects.filter(account=account).order_by('-time_created')
+        if _type is not None:
+            processes = Process.objects.filter(account=account, type=_type).order_by('-time_created')
+
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(processes, request)
+    serializer_context = {'request': request,}
+    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+
 
 
 def get_logs(request):
@@ -2730,7 +2860,7 @@ def get_logs(request):
     if log_id != None:
         log = Log.objects.get(id=log_id)
         if log.user != request.user:
-            data = {'reason': 'retrieve Logs you do not own',}
+            data = {'reason': 'cannot retrieve Logs you do not own',}
             record_api_call(request, data, '403')
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         
@@ -2787,16 +2917,31 @@ def search_resources(request):
     user = request.user
     account = Member.objects.get(user=user).account
     data = []
+    cases = []
+    pages = []
+    sites = []
+
+    # check for object specification i.e 'site: or case:'
+    resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
+    query = query.replace('https://', '').replace('http://', '').split(':')[-1]
 
     # search for sites
-    sites = Site.objects.filter(account=account).filter(
-        site_url__icontains=query
-    )
+    if resource_type == 'site' or resource_type == query:
+        sites = Site.objects.filter(account=account).filter(
+            site_url__icontains=query
+        )
 
     # search for pages
-    pages = Page.objects.filter(account=account).filter(
-        page_url__icontains=query
-    )
+    if resource_type == 'page' or resource_type == query:
+        pages = Page.objects.filter(account=account).filter(
+            page_url__icontains=query
+        )
+
+    # search for cases
+    if resource_type == 'case' or resource_type == query:
+        cases = Case.objects.filter(account=account).filter(
+            name__icontains=query
+        )
 
     # adding first 5 sites if present
     i = 0
@@ -2804,6 +2949,7 @@ def search_resources(request):
         data.append({
             'name': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
+            'id'  : str(sites[i].id),
             'type': 'site',
         })
         i+=1
@@ -2814,7 +2960,19 @@ def search_resources(request):
         data.append({
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
+            'id'  : str(pages[i].id),
             'type': 'page',
+        })
+        i+=1
+    
+    # adding first 5 cases if present
+    i = 0
+    while i <= 4 and i <= (len(cases)-1):
+        data.append({
+            'name': str(cases[i].name),
+            'path': f'/case/{cases[i].id}',
+            'id'  : str(cases[i].id),
+            'type': 'case',
         })
         i+=1
         
