@@ -17,7 +17,7 @@ class Lighthouse():
         self.sizes = configs['window_size'].split(',')
 
         # initial scores object
-        scores = {
+        self.scores = {
             "seo": None,
             "accessibility": None,
             "performance": None,
@@ -28,7 +28,7 @@ class Lighthouse():
         }
         
         # initial audits object
-        audits = {
+        self.audits = {
             "seo": [],
             "accessibility": [],
             "performance": [],
@@ -157,13 +157,6 @@ class Lighthouse():
         # get scores from each category
         for key in self.scores:
             self.scores[key] = round(stdout_json["categories"][key]["score"])
-        
-        # get scores from each category
-        # seo_score = round(stdout_json["categories"]["seo"]["score"] * 100)
-        # accessibility_score = round(stdout_json["categories"]["accessibility"]["score"] * 100)
-        # performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
-        # best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
-        # pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
 
         # changing audits & score names
         self.scores['best_practices'] = self.scores.pop('best-practices')
@@ -189,17 +182,6 @@ class Lighthouse():
                     seo_score + accessibility_score + performance_score 
                     + best_practices_score + pwa_score + crux_score
                 )/ 6)
-
-        # # updating global scores
-        # self.scores = {
-        #     "seo": seo_score,
-        #     "accessibility": accessibility_score,
-        #     "performance": performance_score,
-        #     "best_practices": best_practices_score,
-        #     "pwa": pwa_score,
-        #     "crux": crux_score,
-        #     "average": average_score
-        # }
 
         # save audits data as json file
         file_id = uuid.uuid4()
