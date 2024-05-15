@@ -367,11 +367,6 @@ class AutoCaser():
                 'added': bool,
             }
         """
-        # get sub element info
-        elem_selector = self.driver.execute_script(self.selector_script, elem)
-        elem_img = self.get_element_image(element=elem)
-        relative_url = self.get_relative_url(self.driver.current_url)
-
         # setting defaults
         run = True
         added = False
@@ -384,6 +379,11 @@ class AutoCaser():
                 'sub_element': sub_elements
             }
             return data
+
+        # get sub element info
+        elem_selector = self.driver.execute_script(self.selector_script, elem)
+        elem_img = self.get_element_image(element=elem)
+        relative_url = self.get_relative_url(self.driver.current_url)
         
         # found new element, record, click, & continue
         if elem.tag_name == 'a' or elem.tag_name == 'button':
@@ -417,9 +417,9 @@ class AutoCaser():
         # found new input or textarea
         elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
             
+            # getting element values and type
             type = str(elem.get_attribute('type'))
             value = elem.get_attribute('value')
-            
             if elem.tag_name == 'textarea':
                 type = 'textarea'
 
