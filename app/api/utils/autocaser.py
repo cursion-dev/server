@@ -164,6 +164,7 @@ class AutoCaser():
 
 
 
+
     def get_element_image(self, element: object):
         try:
             image = element.screenshot_as_base64
