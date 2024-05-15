@@ -224,18 +224,21 @@ class AutoCaser():
 
         # checking each element for prioriry words
         for element in elements:
+            
+            # disallowing inputs types due to form conflicts
+            if element.tag_name != 'input':
 
-            # get element's innerText
-            elem_selector = self.driver.execute_script(self.selector_script, element)
-            elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
+                # get element's innerText
+                elem_selector = self.driver.execute_script(self.selector_script, element)
+                elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
 
-            # check each priority word against element innerText
-            for word in priority_words:
-                if word in elm_text.lower() or elm_text.lower() in word:
-                    priority_elements.append(element)
-                    break
-                elif element not in non_priority_elements:
-                    non_priority_elements.append(element)
+                # check each priority word against element innerText
+                for word in priority_words:
+                    if word in elm_text.lower() or elm_text.lower() in word:
+                        priority_elements.append(element)
+                        break
+                    elif element not in non_priority_elements:
+                        non_priority_elements.append(element)
 
         # if priotity_elements[] is empty
         # look for any forms and add them
@@ -270,10 +273,10 @@ class AutoCaser():
             # form inputs
             form_inputs = form.find_elements(By.TAG_NAME, 'input')
             form_elems += form_inputs
-            # textarea inputs
+            # form textarea
             form_textares = form.find_elements(By.TAG_NAME, 'textarea')
             form_elems += form_textares
-            # textarea inputs
+            # form buttons
             form_buttons = form.find_elements(By.TAG_NAME, 'button')
             form_elems += form_buttons
         
@@ -666,7 +669,6 @@ class AutoCaser():
 
 
 
-
     def get_elements(self):
 
         # get site page
@@ -819,82 +821,6 @@ class AutoCaser():
                     recorded_element = False
                     for elem in cleaned_elements:
 
-                        # get sub element info
-                        # elem_selector = self.driver.execute_script(self.selector_script, elem)
-                        # elem_img = self.get_element_image(element=elem)
-                        # relative_url = self.get_relative_url(self.driver.current_url)
-                        
-                        # # found new element, record, click, & continue
-                        # if elem.tag_name == 'a' or elem.tag_name == 'button':
-
-                        #     # record element
-                        #     sub_elements.append({
-                        #         'selector': elem_selector,
-                        #         'elem_type': elem.tag_name,
-                        #         'placeholder': None,
-                        #         'value': None,
-                        #         'type': None,
-                        #         'data': None,
-                        #         'action': 'click',
-                        #         'path': relative_url,
-                        #         'img': elem_img,
-                        #         'elements': None,
-                        #     })
-
-                        #     # click element
-                        #     try:
-                        #         elem.click()
-                        #     except Exception as e:
-                        #         print('Element not Clickable, removing')
-                        #         sub_elements.pop()
-
-                        #     # add to layers and ending internal loop
-                        #     layers += 1
-                        #     break
-
-                        
-                        # # found new input or textarea
-                        # elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
-                            
-                        #     type = str(elem.get_attribute('type'))
-                        #     value = elem.get_attribute('value')
-                            
-                        #     if elem.tag_name == 'textarea':
-                        #         type = 'textarea'
-
-                        #     # record element
-                        #     sub_elements.append({
-                        #         'selector': elem_selector,
-                        #         'elem_type': elem.tag_name,
-                        #         'placeholder': elem.get_attribute('placeholder'),
-                        #         'value': value,
-                        #         'type': type,
-                        #         'data': self.input_types[type]['test_data'],
-                        #         'action': self.input_types[type]['action'],
-                        #         'path': relative_url,
-                        #         'img': elem_img,
-                        #         'elements': None,
-                        #     })
-                            
-                        #     # add to layers and ending internal loop
-                        #     layers += 1
-                        #     break
-                        
-
-                        # # found new form, record and end run
-                        # elif elem.tag_name == 'form':
-                            
-                            # record form into sub_elements list
-                            # sub_elements = self.record_forms(
-                            #     elements=sub_elements, 
-                            #     form=elem
-                            # )
-
-                            # # add to layers and ending case
-                            # layers += 1
-                            # run = False
-                            # break
-                        
                         # record element and increment if necessary
                         data = self.record_new_element(elem, sub_elements) 
                         run = data['run']
@@ -946,86 +872,12 @@ class AutoCaser():
                         layers += 1
                         run = False
                         break
-
-                    # # get sub element info
-                    # elem_selector = self.driver.execute_script(self.selector_script, elem)
-                    # elem_img = self.get_element_image(element=elem)
-                    # relative_url = self.get_relative_url(self.driver.current_url)
-
-                    # if elem.tag_name == 'a' or elem.tag_name == 'button':
-                    #     # record element
-                    #     sub_elements.append({
-                    #         'selector': elem_selector,
-                    #         'elem_type': elem.tag_name,
-                    #         'placeholder': None,
-                    #         'value': None,
-                    #         'type': None,
-                    #         'data': None,
-                    #         'action': 'click',
-                    #         'path': relative_url,
-                    #         'img': elem_img,
-                    #         'elements': None,
-                    #     })
-
-                    #     # add to layers
-                    #     layers += 1
-
-                    #     # click element
-                    #     try:
-                    #         elem.click()
-                    #     except Exception as e:
-                    #         print('Element not Clickable, removing')
-                    #         sub_elements.pop()
-
-                    
-                    # # found new input or textarea
-                    # elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
-                        
-                    #     type = str(elem.get_attribute('type'))
-                    #     value = elem.get_attribute('value')
-                        
-                    #     if elem.tag_name == 'textarea':
-                    #         type = 'textarea'
-
-                    #     # record element
-                    #     sub_elements.append({
-                    #         'selector': elem_selector,
-                    #         'elem_type': elem.tag_name,
-                    #         'placeholder': elem.get_attribute('placeholder'),
-                    #         'value': value,
-                    #         'type': type,
-                    #         'data': self.input_types[type]['test_data'],
-                    #         'action': self.input_types[type]['action'],
-                    #         'path': relative_url,
-                    #         'img': elem_img,
-                    #         'elements': None,
-                    #     })
-                        
-                    #     # add to layers and ending internal loop
-                    #     layers += 1
-                    #     break
-                        
-                    
-                    # # check the type of element
-                    # elif elem.tag_name == 'form':
-                        # record form into sub_elements list
-                        # sub_elements = self.record_forms(
-                        #     elements=sub_elements,
-                        #     form=elem
-                        # )
-
-                        # # add to layers and ending case
-                        # layers += 1
-                        # run = False
-                        # break
-            
             
                     # record element and increment if necessary
                     data = self.record_new_element(elem, sub_elements) 
                     run = data['run']
                     layers += 1 if data['added'] else 0
                     sub_elements = data['sub_elements']
-
 
                     # catching all other situations
                     # naving back to previous_url   
