@@ -224,21 +224,18 @@ class AutoCaser():
 
         # checking each element for prioriry words
         for element in elements:
-            
-            # disallowing inputs types due to form conflicts
-            if element.tag_name != 'input':
+        
+            # get element's innerText
+            elem_selector = self.driver.execute_script(self.selector_script, element)
+            elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
 
-                # get element's innerText
-                elem_selector = self.driver.execute_script(self.selector_script, element)
-                elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
-
-                # check each priority word against element innerText
-                for word in priority_words:
-                    if word in elm_text.lower() or elm_text.lower() in word:
-                        priority_elements.append(element)
-                        break
-                    elif element not in non_priority_elements:
-                        non_priority_elements.append(element)
+            # check each priority word against element innerText
+            for word in priority_words:
+                if word in elm_text.lower() or elm_text.lower() in word:
+                    priority_elements.append(element)
+                    break
+                elif element not in non_priority_elements:
+                    non_priority_elements.append(element)
 
         # if priotity_elements[] is empty
         # look for any forms and add them
@@ -268,9 +265,6 @@ class AutoCaser():
         inputs_textareas_buttons = inputs + textareas + buttons
 
         # get all form inputs, textareas, & buttons
-        pre_itb = []
-        post_itb = []
-        form_selectors = []
         form_elems = []
         for form in forms:
             # form inputs
@@ -283,24 +277,8 @@ class AutoCaser():
             form_buttons = form.find_elements(By.TAG_NAME, 'button')
             form_elems += form_buttons
 
-        for n in form_elems:
-            form_selectors.append(self.driver.execute_script(self.selector_script, n))
-        
-        for j in inputs_textareas_buttons:
-            pre_itb.append(self.driver.execute_script(self.selector_script, j))
-        
         # then remove duplicates
-        print(f'form list -> {form_selectors}')
-        print(f'pre_itb list -> {pre_itb}')
-
-        for elem in inputs_textareas_buttons:
-            if elem in form_elems:
-                print('element already recorded in FORM')
-                inputs_textareas_buttons.remove(elem)
-        
-        for k in inputs_textareas_buttons:
-            post_itb.append(self.driver.execute_script(self.selector_script, k))
-        print(f'post_itb list -> {post_itb}')
+        inputs_textareas_buttons = [elem for elem in inputs_textareas_buttons if elem not in form_elems]
         
         # shuffle elements in place
         random.shuffle(forms)
