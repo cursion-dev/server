@@ -36,6 +36,7 @@ class AutoCaser():
         # All elememts represent the 
         # begining of a new Case.
         self.elements = []
+        self.final_start_elements = []
 
         # starting driver
         self.driver = driver_init(
@@ -481,6 +482,12 @@ class AutoCaser():
         if elements is None:
             elements = self.elements
 
+        # checking against all final start elements
+        for final_start_elem in self.final_start_elements:
+            if final_start_elem == selector:
+                found_duplicate = True
+                return found_duplicate
+
         for elem in elements:
             # check if selector exists already
             if elem['selector'] == selector:
@@ -490,6 +497,7 @@ class AutoCaser():
             # check if sub_elements exists
             if elem['elements'] != None:
                 self.check_for_duplicates(selector=selector, elements=elem['elements'])
+        
 
         # return result
         return found_duplicate
@@ -568,21 +576,19 @@ class AutoCaser():
         priority_elements = sorted_elements['priority_elements']
         non_priority_elements = sorted_elements['non_priority_elements']
 
-        final_start_elements = []
-
         # choosing random priority element
-        if len(priority_elements) > 0:
+        if len(priority_elements) > 1:
             choosen = priority_elements[
                 random.randint(0, (len(priority_elements) - 1))
             ]
-            final_start_elements.append(
+            self.final_start_elements.append(
                 self.driver.execute_script(self.selector_script, choosen)
             )
 
         # adding random elements until 
         # "max_cases" is reached
         iterations = 0
-        while (len(final_start_elements) + len(self.elements)) < self.max_cases and iterations < (5 * self.max_cases):
+        while (len(self.final_start_elements) + len(self.elements)) < self.max_cases and iterations < (5 * self.max_cases):
 
             # random choice
             choosen = non_priority_elements[
@@ -594,9 +600,9 @@ class AutoCaser():
                 iterations += 1
                 continue
 
-            # check if element exists in final_start_elements[]
+            # check if element exists in self.final_start_elements[]
             selector = self.driver.execute_script(self.selector_script, choosen)
-            if selector in final_start_elements:
+            if selector in self.final_start_elements:
                 iterations += 1
                 continue
             
@@ -604,11 +610,11 @@ class AutoCaser():
             if choosen.tag_name == 'a':
                 link_text = choosen.get_attribute('href')
                 if link_text.startswith(self.get_url_root(start_page)):
-                    final_start_elements.append(selector)
+                    self.final_start_elements.append(selector)
                     
             # adding if button
             if choosen.tag_name == 'button':
-                final_start_elements.append(selector)
+                self.final_start_elements.append(selector)
 
             # forcing loop to quit if not enough cases are created
             iterations += 1
@@ -616,7 +622,7 @@ class AutoCaser():
 
         # begin elem iteration
         iterations = 0
-        for selector in final_start_elements:
+        for selector in self.final_start_elements:
 
             # ensuring we're at start_page
             if self.driver.current_url != start_page:
@@ -633,7 +639,7 @@ class AutoCaser():
                 element = self.driver.find_element(By.CSS_SELECTOR, selector)
             except Exception as e:
                 print('Element not Reachable, removing')
-                final_start_elements.remove(selector)
+                self.final_start_elements.remove(selector)
                 iterations += 1
                 continue
             
@@ -654,7 +660,7 @@ class AutoCaser():
                 element.click()
             except Exception as e:
                 print('Element not Clickable, removing')
-                final_start_elements.remove(selector)
+                self.final_start_elements.remove(selector)
                 continue
 
 
@@ -855,7 +861,7 @@ class AutoCaser():
             iterations += 1
 
             # update process
-            self.update_process(current=iterations, total=len(final_start_elements))
+            self.update_process(current=iterations, total=len(self.final_start_elements))
 
         # quit driver session
         quit_driver(self.driver)
