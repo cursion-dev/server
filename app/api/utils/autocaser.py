@@ -576,6 +576,10 @@ class AutoCaser():
         priority_elements = sorted_elements['priority_elements']
         non_priority_elements = sorted_elements['non_priority_elements']
 
+        # ending early if not enough elements to generate with
+        if len(priority_elements) <= 1 and len(non_priority_elements) <= 1:
+            return self.elements
+
         # choosing random priority element
         if len(priority_elements) > 1:
             choosen = priority_elements[
