@@ -268,6 +268,9 @@ class AutoCaser():
         inputs_textareas_buttons = inputs + textareas + buttons
 
         # get all form inputs, textareas, & buttons
+        pre_itb = []
+        post_itb = []
+        form_selectors = []
         form_elems = []
         for form in forms:
             # form inputs
@@ -279,15 +282,25 @@ class AutoCaser():
             # form buttons
             form_buttons = form.find_elements(By.TAG_NAME, 'button')
             form_elems += form_buttons
+
+        for n in form_elems:
+            form_selectors.append(self.driver.execute_script(self.selector_script, n))
+        
+        for j in inputs_textareas_buttons:
+            pre_itb.append(self.driver.execute_script(self.selector_script, j))
         
         # then remove duplicates
-        print(f'pre len of list -> {len(inputs_textareas_buttons)}')
+        print(f'form list -> {form_selectors}')
+        print(f'pre_itb list -> {pre_itb}')
+
         for elem in inputs_textareas_buttons:
             if elem in form_elems:
                 print('element already recorded in FORM')
                 inputs_textareas_buttons.remove(elem)
         
-        print(f'post len of list -> {len(inputs_textareas_buttons)}')
+        for k in inputs_textareas_buttons:
+            post_itb.append(self.driver.execute_script(self.selector_script, k))
+        print(f'post_itb list -> {post_itb}')
         
         # shuffle elements in place
         random.shuffle(forms)
