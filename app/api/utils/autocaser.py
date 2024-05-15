@@ -73,10 +73,14 @@ class AutoCaser():
         self.visible_script = (
             """
             const isVisible = (elm) => {
-                if (window.getComputedStyle(elm).visibility === 'hidden' || window.getComputedStyle(elm).display === 'none'){
+                try{
+                    if (window.getComputedStyle(elm).visibility === 'hidden' || window.getComputedStyle(elm).display === 'none'){
+                        return false
+                    } else {
+                        return true
+                    }
+                }catch{
                     return false
-                } else {
-                    return true
                 }
             }
 
@@ -200,6 +204,265 @@ class AutoCaser():
         elem_text = elem_text.split('\n')[0].strip()
         return elem_text
 
+
+
+
+    def get_priority_elements(self, elements: list) -> dict:
+        priority_words = [
+            'cart', 'checkout', 'add to cart', 'add to the cart', 
+            'add to basket', 'add to shopping basket', 'add to shopping cart', 
+            'add to the cart', 'billing', 'address', 'payment', 'purchase now',
+            'order now', 'order', 'shop now', 'continue to payment', 'contact', 
+            'apply', 'submit', 
+        ]
+
+        priority_elements = []
+        non_priority_elements = []
+
+        # checking each element for prioriry words
+        for element in elements:
+
+            # get element's innerText
+            elem_selector = self.driver.execute_script(self.selector_script, element)
+            elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
+
+            # check each priority word against element innerText
+            for word in priority_words:
+                if word in elm_text.lower() or elm_text.lower() in word:
+                    priority_elements.append(element)
+                    break
+                elif element not in non_priority_elements:
+                    non_priority_elements.append(element)
+
+        # if priotity_elements[] is empty
+        # look for any forms and add them
+        if len(priority_elements) == 0:
+            for element in elements:
+                if element.tag_name == 'form':
+                    # add to priority
+                    priority_elements.append(element)
+                    print('added FORM to priority_elements[]')
+
+        data = {
+            'priority_elements': priority_elements, 
+            'non_priority_elements': non_priority_elements
+        }
+
+        return data
+
+
+
+
+    def get_current_elements(self) -> list:
+        buttons = self.driver.find_elements(By.TAG_NAME, 'button')
+        links = self.driver.find_elements(By.TAG_NAME, 'a')
+        forms = self.driver.find_elements(By.TAG_NAME, 'form')
+        inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+        textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
+        inputs_textareas_buttons = inputs + textareas + buttons
+
+        # get all form inputs, textareas, & buttons
+        form_elems = []
+        for form in forms:
+            # form inputs
+            form_inputs = form.find_elements(By.TAG_NAME, 'input')
+            form_elems += form_inputs
+            # textarea inputs
+            form_textares = form.find_elements(By.TAG_NAME, 'textarea')
+            form_elems += form_textares
+            # textarea inputs
+            form_buttons = form.find_elements(By.TAG_NAME, 'button')
+            form_elems += form_buttons
+        
+        # then remove duplicates
+        for elem in inputs_textareas_buttons:
+            if elem in form_elems:
+                inputs_textareas_buttons.remove(elem)
+        
+        # shuffle elements in place
+        random.shuffle(forms)
+        random.shuffle(inputs_textareas_buttons)
+        random.shuffle(links)
+        
+        current_elements = forms + inputs_textareas_buttons + links
+
+        return current_elements
+
+
+
+
+    def check_for_duplicates(self, selector: str, elements: list=None) -> bool:
+        found_duplicate = False
+        if elements is None:
+            elements = self.elements
+
+        # checking against all final start elements
+        for final_start_elem in self.final_start_elements:
+            if final_start_elem == selector:
+                found_duplicate = True
+                return found_duplicate
+
+        for elem in elements:
+            # check if selector exists already
+            if elem['selector'] == selector:
+                found_duplicate = True
+                break
+
+            # check if sub_elements exists
+            if elem['elements'] != None:
+                self.check_for_duplicates(selector=selector, elements=elem['elements'])
+        
+
+        # return result
+        return found_duplicate
+
+
+
+
+    def get_clean_elements(self, elements: list, check_against: list=None) -> list:
+        cleaned_elements = []
+        current_url = self.driver.current_url
+
+        for elem in elements:
+            # get slector
+            elem_selector = self.driver.execute_script(self.selector_script, elem)
+            
+            # check local duplicates 
+            if check_against is not None:
+                if self.check_for_duplicates(selector=elem_selector, elements=check_against):
+                    print(f'found local duplicate => {elem_selector}')
+                    continue
+            
+            # check global duplicates
+            if self.check_for_duplicates(selector=elem_selector):
+                print(f'found global duplicate => {elem_selector}')
+                continue
+            
+            # check url if <a>
+            if elem.tag_name == 'a':
+                # check if action will reload page or site root
+                elem_link = elem.get_attribute('href')
+                if current_url == elem_link or elem_link == self.site.site_url or elem_link == '/':
+                    print('elem reloads page')
+                    continue
+                # check if action will nav to new site
+                if not elem_link.startswith(self.site.site_url):
+                    print(f'elem links to different site')
+                    continue
+
+            # add to cleaned conditions passed
+            cleaned_elements.append(elem)
+        
+        # return cleaned elements
+        return cleaned_elements
+
+
+
+
+    def record_new_element(self, elem: object, sub_elements: list) -> dict:
+        """
+            returns -> {
+                'sub_elements': [],
+                'run': bool,
+                'added': bool,
+            }
+        """
+        # get sub element info
+        elem_selector = self.driver.execute_script(self.selector_script, elem)
+        elem_img = self.get_element_image(element=elem)
+        relative_url = self.get_relative_url(self.driver.current_url)
+
+        # setting defaults
+        run = True
+        added = False
+
+        # check if element is visible
+        if not self.is_element_visible(elem):
+            data = {
+                'run': run,
+                'added': added,
+                'sub_element': sub_elements
+            }
+            return data
+        
+        # found new element, record, click, & continue
+        if elem.tag_name == 'a' or elem.tag_name == 'button':
+
+            # record element
+            sub_elements.append({
+                'selector': elem_selector,
+                'elem_type': elem.tag_name,
+                'placeholder': None,
+                'value': None,
+                'type': None,
+                'data': None,
+                'action': 'click',
+                'path': relative_url,
+                'img': elem_img,
+                'elements': None,
+            })
+
+            # click element
+            try:
+                elem.click()
+            except Exception as e:
+                print('Element not Clickable, removing')
+                sub_elements.pop()
+
+            # add to layers and ending internal loop
+            added = True
+            run = True
+
+        
+        # found new input or textarea
+        elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
+            
+            type = str(elem.get_attribute('type'))
+            value = elem.get_attribute('value')
+            
+            if elem.tag_name == 'textarea':
+                type = 'textarea'
+
+            # record element
+            sub_elements.append({
+                'selector': elem_selector,
+                'elem_type': elem.tag_name,
+                'placeholder': elem.get_attribute('placeholder'),
+                'value': value,
+                'type': type,
+                'data': self.input_types[type]['test_data'],
+                'action': self.input_types[type]['action'],
+                'path': relative_url,
+                'img': elem_img,
+                'elements': None,
+            })
+            
+            # add to layers and ending internal loop
+            added = True
+            run = True
+        
+
+        # found new form, record and end run
+        elif elem.tag_name == 'form':
+            
+            # record form into sub_elements list
+            sub_elements = self.record_forms(
+                elements=sub_elements, 
+                form=elem
+            )
+
+            # add to layers and ending case
+            added = True
+            run = False
+
+        data = {
+            'sub_elements': sub_elements,
+            'run': run,
+            'added': added
+        }
+
+        return data 
+        
 
 
 
@@ -394,255 +657,6 @@ class AutoCaser():
         return elements
 
 
-
-
-    def get_priority_elements(self, elements: list) -> dict:
-        priority_words = [
-            'cart', 'checkout', 'add to cart', 'add to the cart', 
-            'add to basket', 'add to shopping basket', 'add to shopping cart', 
-            'add to the cart', 'billing', 'address', 'payment', 'purchase now',
-            'order now', 'order', 'shop now', 'continue to payment', 'contact', 
-            'apply', 'submit', 
-        ]
-
-        priority_elements = []
-        non_priority_elements = []
-
-        # checking each element for prioriry words
-        for element in elements:
-
-            # get element's innerText
-            elem_selector = self.driver.execute_script(self.selector_script, element)
-            elm_text = self.driver.execute_script(f'return document.querySelector("{elem_selector}").innerText')
-
-            # check each priority word against element innerText
-            for word in priority_words:
-                if word in elm_text.lower() or elm_text.lower() in word:
-                    priority_elements.append(element)
-                    break
-                elif element not in non_priority_elements:
-                    non_priority_elements.append(element)
-
-        # if priotity_elements[] is empty
-        # look for any forms and add them
-        if len(priority_elements) == 0:
-            for element in elements:
-                if element.tag_name == 'form':
-                    # add to priority
-                    priority_elements.append(element)
-                    print('added FORM to priority_elements[]')
-
-        data = {
-            'priority_elements': priority_elements, 
-            'non_priority_elements': non_priority_elements
-        }
-
-        return data
-
-
-
-
-    def get_current_elements(self) -> list:
-        buttons = self.driver.find_elements(By.TAG_NAME, 'button')
-        links = self.driver.find_elements(By.TAG_NAME, 'a')
-        forms = self.driver.find_elements(By.TAG_NAME, 'form')
-        inputs = self.driver.find_elements(By.TAG_NAME, 'input')
-        textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
-        inputs_textareas_buttons = inputs + textareas + buttons
-
-        # get all form inputs, textareas, & buttons
-        form_elems = []
-        for form in forms:
-            # form inputs
-            form_inputs = form.find_elements(By.TAG_NAME, 'input')
-            form_elems += form_inputs
-            # textarea inputs
-            form_textares = form.find_elements(By.TAG_NAME, 'textarea')
-            form_elems += form_textares
-            # textarea inputs
-            form_buttons = form.find_elements(By.TAG_NAME, 'button')
-            form_elems += form_buttons
-        
-        # then remove duplicates
-        for elem in inputs_textareas_buttons:
-            if elem in form_elems:
-                inputs_textareas_buttons.remove(elem)
-        
-        # shuffle elements in place
-        random.shuffle(forms)
-        random.shuffle(inputs_textareas_buttons)
-        random.shuffle(links)
-        
-        current_elements = forms + inputs_textareas_buttons + links
-
-        return current_elements
-
-
-
-
-    def check_for_duplicates(self, selector: str, elements: list=None) -> bool:
-        found_duplicate = False
-        if elements is None:
-            elements = self.elements
-
-        # checking against all final start elements
-        for final_start_elem in self.final_start_elements:
-            if final_start_elem == selector:
-                found_duplicate = True
-                return found_duplicate
-
-        for elem in elements:
-            # check if selector exists already
-            if elem['selector'] == selector:
-                found_duplicate = True
-                break
-
-            # check if sub_elements exists
-            if elem['elements'] != None:
-                self.check_for_duplicates(selector=selector, elements=elem['elements'])
-        
-
-        # return result
-        return found_duplicate
-
-
-
-
-    def get_clean_elements(self, elements: list, check_against: list=None) -> list:
-        cleaned_elements = []
-        current_url = self.driver.current_url
-
-        for elem in elements:
-            # get slector
-            elem_selector = self.driver.execute_script(self.selector_script, elem)
-            
-            # check local duplicates 
-            if check_against is not None:
-                if self.check_for_duplicates(selector=elem_selector, elements=check_against):
-                    print(f'found local duplicate => {elem_selector}')
-                    continue
-            
-            # check global duplicates
-            if self.check_for_duplicates(selector=elem_selector):
-                print(f'found global duplicate => {elem_selector}')
-                continue
-            
-            # check url if <a>
-            if elem.tag_name == 'a':
-                # check if action will reload page or site root
-                elem_link = elem.get_attribute('href')
-                if current_url == elem_link or elem_link == self.site.site_url or elem_link == '/':
-                    print('elem reloads page')
-                    continue
-                # check if action will nav to new site
-                if not elem_link.startswith(self.site.site_url):
-                    print(f'elem links to different site')
-                    continue
-
-            # add to cleaned conditions passed
-            cleaned_elements.append(elem)
-        
-        # return cleaned elements
-        return cleaned_elements
-
-
-
-
-    def record_new_element(self, elem: object, sub_elements: list) -> dict:
-        """
-            returns -> {
-                'sub_elements': [],
-                'run': bool,
-                'added': bool,
-            }
-        """
-        # get sub element info
-        elem_selector = self.driver.execute_script(self.selector_script, elem)
-        elem_img = self.get_element_image(element=elem)
-        relative_url = self.get_relative_url(self.driver.current_url)
-
-        # setting defaults
-        run = True
-        added = False
-        
-        # found new element, record, click, & continue
-        if elem.tag_name == 'a' or elem.tag_name == 'button':
-
-            # record element
-            sub_elements.append({
-                'selector': elem_selector,
-                'elem_type': elem.tag_name,
-                'placeholder': None,
-                'value': None,
-                'type': None,
-                'data': None,
-                'action': 'click',
-                'path': relative_url,
-                'img': elem_img,
-                'elements': None,
-            })
-
-            # click element
-            try:
-                elem.click()
-            except Exception as e:
-                print('Element not Clickable, removing')
-                sub_elements.pop()
-
-            # add to layers and ending internal loop
-            added = True
-            run = True
-
-        
-        # found new input or textarea
-        elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
-            
-            type = str(elem.get_attribute('type'))
-            value = elem.get_attribute('value')
-            
-            if elem.tag_name == 'textarea':
-                type = 'textarea'
-
-            # record element
-            sub_elements.append({
-                'selector': elem_selector,
-                'elem_type': elem.tag_name,
-                'placeholder': elem.get_attribute('placeholder'),
-                'value': value,
-                'type': type,
-                'data': self.input_types[type]['test_data'],
-                'action': self.input_types[type]['action'],
-                'path': relative_url,
-                'img': elem_img,
-                'elements': None,
-            })
-            
-            # add to layers and ending internal loop
-            added = True
-            run = True
-        
-
-        # found new form, record and end run
-        elif elem.tag_name == 'form':
-            
-            # record form into sub_elements list
-            sub_elements = self.record_forms(
-                elements=sub_elements, 
-                form=elem
-            )
-
-            # add to layers and ending case
-            added = True
-            run = False
-
-        data = {
-            'sub_elements': sub_elements,
-            'run': run,
-            'added': added
-        }
-
-        return data 
-        
 
 
 
