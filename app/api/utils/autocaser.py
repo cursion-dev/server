@@ -109,6 +109,8 @@ class AutoCaser():
             "time":             {'test_data': '12:34', 'action': 'change'},
             "url":              {'test_data': 'https://example.com', 'action': 'change'},
             "week":             {'test_data': '2024-W15', 'action': 'change'},
+            "textarea":         {'test_data': 'This is longer example text for testing.', 'action': 'change'},
+            "None":             {'test_data': None, 'action': None},
         }
 
         # setting blacklist for input types to ignore
@@ -246,7 +248,7 @@ class AutoCaser():
                     input_selector = self.driver.execute_script(self.selector_script, i)
                     placeholder = i.get_attribute('placeholder')
                     value = i.get_attribute('value')
-                    type = i.get_attribute('type')
+                    type = str(i.get_attribute('type'))
                     img = self.get_element_image(element=i)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
@@ -273,7 +275,7 @@ class AutoCaser():
                     # get input data
                     input_selector = self.driver.execute_script(self.selector_script, i)
                     placeholder = i.get_attribute('placeholder')
-                    type = i.get_attribute('type')
+                    type = str(i.get_attribute('type'))
                     img = self.get_element_image(element=i)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
@@ -283,8 +285,8 @@ class AutoCaser():
                         'placeholder': placeholder,
                         'value': None,
                         'type': type,
-                        'data': 'This is longer example text for testing.',
-                        'action': 'change',
+                        'data': self.input_types['textarea']['test_data'],
+                        'action': self.input_types['textarea']['action'],
                         'path': relative_url,
                         'img': img,
                         'elements': None,
@@ -313,7 +315,7 @@ class AutoCaser():
                         input_selector = self.driver.execute_script(self.selector_script, i)
                         placeholder = i.get_attribute('placeholder')
                         value = i.get_attribute('value')
-                        type = i.get_attribute('type')
+                        type = str(i.get_attribute('type'))
                         img = self.get_element_image(element=i)
                         relative_url = self.get_relative_url(self.driver.current_url)
 
@@ -354,7 +356,7 @@ class AutoCaser():
                 if self.is_element_visible(btn):
                     # get button data
                     btn_selector = self.driver.execute_script(self.selector_script, btn)
-                    type = btn.get_attribute('type')
+                    type = str(btn.get_attribute('type'))
                     btn_img = self.get_element_image(element=btn)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
@@ -444,22 +446,22 @@ class AutoCaser():
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
-        # inputs = self.driver.find_elements(By.TAG_NAME, 'input')
-        # textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
-        inputs_textareas_buttons = buttons # inputs + textareas +
+        inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+        textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
+        inputs_textareas_buttons = inputs + textareas + buttons
 
         # get all form inputs, textareas, & buttons
         form_elems = []
         for form in forms:
             # form inputs
             form_inputs = form.find_elements(By.TAG_NAME, 'input')
-            inputs_textareas_buttons += form_inputs
+            form_elems += form_inputs
             # textarea inputs
             form_textares = form.find_elements(By.TAG_NAME, 'textarea')
-            inputs_textareas_buttons += form_textares
+            form_elems += form_textares
             # textarea inputs
             form_buttons = form.find_elements(By.TAG_NAME, 'button')
-            inputs_textareas_buttons += form_buttons
+            form_elems += form_buttons
         
         # then remove duplicates
         for elem in inputs_textareas_buttons:
@@ -543,6 +545,104 @@ class AutoCaser():
         # return cleaned elements
         return cleaned_elements
 
+
+
+
+    def record_new_element(self, elem: object, sub_elements: list) -> dict:
+        """
+            returns -> {
+                'sub_elements': [],
+                'run': bool,
+                'added': bool,
+            }
+        """
+        # get sub element info
+        elem_selector = self.driver.execute_script(self.selector_script, elem)
+        elem_img = self.get_element_image(element=elem)
+        relative_url = self.get_relative_url(self.driver.current_url)
+
+        # setting defaults
+        run = True
+        added = False
+        
+        # found new element, record, click, & continue
+        if elem.tag_name == 'a' or elem.tag_name == 'button':
+
+            # record element
+            sub_elements.append({
+                'selector': elem_selector,
+                'elem_type': elem.tag_name,
+                'placeholder': None,
+                'value': None,
+                'type': None,
+                'data': None,
+                'action': 'click',
+                'path': relative_url,
+                'img': elem_img,
+                'elements': None,
+            })
+
+            # click element
+            try:
+                elem.click()
+            except Exception as e:
+                print('Element not Clickable, removing')
+                sub_elements.pop()
+
+            # add to layers and ending internal loop
+            added = True
+            run = True
+
+        
+        # found new input or textarea
+        elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
+            
+            type = str(elem.get_attribute('type'))
+            value = elem.get_attribute('value')
+            
+            if elem.tag_name == 'textarea':
+                type = 'textarea'
+
+            # record element
+            sub_elements.append({
+                'selector': elem_selector,
+                'elem_type': elem.tag_name,
+                'placeholder': elem.get_attribute('placeholder'),
+                'value': value,
+                'type': type,
+                'data': self.input_types[type]['test_data'],
+                'action': self.input_types[type]['action'],
+                'path': relative_url,
+                'img': elem_img,
+                'elements': None,
+            })
+            
+            # add to layers and ending internal loop
+            added = True
+            run = True
+        
+
+        # found new form, record and end run
+        elif elem.tag_name == 'form':
+            
+            # record form into sub_elements list
+            sub_elements = self.record_forms(
+                elements=sub_elements, 
+                form=elem
+            )
+
+            # add to layers and ending case
+            added = True
+            run = False
+
+        data = {
+            'sub_elements': sub_elements,
+            'run': run,
+            'added': added
+        }
+
+        return data 
+        
 
 
 
@@ -695,57 +795,95 @@ class AutoCaser():
                     cleaned_elements = self.get_clean_elements(new_elements, check_against=sub_elements)
 
                     # iterating through each elem 
+                    recorded_element = False
                     for elem in cleaned_elements:
 
                         # get sub element info
-                        elem_selector = self.driver.execute_script(self.selector_script, elem)
-                        elem_img = self.get_element_image(element=elem)
-                        relative_url = self.get_relative_url(self.driver.current_url)
+                        # elem_selector = self.driver.execute_script(self.selector_script, elem)
+                        # elem_img = self.get_element_image(element=elem)
+                        # relative_url = self.get_relative_url(self.driver.current_url)
                         
-                        # found new element, record, click, & continue
-                        if elem.tag_name == 'a' or elem.tag_name == 'button':
+                        # # found new element, record, click, & continue
+                        # if elem.tag_name == 'a' or elem.tag_name == 'button':
 
-                            # record element
-                            sub_elements.append({
-                                'selector': elem_selector,
-                                'elem_type': elem.tag_name,
-                                'placeholder': None,
-                                'value': None,
-                                'type': None,
-                                'data': None,
-                                'action': 'click',
-                                'path': relative_url,
-                                'img': elem_img,
-                                'elements': None,
-                            })
+                        #     # record element
+                        #     sub_elements.append({
+                        #         'selector': elem_selector,
+                        #         'elem_type': elem.tag_name,
+                        #         'placeholder': None,
+                        #         'value': None,
+                        #         'type': None,
+                        #         'data': None,
+                        #         'action': 'click',
+                        #         'path': relative_url,
+                        #         'img': elem_img,
+                        #         'elements': None,
+                        #     })
 
-                            # click element
-                            try:
-                                elem.click()
-                            except Exception as e:
-                                print('Element not Clickable, removing')
-                                sub_elements.pop()
+                        #     # click element
+                        #     try:
+                        #         elem.click()
+                        #     except Exception as e:
+                        #         print('Element not Clickable, removing')
+                        #         sub_elements.pop()
 
-                            # add to layers and ending internal loop
-                            layers += 1
-                            break
+                        #     # add to layers and ending internal loop
+                        #     layers += 1
+                        #     break
+
                         
-                        # found new form, record and end run
-                        elif elem.tag_name == 'form':
+                        # # found new input or textarea
+                        # elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
+                            
+                        #     type = str(elem.get_attribute('type'))
+                        #     value = elem.get_attribute('value')
+                            
+                        #     if elem.tag_name == 'textarea':
+                        #         type = 'textarea'
+
+                        #     # record element
+                        #     sub_elements.append({
+                        #         'selector': elem_selector,
+                        #         'elem_type': elem.tag_name,
+                        #         'placeholder': elem.get_attribute('placeholder'),
+                        #         'value': value,
+                        #         'type': type,
+                        #         'data': self.input_types[type]['test_data'],
+                        #         'action': self.input_types[type]['action'],
+                        #         'path': relative_url,
+                        #         'img': elem_img,
+                        #         'elements': None,
+                        #     })
+                            
+                        #     # add to layers and ending internal loop
+                        #     layers += 1
+                        #     break
+                        
+
+                        # # found new form, record and end run
+                        # elif elem.tag_name == 'form':
                             
                             # record form into sub_elements list
-                            sub_elements = self.record_forms(
-                                elements=sub_elements, 
-                                form=elem
-                            )
+                            # sub_elements = self.record_forms(
+                            #     elements=sub_elements, 
+                            #     form=elem
+                            # )
 
-                            # add to layers and ending case
-                            layers += 1
-                            run = False
-                            break
-                    
+                            # # add to layers and ending case
+                            # layers += 1
+                            # run = False
+                            # break
+                        
+                        # record element and increment if necessary
+                        data = self.record_new_element(elem, sub_elements) 
+                        run = data['run']
+                        layers += 1 if data['added'] else 0
+                        sub_elements = data['sub_elements']
+                        recorded_element = data['added']
+                        
                     # add to layers
-                    layers += 1
+                    if not recorded_element:
+                        layers += 1
 
 
                 # check if page is different but still on site
@@ -788,52 +926,89 @@ class AutoCaser():
                         run = False
                         break
 
-                    # get sub element info
-                    elem_selector = self.driver.execute_script(self.selector_script, elem)
-                    elem_img = self.get_element_image(element=elem)
-                    relative_url = self.get_relative_url(self.driver.current_url)
+                    # # get sub element info
+                    # elem_selector = self.driver.execute_script(self.selector_script, elem)
+                    # elem_img = self.get_element_image(element=elem)
+                    # relative_url = self.get_relative_url(self.driver.current_url)
 
-                    # check the type of element
-                    if elem.tag_name == 'form':
-                        # record form into sub_elements list
-                        sub_elements = self.record_forms(
-                            elements=sub_elements,
-                            form=elem
-                        )
+                    # if elem.tag_name == 'a' or elem.tag_name == 'button':
+                    #     # record element
+                    #     sub_elements.append({
+                    #         'selector': elem_selector,
+                    #         'elem_type': elem.tag_name,
+                    #         'placeholder': None,
+                    #         'value': None,
+                    #         'type': None,
+                    #         'data': None,
+                    #         'action': 'click',
+                    #         'path': relative_url,
+                    #         'img': elem_img,
+                    #         'elements': None,
+                    #     })
 
-                        # add to layers and ending case
-                        layers += 1
-                        run = False
-                        break
-                
-                    elif elem.tag_name == 'a' or elem.tag_name == 'button':
-                        # record element
-                        sub_elements.append({
-                            'selector': elem_selector,
-                            'elem_type': elem.tag_name,
-                            'placeholder': None,
-                            'value': None,
-                            'type': None,
-                            'data': None,
-                            'action': 'click',
-                            'path': relative_url,
-                            'img': elem_img,
-                            'elements': None,
-                        })
+                    #     # add to layers
+                    #     layers += 1
 
-                        # add to layers
-                        layers += 1
+                    #     # click element
+                    #     try:
+                    #         elem.click()
+                    #     except Exception as e:
+                    #         print('Element not Clickable, removing')
+                    #         sub_elements.pop()
 
-                        # click element
-                        try:
-                            elem.click()
-                        except Exception as e:
-                            print('Element not Clickable, removing')
-                            sub_elements.pop()
                     
+                    # # found new input or textarea
+                    # elif elem.tag_name == 'input' or elem.tag_name == 'textarea':
+                        
+                    #     type = str(elem.get_attribute('type'))
+                    #     value = elem.get_attribute('value')
+                        
+                    #     if elem.tag_name == 'textarea':
+                    #         type = 'textarea'
+
+                    #     # record element
+                    #     sub_elements.append({
+                    #         'selector': elem_selector,
+                    #         'elem_type': elem.tag_name,
+                    #         'placeholder': elem.get_attribute('placeholder'),
+                    #         'value': value,
+                    #         'type': type,
+                    #         'data': self.input_types[type]['test_data'],
+                    #         'action': self.input_types[type]['action'],
+                    #         'path': relative_url,
+                    #         'img': elem_img,
+                    #         'elements': None,
+                    #     })
+                        
+                    #     # add to layers and ending internal loop
+                    #     layers += 1
+                    #     break
+                        
+                    
+                    # # check the type of element
+                    # elif elem.tag_name == 'form':
+                        # record form into sub_elements list
+                        # sub_elements = self.record_forms(
+                        #     elements=sub_elements,
+                        #     form=elem
+                        # )
+
+                        # # add to layers and ending case
+                        # layers += 1
+                        # run = False
+                        # break
+            
+            
+                    # record element and increment if necessary
+                    data = self.record_new_element(elem, sub_elements) 
+                    run = data['run']
+                    layers += 1 if data['added'] else 0
+                    sub_elements = data['sub_elements']
+
+
                     # catching all other situations
                     # naving back to previous_url   
-                    else:
+                    if not data['added']:
                         print('no coditions were met')
                         # add to layers
                         layers += 1
