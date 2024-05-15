@@ -278,10 +278,13 @@ class AutoCaser():
             form_elems += form_buttons
         
         # then remove duplicates
+        print(f'pre len of list -> {len(inputs_textareas_buttons)}')
         for elem in inputs_textareas_buttons:
             if elem in form_elems:
                 print('element already recorded in FORM')
                 inputs_textareas_buttons.remove(elem)
+        
+        print(f'post len of list -> {len(inputs_textareas_buttons)}')
         
         # shuffle elements in place
         random.shuffle(forms)
