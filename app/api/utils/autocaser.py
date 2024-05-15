@@ -926,14 +926,14 @@ class AutoCaser():
                         elem = priority_elements[
                             random.randint(0, (len(priority_elements) - 1)) if len(priority_elements) > 1 else 0
                         ]
-                        print(f'choose priority element | type -> {elem.tag_name}')
+                        print(f'chose priority element | type -> {elem.tag_name}')
 
                     # choosing a random non-priority element
                     elif len(non_priority_elements) > 0:
                         elem = non_priority_elements[
                             random.randint(0, (len(non_priority_elements) - 1)) if len(non_priority_elements) > 1 else 0
                         ]
-                        print(f'choose non-priority element | type -> {elem.tag_name}')
+                        print(f'chose non-priority element | type -> {elem.tag_name}')
 
                     # returning early if no elem selected
                     if not elem:
