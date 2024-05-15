@@ -162,12 +162,15 @@ class AutoCaser():
 
 
     def is_element_visible(self, element: object) -> bool: 
-        resp = self.driver.execute_script(self.visible_script, element)
-        resp = str(resp).lower()
-        if resp == 'true':
-            return True
-        if resp == 'false':
-            return False
+        try:
+            resp = self.driver.execute_script(self.visible_script, element)
+            resp = str(resp).lower()
+            if resp == 'true':
+                return True
+            if resp == 'false':
+                return False
+        except Exception as e:
+            print(f'is_element_visible() Exception -> {e}')
 
 
 
