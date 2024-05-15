@@ -98,18 +98,16 @@ class Lighthouse():
         }
         params = {
             "url": self.page.page_url,
-            "category": "accessibility",
-            "category": "best-practices",
-            "category": "performance",
-            "category": "pwa",
-            "category": "seo",
             "strategy": self.configs["device"],
             "key": settings.GOOGLE_CRUX_KEY
         }
 
+        # cats
+        cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=PWA&category=SEO'
+
         # setting up initial request
         res = requests.get(
-            url=f'{settings.LIGHTHOUSE_ROOT}',
+            url=f'{settings.LIGHTHOUSE_ROOT}?{cats}',
             params=params,
             headers=headers
         ).json()
