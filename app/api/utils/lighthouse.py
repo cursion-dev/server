@@ -16,8 +16,37 @@ class Lighthouse():
         self.configs = configs
         self.sizes = configs['window_size'].split(',')
 
+        # initial scores object
+        scores = {
+            "seo": None,
+            "accessibility": None,
+            "performance": None,
+            "best-practices": None,
+            "pwa": None,
+            "crux": None,
+            "average": None
+        }
+        
+        # initial audits object
+        audits = {
+            "seo": [],
+            "accessibility": [],
+            "performance": [],
+            "best-practices": [],
+            "pwa": [],
+            "crux": []
+        }
+
     
-    def init_audit(self):
+    def lighthouse_cli(self):
+        """ 
+        Serves as the CLI method for collecting LH metrics.
+        Creates a sub process running lighthouse CLI
+
+        Returns --> raw LH data (Dict)
+        """
+
+        # initiating subprocess for LH CLI
         proc = subprocess.Popen([
                 'lighthouse', 
                 '--config-path=api/utils/custom-config.js',
@@ -30,15 +59,79 @@ class Lighthouse():
                 f'--screenEmulation.{self.configs["device"]}',
                 '--output',
                 'json', 
-                ], 
+            ], 
             stdout=subprocess.PIPE,
             user='app',
         )
+
+        # retrieving data from process
         stdout_value = proc.communicate()[0]
-        return stdout_value
+        
+        # decode bytes into string
+        stdout_string = stdout_value.decode('iso-8859-1')
+
+        # clean string of any errors
+        delm = '{\n  "lighthouseVersion"'
+        stdout_string = delm + stdout_string.split(delm)[1]
+
+        # encode back to bytes
+        stdout_value = stdout_string.encode('iso-8859-1')
+        
+        # converting stdout str into Dict
+        stdout_json = json.loads(stdout_value)
+        return stdout_json
 
 
-    def get_data(self):
+
+
+    def lighthouse_api(self) -> dict:
+        """ 
+        Serves as the API method for collecting LH metrics.
+        Sends API requests to 
+
+        Returns --> raw LH data (Dict)
+        """
+
+        # defaults
+        headers = {
+            "content-type": "application/json",
+        }
+        params = {
+            "url": self.page.page_url,
+            "category": "accessibility",
+            "category": "best-practices",
+            "category": "performance",
+            "category": "pwa",
+            "category": "seo",
+            "strategy": self.configs["device"],
+            "key": settings.GOOGLE_CRUX_KEY
+        }
+
+        # setting up initial request
+        res = requests.get(
+            url=f'{settings.LIGHTHOUSE_ROOT}',
+            params=params,
+            headers=headers
+        ).json()
+
+        # try to get just LH response
+        res = res.get('lighthouseResult')
+
+        # return response
+        return res
+
+
+
+    def process_data(self, stdout_json: dict) -> dict:
+        """ 
+        Accepts JSON data from either CLI or API method 
+        and parses into usable Scanerr data.
+
+        Expects the following:
+            stdout_json: <dict> or json from output
+            
+        Returns --> formatted LH data <dict> 
+        """
 
         # setup boto3 configurations
         s3 = boto3.client(
@@ -48,138 +141,134 @@ class Lighthouse():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
+        # iterating through categories to get relevant lh_audits 
+        # and store them in their respective `audits = {}` obj
+        for cat in self.audits:
+            # skipping non-existent cat
+            if stdout_json["categories"].get(cat) is None:
+                continue
+            cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
+            if cat_audits is not None:
+                for a in cat_audits:
+                    if int(a["weight"]) > 0:
+                        audit = stdout_json["audits"][a["id"]]
+                        self.audits[cat].append(audit)
+       
+        # get scores from each category
+        for key in self.scores:
+            self.scores[key] = round(stdout_json["categories"][key]["score"])
+        
+        # get scores from each category
+        # seo_score = round(stdout_json["categories"]["seo"]["score"] * 100)
+        # accessibility_score = round(stdout_json["categories"]["accessibility"]["score"] * 100)
+        # performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
+        # best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
+        # pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
+
+        # changing audits & score names
+        self.scores['best_practices'] = self.scores.pop('best-practices')
+        self.audits['best_practices'] = self.audits.pop('best-practices')
+        self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
+       
+        
+        # attempting crux
         try:
-            stdout_value = self.init_audit() 
-            # decode bytes into string
-            stdout_string = stdout_value.decode('iso-8859-1')
+            crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
+        except:
+            crux_score = 0
 
-            # clean string of any errors
-            delm = '{\n  "lighthouseVersion"'
-            stdout_string = delm + stdout_string.split(delm)[1]
+        # dynamically calculating average
+        if crux_score == 0 :
+            crux_score = None
+            average_score = round((
+                    seo_score + accessibility_score + performance_score 
+                    + best_practices_score + pwa_score
+                )/ 5)
+        else:
+            average_score = round((
+                    seo_score + accessibility_score + performance_score 
+                    + best_practices_score + pwa_score + crux_score
+                )/ 6)
 
-            # encode back to bytes
-            stdout_value = stdout_string.encode('iso-8859-1')
+        # # updating global scores
+        # self.scores = {
+        #     "seo": seo_score,
+        #     "accessibility": accessibility_score,
+        #     "performance": performance_score,
+        #     "best_practices": best_practices_score,
+        #     "pwa": pwa_score,
+        #     "crux": crux_score,
+        #     "average": average_score
+        # }
 
+        # save audits data as json file
+        file_id = uuid.uuid4()
+        with open(f'{file_id}.json', 'w') as fp:
+            json.dump(self.audits, fp)
         
-            if len(stdout_string) != 0:
-                if 'Runtime error encountered' in stdout_string:
-                    error = {'error': 'lighthouse ran into a problem',}
-                    return error
+        # upload to s3 and return url
+        audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+        remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
+        root_path = settings.AWS_S3_URL_PATH
+        audits_url = f'{root_path}/{remote_path}'
+    
+        # upload to s3
+        with open(audit_file, 'rb') as data:
+            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+            )
+        # remove local copy
+        os.remove(audit_file)
 
-                stdout_json = json.loads(stdout_value)
+        # updating opjects
+        self.audits = audits_url
 
-                # initial audits object
-                audits = {
-                    "seo": [],
-                    "accessibility": [],
-                    "performance": [],
-                    "best-practices": [],
-                    "lighthouse-plugin-crux": [],
-                    "pwa": []
-                }
+        data = {
+            "scores": self.scores, 
+            "audits": self.audits,
+            "failed": False
+        }
 
-                # iterating through categories to get relevant lh_audits 
-                # and store them in their respective `audits = {}` obj
-                for cat in audits:
-                    cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
-                    if cat_audits is not None:
-                        for a in cat_audits:
-                            if int(a["weight"]) > 0:
-                                audit = stdout_json["audits"][a["id"]]
-                                audits[cat].append(audit)
-                # changing audits names
-                audits['best_practices'] = audits.pop('best-practices')
-                audits['crux'] = audits.pop('lighthouse-plugin-crux')
+        # returning data 
+        return data
+
+
+    
+    def get_data(self):
+
+        scan_complete = False
+        failed = None
+        attempts = 0
+        
+        # trying lighthouse scan untill success or 2 attempts
+        while not scan_complete and attempts < 2:
+
+            try:
+                # CLI on first attempt
+                if attempts < 1:
+                    # raw_data = self.lighthouse_cli()
+                    raw_data = self.lighthouse_api()
+                    self.process_data(stdout_json=raw_data)
                 
-                # get scores from each category
-                seo_score = round(stdout_json["categories"]["seo"]["score"] * 100)
-                accessibility_score = round(stdout_json["categories"]["accessibility"]["score"] * 100)
-                performance_score = round(stdout_json["categories"]["performance"]["score"] * 100)
-                best_practices_score = round(stdout_json["categories"]["best-practices"]["score"] * 100)
-                pwa_score = round(stdout_json["categories"]["pwa"]["score"] * 100)
-                
-                # attempting crux
-                try:
-                    crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
-                except:
-                    crux_score = 0
+                # API after first attempt
+                if attempts >= 1:
+                    raw_data = self.lighthouse_api()
+                    self.process_data(stdout_json=raw_data)
 
-                if crux_score == 0 :
-                    crux_score = None
-                    average_score = round((
-                            seo_score + accessibility_score + performance_score 
-                            + best_practices_score + pwa_score
-                        )/ 5)
-                else:
-                    average_score = round((
-                            seo_score + accessibility_score + performance_score 
-                            + best_practices_score + pwa_score + crux_score
-                        )/ 6)
+                scan_complete = True
+                failed = False
 
-                scores = {
-                    "seo": seo_score,
-                    "accessibility": accessibility_score,
-                    "performance": performance_score,
-                    "best_practices": best_practices_score,
-                    "pwa": pwa_score,
-                    "crux": crux_score,
-                    "average": average_score
-                }
+            except Exception as e:
+                print(f'LIGHTHOUSE FAILED (attempt {attempts}) --> {e}')
+                scan_complete = False
+                failed = True
+                attempts += 1
 
-                # save audits data as json file
-                file_id = uuid.uuid4()
-                with open(f'{file_id}.json', 'w') as fp:
-                    json.dump(audits, fp)
-                
-                # upload to s3 and return url
-                audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
-                remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
-                root_path = settings.AWS_S3_URL_PATH
-                audits_url = f'{root_path}/{remote_path}'
+        data = {
+            "scores": self.scores, 
+            "audits": self.audits,
+            "failed": failed
+        }
             
-                # upload to s3
-                with open(audit_file, 'rb') as data:
-                    s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
-                    )
-                # remove local copy
-                os.remove(audit_file)
-
-                data = {
-                    "scores": scores, 
-                    "audits": audits_url,
-                    "failed": False
-                }
-
-            else:
-                raise RuntimeError
-        
-        except Exception as e:
-            print(e)
-
-            scores = {
-                "seo": None,
-                "accessibility": None,
-                "performance": None,
-                "best_practices": None,
-                "pwa": None,
-                "crux": None,
-                "average": None
-            }
-
-            audits = {
-                "seo": [],
-                "accessibility": [],
-                "performance": [],
-                "best_practices": [],
-                "pwa": [],
-                "crux": []
-            }
-
-            data = {
-                "scores": scores, 
-                "audits": audits,
-                "failed": True
-            }
-        
+        # returning final data
         return data
