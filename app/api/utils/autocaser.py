@@ -428,6 +428,7 @@ class AutoCaser():
                 if element.tag_name == 'form':
                     # add to priority
                     priority_elements.append(element)
+                    print('added FORM to priority_elements[]')
 
         data = {
             'priority_elements': priority_elements, 
@@ -581,22 +582,22 @@ class AutoCaser():
             return self.elements
 
         # choosing random priority element
-        if len(priority_elements) > 1:
+        if len(priority_elements) > 0:
             choosen = priority_elements[
-                random.randint(0, (len(priority_elements) - 1))
+                random.randint(0, (len(priority_elements) - 1)) if len(priority_elements) > 1 else 0
             ]
             self.final_start_elements.append(
                 self.driver.execute_script(self.selector_script, choosen)
             )
 
-        # adding random elements until 
-        # "max_cases" is reached
+        # adding random elements to self.final_start_elements[]
+        # until max_cases" is reached
         iterations = 0
         while (len(self.final_start_elements) + len(self.elements)) < self.max_cases and iterations < (5 * self.max_cases):
 
             # random choice
             choosen = non_priority_elements[
-                random.randint(0, (len(non_priority_elements) - 1))
+                random.randint(0, (len(non_priority_elements) - 1)) if len(non_priority_elements) > 1 else 0
             ]
 
             # checking if chosen element is visible
@@ -768,17 +769,20 @@ class AutoCaser():
                     # choosing random priority elememt 
                     if len(priority_elements) > 0:
                         elem = priority_elements[
-                            random.randint(0, (len(priority_elements) - 1))
+                            random.randint(0, (len(priority_elements) - 1)) if len(priority_elements) > 1 else 0
                         ]
+                        print(f'choose priority element | type -> {elem.tag_name}')
 
                     # choosing a random non-priority element
                     elif len(non_priority_elements) > 0:
                         elem = non_priority_elements[
-                            random.randint(0, (len(non_priority_elements) - 1))
+                            random.randint(0, (len(non_priority_elements) - 1)) if len(non_priority_elements) > 1 else 0
                         ]
+                        print(f'choose non-priority element | type -> {elem.tag_name}')
 
                     # returning early if no elem selected
                     if not elem:
+                        print('no element was selected')
                         # add to layers and ending case
                         layers += 1
                         run = False
