@@ -376,7 +376,7 @@ class AutoCaser():
             data = {
                 'run': run,
                 'added': added,
-                'sub_element': sub_elements
+                'sub_elements': sub_elements
             }
             return data
 
