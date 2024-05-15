@@ -225,26 +225,29 @@ class Lighthouse():
         # trying lighthouse scan untill success or 2 attempts
         while not scan_complete and attempts < 2:
 
-            try:
-                # CLI on first attempt
-                if attempts < 1:
-                    # raw_data = self.lighthouse_cli()
-                    raw_data = self.lighthouse_api()
-                    self.process_data(stdout_json=raw_data)
+            raw_data = self.lighthouse_api()
+            self.process_data(stdout_json=raw_data)
+
+            # try:
+            #     # CLI on first attempt
+            #     if attempts < 1:
+            #         # raw_data = self.lighthouse_cli()
+            #         raw_data = self.lighthouse_api()
+            #         self.process_data(stdout_json=raw_data)
                 
-                # API after first attempt
-                if attempts >= 1:
-                    raw_data = self.lighthouse_api()
-                    self.process_data(stdout_json=raw_data)
+            #     # API after first attempt
+            #     if attempts >= 1:
+            #         raw_data = self.lighthouse_api()
+            #         self.process_data(stdout_json=raw_data)
 
-                scan_complete = True
-                failed = False
+            #     scan_complete = True
+            #     failed = False
 
-            except Exception as e:
-                print(f'LIGHTHOUSE FAILED (attempt {attempts}) --> {e}')
-                scan_complete = False
-                failed = True
-                attempts += 1
+            # except Exception as e:
+            #     print(f'LIGHTHOUSE FAILED (attempt {attempts}) --> {e}')
+            #     scan_complete = False
+            #     failed = True
+            #     attempts += 1
 
         data = {
             "scores": self.scores, 
