@@ -170,7 +170,7 @@ class AutoCaser():
             if resp == 'false':
                 return False
         except Exception as e:
-            print(f'is_element_visible() Exception -> {e}')
+            print(f'is_element_visible() Exception -> Stale element reference')
 
 
 
@@ -280,6 +280,7 @@ class AutoCaser():
         # then remove duplicates
         for elem in inputs_textareas_buttons:
             if elem in form_elems:
+                print('element already recorded in FORM')
                 inputs_textareas_buttons.remove(elem)
         
         # shuffle elements in place
