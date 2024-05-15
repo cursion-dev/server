@@ -420,6 +420,14 @@ class AutoCaser():
                 elif element not in non_priority_elements:
                     non_priority_elements.append(element)
 
+        # if priotity_elements[] is empty
+        # look for any forms and add them
+        if len(priority_elements) == 0:
+            for element in elements:
+                if element.tag_name == 'form':
+                    # add to priority
+                    priority_elements.append(element)
+
         data = {
             'priority_elements': priority_elements, 
             'non_priority_elements': non_priority_elements
@@ -434,9 +442,9 @@ class AutoCaser():
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
-        inputs = self.driver.find_elements(By.TAG_NAME, 'input')
-        textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
-        inputs_textareas_buttons = inputs + textareas + buttons
+        # inputs = self.driver.find_elements(By.TAG_NAME, 'input')
+        # textareas = self.driver.find_elements(By.TAG_NAME, 'textarea')
+        inputs_textareas_buttons = buttons # inputs + textareas +
 
         # get all form inputs, textareas, & buttons
         form_elems = []
