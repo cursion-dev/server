@@ -189,8 +189,8 @@ def create_site(request, delay=False):
             process_id=process.id,
             start_url=str(site.site_url),
             configs=configs,
-            max_cases=4,
-            max_layers=6
+            max_cases=3,
+            max_layers=8
         )
         
         # check if this is account's first site and onboarding = True
