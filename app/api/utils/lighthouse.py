@@ -214,12 +214,12 @@ class Lighthouse():
         scan_complete = False
         failed = None
         attempts = 0
-        
-        # trying lighthouse scan untill success or 2 attempts
-        while not scan_complete and attempts < 2:
 
-            raw_data = self.lighthouse_api()
-            self.process_data(stdout_json=raw_data)
+        raw_data = self.lighthouse_api()
+        self.process_data(stdout_json=raw_data)
+
+        # trying lighthouse scan untill success or 2 attempts
+        # while not scan_complete and attempts < 2:
 
             # try:
             #     # CLI on first attempt
