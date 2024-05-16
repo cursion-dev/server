@@ -107,6 +107,7 @@ class Lighthouse():
         cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=PWA&category=SEO'
 
         # setting up initial request
+        print('sending request')
         res = requests.get(
             url=f'{settings.LIGHTHOUSE_ROOT}?{cats}',
             params=params,
@@ -115,6 +116,7 @@ class Lighthouse():
 
         # try to get just LH response
         res = res.get('lighthouseResult')
+        print('got response')
 
         # return response
         return res
@@ -239,7 +241,7 @@ class Lighthouse():
             #     scan_complete = False
             #     failed = True
             #     attempts += 1
-            
+
         data = {
             "scores": self.scores, 
             "audits": self.audits_url,
