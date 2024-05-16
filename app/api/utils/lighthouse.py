@@ -153,8 +153,12 @@ class Lighthouse():
                         self.audits[cat].append(audit)
        
         # get scores from each category
-        for key in self.scores:
-            self.scores[key] = round(stdout_json["categories"][key]["score"])
+        for cat in self.scores:
+            # skipping non-existent cat
+            if stdout_json["categories"].get(cat) is None:
+                continue
+            # record score
+            self.scores[cat] = round(stdout_json["categories"][cat]["score"])
 
         # changing audits & score names
         self.scores['best_practices'] = self.scores.pop('best-practices')
