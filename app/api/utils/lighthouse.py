@@ -107,7 +107,6 @@ class Lighthouse():
         cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=PWA&category=SEO'
 
         # setting up initial request
-        print('sending request')
         res = requests.get(
             url=f'{settings.LIGHTHOUSE_ROOT}?{cats}',
             params=params,
@@ -116,7 +115,6 @@ class Lighthouse():
 
         # try to get just LH response
         res = res.get('lighthouseResult')
-        print('got response')
 
         # return response
         return res
@@ -167,8 +165,8 @@ class Lighthouse():
             if stdout_json["categories"].get(cat) is None:
                 continue
             # record score
-            self.scores[cat] = round(stdout_json["categories"][cat]["score"])
-            # add to queu
+            self.scores[cat] = round(stdout_json["categories"][cat]["score"] * 100)
+            # add to queue
             score_queue.append(self.scores[cat])
 
         # changing audits & score names back to original
@@ -178,6 +176,8 @@ class Lighthouse():
 
         # dynamically calculating average
         average_score = round(sum(score_queue)/len(score_queue))
+        self.score['average'] = average_score
+
 
         # save audits data as json file
         file_id = uuid.uuid4()
@@ -215,32 +215,29 @@ class Lighthouse():
         failed = None
         attempts = 0
 
-        raw_data = self.lighthouse_api()
-        self.process_data(stdout_json=raw_data)
-
         # trying lighthouse scan untill success or 2 attempts
-        # while not scan_complete and attempts < 2:
+        while not scan_complete and attempts < 2:
 
-            # try:
-            #     # CLI on first attempt
-            #     if attempts < 1:
-            #         # raw_data = self.lighthouse_cli()
-            #         raw_data = self.lighthouse_api()
-            #         self.process_data(stdout_json=raw_data)
+            try:
+                # CLI on first attempt
+                if attempts < 1:
+                    # raw_data = self.lighthouse_cli()
+                    raw_data = self.lighthouse_api()
+                    self.process_data(stdout_json=raw_data)
                 
-            #     # API after first attempt
-            #     if attempts >= 1:
-            #         raw_data = self.lighthouse_api()
-            #         self.process_data(stdout_json=raw_data)
+                # API after first attempt
+                if attempts >= 1:
+                    raw_data = self.lighthouse_api()
+                    self.process_data(stdout_json=raw_data)
 
-            #     scan_complete = True
-            #     failed = False
+                scan_complete = True
+                failed = False
 
-            # except Exception as e:
-            #     print(f'LIGHTHOUSE FAILED (attempt {attempts}) --> {e}')
-            #     scan_complete = False
-            #     failed = True
-            #     attempts += 1
+            except Exception as e:
+                print(f'LIGHTHOUSE FAILED (attempt {attempts}) --> {e}')
+                scan_complete = False
+                failed = True
+                attempts += 1
 
         data = {
             "scores": self.scores, 
