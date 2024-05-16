@@ -549,7 +549,7 @@ def _lighthouse(scan_id, test_id, automation_id):
     scan = Scan.objects.get(id=scan_id)
 
     try:
-    # running lighthouse
+        # running lighthouse
         lh_data = Lighthouse(scan=scan, configs=scan.configs).get_data() 
         
         # updating Scan object
