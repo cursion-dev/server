@@ -15,6 +15,7 @@ class Lighthouse():
         self.page = self.scan.page
         self.configs = configs
         self.sizes = configs['window_size'].split(',')
+        self.audits_url = ''
 
         # initial scores object
         self.scores = {
@@ -185,7 +186,7 @@ class Lighthouse():
         audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
         remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
         root_path = settings.AWS_S3_URL_PATH
-        audits_url = f'{root_path}/{remote_path}'
+        self.audits_url = f'{root_path}/{remote_path}'
     
         # upload to s3
         with open(audit_file, 'rb') as data:
@@ -195,12 +196,9 @@ class Lighthouse():
         # remove local copy
         os.remove(audit_file)
 
-        # updating opjects
-        self.audits = audits_url
-
         data = {
             "scores": self.scores, 
-            "audits": self.audits,
+            "audits": self.audits_url,
             "failed": False
         }
 
@@ -241,10 +239,10 @@ class Lighthouse():
             #     scan_complete = False
             #     failed = True
             #     attempts += 1
-
+            
         data = {
             "scores": self.scores, 
-            "audits": self.audits,
+            "audits": self.audits_url,
             "failed": failed
         }
             
