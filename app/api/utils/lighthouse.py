@@ -140,7 +140,7 @@ class Lighthouse():
         )
 
         # changing audits & score names before iterations
-        self.scores['best-practices'] = self.scores.pop(' best_practices')
+        self.scores['best-practices'] = self.scores.pop('best_practices')
         self.audits['best-practices'] = self.audits.pop('best_practices')
         self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
 
