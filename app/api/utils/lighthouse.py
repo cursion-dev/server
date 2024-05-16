@@ -176,7 +176,7 @@ class Lighthouse():
 
         # dynamically calculating average
         average_score = round(sum(score_queue)/len(score_queue))
-        self.score['average'] = average_score
+        self.scores['average'] = average_score
 
 
         # save audits data as json file
