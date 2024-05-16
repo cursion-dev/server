@@ -21,7 +21,7 @@ class Lighthouse():
             "seo": None,
             "accessibility": None,
             "performance": None,
-            "best-practices": None,
+            "best_practices": None,
             "pwa": None,
             "crux": None,
             "average": None
@@ -32,7 +32,7 @@ class Lighthouse():
             "seo": [],
             "accessibility": [],
             "performance": [],
-            "best-practices": [],
+            "best_practices": [],
             "pwa": [],
             "crux": []
         }
@@ -139,6 +139,11 @@ class Lighthouse():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
+        # changing audits & score names before iterations
+        self.scores['best-practices'] = self.scores.pop(' best_practices')
+        self.audits['best-practices'] = self.audits.pop('best_practices')
+        self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
+
         # iterating through categories to get relevant lh_audits 
         # and store them in their respective `audits = {}` obj
         for cat in self.audits:
@@ -153,37 +158,23 @@ class Lighthouse():
                         self.audits[cat].append(audit)
        
         # get scores from each category
+        score_queue = [] 
         for cat in self.scores:
             # skipping non-existent cat
             if stdout_json["categories"].get(cat) is None:
                 continue
             # record score
             self.scores[cat] = round(stdout_json["categories"][cat]["score"])
+            # add to queu
+            score_queue.append(self.scores[cat])
 
-        # changing audits & score names
+        # changing audits & score names back to original
         self.scores['best_practices'] = self.scores.pop('best-practices')
         self.audits['best_practices'] = self.audits.pop('best-practices')
         self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
-       
-        
-        # attempting crux
-        try:
-            crux_score = round(stdout_json["categories"]["lighthouse-plugin-crux"]["score"] * 100)
-        except:
-            crux_score = 0
 
         # dynamically calculating average
-        if crux_score == 0 :
-            crux_score = None
-            average_score = round((
-                    seo_score + accessibility_score + performance_score 
-                    + best_practices_score + pwa_score
-                )/ 5)
-        else:
-            average_score = round((
-                    seo_score + accessibility_score + performance_score 
-                    + best_practices_score + pwa_score + crux_score
-                )/ 6)
+        average_score = round(sum(score_queue)/len(score_queue))
 
         # save audits data as json file
         file_id = uuid.uuid4()
