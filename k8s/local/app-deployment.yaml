@@ -16,7 +16,7 @@ spec:
         - name: regcred
       containers:
         - name: app
-          image: landonr/scanerr-server
+          image: scanerr/server:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

@@ -162,7 +162,7 @@ def create_site(request, delay=False):
         return Response(data, status=status.HTTP_409_CONFLICT)
     else:
         tags = request.data.get('tags', None)
-        configs = request.data.get('configs', None)
+        configs = request.data.get('configs', settings.CONFIGS)
         no_scan = request.data.get('no_scan', False)
         site = Site.objects.create(
             site_url=site_url,
@@ -170,10 +170,6 @@ def create_site(request, delay=False):
             tags=tags,
             account=account
         )
-
-        # get/set configs
-        if not configs:
-            configs = settings.CONFIGS
 
         # create process obj
         process = Process.objects.create(

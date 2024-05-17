@@ -6,8 +6,7 @@ services:
     init: true
     restart: always
     build:
-      dockerfile: Dockerfile.local
-    # image: landonr/scanerr-server
+      dockerfile: Dockerfile.stage
     ports:
       - "8000:8000"
     volumes:
@@ -34,8 +33,7 @@ services:
     restart: always
     build:
       context: .
-      dockerfile: Dockerfile.local
-    # image: landonr/scanerr-server
+      dockerfile: Dockerfile.stage
     command: celery -A scanerr worker --beat --scheduler django --loglevel=info
     volumes:
       - ./app:/scanerr
