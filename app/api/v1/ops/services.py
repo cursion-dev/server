@@ -2657,7 +2657,7 @@ def create_testcase(request, delay=False):
     case_id = request.data.get('case_id')
     site_id = request.data.get('site_id')
     updates = request.data.get('updates')
-    configs = request.data.get('configs')
+    configs = request.data.get('configs', settings.CONFIGS)
     user = request.user
     account = Member.objects.get(user=user).account
 
@@ -2706,9 +2706,6 @@ def create_testcase(request, delay=False):
     if updates != None:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
-
-    if configs is None:
-        configs = settings.CONFIGS
         
     testcase = Testcase.objects.create(
         case = case,

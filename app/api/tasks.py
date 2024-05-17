@@ -552,11 +552,19 @@ def delete_old_resources(account_id=None, days_to_live=30):
         scans = Scan.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         testcases = Testcase.objects.filter(account__id=account_id, time_created__lte=max_date)
         processes = Process.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
+        
+        # get all old Logs
+        members = Member.objects.filter(account__id=account_id)
+        logs = []
+        for member in members:
+            logs += Logs.objects.filter(user=member.user, time_created__lte=max_proc_date)
+
     else:
         tests = Test.objects.filter(time_created__lte=max_date)
         scans = Scan.objects.filter(time_created__lte=max_date)
         testcases = Testcase.objects.filter(time_created__lte=max_date)
         processes = Process.objects.filter(time_created__lte=max_proc_date)
+        logs = Logs.objects.filter(time_created__lte=max_proc_date)
 
     for test in tests:
         delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
@@ -569,6 +577,8 @@ def delete_old_resources(account_id=None, days_to_live=30):
         testcase.delete()
     for process in processes:
         process.delete()
+    for log in logs:
+        log.delete()
     
     
     logger.info('Cleaned up resources')
