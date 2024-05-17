@@ -2409,8 +2409,12 @@ def create_or_update_case(request):
 
 def get_cases(request):
     case_id = request.query_params.get('case_id')
+    site_id = request.query_params.get('site_id')
     user = request.user
     account = Member.objects.get(user=user).account
+
+    case = None
+    site = None
 
     if case_id != None:        
         try:
@@ -2429,15 +2433,38 @@ def get_cases(request):
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
+
+    if site_id != None:
+        try:
+            site = Site.objects.get(id=site_id)
+        except:
+            data = {'reason': 'cannot find a Site with that id'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        if site.account != account:
+            data = {'reason': 'cannot retrieve an Case you do not own',}
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
     
-    cases = Case.objects.filter(account=account).order_by('-time_created')
-    paginator = LimitOffsetPagination()
-    result_page = paginator.paginate_queryset(cases, request)
-    serializer_context = {'request': request,}
-    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
-    response = paginator.get_paginated_response(serialized.data)
-    record_api_call(request, response.data, '200')
-    return response
+    # filter by site association
+    if site is not None:
+        cases = Case.objects.filter(account=account, site=site).order_by('-time_created')
+        paginator = LimitOffsetPagination()
+        result_page = paginator.paginate_queryset(cases, request)
+        serializer_context = {'request': request,}
+        serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+        response = paginator.get_paginated_response(serialized.data)
+        record_api_call(request, response.data, '200')
+        return response
+
+    else:
+        cases = Case.objects.filter(account=account).order_by('-time_created')
+        paginator = LimitOffsetPagination()
+        result_page = paginator.paginate_queryset(cases, request)
+        serializer_context = {'request': request,}
+        serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+        response = paginator.get_paginated_response(serialized.data)
+        record_api_call(request, response.data, '200')
+        return response
 
 
 
