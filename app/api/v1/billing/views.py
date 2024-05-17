@@ -137,6 +137,7 @@ class SetupSubscription(APIView):
         max_schedules = int(request.data.get('max_schedules'))
         retention_days = int(request.data.get('retention_days'))
         testcases = str(request.data.get('testcases', False))
+        meta = request.data.get('meta')
         initial_call = True
         client_secret = None
 
@@ -154,7 +155,8 @@ class SetupSubscription(APIView):
                 max_pages=max_pages,
                 max_schedules=max_schedules,
                 retention_days=retention_days,
-                testcases=testcases
+                testcases=testcases, 
+                meta=meta
             )
 
         account = Account.objects.get(user=user)
@@ -219,7 +221,8 @@ class SetupSubscription(APIView):
             price_amount = price_amount,
             max_schedules = max_schedules,
             retention_days = retention_days,
-            testcases = testcases
+            testcases = testcases,
+            meta = meta
         )        
 
         if initial_call:
