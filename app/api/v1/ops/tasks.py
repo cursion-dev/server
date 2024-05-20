@@ -6,7 +6,7 @@ from ...utils.wordpress import Wordpress as W
 from ...utils.wordpress_p import Wordpress as W_P
 from ...utils.automations import automation
 from ...utils.caser import Caser
-import boto3, asyncio
+import boto3, asyncio, requests
 from scanerr import settings
 from ...utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
@@ -216,7 +216,7 @@ def create_testcase_task(
     else:
         case = Case.objects.get(id=case_id)
         site = Site.objects.get(id=site_id)
-        steps = case.steps
+        steps = requests.get(case.steps['url']).json()
         for step in steps:
             if step['action']['type'] != None:
                 step['action']['time_created'] = None
