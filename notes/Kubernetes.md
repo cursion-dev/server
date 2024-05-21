@@ -97,7 +97,7 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 2. Install nginx ingress controler on cluster
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-loadbalancer.yaml`
+- `kubectl apply -f ./k8s/prod/app-loadbalancer.yaml`
 - Then add and `A` record for domain that points to new loadbalancer
   - ref -> https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml
 
@@ -108,21 +108,21 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 4. Spin up Scanerr deployments and services
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-configs.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/redis-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/app-configs.yaml`
+- `kubectl apply -f ./k8s/prod/redis-deployment.yaml`
 - `kubectl apply --server-side -f https://github.com/kedacore/keda/releases/download/v2.11.0/keda-2.11.0.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-autoscaler.yaml`
+- `kubectl apply -f ./k8s/prod/app-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/celery-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/celery-autoscaler.yaml`
 
 
 #### 4.a  Spin up YLT deploymemt, service, and autoscaler
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-autoscaler.yaml`
+- `kubectl apply -f ./k8s/prod/ylt-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/ylt-autoscaler.yaml`
 
 
 ### 5. Add app Ingress
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+- `kubectl apply -f ./k8s/prod/app-ingress.yaml`
 
 
 ### 6. Install cert-manager
@@ -130,18 +130,18 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 7. Add cert issure
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-cert-issuer.yaml`
+- `kubectl apply -f ./k8s/prod/app-cert-issuer.yaml`
 - NOTE: May have to wait a bit before running this one
   
 
 ### 8. Update app Ingress for TLS 
 - Uncomment the "TLS section" & "cert-manager.io/cluster-issuer annotation" then reapply 
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+- `kubectl apply -f ./k8s/prod/app-ingress.yaml`
 
 
 ### 9. Install kubeip dameon & service
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-service.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-daemon.yaml`
+- `kubectl apply -f ./k8s/prod/kubeip-service.yaml`
+- `kubectl apply -f ./k8s/prod/kubeip-daemon.yaml`
 
 
 ### NOTES:
