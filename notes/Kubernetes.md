@@ -1,3 +1,8 @@
+# Notes on k8s deployments
+---
+<br>
+
+
 ### Create k8s files in yaml (kompose)
 ```shell
 kompose convert -f docker-compose.yml -o ./k8s
@@ -57,8 +62,10 @@ kubectl port-forward service/app-service 8000:8000
 ```
 
 
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
 
-## Setps to Deploy localy
+
+# Setps to Deploy localy
 1. ensure minikube is running
    - ``` minikube status ``` 
 2. create secrets for app image pull from docker
@@ -84,8 +91,11 @@ kubectl port-forward service/app-service 8000:8000
 
 ---
 
-## Setps to Deploy Remotely
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
 
+# Setps to Deploy Remotely
+
+> Ensure you are in the `/server` root directory 
 
 ### 1. Create docker secrets  
 - `kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username='<username>' --docker-password='<password>' --docker-email='<email>'` 
@@ -155,7 +165,9 @@ kubectl port-forward service/app-service 8000:8000
 
 ---
 
-## Migration Notes for DB:
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
+
+# Migration Notes for DB:
 1. Go to `models.py` and comment out all new additions
 2. Spinup staging env locally to create `00001_initial.py` migration as baseline
 3. Spin down staging env
