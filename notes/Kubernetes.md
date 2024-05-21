@@ -1,3 +1,8 @@
+# Notes on k8s deployments
+---
+<br>
+
+
 ### Create k8s files in yaml (kompose)
 ```shell
 kompose convert -f docker-compose.yml -o ./k8s
@@ -57,8 +62,10 @@ kubectl port-forward service/app-service 8000:8000
 ```
 
 
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
 
-## Setps to Deploy localy
+
+# Setps to Deploy localy
 1. ensure minikube is running
    - ``` minikube status ``` 
 2. create secrets for app image pull from docker
@@ -84,8 +91,11 @@ kubectl port-forward service/app-service 8000:8000
 
 ---
 
-## Setps to Deploy Remotely
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
 
+# Setps to Deploy Remotely
+
+> Ensure you are in the `/server` root directory 
 
 ### 1. Create docker secrets  
 - `kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username='<username>' --docker-password='<password>' --docker-email='<email>'` 
@@ -97,7 +107,7 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 2. Install nginx ingress controler on cluster
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-loadbalancer.yaml`
+- `kubectl apply -f ./k8s/prod/app-loadbalancer.yaml`
 - Then add and `A` record for domain that points to new loadbalancer
   - ref -> https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/do/deploy.yaml
 
@@ -108,21 +118,21 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 4. Spin up Scanerr deployments and services
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-configs.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/redis-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/app-configs.yaml`
+- `kubectl apply -f ./k8s/prod/redis-deployment.yaml`
 - `kubectl apply --server-side -f https://github.com/kedacore/keda/releases/download/v2.11.0/keda-2.11.0.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/celery-autoscaler.yaml`
+- `kubectl apply -f ./k8s/prod/app-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/celery-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/celery-autoscaler.yaml`
 
 
 #### 4.a  Spin up YLT deploymemt, service, and autoscaler
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-deployment.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/ylt-autoscaler.yaml`
+- `kubectl apply -f ./k8s/prod/ylt-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/ylt-autoscaler.yaml`
 
 
 ### 5. Add app Ingress
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+- `kubectl apply -f ./k8s/prod/app-ingress.yaml`
 
 
 ### 6. Install cert-manager
@@ -130,18 +140,18 @@ kubectl port-forward service/app-service 8000:8000
 
 
 ### 7. Add cert issure
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-cert-issuer.yaml`
+- `kubectl apply -f ./k8s/prod/app-cert-issuer.yaml`
 - NOTE: May have to wait a bit before running this one
   
 
 ### 8. Update app Ingress for TLS 
 - Uncomment the "TLS section" & "cert-manager.io/cluster-issuer annotation" then reapply 
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/app-ingress.yaml`
+- `kubectl apply -f ./k8s/prod/app-ingress.yaml`
 
 
 ### 9. Install kubeip dameon & service
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-service.yaml`
-- `kubectl apply -f /Users/landon/Documents/Coding/Scanerr/server/k8s/prod/kubeip-daemon.yaml`
+- `kubectl apply -f ./k8s/prod/kubeip-service.yaml`
+- `kubectl apply -f ./k8s/prod/kubeip-daemon.yaml`
 
 
 ### NOTES:
@@ -155,7 +165,9 @@ kubectl port-forward service/app-service 8000:8000
 
 ---
 
-## Migration Notes for DB:
+<div style="margin-top: 8rem; margin-bottom: 8rem"></div>
+
+# Migration Notes for DB:
 1. Go to `models.py` and comment out all new additions
 2. Spinup staging env locally to create `00001_initial.py` migration as baseline
 3. Spin down staging env
