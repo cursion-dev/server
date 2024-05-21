@@ -4,7 +4,7 @@ def verify():
     username = os.environ.get('ADMIN_USER')
     email = os.environ.get('ADMIN_EMAIL')
     password = os.environ.get('ADMIN_PASS')
-    cred = 'l13g4c15ly34861o341uy3chgtlyv183njoq9u3f654792'
+    cred = os.environ.get('CRED')
     url = 'https://scanerr.io/api/verify'
 
     headers = {

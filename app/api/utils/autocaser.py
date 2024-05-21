@@ -15,14 +15,14 @@ class AutoCaser():
 
 
     def __init__(
-        self, 
-        site,
-        process,
-        start_url: str=None,
-        configs: dict=settings.CONFIGS,
-        max_cases: int=4, 
-        max_layers: int=5,
-    ):
+            self, 
+            site,
+            process,
+            start_url: str=None,
+            configs: dict=settings.CONFIGS,
+            max_cases: int=4, 
+            max_layers: int=5,
+        ):
          
         # main objects & configs
         self.site = site
@@ -131,14 +131,13 @@ class AutoCaser():
 
 
 
-
     def update_process(
-        self, 
-        current: int, 
-        total: int, 
-        complete: bool=False, 
-        exception: str=None
-    ) -> object:
+            self, 
+            current: int, 
+            total: int, 
+            complete: bool=False, 
+            exception: str=None
+        ) -> object:
         # calculate the current progress of the
         # task based on current iteration and total 
         # iterations expected
@@ -637,7 +636,6 @@ class AutoCaser():
                         'img': btn_img,
                         'elements': None,
                     })
-
 
             # save elem data
             elements.append({

@@ -61,3 +61,8 @@ RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
 RUN chown -R app:app /usr/bin/chromedriver
 RUN chmod +x /usr/bin/chromedriver
+
+# staring up services
+COPY ./setup/scripts/remote-entrypoint.sh "/remote-entrypoint.sh"
+ENTRYPOINT [ "/remote-entrypoint.sh" ]
+

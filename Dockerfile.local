@@ -39,7 +39,7 @@ RUN npm install -g lighthouse lighthouse-plugin-crux lodash
 # telling Puppeteer to skip installing Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 
-# telling phantomas where Chromium binary is and that we're in docker
+# telling phantomas where Chrome binary is and that we're in docker
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome-stable
 ENV DOCKERIZED yes
 
@@ -48,7 +48,7 @@ RUN google-chrome-stable --no-sandbox --version
 
 # installing requirements
 RUN python3 -m pip install --break-system-packages --upgrade setuptools
-COPY ./requirements.txt /requirements-staging.txt
+COPY ./setup/requirements/requirements-staging.txt /requirements-staging.txt
 RUN python3 -m pip install --break-system-packages -r /requirements-staging.txt
 
 # setting working dir
@@ -59,3 +59,7 @@ WORKDIR /app
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/google-chrome-stable
+
+# staring up services
+COPY ./setup/scripts/local-entrypoint.sh "/local-entrypoint.sh"
+ENTRYPOINT [ "/local-entrypoint.sh" ]

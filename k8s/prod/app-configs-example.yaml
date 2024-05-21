@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configs
+data:
+  # django
+  SECRET_KEY : "ask-for-this-or-generate-yourself"
+  CLIENT_URL_ROOT : "https://app.yourdomain.com"
+  API_URL_ROOT : "https://api.yourdomain.com"  
+  YELLOWLAB_ROOT : "http://ylt-service"
+  LIGHTHOUSE_ROOT : "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+  LANDING_API_KEY : ""
+  LANDING_API_ROOT : "https://yourdomain.com"
+  LETSENCRYPT_HOST : "api.yourdomain.com"         
+  VIRTUAL_HOST : "api.yourdomain.com"            
+  VIRTUAL_PORT : "8000"
+  DJANGO_ALLOWED_HOSTS : "*"
+  # admin credentials  
+  ADMIN_USER : "admin_user"              
+  ADMIN_PASS : "f4k3P455w0rd"     
+  ADMIN_EMAIL : "your@email.com" 
+  # email credentials
+  EMAIL_HOST : "smtp.gmail.com"
+  EMAIL_PORT : "587"
+  EMAIL_USE_TLS : "True"
+  EMAIL_HOST_USER : "your@email.com"
+  EMAIL_HOST_PASSWORD : "your-email-password"
+  # database
+  DB_HOST : "<your-remote-db-host>"
+  DB_NAME : "k8s-pool"
+  DB_PASS : "<your-remote-db-password>"
+  DB_PORT : "25061"
+  DB_USER : "<your-remote-db-user>"
+  # paths
+  CHROMEDRIVER : "/usr/bin/chromedriver"
+  CHROME_BROWSER : "/usr/bin/chromium"
+  # stripe keys
+  STRIPE_PUBLIC_TEST : "pk_test_<your-key>" 
+  STRIPE_PRIVATE_TEST : "sk_test_<your-key>" 
+  STRIPE_PUBLIC_LIVE : "pk_live_<your-key>" 
+  STRIPE_PRIVATE_LIVE : "sk_live_<your-key>"
+  STRIPE_ENV : "prod"
+  # google keys
+  GOOGLE_CRUX_KEY : "<your-own-key>"
+  # OAuth keys
+  GOOGLE_OAUTH2_CLIENT_ID : "<your-own-key>" 
+  GOOGLE_OAUTH2_CLIENT_SECRET : "<your-own-key>" 
+  # twilio credentials
+  TWILIO_SID : "<your-own-key>" 
+  TWILIO_AUTH_TOKEN : "<your-own-key>" 
+  TWILIO_NUMBER : "+<your-own-number>"
+  # sendgrid configs
+  SENDGRID_API_KEY : "<your-own-key>" 
+  DEFAULT_TEMPLATE : "<your-own-key>" 
+  DEFAULT_TEMPLATE_NO_BUTTON : "<your-own-key>" 
+  AUTOMATION_TEMPLATE : "<your-own-key>" 
+  # slack credentials
+  SLACK_APP_ID : "<your-own-key>" 
+  SLACK_CLIENT_ID : "<your-own-key>" 
+  SLACK_CLIENT_SECRET : "<your-own-key>" 
+  SLACK_SIGNING_SECRET : "<your-own-key>" 
+  SLACK_VERIFICATION_TOKEN : "<your-own-key>" 
+  SLACK_BOT_TOKEN : "<your-own-key>" 
+  # s3 remote storage credentials
+  AWS_ACCESS_KEY_ID : "<your-own-key>" 
+  AWS_SECRET_ACCESS_KEY : "<your-own-key>"
+  AWS_STORAGE_BUCKET_NAME : "<your-own-bucket-name>"   
+  AWS_S3_REGION_NAME : "sfo3"                   
+  AWS_S3_ENDPOINT_URL : "https://sfo3.digitaloceanspaces.com"            
+  AWS_S3_URL_PATH : "https://<your-own-bucket-name>.sfo3.digitaloceanspaces.com"
+  AWS_LOCATION : "static"
+  AWS_DEFAULT_ACL : "public-read"

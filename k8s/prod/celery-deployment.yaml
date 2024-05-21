@@ -21,7 +21,8 @@ spec:
         - name: celery
           image:  <IMAGE> # landonr/scanerr-server:a5f30cb # 
           imagePullPolicy: Always
-          command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info", "-c 3"]
+          command: ["/remote-entrypoint.sh", "celery"]
+          # command: ["celery", "-A", "scanerr", "worker", "--beat", "--scheduler", "django", "--loglevel=info", "-c 3"]
           envFrom:
             - configMapRef:
                 name: app-configs
