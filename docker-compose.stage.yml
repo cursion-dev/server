@@ -1,44 +1,45 @@
-version: '3'
 services:
   
+
   app:
+    container_name: scanerr-app
+    hostname: scanerr-app
     privileged: true
     init: true
     restart: always
     build:
-      dockerfile: Dockerfile.stage
+      context: .
+      dockerfile: Dockerfile.local
     ports:
       - "8000:8000"
-    volumes:
-      - ./app:/app
-    command: >
-      sh -c "python3 manage.py wait_for_db &&
-             python3 manage.py makemigrations  --no-input &&
-             python3 manage.py migrate --no-input &&
-             python3 manage.py collectstatic --no-input &&
-             python3 manage.py create_admin &&
-             python3 manage.py driver_s_test &&
-             python3 manage.py driver_p_test && 
-             python3 manage.py runserver 0.0.0.0:8000"
+    entrypoint: ["/local-entrypoint.sh", "app"]
     env_file:
       - ./env/.env.stage
+    volumes:
+      - ./app:/app
   
+
   redis:
+    container_name: scanerr-redis
+    hostname: scanerr-redis
     image: redis:alpine
     ports:
       - "6379"
   
+
   celery:
+    container_name: scanerr-celery
+    hostname: scanerr-celery
     privileged: true
     restart: always
     build:
       context: .
-      dockerfile: Dockerfile.stage
-    command: celery -A scanerr worker --beat --scheduler django --loglevel=info
-    volumes:
-      - ./app:/scanerr
+      dockerfile: Dockerfile.local
+    entrypoint: ["/local-entrypoint.sh", "celery"]
     env_file:
       - ./env/.env.stage
+    volumes:
+      - ./app:/scanerr
     depends_on:
       - redis
       - app

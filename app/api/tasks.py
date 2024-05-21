@@ -5,27 +5,26 @@ from celery import shared_task, Task
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
-from .utils.exporter import create_and_send_report_export
+from .utils.reporter import Reporter as R
+from .utils.wordpress import Wordpress as W
+from .utils.wordpress_p import Wordpress as W_P
+from .utils.automations import automation
+from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
-from .v1.ops.tasks import (
-    create_site_task, create_scan_task, 
-    create_test_task, create_report_task, delete_report_s3,
-    delete_site_s3, create_testcase_task, migrate_site_task,
-    delete_testcase_s3,
-)
+from .utils.exporter import create_and_send_report_export
 from .utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
     _yellowlab
 )
+from .utils.driver_p import driver_test
+from .v1.auth.alerts import send_invite_link, send_remove_alert
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .utils.driver_p import driver_test
-from .v1.auth.alerts import send_invite_link, send_remove_alert
 from asgiref.sync import async_to_sync
-import asyncio, boto3, time, requests, json
 from datetime import datetime, timedelta, date
 from scanerr import settings
+import asyncio, boto3, time, requests, json
 
 
 logger = get_task_logger(__name__)
@@ -40,10 +39,15 @@ class BaseTaskWithRetry(Task):
 
 
 
+
+
+
 @shared_task
 def test_pupeteer():
     asyncio.run(driver_test())
     logger.info('Tested pupeteer instalation')
+
+
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
@@ -158,8 +162,9 @@ def scan_page_bg(self, scan_id=None, test_id=None, automation_id=None, configs=N
 
 
 
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def _create_scan(
+def create_scan(
         self,
         scan_id=None,
         page_id=None, 
@@ -170,15 +175,23 @@ def _create_scan(
         *args, 
         **kwargs,
     ):
-    create_scan_task(
-        scan_id, 
-        page_id,
-        type,
-        automation_id, 
-        configs,
-        tags,
-    )
+    if scan_id is not None:
+        created_scan = Scan.objects.get(id=scan_id)
+    elif page_id is not None:
+        page = Page.objects.get(id=page_id)
+        created_scan = Scan.objects.create(
+            site=page.site,
+            page=page,
+            type=type,
+            configs=configs,
+            tags=tags, 
+        )
+    scan = S(scan=created_scan, configs=configs).first_scan()
+    if automation_id:
+        automation(automation_id, scan.id)
+    return scan
     logger.info('Created new scan of site')
+
 
 
 
@@ -199,7 +212,7 @@ def create_scan_bg(self, *args, **kwargs):
         pages = [Page.objects.get(id=page_id)]
 
     for page in pages:
-        _create_scan.delay(
+        create_scan.delay(
             page_id=page.id,
             type=type,
             configs=configs,
@@ -215,15 +228,24 @@ def run_html_and_logs_bg(self, scan_id=None, test_id=None, automation_id=None, *
     _html_and_logs(scan_id, test_id, automation_id)
     logger.info('ran html & logs component')
 
+
+
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def run_vrt_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
     _vrt(scan_id, test_id, automation_id)
     logger.info('ran vrt component')
 
+
+
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def run_lighthouse_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
     _lighthouse(scan_id, test_id, automation_id)
     logger.info('ran lighthouse component')
+
+
+
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def run_yellowlab_bg(self, scan_id=None, test_id=None, automation_id=None, *args, **kwargs):
@@ -241,6 +263,8 @@ def run_test(self, test_id, *args, **kwargs):
     if automation_id:
         automation(automation_id, test.id)
     logger.info('Test completed')
+
+
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
@@ -262,8 +286,10 @@ def check_scan_for_test(self, test_id=None, max_wait_time=500, *args, **kwargs):
     logger.info('Scan complete, begining Test')
 
 
+
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def _create_test(
+def create_test(
         self,
         test_id=None,
         page_id=None, 
@@ -357,7 +383,7 @@ def create_test_bg(self, *args, **kwargs):
             pages = [p]
 
         for page in pages:
-            _create_test.delay(
+            create_test.delay(
                 page_id=page.id,
                 type=type,
                 configs=configs,
@@ -369,7 +395,7 @@ def create_test_bg(self, *args, **kwargs):
     
     if test_id is not None:
         test = Test.objects.get(id=test_id)
-        _create_test.delay(
+        create_test.delay(
             test_id=test_id,
             page_id=test.page.id,
             type=type,
@@ -382,10 +408,32 @@ def create_test_bg(self, *args, **kwargs):
 
 
 
+
 @shared_task
-def _create_report(page_id=None, automation_id=None, *args, **kwargs):
-    create_report_task(page_id, automation_id)
+def create_report(page_id=None, automation_id=None, *args, **kwargs):
+    page = Page.objects.get(id=page_id)
+    if Report.objects.filter(page=page).exists():
+        report = Report.objects.filter(site=site).order_by('-time_created')[0]
+    else:
+        info = {
+            "text_color": '#24262d',
+            "background_color": '#e1effd',
+            "highlight_color": '#ffffff',
+        }
+        report = Report.objects.create(
+            user=site.user,
+            site=page.site,
+            page=page,
+            info=info,
+            type=['lighthouse', 'yellowlab']
+        )
+    
+    report = R(report=report).make_test_report()
+    if automation_id:
+        automation(automation_id, report.id)
     logger.info('Created new report of page')
+
+
 
 
 @shared_task
@@ -402,16 +450,33 @@ def create_report_bg(*args, **kwargs):
         pages = [Page.objects.get(id=page_id)]
 
     for page in pages:
-        _create_report.delay(
+        create_report.delay(
             page_id=page.id,
             automation_id=automation_id
         )
 
 
+
+
 @shared_task
 def delete_site_s3_bg(site_id, *args, **kwargs):
-    delete_site_s3(site_id)
+    # setup boto3 configurations
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    # deleting s3 objects
+    try:
+        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/')).delete()
+    except:
+        pass
     logger.info('Deleted site s3 objects')
+
+
 
 
 @shared_task
@@ -431,6 +496,9 @@ def delete_page_s3_bg(page_id, site_id, *args, **kwargs):
         print(e)
     return
 
+
+
+
 @shared_task
 def delete_scan_s3_bg(scan_id, site_id, page_id):
     # setup boto3 configurations
@@ -447,7 +515,9 @@ def delete_scan_s3_bg(scan_id, site_id, page_id):
     except Exception as e:
         print(e)
     return
-    
+
+
+
 
 @shared_task
 def delete_test_s3_bg(test_id, site_id, page_id):
@@ -468,16 +538,50 @@ def delete_test_s3_bg(test_id, site_id, page_id):
 
 
 
+
 @shared_task
 def delete_testcase_s3_bg(testcase_id, *args, **kwargs):
-    delete_testcase_s3(testcase_id)
+    # setup boto3 configurations
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    # deleting s3 objects
+    try:
+        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket.objects.filter(Prefix=str(f'static/testcase/{testcase_id}/')).delete()
+    except:
+        pass
     logger.info('Deleted testcase s3 objects')
+
+
 
 
 @shared_task
 def delete_report_s3_bg(report_id, *args, **kwargs):
-    delete_report_s3(report_id)
+    # setup boto3 configurations
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+
+    # get site
+    site = Report.objects.get(id=report_id).site
+
+    # deleting s3 objects
+    try:
+        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket.objects.filter(Prefix=str(f'static/sites/{site.id}/{report_id}.pdf')).delete()
+    except:
+        pass
     logger.info('Deleted Report pdf in s3')
+
+
 
 
 @shared_task
@@ -492,16 +596,17 @@ def purge_logs(username=None, *args, **kwargs):
 
 
 
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def create_auto_cases_bg(
-    self, 
-    site_id=None,
-    process_id=None,
-    start_url=None,
-    max_cases=None,
-    max_layers=None,
-    configs=None
-):
+        self, 
+        site_id=None,
+        process_id=None,
+        start_url=None,
+        max_cases=None,
+        max_layers=None,
+        configs=None
+    ):
     # get objects
     site = Site.objects.get(id=site_id)
     process = Process.objects.get(id=process_id)
@@ -536,7 +641,61 @@ def create_testcase_bg(
         *args, 
         **kwargs,
     ):
-    create_testcase_task(testcase_id, site_id, case_id, updates, configs, automation_id)
+    if testcase_id != None:
+        testcase = Testcase.objects.get(id=testcase_id)
+        configs = testcase.configs
+    
+    else:
+        case = Case.objects.get(id=case_id)
+        site = Site.objects.get(id=site_id)
+        steps = requests.get(case.steps['url']).json()
+        for step in steps:
+            if step['action']['type'] != None:
+                step['action']['time_created'] = None
+                step['action']['time_completed'] = None
+                step['action']['exception'] = None
+                step['action']['passed'] = None
+
+            if step['assertion']['type'] != None:
+                step['assertion']['time_created'] = None
+                step['assertion']['time_completed'] = None
+                step['assertion']['exception'] = None
+                step['assertion']['passed'] = None
+
+        if updates != None:
+            for update in updates:
+                steps[int(update['index'])]['action']['value'] = update['value']
+    
+        testcase = Testcase.objects.create(
+            case = case,
+            case_name = case.name,
+            site = site,
+            user = site.user,
+            account = site.account,
+            configs = configs,
+            steps = steps
+        )
+
+    if configs is None:
+        configs = {
+            'window_size': '1920,1080',
+            'device': 'desktop',
+            'driver': 'puppeteer',
+            'interval': 5,
+            'min_wait_time': 10,
+            'max_wait_time': 30,
+        }
+
+    # running testcase
+    if configs.get('driver', 'puppeteer') == 'puppeteer':
+        testresult = asyncio.run(
+            Caser(testcase=testcase).run_p()
+        )
+    if configs.get('driver', 'puppeteer') == 'selenium':
+        testresult = Caser(testcase=testcase).run_s()
+
+    if automation_id:
+        automation(automation_id, testcase.id)
     logger.info('Ran full testcase')
 
 
@@ -557,14 +716,14 @@ def delete_old_resources(account_id=None, days_to_live=30):
         members = Member.objects.filter(account__id=account_id)
         logs = []
         for member in members:
-            logs += Logs.objects.filter(user=member.user, time_created__lte=max_proc_date)
+            logs += Log.objects.filter(user=member.user, time_created__lte=max_proc_date)
 
     else:
         tests = Test.objects.filter(time_created__lte=max_date)
         scans = Scan.objects.filter(time_created__lte=max_date)
         testcases = Testcase.objects.filter(time_created__lte=max_date)
         processes = Process.objects.filter(time_created__lte=max_proc_date)
-        logs = Logs.objects.filter(time_created__lte=max_proc_date)
+        logs = Log.objects.filter(time_created__lte=max_proc_date)
 
     for test in tests:
         delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
@@ -586,7 +745,6 @@ def delete_old_resources(account_id=None, days_to_live=30):
 
 
 
-
 @shared_task
 def data_retention():
     accounts = Account.objects.all()
@@ -597,7 +755,6 @@ def data_retention():
         )
     
     logger.info('Requested resource cleanup')
-
 
 
 
@@ -676,6 +833,7 @@ def create_report_export_bg(report_id=None, email=None, first_name=None):
 
 
 
+
 @shared_task
 def migrate_site_bg(
         login_url, 
@@ -695,24 +853,58 @@ def migrate_site_bg(
         *args, 
         **kwargs
     ):
-    migrate_site_task(
-        login_url, 
-        admin_url,
-        username,
-        password,
-        email_address,
-        destination_url,
-        sftp_address,
-        dbname,
-        sftp_username,
-        sftp_password, 
-        plugin_name,
-        wait_time, 
-        process_id,
-        driver,
-    )
+    if driver == 'selenium':
+        # init wordpress
+        wp = W(
+            login_url=login_url, 
+            admin_url=admin_url,
+            username=username,
+            password=password,
+            email_address=email_address,
+            destination_url=destination_url,
+            sftp_address=sftp_address,
+            dbname=dbname,
+            sftp_username=sftp_username,
+            sftp_password=sftp_password, 
+            wait_time=wait_time,
+            process_id=process_id,
+
+        )
+
+        # login
+        wp_status = wp.login()
+        # adjust lang
+        wp_status = wp.begin_lang_check()
+        # install plugin
+        wp_status = wp.install_plugin(plugin_name=plugin_name)
+        # launch migration
+        wp_status = wp.launch_migration()
+        # run migration
+        wp_status = wp.run_migration()
+        # re adjust lang
+        # wp_status = wp.end_lang_check()
+    
+    else:
+        # init wordpress for puppeteer
+        wp_status = asyncio.run(
+            W_P(
+                login_url=login_url, 
+                admin_url=admin_url,
+                username=username,
+                password=password,
+                email_address=email_address,
+                destination_url=destination_url,
+                sftp_address=sftp_address,
+                dbname=dbname,
+                sftp_username=sftp_username,
+                sftp_password=sftp_password, 
+                wait_time=wait_time,
+                process_id=process_id,
+            ).run_full(plugin_name=plugin_name)
+        )
 
     logger.info('Finished Migration')
+
 
 
 
@@ -722,8 +914,17 @@ def send_invite_link_bg(member_id):
     send_invite_link(member)
     logger.info('Sent invite')
 
+
+
+
 @shared_task
 def send_remove_alert_bg(member_id):
     member = Member.objects.get(id=member_id)
     send_remove_alert(member)
     logger.info('Sent remove alert')
+
+
+
+
+
+

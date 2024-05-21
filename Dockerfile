@@ -41,7 +41,7 @@ RUN chromium --no-sandbox --version
 RUN chromium --disable-dev-shm-usage  --version
 
 # installing requirements
-COPY ./requirements.txt /requirements.txt
+COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt
 
 # Set up the Chromium environment
@@ -61,3 +61,8 @@ RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/chromium
 RUN chown -R app:app /usr/bin/chromedriver
 RUN chmod +x /usr/bin/chromedriver
+
+# staring up services
+COPY ./setup/scripts/remote-entrypoint.sh "/remote-entrypoint.sh"
+ENTRYPOINT [ "/remote-entrypoint.sh" ]
+
