@@ -41,7 +41,7 @@ RUN chromium --no-sandbox --version
 RUN chromium --disable-dev-shm-usage  --version
 
 # installing requirements
-COPY ./requirements.txt /requirements.txt
+COPY ./setup/requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt
 
 # Set up the Chromium environment
