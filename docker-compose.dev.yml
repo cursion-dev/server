@@ -1,5 +1,6 @@
 services:
 
+
   app:
     container_name: scanerr-app
     hostname: scanerr-app

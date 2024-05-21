@@ -1,8 +1,6 @@
-
-
-
 services:
   
+
   app:
     container_name: scanerr-app
     hostname: scanerr-app
@@ -14,20 +12,20 @@ services:
       dockerfile: Dockerfile.local
     ports:
       - "8000:8000"
-    volumes:
-      - ./app:/app
     entrypoint: ["/local-entrypoint.sh", "app"]
     env_file:
       - ./env/.env.stage
+    volumes:
+      - ./app:/app
   
 
-
   redis:
+    container_name: scanerr-redis
+    hostname: scanerr-redis
     image: redis:alpine
     ports:
       - "6379"
   
-
 
   celery:
     container_name: scanerr-celery
@@ -38,10 +36,10 @@ services:
       context: .
       dockerfile: Dockerfile.local
     entrypoint: ["/local-entrypoint.sh", "celery"]
-    volumes:
-      - ./app:/scanerr
     env_file:
       - ./env/.env.stage
+    volumes:
+      - ./app:/scanerr
     depends_on:
       - redis
       - app
