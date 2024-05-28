@@ -1,11 +1,14 @@
 from django.db import models
-from django.db import models
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.auth.models import User
 from datetime import datetime
 from django.contrib.postgres.fields import JSONField
 import uuid
+
+
+
+
 
 
 def get_info_default():
@@ -54,7 +57,6 @@ def get_info_default():
 
 
 
-
 def get_small_info_default():
     info_default = {
             'latest_scan': {
@@ -78,6 +80,7 @@ def get_small_info_default():
 
 
 
+
 def get_lh_delta_default():
     lh_delta_default = {
         "scores": {
@@ -92,6 +95,7 @@ def get_lh_delta_default():
         },
     }
     return lh_delta_default
+
 
 
 
@@ -115,6 +119,7 @@ def get_yl_delta_default():
 
 
 
+
 def get_lh_default():
     lh_default = {
        "scores": {
@@ -129,6 +134,7 @@ def get_lh_default():
        "audits": None,
     }
     return lh_default
+
 
 
 
@@ -153,6 +159,7 @@ def get_yl_default():
 
 
 
+
 def get_expressions_default():
     expressions_default = {
        'list': [
@@ -165,6 +172,7 @@ def get_expressions_default():
        ],
     }
     return expressions_default
+
 
 
 
@@ -206,6 +214,7 @@ def get_steps_default():
 
 
 
+
 def get_scores_default():
     scores_default = {
         'html': None,
@@ -215,6 +224,7 @@ def get_scores_default():
         'vrt': None
     }
     return scores_default
+
 
 
 
@@ -228,6 +238,8 @@ def get_slack_default():
         "slack_channel_name": None,
     }
     return slack_default
+
+
 
 
 def get_tags_default():
@@ -297,7 +309,6 @@ class Member(models.Model):
 
 
 
-
 class Site(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -314,6 +325,7 @@ class Site(models.Model):
 
 
 
+
 class Page(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, serialize=True, blank=True)
@@ -326,6 +338,7 @@ class Page(models.Model):
 
     def __str__(self):
         return f'{self.page_url}'
+
 
 
 
@@ -347,6 +360,7 @@ class Scan(models.Model):
 
     def __str__(self):
         return f'{self.id}__scan'
+
 
 
 
@@ -424,7 +438,6 @@ class Automation(models.Model):
 
 
 
-
 class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -438,7 +451,6 @@ class Report(models.Model):
 
     def __str__(self):
         return f'{self.page.page_url}__report'
-
 
 
 
@@ -479,8 +491,6 @@ class Testcase(models.Model):
 
 
     
-
-
 
 class Mask(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -525,3 +535,6 @@ class Log(models.Model):
 
     def __str__(self):
         return f'{self.status}__{self.request_type}__{self.path}'
+
+
+

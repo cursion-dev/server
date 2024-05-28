@@ -1,7 +1,4 @@
 // custom configurations for Lighthouse CLI
-
-
-
 module.exports = {
   extends: 'lighthouse:default',
   plugins: ['lighthouse-plugin-crux'],

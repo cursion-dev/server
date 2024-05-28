@@ -1,38 +1,57 @@
 from selenium import webdriver
-from selenium.webdriver import ActionChains
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.actions.action_builder import ActionBuilder
-import time, os, numpy, json, sys
+import time, os, sys
+
+
+
 
 
 
 def driver_init(
-        window_size='1920,1080', 
-        device='desktop',
-        script_timeout=30,
-        load_timeout=30,
-        wait_time=15, 
-        pixel_ratio=1.0,
-        scale_factor=0.5
-    ):
+        window_size: str='1920,1080', 
+        device: str='desktop',
+        script_timeout: int=30,
+        load_timeout: int=30,
+        wait_time: int=15, 
+        pixel_ratio: int=1.0,
+        scale_factor: int=0.5
+    ) -> object:
+    """ 
+    Starts a new selenium driver instance
 
+    Expects: {
+        'window_size'   : str, 
+        'device'        : str,
+        'script_timeout': int,
+        'load_timeout'  : int,
+        'wait_time'     : int, 
+        'pixel_ratio'   : int,
+        'scale_factor'  : int
+    } 
+
+    Returns -> driver object
+    """
+
+    # setting up browser configs
     sizes = window_size.split(',')
-
     prefs = {
         'download.prompt_for_download': False,
         'download.extensions_to_open': '.zip',
         'safebrowsing.enabled': True
     }
-
     mobile_emulation = {
-        "deviceMetrics": { "width": int(sizes[0]), "height": int(sizes[1]), "pixelRatio": pixel_ratio },
+        "deviceMetrics": { 
+            "width": int(sizes[0]), 
+            "height": int(sizes[1]), 
+            "pixelRatio": pixel_ratio 
+        },
         "userAgent": (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
             (KHTML, like Gecko) Chrome/122.0.6261.119 Mobile Safari/537.36"
         ) 
     }
 
-    # chromedriver_path = os.environ.get("CHROMEDRIVER")
+    # setting browser options
     options = webdriver.ChromeOptions()
     options.binary_location = os.environ.get('CHROME_BROWSER')
     options.add_argument("--no-sandbox")
@@ -42,31 +61,41 @@ def driver_init(
     options.add_argument("--headless")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("ignore-certificate-errors")
-    options.add_argument('--hide-scrollbars')
+    options.add_argument("--hide-scrollbars")
     options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
-    options.add_argument("--window-size=%s" % window_size) 
+    options.add_argument(f"--window-size={window_size}") 
     options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
     options.page_load_strategy = 'none'
 
+    # setting to mobile if reqeusted
     if device == 'mobile':
         options.add_experimental_option("mobileEmulation", mobile_emulation)
 
+    # chromedriver_path = os.environ.get("CHROMEDRIVER")
     # service = webdriver.ChromeService(executable_path=chromedriver_path)
     driver = webdriver.Chrome(options=options)
     # driver.set_page_load_timeout(load_timeout)
     # driver.set_script_timeout(script_timeout)
     # driver.implicitly_wait(wait_time)
 
-    
     return driver
 
 
-def driver_test():
+
+
+def driver_test() -> None:
+    """ 
+    Spins up a selenium driver instance and
+    tests to ensure it can access the browser and internet
+
+    Returns -> None
+    """
     
     print("Testing selenium instalation and integration...")
     message = 'Selenium was unable to start\n\n'
     status = 'Failed'
-
+    
+    # testing selenium
     try:
         driver = driver_init()
         driver.get('https://google.com')
@@ -75,49 +104,46 @@ def driver_test():
         if title == 'Google':
             status = 'Success'
             message = 'Selenium installed and working \N{check mark} \n\n'
-            
+    # log exception   
     except Exception as e:
         print(e)
-
+    
+    # logging test results
     sys.stdout.write(
-            '--- ' + status + ' ---\n'+ message
-        )
-
+        '--- ' + status + ' ---\n'+ message
+    )
+    
     try:
         quit_driver(driver)
         sys.exit(0)
     except:
         pass
-
-
-
-def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
-    """
-    Pauses the driver until all network requests have been resolved
-
-    --> Adding mouse interaction to load WP plugin rendered content
-
-    returns once driver determines that all request have resolved or 
-    total wait time exceeds max_wait_time <int>
     
+    return None
+
+
+
+
+def driver_wait(
+        driver: object, 
+        interval: int=1, 
+        max_wait_time: int=30, 
+        min_wait_time: int=3
+    ) -> object:
     """
+    Expects the driver instance and waits 
+    for either the page to fully load or the max_wait_time
+    to expire before returning.
 
-    def get_request_list(driver):
-        # get current snapshot of driver requests 
-        requests = driver.get_log('performance')
-        r_list = []
-        for r in requests:
-            network_log = json.loads(r["message"])["message"]
+    Expects: {
+        'driver'        : object, 
+        'interval'      : int,
+        'max_wait_time' : int,
+        'min_wait_time' : int
+    }
 
-            # Checks if the current 'method' key has any Network related value.
-            if("Network.response" in network_log["method"]
-                or "Network.request" in network_log["method"]
-                or "Network.webSocket" in network_log["method"]):
-
-                r_list.append(network_log)
-
-        return r_list
-
+    Returns -> driver object
+    """
 
     def interact_with_page(driver):
         # simulate mouse movement
@@ -139,17 +165,8 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     time.sleep(min_wait_time)
 
     while int(wait_time) < int(max_wait_time) and page_state != 'complete':
-        # get first set of logs
-        # list_one = get_request_list(driver=driver)
-        
-        # wait 5 sec or <interval:int> sec for request to resolve
+        # wait 1 sec or <interval:int> sec 
         time.sleep(interval)
-        
-        # get second set of logs
-        # list_two = get_request_list(driver=driver)
-        
-        # check if logs are equal
-        # resolved = numpy.array_equal(list_one, list_two)
 
         page_state = driver.execute_script('return document.readyState')
         print(f'document state is {page_state}')
@@ -159,40 +176,49 @@ def driver_wait(driver, interval=5, max_wait_time=30, min_wait_time=5):
     # interacting with page once available
     interact_with_page(driver)
 
-    return
+    return None
 
 
 
-def get_data(driver, max_wait_time):
+
+def get_data(
+        driver: object, 
+        interval: int=1, 
+        max_wait_time: int=30, 
+        min_wait_time: int=3
+    ) -> dict:
     """
-    Expects the driver instance and max_wait_time <int> 
-    then returns both the page-source (html) and console-logs (logs).
+    Once the page has loaded, grabs the
+    page-source (html) and console-logs (logs).
 
-    Method waits for the allocated `max_wait_time`
-    before continuing with data collection.
+    Expects: {
+        'driver'        : object, 
+        'interval'      : int,
+        'max_wait_time' : int,
+        'min_wait_time' : int
+    }
 
     Returns -> data = {
-        "html": <str>,
-        "logs": <dict>
+        'html' : str,
+        'logs' : dict
     }
     """
-    timeout = 0
-    page_state = 'loading'
+
+    # setting defaults
     html = None
     logs = None
 
-    while int(timeout) < int(max_wait_time) and page_state != 'complete':
-        page_state = driver.execute_script('return document.readyState')
-        print(f'document state is {page_state}')
-        time.sleep(1)
-        timeout += 1
+    # waiting for page to load
+    driver_wait(driver=driver)
 
+    # get data from browser
     try:
         html = driver.page_source
         logs = driver.get_log('browser')
     except Exception as e:
         print(e)
 
+    # formatting respones
     data = {
         "html": html,
         "logs": logs
@@ -202,9 +228,12 @@ def get_data(driver, max_wait_time):
 
 
 
-def quit_driver(driver):
+
+def quit_driver(driver: object) -> None:
     """ 
     Quits and reaps all child processes in docker
+
+    Returns -> None
     """
     print('Quitting session: %s' % driver.session_id)
     driver.quit()
@@ -213,14 +242,15 @@ def quit_driver(driver):
         while pid:
             pid = os.waitpid(-1, os.WNOHANG)
             print("Reaped child: %s" % str(pid))
-
             # avoid infinite loop cause pid value -> (0, 0)
             try:
                 if pid[0] == 0:
                     pid = False
             except:
                 pass
-
-
     except ChildProcessError:
         pass
+
+
+
+    

@@ -1,13 +1,19 @@
-import subprocess, json, uuid, boto3, \
-shutil, os, requests, time
+import subprocess, json, uuid, boto3, os, requests, time
 from ..models import Site, Scan
 from scanerr import settings
 
 
 
+
+
+
 class Yellowlab():
 
-    """Initializes Yellow Lab Tools CLI and runs an audit of the site"""
+    """
+    Initializes Yellow Lab Tools CLI and runs an audit of the site
+
+    Use self.get_data() to init a run
+    """
 
 
     def __init__(self, scan=None, configs=None):

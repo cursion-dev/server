@@ -1,36 +1,53 @@
 from ..models import *
-import PIL.Image as Img
 from scanerr import settings
-from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.pdfgen import canvas
-import time, os, sys, json, boto3, textwrap, requests
+import os, json, boto3, textwrap, requests
+
+
+
 
 
 
 class Reporter():
-
-    ''' 
-    Used for generating web vitals reports for the passed `Site` obj
+    """ 
+    Used for generating web vitals reports for 
+    the associated `Page` & `Scan`
 
     Expects -> {
-        "report": <report:obj>,
+        'report': <report:obj>,
+        'scan'  : <scan:obj>,
     }
 
-    returns --> <report:obj>
-    
-    '''
+    Use self.generate_report() to create a new report
 
-    def __init__(self, report, scan=None):
+    Returns -> data: {
+        'report' : object,
+        'success': bool,
+        'message': str
+    }
+    """
+
+
+
+
+    def __init__(self, report: object, scan: object=None):
+        
+        # getting report, scan, & page
         self.report = report
         self.page = self.report.page
-        if scan is None:
-            self.scan = Scan.objects.get(id=self.page.info['latest_scan']['id'])
-        else:
-            self.scan = scan
+        self.scan = scan
 
+        # retrieveing latest scan if none
+        if scan is None:
+            try:
+                self.scan = Scan.objects.get(id=self.page.info['latest_scan']['id'])
+            except:
+                self.scan = None
+
+        
         # building paths & canvas template
         if os.path.exists(os.path.join(settings.BASE_DIR,  f'temp/')):
             self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
@@ -38,6 +55,7 @@ class Reporter():
             os.makedirs(f'{settings.BASE_DIR}/temp')
             self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
     
+        # setting default colors 
         self.page_index = 0
         self.text_color = self.report.info['text_color']
         self.highlight_color = self.report.info['highlight_color']
@@ -53,48 +71,67 @@ class Reporter():
         )
 
     
-    def setup_page(self):
+
+
+    def setup_page(self) -> None:
         # sets the defaults for a new page
         self.c.setFillColor(HexColor(self.background_color))
         self.c.rect(0, 0, 8.5*inch, 11*inch, stroke=0, fill=1)
+        return None
 
 
-    def end_page(self):
+
+
+    def end_page(self) -> None:
         # adds page number and ends page
         self.c.setFont('Helvetica-Bold', 15)
         self.c.setFillColor(HexColor(self.text_color))
         self.page_index += 1
         self.c.drawString(7.7*inch, .3*inch, str(self.page_index))
         self.c.showPage()
+        return None
 
 
-    def draw_page_title(self, title):
+
+
+    def draw_page_title(self, title: str) -> None:
         # adds a title to the given page 
         self.c.setFont('Helvetica-Bold', 32)
         self.c.setFillColor(HexColor(self.text_color))
         self.c.drawCentredString(4.25*inch, 10*inch, title)
+        return None
 
 
-    def publish_report(self):
+
+
+    def publish_report(self) -> None:
+        # saves report and uploads to s3
         self.c.save()
         remote_path = f'static/sites/{self.report.page.site.id}/{self.report.page.id}/{self.report.id}.pdf'
-        
-
         # uploading package to remote s3 
         with open(self.local_path, 'rb') as data:
             self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME),
                 remote_path, ExtraArgs={
                     'ACL': 'public-read', 'ContentType': 'application/pdf'}
             )
-
+        # building and saving report_url
         report_url = f'{settings.AWS_S3_URL_PATH}/{remote_path}#toolbar=0'
-
         self.report.path = report_url
         self.report.save()
         os.remove(self.local_path)
+        return None
 
-    
-    def draw_wrapped_line(self, text, length, x_pos, y_pos, y_offset):
+
+
+
+    def draw_wrapped_line(
+            self, 
+            text: str, 
+            length: int, 
+            x_pos: int, 
+            y_pos: int, 
+            y_offset: int
+        ) -> None:
         """
         :param text: the raw text to wrap
         :param length: the max number of characters per line
@@ -102,6 +139,7 @@ class Reporter():
         :param y_pos: starting y position
         :param y_offset: the amount of space to leave between wrapped lines
         """
+        # Wraps the passed test at a certain char_length
         if len(text) > length:
             wraps = textwrap.wrap(text, length, break_long_words=True)
             for x in range(len(wraps)):
@@ -110,11 +148,18 @@ class Reporter():
             y_pos += y_offset  # add back offset after last wrapped line
         else:
             self.c.drawString(x_pos*inch, y_pos*inch, text)
-        return y_pos
+        return None
 
     
 
-    def cover_page(self):
+
+    def cover_page(self) -> None:
+        """ 
+        Builds the cover page with a title
+
+        Returns -> None
+        """
+
         # background and title
         self.setup_page()
         
@@ -161,17 +206,31 @@ class Reporter():
         # cover img
         cover_img = os.path.join(settings.BASE_DIR, "api/utils/report_assets/cover_img.png")
         self.c.drawImage(cover_img, 1*inch, 2*inch, 6.04*inch, 4.68*inch, mask='auto')
-
         self.end_page()
-
+        return None
+        
 
 
     
-    def get_score_data(self, score, is_binary=False):
+    def get_score_data(self, score: float, is_binary: bool=False) -> dict:
+        """ 
+        Using the passed 'score', decide on 
+        which grade and color to return.
+
+        Expects: {
+            'score'     : float,
+            'is_binary' : bool
+        }
+
+        Returns -> dict
+        """
+
+        # calc score if binary
         score = float(score)
         if is_binary:
             score = score*100
 
+        # defining score types
         score_types = {
             "a": {
                 "grade": "A",
@@ -200,6 +259,7 @@ class Reporter():
 
         }
 
+        # calculate grade
         if score >= 80:
             grade = score_types['a']
         elif 80 > score >= 70:
@@ -213,10 +273,16 @@ class Reporter():
         else:
             grade = score_types['f']
 
+        # return
         return grade
 
 
-    def get_cat_string(self, cat):
+
+
+    def get_cat_string(self, cat: str) -> str:
+        """ 
+        Returns the string coresponding to the passed 'cat'
+        """
         
         if cat == 'fonts':
             string = 'Fonts'
@@ -255,9 +321,10 @@ class Reporter():
 
     
     
-    def get_audits(self, uri=str):
+
+    def get_audits(self, uri: str) -> dict:
         """
-        Downloads teh JSON file from the passed uri
+        Downloads the JSON file from the passed uri
         and return the data as a python dict
         """
         res = requests.get(uri)
@@ -267,15 +334,28 @@ class Reporter():
 
 
 
-    def create_data(self, data_type=str):
+    def create_data(self, data_type: str) -> None:
+        """ 
+        Paints the data for the passed 'data_type', 
+        either 'lighthouse' or 'yellowlab'.
+        
+        Expects: {
+            'data_type': str
+        }
+
+        Returns -> None
+        """
+        
+        # add new page
         self.setup_page()
         
+        # decide on which data type
         if data_type == 'yellowlab':
             data = self.scan.yellowlab
             data['audits'] = self.get_audits(data['audits'])
             page_title = 'Yellow Lab'
             avg_score = 'globalScore'
-        
+
         if data_type == 'lighthouse':
             data = self.scan.lighthouse
             data['audits'] = self.get_audits(data['audits'])
@@ -337,7 +417,6 @@ class Reporter():
                         f'{data["scores"][avg_score]}/100'
                     )
 
-                
                 # creating new page at limit --> 20 items
                 if logs_count >= 20:
                     self.end_page()
@@ -349,8 +428,6 @@ class Reporter():
                 # creating space btw sections
                 if c_count > 0 and logs_count != 0:
                     begin_y = (self.y - .2)
-                    
-
 
                 # creating individual grade cards
                 grade_obj = self.get_score_data(data['scores'][cat])
@@ -380,7 +457,6 @@ class Reporter():
                     cat_string
                 )
 
-
                 p_count = 0
                 for policy in data['audits'][cat]:
 
@@ -399,7 +475,6 @@ class Reporter():
                             if len(policy["displayValue"]) < 9:
                                 policy_value = policy["displayValue"]
                         binary = True
-
 
                     if len(policy_text) < 53:
                         # creating log box
@@ -442,60 +517,63 @@ class Reporter():
                             (f'{policy_value}')
                         )
                         
-                        
                         p_count += 1
                         logs_count += 1
                         self.y = (begin_y - (space * p_count))
             
             c_count += 1
         
-
-        
         self.end_page()
 
+        return None
 
 
 
 
 
+    def generate_report(self) -> dict:
+        """ 
+        Generates a new Report.
 
+        Returns -> data: {
+            'report' : object,
+            'success': bool,
+            'message': str
+        }
+        """
 
+        # setting defaults
+        message = 'Scan Page first'
+        success = False
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def make_test_report(self):
+        # generating if scan is available
+        if self.scan:
+            
+            # add title
+            self.cover_page()
         
-        self.cover_page()
-    
-        if 'lighthouse' in self.report.type or 'full' in self.report.type:
-            self.create_data(data_type='lighthouse')
+            # build lighthouse data
+            if 'lighthouse' in self.report.type or 'full' in self.report.type:
+                self.create_data(data_type='lighthouse')
 
-        if 'yellowlab' in self.report.type or 'full' in self.report.type:
-            self.create_data(data_type='yellowlab')
+            # build yellowlab data
+            if 'yellowlab' in self.report.type or 'full' in self.report.type:
+                self.create_data(data_type='yellowlab')
+            
+            # save report
+            self.publish_report()
+            message = 'Report Generated'
+            success = True
+        
+        # formating response
+        data = {
+            'report' : self.report,
+            'success': success,
+            'message': message
+        }
 
-        if 'crux' in self.report.type or 'full' in self.report.type:
-            self.setup_page()
-            self.draw_page_title('CRUX')
-            self.end_page()
-
-        self.publish_report()
-        return self.report
+        # returning response
+        return data
 
 
         

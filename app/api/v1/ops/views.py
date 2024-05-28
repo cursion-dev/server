@@ -17,6 +17,14 @@ from .services import *
 
 
 
+
+
+
+### ------ Begin Site Views ------ ###
+
+
+
+
 class Sites(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
@@ -29,7 +37,8 @@ class Sites(APIView):
     def get(self, request):
         response = get_sites(request)
         return response
-    
+
+
 
 
 class SiteDetail(APIView):
@@ -37,22 +46,13 @@ class SiteDetail(APIView):
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        site = get_object_or_404(Site, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-        if site.account != account:
-            data = {'reason': 'you cannot retrieve a Site you do not own',}
-            record_api_call(request, data, '401')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        serializer_context = {'request': request,}
-        serialized = SiteSerializer(site, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK) 
+        response = get_site(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_site(request, id)
         return response
+
 
 
 
@@ -66,6 +66,7 @@ class SiteDelay(APIView):
 
 
 
+
 class SiteCrawl(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -75,6 +76,8 @@ class SiteCrawl(APIView):
         return response
 
 
+
+
 class SitesDelete(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -82,6 +85,11 @@ class SitesDelete(APIView):
     def post(self, request):
         response = delete_many_sites(request)
         return response
+
+
+
+
+### ------ Begin Page Views ------ ###
 
 
 
@@ -101,27 +109,19 @@ class Pages(APIView):
     
 
 
+
 class PageDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        page = get_object_or_404(Page, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-        if page.account != account:
-            data = {'reason': 'you cannot retrieve a Page you do not own',}
-            record_api_call(request, data, '401')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        serializer_context = {'request': request,}
-        serialized = PageSerializer(page, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK) 
+        response = get_page(request, id)
+        return response 
 
     def delete(self, request, id):
         response = delete_page(request, id)
         return response
+
 
 
 
@@ -135,6 +135,7 @@ class PageDelay(APIView):
 
 
 
+
 class PagesDelete(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -142,6 +143,11 @@ class PagesDelete(APIView):
     def post(self, request):
         response = delete_many_pages(request)
         return response
+
+
+
+
+### ------ Begin Scan Views ------ ###
 
 
 
@@ -160,30 +166,22 @@ class Scans(APIView):
         return response
 
 
+
+
 class ScanDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
-        scan = get_object_or_404(Scan, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-
-        if scan.site.account != account:
-            data = {'reason': 'you cannot retrieve Scans of a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = ScanSerializer(scan, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_scan(request, id)
+        return response
 
 
     def delete(self, request, id):
         response = delete_scan(request, id)
         return response
+
+
 
 
 class ScanLean(APIView):
@@ -195,6 +193,8 @@ class ScanLean(APIView):
         return response
 
 
+
+
 class ScanDelay(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -202,6 +202,7 @@ class ScanDelay(APIView):
     def post(self, request):
         response = create_scan(request, delay=True)
         return response
+
 
 
 
@@ -215,6 +216,7 @@ class ScansCreate(APIView):
 
 
 
+
 class ScansDelete(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -223,6 +225,10 @@ class ScansDelete(APIView):
         response = delete_many_scans(request)
         return response
 
+
+
+
+### ------ Begin Test Views ------ ###
 
 
 
@@ -241,29 +247,21 @@ class Tests(APIView):
         return response
 
 
+
+
 class TestDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete',]
 
     def get(self, request, id):
-        test = get_object_or_404(Test, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-
-        if test.site.account != account:
-            data = {'reason': 'you cannot retrieve Tests of a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = TestSerializer(test, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_test(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_test(request, id)
         return response
+
+
 
 
 class TestLean(APIView):
@@ -275,6 +273,8 @@ class TestLean(APIView):
         return response
 
 
+
+
 class TestDelay(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -282,6 +282,8 @@ class TestDelay(APIView):
     def post(self, request):
         response = create_test(request, delay=True)
         return response
+
+
 
 
 class TestsCreate(APIView):
@@ -293,6 +295,8 @@ class TestsCreate(APIView):
         return response
 
 
+
+
 class TestsDelete(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -302,6 +306,8 @@ class TestsDelete(APIView):
         return response
 
 
+
+### ------ Begin Schedule Views ------ ###
 
 
 
@@ -319,30 +325,24 @@ class Schedules(APIView):
         return response
 
 
+
+
 class ScheduleDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        schedule = get_object_or_404(Schedule, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-
-        if schedule.site.account != account:
-            data = {'reason': 'you cannot retrieve Schedules of a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = ScheduleSerializer(schedule, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_schedule(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_schedule(request, id)        
         return response
 
+
+
+
+### ------ Begin Automation Views ------ ###
 
 
 
@@ -361,30 +361,24 @@ class Automations(APIView):
         return response
 
 
+
+
 class AutomationDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        automation = get_object_or_404(Automation, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-
-        if automation.account != account:
-            data = {'reason': 'you cannot retrieve Automations you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = AutomationSerializer(automation, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_automation(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_automation(request, id)        
         return response
 
+
+
+
+### ------ Begin Report Views ------ ###
 
 
 
@@ -403,25 +397,14 @@ class Reports(APIView):
 
 
 
+
 class ReportDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        report = get_object_or_404(Report, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-        
-        if report.account != account:
-            data = {'reason': 'you cannot retrieve Reports you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = ReportSerializer(report, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_report(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_report(request, id)        
@@ -441,6 +424,10 @@ class ExportReport(APIView):
 
 
 
+### ------ Begin Case Views ------ ###
+
+
+
 class Cases(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
@@ -455,6 +442,7 @@ class Cases(APIView):
 
 
 
+
 class CasesSearch(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
@@ -465,25 +453,14 @@ class CasesSearch(APIView):
 
 
 
+
 class CaseDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        case = get_object_or_404(Case, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-        
-        if case.account != account:
-            data = {'reason': 'you cannot retrieve Cases you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = CaseSerializer(case, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_case(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_case(request, id)        
@@ -502,6 +479,7 @@ class AutoCases(APIView):
 
 
 
+
 class CopyCases(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post']
@@ -509,6 +487,12 @@ class CopyCases(APIView):
     def post(self, request):
         response = copy_case(request)  
         return response
+
+
+
+
+### ------ Begin Testcase Views ------ ###
+
 
 
 
@@ -526,6 +510,7 @@ class Testcases(APIView):
 
 
 
+
 class TestcaseDelay(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -536,30 +521,23 @@ class TestcaseDelay(APIView):
 
 
 
+
 class TestcaseDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        testcase = get_object_or_404(Testcase, pk=id)
-        user = request.user
-        account = Member.objects.get(user=user).account
-        
-        if testcase.account != account:
-            data = {'reason': 'you cannot retrieve Testcases you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = TestcaseSerializer(testcase, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        response = get_testcase(request, id)
+        return response
 
     def delete(self, request, id):
         response = delete_testcase(request, id)        
         return response
 
+
+
+
+### ------ Begin Log Views ------ ###
 
 
 
@@ -574,41 +552,48 @@ class Logs(APIView):
         return response 
 
 
+
+
 class LogDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
     def get(self, request, id):
-        log = get_object_or_404(Log, pk=id)
-        if log.user != request.user:
-            data = {'reason': 'you cannot retrieve Logs you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer_context = {'request': request,}
-        serialized = LogSerializer(log, context=serializer_context)
-        data = serialized.data
-        return Response(data, status=status.HTTP_200_OK)
-
-
-
-class HomeStats(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['get',]
-
-    def get(self, request):
-        response = get_home_stats(request)
+        response = get_log(request, id)
         return response
 
 
 
-class SiteStats(APIView):
+
+### ------ Begin Process Views ------ ###
+
+
+
+
+class Processes(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+    
+    def get(self, request):
+        response = get_processes(request)
+        return response
+
+
+
+
+class ProcessDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
-    def get(self, request):
-        response = get_site_stats(request)
+    def get(self, request, id):
+        response = get_process(request, id)
         return response
+
+
+
+
+### ------ Begin Search Views ------ ###
+
 
 
 
@@ -623,31 +608,48 @@ class Search(APIView):
 
 
 
-class Processes(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['get']
-    
-    def get(self, request):
-        response = get_processes(request)
-        return response
+
+### ------ Begin Metrics Views ------ ###
 
 
-class ProcessDetail(APIView):
+
+
+class HomeMetrics(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get',]
 
-    def get(self, request, id):
-        if not Process.objects.filter(id=id).exists():
-            data = {'reason': 'process with that id does not exist',}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-        proc = Process.objects.get(id=id)
-        serializer_context = {'request': request,}
-        serialized = ProcessSerializer(proc, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+    def get(self, request):
+        response = get_home_metrics(request)
+        return response
+
+
+
+
+class SiteMetrics(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = get_site_metrics(request)
+        return response
+
+
+
+
+class CeleryMetrics(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+    http_method_names = ['get',]
+    
+    def get(self, request):
+        response = get_celery_metrics(request)
+        return response
+
+
+
+
+### ------ Begin Beta Views ------ ###
+
 
 
 
@@ -656,17 +658,10 @@ class WordPressMigrateSite(APIView):
     http_method_names = ['post',]
     
     def post(self, request):
-        response = migrate_site(request, delay=False)
+        response = migrate_site(request)
         return response
 
 
-class WordPressMigrateSiteDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-    
-    def post(self, request):
-        response = migrate_site(request, delay=True)
-        return response
 
 
 class SiteScreenshot(APIView):
@@ -679,12 +674,4 @@ class SiteScreenshot(APIView):
 
 
 
-class CeleryMetrics(APIView):
-    authentication_classes = []
-    permission_classes = (AllowAny,)
-    http_method_names = ['get',]
-    
-    def get(self, request):
-        response = get_celery_metrics(request)
-        return response
 

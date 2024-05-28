@@ -5,22 +5,48 @@ from .driver_s import *
 
 
 
-class Crawler():
 
-    def __init__(self, url=None, sitemap=None, max_urls=25):
+
+class Crawler():
+    """ 
+    Crawl the passed "site" for pages, stoping 
+    once 'max_urls' is reached.
+
+    Expects: {
+        'url'       : str,
+        'sitemap'   : str,
+        'start_url' : str,
+        'max_urls'  : int,
+    }
+
+    Use `Crawler.get_links()` initiate a new crawl
+
+    Returns -> list
+    """
+
+
+
+    def __init__(self, url: str=None, sitemap: str=None, max_urls: int=25):
         self.url = url
         self.sitemap = sitemap
         self.max_urls = max_urls
         self.driver = driver_init()
 
+
+
     
-    def get_links(self):
+    def get_links(self) -> list:
+        # crawl self.url and record any found links 
+        # which are within the same self.url domain
 
         follow_urls = []
         crawled_urls = [self.url,]
+        
+        def url_is_valid(url: str=None) -> bool:
+            # checks if the passed url is 
+            # a valid url to follow and 
+            # not a file or external redirect
 
-        # validates url
-        def url_is_valid(url):
             bad_str_list = ['cdn-cgi']
             bad_end_list = [
                 '.png', '.jpg', '.pdf', '.jpeg', 
@@ -56,10 +82,14 @@ class Crawler():
                 interval=2
             )
 
+            # parsing page_source 
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+            # iterating through all <a> tags
             for link in soup.find_all('a'):
                 url = link.get('href')
                 if url is not None:
+                    # validate url
                     if url_is_valid(url):
                         if url.startswith('/'):
                             url = self.url + url
@@ -86,6 +116,7 @@ class Crawler():
                     print('max pages reached')
                     break
 
+        # quit driver and return
         quit_driver(self.driver)
         return crawled_urls
 

@@ -1,8 +1,12 @@
 from .driver_s import driver_init, driver_wait, quit_driver
-from PIL import Image as I, ImageChops, ImageStat
+from PIL import Image as I
 from .alerts import sendgrid_email
 from scanerr import settings
 import time, boto3, os
+
+
+
+
 
 
 # setting up s3 client
@@ -21,13 +25,13 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     send an email to the prospect that requested it.
 
     Expects the following:
-        'report_id'     : <id> of report/page being reported on
-        'email'         : <str> prospect's email address 
-        'first_name'    : <str> prospect's first name
+        'report_id'     : id of report/page being reported on
+        'email'         : str prospect's email address 
+        'first_name'    : str prospect's first name
     
     Returns -> data {
-        'success' : <bool> if process started successfully
-        'error'   : <str> any error msg from Scanerr server
+        'success' : bool if process started successfully
+        'error'   : str any error msg from Scanerr server
     }
     """
 

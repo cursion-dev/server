@@ -1,16 +1,36 @@
 from ..models import *
 from datetime import datetime
-from .image import Image
+from .imager import Imager
 from scanerr import settings
-from difflib import SequenceMatcher, HtmlDiff, Differ
-import time, os, sys, json, random, string, re, requests, uuid, boto3
+from difflib import SequenceMatcher
+import os, json, random, \
+string, re, requests, uuid, boto3
+
+
 
 
 
 
 class Tester():
+    """ 
+    Used to run and build all the 
+    components of a new `Test`
 
-    def __init__(self, test):
+    Expects -> {
+        'test' : object,
+    }
+
+    Use self.run_test() to create a new Test
+
+    Returns -> `Test` object
+    """
+
+
+
+
+    def __init__(self, test: object):
+
+        # setting defaults
         self.test = test
         self.pre_scan_html = []
         self.post_scan_html = []
@@ -28,12 +48,19 @@ class Tester():
         )
 
 
-    def clean_html(self):
+
+
+    def clean_html(self) -> None:
+        # cleans both pre_ and post_ html
+        # and prepares them for comparison
+
+        # retrieveing data from remote s3
         pre_scan_html_raw = requests.get(self.test.pre_scan.html).text
         post_scan_html_raw = requests.get(self.test.post_scan.html).text
         pre_scan_html = pre_scan_html_raw.splitlines()
         post_scan_html = post_scan_html_raw.splitlines()
 
+        # setting watch lists
         white_list = ['csrfmiddlewaretoken', '<!DOCTYPE html>',]
         tags = [
             '<head', '<script', '<div', '<p', '<h1', '<wbr', '<ul', '<tr', '<u', '<title', '<iframe',  
@@ -49,6 +76,8 @@ class Tester():
             '</datalist', '</data', '</colgroup', '</col', '</code', '</cite', '</caption', '</canvas', '</button', '</body', '</blockquote',
             '</bdo', '</bdi', '</base', '</pre', '</b', '</br', '</audio', '</aside', '</article', '</area', '</address', '</abbr', '</a',
         ]
+
+        # clean pre_scan_html
         for line in pre_scan_html:
             for item in white_list:
                 if item in line:
@@ -60,6 +89,7 @@ class Tester():
                 if sub not in tags:
                     self.pre_scan_html.append((sub+'>'))
         
+        # clean post_scan_html
         for line in post_scan_html:
             for item in white_list:
                 if item in line:
@@ -71,15 +101,21 @@ class Tester():
                 if sub not in tags:
                     self.post_scan_html.append((sub+'>'))
 
-        return
+        return None
+
+
 
     
-    def clean_logs(self): 
+    def clean_logs(self) -> None:
+        # cleans both pre_ and post_ logs
+        # and prepares them for comparison
+         
+        # setting defaults
         pre_scan_logs_json = self.test.pre_scan.logs
         post_scan_logs_json = self.test.post_scan.logs
         order = ("level", "source", "message")
 
-
+        # cleaning pre_scan_logs
         for log in pre_scan_logs_json:
             new_log = {}
             for label in order:
@@ -88,7 +124,7 @@ class Tester():
                         new_log[label] = log.get(key)
             self.pre_scan_logs.append(json.dumps(new_log))
 
-
+        # cleaning post_scan_logs
         for log in post_scan_logs_json:
             new_log = {}
             for label in order:
@@ -97,58 +133,80 @@ class Tester():
                         new_log[label] = log.get(key)
             self.post_scan_logs.append(json.dumps(new_log))
 
-        return
+        return None
 
 
-    def compare_html(self):
+
+
+    def compare_html(self) -> float:
+        # calculates the similarity of pre and post html
+        # using SequenceMatcher()
+
+        # clean html first
         self.clean_html()
-        pre_scan = self.pre_scan_html
-        post_scan = self.post_scan_html
+        
+        # calculate score
         html_raw_score = SequenceMatcher(
-            None, pre_scan, post_scan
+            None, self.pre_scan_html, self.post_scan_html
         ).ratio()
 
+        # return score
         return html_raw_score
 
 
 
-    def compare_logs(self):
+
+    def compare_logs(self) -> float:
+        # calculates the similarity of pre and post logs
+        # using SequenceMatcher()
+
+        # clean logs first
         self.clean_logs()
-        pre_scan = list(self.pre_scan_logs)
-        post_scan = list(self.post_scan_logs)
+
+        # calculate score
         logs_raw_score = SequenceMatcher(
-            None, pre_scan, post_scan
+            None, self.pre_scan_logs, self.post_scan_logs
         ).ratio()
 
+        # return score
         return logs_raw_score
 
 
-    def delta_html(self):
+
+
+    def delta_html(self) -> dict:
+        # Calculates the macro difference in pre_ & post_ html
+        # (i.e. difference in html nodes <div></div>).
+        # also generates the micro differences 
+        # using self.post_proc_html()
+
+        # calculate macro difference 
         num_html_delta = len(self.pre_scan_html) - len(self.post_scan_html)
         num_html_ratio = len(self.pre_scan_html) / len(self.post_scan_html)
         if num_html_ratio > 1:
             num_html_ratio = len(self.post_scan_html) / len(self.pre_scan_html)
         
+        # building data for post_proc_html()
         for line in self.post_scan_html:
             if line not in self.pre_scan_html:
                 self.delta_html_post.append(line)
-
         for line in self.pre_scan_html:
             if line not in self.post_scan_html:
                 self.delta_html_pre.append(line)
 
-
+        # get pre_mciro_delta in html
         pre_micro_delta = self.post_proc_html(
             self.delta_html_pre, 
             self.delta_html_post
         )
 
+        # get post_mciro_delta in html
         post_micro_delta = self.post_proc_html(
             self.delta_html_post, 
             self.delta_html_pre
         )
             
-    
+        # formatting data
         data = {
             "num_html_delta": num_html_delta,
             "delta_html_post": self.delta_html_post,
@@ -158,10 +216,17 @@ class Tester():
             "post_micro_delta": post_micro_delta,
         }
 
+        # return updated data
         return data
 
 
-    def post_proc_html(self, primary_list, secondary_list):
+
+
+    def post_proc_html(self, primary_list: list, secondary_list: list) -> dict:
+        # generates a list of 8 char long chunks that are in 
+        # the primary_list but not in the secondary_list
+
+        # setting defaults
         delta_parsed = []
         delta_parsed_diff = []
         secondary_str = ''.join(str(i) for i in secondary_list)
@@ -177,67 +242,89 @@ class Tester():
             if block != None and block != '' and block not in secondary_str:
                 delta_parsed_diff.append(block)
 
+        # formatting data
         data = {
             "delta_parsed": delta_parsed,
             "delta_parsed_diff": delta_parsed_diff,
         }
 
+        # returning updated data
         return data
 
 
 
 
-    def html_micro_diff_score(self, post_delta_parsed_diff):
+    def html_micro_diff_score(self, post_delta_parsed_diff: list) -> float:
+        # Calculates a score by comparing 
+        # post_delta_parsed_diff & pre_delta_parsed_diff
 
+        # building pre_delta_parsed_diff
         pre_delta_parsed_diff = []
         for line in self.pre_scan_html:
             subStrings = re.findall('.{1,8}', line)
             for sub in subStrings:
                 pre_delta_parsed_diff.append(sub)
-
+        
+        # calculate score
         diff_length = len(pre_delta_parsed_diff) - len(post_delta_parsed_diff)
         diff_score = diff_length / len(pre_delta_parsed_diff)
 
+        # return score
         return diff_score
 
     
 
     
-    def post_proc_logs(self, log):
+    def post_proc_logs(self, log: str) -> dict:
+        # cleaning logs for comparions 
+        # and convert to a dict
+
+        # clean message
         log = json.loads(log)
-        log["message"].replace("\"", "\'")        
-        letters = string.digits
-        timestamp = ''.join(random.choice(letters) for i in range(13))
+        log["message"].replace("\"", "\'") 
+
+        # generate random timestamp
+        nums = string.digits
+        timestamp = ''.join(random.choice(nums) for i in range(13))
         log['timestamp'] = timestamp
 
+        # return cleaned log
         return log
 
        
 
 
-    def delta_logs(self):
+    def delta_logs(self) -> dict:
+        # Calculates scores for log differences 
+        # and builds lists to show diffferences
+
+        # defaults
+        num_logs_ratio = 1
+        delta_logs_post = []
+        delta_logs_pre = []
+
+        # calc nums_log_delta (were there more in post_scan?)
         num_logs_delta = len(self.pre_scan_logs) - len(self.post_scan_logs)
 
+        # calculate ratio
         if len(self.post_scan_logs) > 0:
             num_logs_ratio = len(self.pre_scan_logs) / len(self.post_scan_logs)
             if num_logs_ratio > 1:
-                num_logs_ratio = 1
-        else:
-            num_logs_ratio = 1
+                num_logs_ratio = 1            
         
-        delta_logs_post = []
+        # build list of not present post_scan_logs
         for log in self.post_scan_logs:
             if log not in self.pre_scan_logs:
                 log = self.post_proc_logs(log)
                 delta_logs_post.append(log)
-
-
-        delta_logs_pre = []
+        
+        # build list of not present pre_scan_logs  
         for log in self.pre_scan_logs:
             if log not in self.post_scan_logs:
                 log = self.post_proc_logs(log)
                 delta_logs_pre.append(log)
 
+        # formatting data
         data = {
             "num_logs_delta": num_logs_delta,
             "delta_logs_post": delta_logs_post,
@@ -245,26 +332,32 @@ class Tester():
             "num_logs_ratio": num_logs_ratio,
         }
 
+        # returning data
         return data
 
 
 
 
+    def delta_lighthouse(self) -> dict:
+        # calculate the differences in LH 
+        # scores between pre_ and post_ scans
 
-    def delta_lighthouse(self):
         try:
+            # get pre scores
             pre_seo = int(self.test.pre_scan.lighthouse["scores"]['seo'])
             pre_accessibility = int(self.test.pre_scan.lighthouse["scores"]['accessibility'])
             pre_performance = int(self.test.pre_scan.lighthouse["scores"]['performance'])
             pre_best_practices = int(self.test.pre_scan.lighthouse["scores"]['best_practices'])
             pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa'])
             
+            # get post scores
             post_seo = int(self.test.post_scan.lighthouse["scores"]['seo'])
             post_accessibility = int(self.test.post_scan.lighthouse["scores"]['accessibility'])
             post_performance = int(self.test.post_scan.lighthouse["scores"]['performance'])
             post_best_practices = int(self.test.post_scan.lighthouse["scores"]['best_practices'])
             post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa'])
 
+            # try to get pre and post crux scores
             try:
                 pre_crux = int(self.test.pre_scan.lighthouse["scores"]['crux'])
                 post_crux = int(self.test.post_scan.lighthouse["scores"]['crux'])
@@ -274,34 +367,34 @@ class Tester():
                 post_crux = None
                 crux_delta = 0
 
+            # calculate individual deltas
             seo_delta = post_seo - pre_seo
             accessibility_delta = post_accessibility - pre_accessibility 
             performance_delta = post_performance - pre_performance
             best_practices_delta = post_best_practices - pre_best_practices
             pwa_delta = post_pwa - pre_pwa
             
+            # calculate averages 
             if post_crux is None:
                 current_average = (
                     post_seo + post_accessibility + post_best_practices + 
                     post_performance + post_pwa 
                 )/5
-                
                 old_average = (
                     pre_seo + pre_accessibility + pre_best_practices + 
                     pre_performance + pre_pwa 
                 )/5
-            
             else:
                 current_average = (
                     post_seo + post_accessibility + post_best_practices + 
                     post_performance + post_pwa + post_crux
                 )/6
-                
                 old_average = (
                     pre_seo + pre_accessibility + pre_best_practices + 
                     pre_performance + pre_pwa + pre_crux
                 )/6
 
+            # calculate difference in averages
             average_delta = current_average - old_average 
 
         except:
@@ -314,6 +407,7 @@ class Tester():
             current_average = None
             average_delta = None
 
+        # formatting data
         data = {
             "scores": {
                 "seo_delta": seo_delta,
@@ -327,15 +421,18 @@ class Tester():
             }
         }
 
+        # returning data
         return data
 
 
 
 
+    def delta_yellowlab(self) -> dict:
+        # calculate the differences in YL 
+        # scores between pre_ and post_ scans
 
-
-    def delta_yellowlab(self):
         try:
+            # get pre scores
             pre_globalScore = int(self.test.pre_scan.yellowlab["scores"]['globalScore'])
             pre_pageWeight = int(self.test.pre_scan.yellowlab["scores"]['pageWeight'])
             pre_images = int(self.test.pre_scan.yellowlab["scores"]['images'])
@@ -347,7 +444,8 @@ class Tester():
             pre_badCSS = int(self.test.pre_scan.yellowlab["scores"]['badCSS'])
             pre_fonts = int(self.test.pre_scan.yellowlab["scores"]['fonts'])
             pre_serverConfig = int(self.test.pre_scan.yellowlab["scores"]['serverConfig'])
-
+            
+            # get post scores
             post_globalScore = int(self.test.post_scan.yellowlab["scores"]['globalScore'])
             post_pageWeight = int(self.test.post_scan.yellowlab["scores"]['pageWeight'])
             post_images = int(self.test.post_scan.yellowlab["scores"]['images'])
@@ -360,6 +458,7 @@ class Tester():
             post_fonts = int(self.test.post_scan.yellowlab["scores"]['fonts'])
             post_serverConfig = int(self.test.post_scan.yellowlab["scores"]['serverConfig'])
 
+            # calculate individual deltas
             pageWeight_delta = post_pageWeight - pre_pageWeight
             images_delta = post_images - pre_images
             domComplexity_delta = post_domComplexity - pre_domComplexity
@@ -371,9 +470,10 @@ class Tester():
             fonts_delta = post_fonts - pre_fonts
             serverConfig_delta = post_serverConfig - pre_serverConfig 
 
-            average_delta = post_globalScore - pre_globalScore 
+            # get current averag and calc average_delta
             current_average = post_globalScore
-
+            average_delta = post_globalScore - pre_globalScore 
+            
         except:
             pageWeight_delta = None
             images_delta = None
@@ -388,6 +488,7 @@ class Tester():
             average_delta = None
             current_average = None,
 
+        # formatting response
         data = {
             "scores": {
                 "pageWeight_delta": pageWeight_delta, 
@@ -405,11 +506,17 @@ class Tester():
             }
         }
 
+        # returning data
         return data
 
 
 
-    def update_site_info(self, test):
+
+    def update_site_info(self, test: object) -> object:
+        # updates associated Site with 
+        # new Test data
+
+        # get associated site
         site = test.site
 
         # get pages
@@ -426,31 +533,51 @@ class Tester():
         if len(tests) > 0:
             # calc site average of latest
             site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
-
+            
+            # update site info
             site.info['latest_test']['id'] = str(test.id)
             site.info['latest_test']['time_created'] = str(test.time_created)
             site.info['latest_test']['time_completed'] = str(test.time_completed)
             site.info['latest_test']['score'] = site_avg_test_score
             site.save()
 
+        # returning updated site
         return site
 
 
 
-    def update_page_info(self, test):
+
+    def update_page_info(self, test: object) -> object:
+        # updates associated Page with 
+        # new Test data
+
+        # get page
         page = test.page
+
+        # update page info
         page.info['latest_test']['id'] = str(test.id)
         page.info['latest_test']['time_created'] = str(test.time_created)
         page.info['latest_test']['time_completed'] = str(test.time_completed)
         page.info['latest_test']['score'] = (round(test.score * 100) / 100)
         page.save()
 
+        # return updated page
         return page
-        
 
 
 
-    def run_test(self, index=None):
+
+    def run_test(self, index: int=None) -> object:
+        """ 
+        Runs all the test components specified in the `Test`
+        and returns the updated `Test`
+
+        Expects: {
+            'index': int
+        }
+
+        Returns -> `Test` object
+        """
 
         # update test obj with scan configs
         self.test.pre_scan_configs = self.test.pre_scan.configs
@@ -485,8 +612,7 @@ class Tester():
         yellowlab_data = None
         images_data = None
 
-
-
+        # testing html
         if 'html' in self.test.type or 'full' in self.test.type:
             try:
                 # scores
@@ -534,8 +660,7 @@ class Tester():
             except Exception as e:
                 print(e)
         
-        
-
+        # testing logs
         if 'logs' in self.test.type or 'full' in self.test.type:
             try:
                 # scores
@@ -555,8 +680,7 @@ class Tester():
             except Exception as e:
                 print(e)
 
-
-
+        # testing LH
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
@@ -578,9 +702,7 @@ class Tester():
             except Exception as e:
                 print(e)
 
-
-        
-
+        # testing YL
         if 'yellowlab' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
@@ -602,13 +724,11 @@ class Tester():
             except Exception as e:
                 print(e)
 
-
-
-
+        # testing images
         if 'vrt' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
-                images_data = Image().test(test=self.test, index=index)
+                images_data = Imager().test(test=self.test, index=index)
                 if images_data['average_score'] != None:
                     images_score = images_data['average_score'] / 100
 
@@ -617,15 +737,14 @@ class Tester():
             except Exception as e:
                     print(e)
         
-        
-
+        # calculating total weight
         total_w = (
             html_score_w + logs_score_w + num_html_w 
             + num_logs_w + delta_lh_w + micro_diff_w
             + images_w + delta_yl_w
         )
         
-        
+        # calculating final weighted average score
         score = ((
             (html_score * html_score_w) + 
             (logs_score * logs_score_w) + 
@@ -637,7 +756,6 @@ class Tester():
             (images_score * images_w)
         ) / total_w) * 100
 
-        
         print(
             "Formula was --> ((" + str(html_score*html_score_w) + " + " 
             + str(logs_score*logs_score_w) + " + " + str(num_logs_ratio*num_logs_w) + " + " 
@@ -646,7 +764,7 @@ class Tester():
             " + " + str(yellowlab_score*delta_yl_w) + ") / " + str(total_w) + ") * 100 ===> " + str(score)
         )
 
-
+        # updating test data
         self.test.time_completed = datetime.now()
         self.test.html_delta = html_delta_uri
         self.test.logs_delta = logs_delta_context
@@ -659,15 +777,14 @@ class Tester():
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100)
         self.test.component_scores['yellowlab'] = (yellowlab_score * 100)
         self.test.component_scores['vrt'] = (images_score * 100)
-
-
         self.test.save()
 
+        # updating associated page and site
         self.update_page_info(self.test)
         self.update_site_info(self.test)
 
+        # returning updated test
         return self.test
-
 
 
 

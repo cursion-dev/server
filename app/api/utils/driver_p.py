@@ -1,17 +1,28 @@
 from pyppeteer import launch
 from scanerr import settings
-import time, os, numpy, json, \
-sys, datetime, asyncio, subprocess
+import time, os, sys, datetime
 
 
 
-async def driver_init(
-    window_size='1920,1080',
-    wait_time=30, 
-    ):
 
+
+
+async def driver_init(window_size: str='1920,1080', wait_time: int=30) -> object:
+    """ 
+    Starts a new puppeteer driver instance
+
+    Expects: {
+        'window_size' : str, 
+        'wait_time'   : int
+    } 
+
+    Returns -> driver object
+    """
+
+    # parsing window sizes
     sizes = window_size.split(',')
 
+    # setting browser options
     options = {
         'executablePath': os.environ.get('CHROME_BROWSER'),
         'args': [
@@ -26,9 +37,10 @@ async def driver_init(
             'width': int(sizes[0]),
             'height': int(sizes[1]), 
         },
-        # 'timeout': wait_time * 1000  # replaced by 
+        # 'timeout': wait_time * 1000
     }
 
+    # launching driver
     driver = await launch(
         options=options, 
         headless=True,
@@ -37,28 +49,34 @@ async def driver_init(
         handleSIGHUP=False
     )
     
+    # return driver
     return driver
 
 
 
 
-
-async def interact_with_page(page):
+async def interact_with_page(page: object=None) -> object:
     # simulate mouse movement
+    # and returns the page object
     await page.mouse.move(0, 0)
     await page.mouse.move(0, 50)
-
     return page
 
 
 
-async def wait_for_page(page, max_wait_time=30):
+
+async def wait_for_page(page: object=None, max_wait_time: int=30) -> object:
     """
     Expects the puppeteer page instance and waits 
     for either the page to fully load or the max_wait_time
     to expire before returning.
 
-    Returns -> Page <pypt:instance>
+    Expects: {
+        'page'          : object, 
+        'max_wait_time' : int
+    }
+
+    Returns -> page <pypt:instance>
     """
 
     print(f'waiting for page load or {str(max_wait_time)} seconds')
@@ -76,12 +94,20 @@ async def wait_for_page(page, max_wait_time=30):
 
 
 
-async def driver_test(*args, **options):
+
+async def driver_test() -> None:
+    """ 
+    Spins up a puppeteer driver instance and
+    tests to ensure it can access the browser and internet
+
+    Returns -> None
+    """
 
     print("Testing puppeteer instalation and integration...")
     message = 'Puppeteer was unable to start\n\n'
     status = 'Failed'
 
+    # testing puppeteer
     try:
         driver = await driver_init()
         page = await driver.newPage()
@@ -93,51 +119,71 @@ async def driver_test(*args, **options):
             status = 'Success'
             message = 'Puppeteer installed and working \N{check mark} \n'
 
+    # log exception
     except Exception as e:
         print(e)
 
+    # logging test results
     sys.stdout.write(
-            '--- ' + status + ' ---\n'+ message
-        )
+        '--- ' + status + ' ---\n'+ message
+    )
 
+    # quiting driver
     try:
         await driver.close()
     except:
         pass
+    
+    return None
    
 
 
 
+async def get_data(url: str=None, configs: dict=None) -> dict:
+    """ 
+    Using the puppeteer driver, navigates to the passed 
+    'url' and records the page source and any 
+    present console errors & warnings
 
+    Expects: {
+        url     : str, 
+        configs : dict
+    }
+    
+    Returns -> data: {
+        'html' : str, 
+        'logs' : dict,
+    }
+    """
 
-async def get_data(url, configs, *args, **options):
+    # initing the driver
     sizes = configs['window_size'].split(',')
     driver = await driver_init(window_size=configs['window_size'])
     page = await driver.newPage()
 
+    # setting driver configs
     page_options = {
         'waitUntil': 'networkidle0', 
         # 'timeout': configs['max_wait_time']*1000
     }
-
     viewport = {
         'width': int(sizes[0]),
         'height': int(sizes[1]),
     }
-    
     userAgent = (
         "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
         (KHTML, like Gecko) Chrome/122.0.6261.119 Safari/537.36"
     )
-
     await page.setViewport(viewport)
-
     if configs['device'] == 'mobile':
         await page.setUserAgent(userAgent)
     
-    
+    # defining logs
     logs = []
+
     def record_logs(log):
+        # helper method to record console
+        # logs in the issues tab
         if log.type == 'error':
             if '.js' in log.text:
                 source = 'javascript'
@@ -168,6 +214,8 @@ async def get_data(url, configs, *args, **options):
             logs.append(log_obj)
     
     def record_network(request):
+        # helper method to record console
+        # network issues in the issues tab
         log_obj = {
             "level": "SEVERE", 
             "source": "network",
@@ -177,6 +225,8 @@ async def get_data(url, configs, *args, **options):
         logs.append(log_obj)
 
     def record_error(error):
+        # helper method to record console
+        # page errors in the issues tab
         err = str(error).split(' at ')[0]
         log_obj = {
             "level": "SEVERE", 
@@ -186,11 +236,12 @@ async def get_data(url, configs, *args, **options):
         }
         logs.append(log_obj)
 
-
+    # getting console logs, warnings, and errors
     page.on('console', lambda log : record_logs(log))
     page.on('requestfailed', lambda request : record_network(request))
     page.on('pageerror', lambda error : record_error(error))
 
+    # navigate to requested url
     await page.goto(url, page_options) 
 
     # await page.waitForNavigation(navWaitOpt)
@@ -198,8 +249,10 @@ async def get_data(url, configs, *args, **options):
     await interact_with_page(page)
     html = await page.content()
     
+    # quitting driver
     await driver.close()
-
+    
+    # returning data
     data = {
         'html': html, 
         'logs': logs,
@@ -208,23 +261,3 @@ async def get_data(url, configs, *args, **options):
     return data
 
 
-
-
-def test_puppeteer():
-    # initiating subprocess for Puppeteer
-    js_file = os.path.join(settings.BASE_DIR, "api/utils/puppeteer.mjs")
-    proc = subprocess.Popen(
-        [
-            'node',
-            js_file,
-        ], 
-        stdout=subprocess.PIPE,
-        user='app',
-    )
-
-    # retrieving data from process
-    stdout_value = proc.communicate()[0]
-
-    # converting stdout str into Dict
-    stdout_json = json.loads(stdout_value)
-    return stdout_json
