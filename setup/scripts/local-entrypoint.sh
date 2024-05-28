@@ -13,7 +13,7 @@ then
   python3 manage.py runserver 0.0.0.0:8000
 fi
 
-# spin up acelerypp in local env
+# spin up celery in local env
 if [[ $1 == *"celery"* ]]
 then
   python3 manage.py wait_for_db && 
