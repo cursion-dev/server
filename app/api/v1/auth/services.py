@@ -444,7 +444,7 @@ def google_login(request: object) -> str:
         return error_url
 
     # build redirect url
-    redirect_uri = f'{settings.API_URL_ROOT}{'/v1/auth/google'}'
+    redirect_uri = f'{settings.API_URL_ROOT}/v1/auth/google'
     
     # get access token
     access_token = google_get_access_token(code=code, redirect_uri=redirect_uri)
