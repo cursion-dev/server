@@ -866,7 +866,7 @@ def create_page(request: object, delay: bool=False) -> object:
 
 
 
-def create_many_pages(request: object, obj_response: bool=False) -> object | dict:
+def create_many_pages(request: object, obj_response: bool=False) -> object:
     """ 
     Bulk creates `Pages` for each url passed in "page_urls"
 
