@@ -1937,7 +1937,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'site_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
@@ -1964,7 +1964,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'page_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
