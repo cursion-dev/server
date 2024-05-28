@@ -1937,7 +1937,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'site_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
@@ -1951,7 +1951,9 @@ def create_many_tests(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
@@ -1962,7 +1964,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'page_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
@@ -1976,7 +1978,9 @@ def create_many_tests(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
+                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
