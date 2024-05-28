@@ -1206,7 +1206,7 @@ def delete_many_pages(request: object) -> object:
 
 
 
-def create_scan(request: object=None, delay: bool=False, **kwargs) -> dict | object:
+def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     """ 
     Create one or more `Scans` depanding on 
     `Page` or `Site` scope
@@ -1692,7 +1692,7 @@ def delete_many_scans(request: object) -> object:
 
 
 
-def create_test(request: object=None, delay: bool=False, **kwargs) -> dict | object:
+def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     """ 
     Create one or more `Tests` depanding on 
     `Page` or `Site` scope
