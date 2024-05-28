@@ -3,10 +3,15 @@ from .models import *
 from datetime import datetime
 
 
+
+
+
+
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_url', 'account', 'time_created')
     search_fields = ('site_url',)
+
 
 
 
@@ -16,10 +21,14 @@ class SiteAdmin(admin.ModelAdmin):
     search_fields = ('page_url',)
 
 
+
+
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed', 'type')
     search_fields = ('page',)
+
+
 
 
 @admin.register(Scan)
@@ -32,10 +41,14 @@ class ScanAdmin(admin.ModelAdmin):
         queryset.update(time_completed=datetime.now())
 
 
+
+
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'type')
     search_fields = ('__str__',)
+
+
 
 
 @admin.register(Member)
@@ -44,10 +57,14 @@ class MemberAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'account__name')
 
 
+
+
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'brand', 'last_four')
     search_fields = ('last_four',)
+
+
 
 
 @admin.register(Report)
@@ -55,9 +72,13 @@ class ReportAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'user')
 
 
+
+
 @admin.register(Log)
 class LogAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'status', 'user')
+
+
 
 
 @admin.register(Schedule)
@@ -65,9 +86,13 @@ class ScheduleAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'status', 'user')
 
 
+
+
 @admin.register(Automation)
 class AutomationAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'schedule', 'user')
+
+
 
 
 @admin.register(Process)
@@ -75,14 +100,20 @@ class ProcessAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created',  'time_completed', 'progress', 'success')
 
 
+
+
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'user', 'time_created',)
 
 
+
+
 @admin.register(Testcase)
 class TestcaseAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'user', 'time_created', 'time_completed',)
+
+
 
 
 @admin.register(Mask)
@@ -96,3 +127,7 @@ class MaskAdmin(admin.ModelAdmin):
     
     def mark_as_active(self, request, queryset):
         queryset.update(active=True)
+
+
+
+        

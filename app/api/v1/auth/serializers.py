@@ -10,6 +10,11 @@ from django.urls import path, include
 from rest_framework import routers, serializers, viewsets
 from rest_framework.fields import UUIDField
 
+
+
+
+
+
 kwargs = {
     'allow_null': False, 
     'read_only': True, 
@@ -18,11 +23,13 @@ kwargs = {
 
 
 
+
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'password', 'is_active', 
         'date_joined', 'last_login', 'first_name', 'last_name']
+
 
 
 
@@ -45,6 +52,8 @@ class LoginSerializer(TokenObtainPairSerializer):
         return data
 
 
+
+
 class RegisterSerializer(UserSerializer):
     password = serializers.CharField(max_length=128, min_length=8, write_only=True, required=True)
     email = serializers.EmailField(required=True, write_only=True, max_length=128)
@@ -63,6 +72,7 @@ class RegisterSerializer(UserSerializer):
 
 
 
+
 class AccountSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
@@ -74,6 +84,7 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
         'user', 'code', 'name', 'price_amount', 'max_sites', 
         'max_pages', 'max_schedules', 'testcases', 'retention_days'
         ]
+
 
 
 
@@ -89,4 +100,5 @@ class MemberSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
-        
+
+

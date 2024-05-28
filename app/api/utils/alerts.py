@@ -1,11 +1,6 @@
-from django.core.mail import send_mail, send_mass_mail
-from django.contrib.auth.models import User
-from django.template.loader import render_to_string
 from datetime import date
-import os, operator, json, requests, uuid
-from django.utils.html import strip_tags
 from django.contrib.auth.models import User
-from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 from ..models import *
 from twilio.rest import Client
 from slack_sdk.web import WebClient
@@ -13,22 +8,214 @@ from slack_sdk.errors import SlackApiError
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To
 from scanerr import settings
+import os, json, requests, uuid
 
 
 
 
 
-def create_exp_str(item, automation, is_email=False):
 
+def send_reset_link(email: str=None) -> dict:
+    """
+    Sends a reset password email to the User with 
+    the passed 'email'
+
+    Expects: {
+        'email': str
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if User exists
+    if User.objects.filter(email=email).exists():
+
+        # build email data
+        user = User.objects.get(email=email)
+        token = RefreshToken.for_user(user)
+        access_token = str(token.access_token)
+        reset_link = str(os.environ.get('CLIENT_URL_ROOT') + '/reset-password?token='+access_token)
+        subject = 'Rest Password'
+        title = 'Reset Password'
+        pre_header = 'Reset Password'
+        pre_content = 'Click the link below to reset your password.'
+        greeting = f'Hi there,'
+
+        context = {
+            'greeting': greeting,
+            'title' : title,
+            'subject' : subject,
+            'email': email,
+            'pre_header' : pre_header,
+            'pre_content' : pre_content,
+            'object_url' : reset_link,
+            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'button_text' : 'Rest my password',
+            'content' : '',
+            'signature' : '- Cheers!',
+        }
+
+        # send email
+        sendgrid_email(message_obj=context)
+
+        data = {
+            'success': True
+        }
+    
+    else:
+        data = {
+            'success': False
+        }
+        
+    return data
+
+
+
+
+def send_invite_link(member: object=None) -> dict:
+    """
+    Sends an invite email to the passed `Member`
+
+    Expects: {
+        'member': obj
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if member exists as status "pending"
+    if Member.objects.filter(email=member.email, status="pending").exists():
+
+        # build email data
+        link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={member.account.id}&code={member.account.code}&member={member.id}&email={member.email}'
+        subject = 'Scanerr Invite'
+        title = 'Scanerr Invite'
+        pre_header = 'Scanerr Invite'
+        pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Scanerr. Now just click the link below to accept the invite!'
+        greeting = 'Hi there,'
+
+        context = {
+            'greeting': greeting,
+            'title' : title,
+            'subject' : subject,
+            'email': member.email,
+            'pre_header' : pre_header,
+            'pre_content' : pre_content,
+            'object_url' : link,
+            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'button_text' : 'Accept Invite',
+            'content' : '',
+            'signature' : '- Cheers!',
+        }
+        
+        # send email
+        sendgrid_email(message_obj=context)
+
+        data = {
+            'success': True
+        }
+    
+    else:
+        data = {
+            'success': False
+        }
+        
+    return data
+
+
+
+
+def send_remove_alert(member: object=None) -> dict:
+    """
+    Sends a "removed" email to the passed `Member` and 
+    deletes member from DB 
+
+    Expects: {
+        'member': obj
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if member exists as status "removed"
+    if Member.objects.filter(email=member.email, status="removed").exists():
+
+        # build email data
+        subject = 'Removed From Account'
+        title = 'Removed From Account'
+        pre_header = 'Removed From Account'
+        pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Scanerr. Please let us know if there\'s been a mistake.'
+        greeting = 'Hi there,'
+
+        context = {
+            'greeting' : greeting,
+            'title' : title,
+            'subject' : subject,
+            'email': member.email,
+            'pre_header' : pre_header,
+            'pre_content' : pre_content,
+            'object_url' : None,
+            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'content' : '',
+            'signature' : '- Cheers!',
+        }
+
+        # send email
+        sendgrid_email(message_obj=context)
+
+        # delete member obj
+        member.delete()
+
+        data = {
+            'success': True
+        }
+    
+    else:
+        data = {
+            'success': False
+        }
+        
+    return data
+
+
+
+
+def create_exp(item: object=None, automation: object=None) -> dict:
+    """ 
+    Builds an expression list (exp_list = []) based 
+    on the passed 'item' and `Automation`.
+
+    Expects: {
+        'item'       :  object (Scan, Test, Testcase),
+        'automation' :  object
+    }
+
+    Returns -> data: {
+        'exp_list': list, 
+        'exp_str' : str,
+    }
+    """
+
+    # init exp_list
     exp_list = []
     
+    # loop through automation expressions
     for e in automation.expressions:
+
+        # top-level scores and data
         if 'test_score' in e['data_type']:
             data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
         elif 'current_health' in e['data_type']:
             data_type = 'Health:\t'+str((float(item.lighthouse_delta["scores"]["current_average"]) + float(item.yellowlab_delta["scores"]["current_average"])/2))+'\n\t'
         elif 'health' in e['data_type']:
             data_type = 'Health:\t'+str(((float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"]))/2))+'\n\t'
+        
         # LH test data
         elif 'current_lighthouse_average' in e['data_type']:
             data_type = 'Lighthouse Average:\t'+str(item.lighthouse_delta["scores"]["current_average"])+'\n\t'
@@ -44,6 +231,7 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Performance Delta:\t'+str(item.lighthouse_delta["scores"]["performance_delta"])+'\n\t'
         elif 'accessibility_delta' in e['data_type']:
             data_type = 'Accessibility Delta:\t'+str(item.lighthouse_delta["scores"]["accessibility_delta"])+'\n\t'
+        
         # LH scan data
         elif 'lighthouse_average' in e['data_type']:
             data_type = 'Lighthouse Average:\t'+str(item.lighthouse["scores"]["average"])+'\n\t'
@@ -60,8 +248,6 @@ def create_exp_str(item, automation, is_email=False):
         elif 'accessibility' in e['data_type']:
             data_type = 'Accessibility:\t'+str(item.lighthouse["scores"]["accessibility"])+'\n\t'
         
-        
-
         # yellowlab test data
         elif 'current_yellowlab_average' in e['data_type']:
             data_type = 'Yellow Lab Avg:\t'+str(item.yellowlab_delta["scores"]["current_average"])+'\n\t'
@@ -110,15 +296,17 @@ def create_exp_str(item, automation, is_email=False):
         elif 'serverConfig' in e['data_type']:
             data_type = 'Server Config:\t'+str(item.yellowlab["scores"]["serverConfig"])+'\n\t'
         
+        # image data
         elif 'avg_image_score' in e['data_type']:
             data_type = ' Avg Image Score:\t'+str(item.images_delta["average_score"])+'\n\t'
         elif 'image_scores' in e['data_type']:
             data_type = 'List of Image Scores:\t'+str([i["score"] for i in item.images_delta["images"]])+'\n\t' 
         
+        # logs data
         elif 'logs' in e['data_type']:
             data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
 
-
+        # testcase data
         elif 'testcase' in e['data_type']:
             status = 'Failed'
             if e['value'] == 'True':
@@ -126,25 +314,55 @@ def create_exp_str(item, automation, is_email=False):
             data_type = 'Testcase "'+str(item.case.name)+'" --> '+str(status)
         
         
+        # add to exp_list
         exp_list.append(data_type)
 
-    if is_email:
-        return exp_list
 
-    exp_str = ('\t'+''.join(exp_list))
-    return exp_str
+    # formating return data
+    data = {
+        'exp_list': exp_list,
+        'exp_str': ('\t'+''.join(exp_list))
+    }
+
+    return data
 
 
 
 
+def create_json_data(json_data: dict=None, item: object=None) -> dict: 
+    """ 
+    Builds an expression list (exp_list = []) based 
+    on the passed 'item' and `Automation`.
 
-def create_json_data(data, obj): 
-    json_data = data
-    item = obj
+    Expects: {
+        'item'       :  object (Scan, Test, Testcase),
+        'automation' :  object
+    }
 
+    Returns -> dict
+    """
+
+    # looping through json_data to 
+    # update values with item.data
     for key in json_data:
+
+        # high-level test score
         if 'test_score' == json_data[key]:
             json_data[key] = item.score
+        elif 'current_health' == json_data[key]:
+            json_data[key] = (float(item.lighthouse_delta["scores"]["average"]) + float(item.yellowlab_delta["scores"]["globalScore"])/2)
+        elif 'avg_image_score' == json_data[key]:
+            json_data[key] = item.images_delta["average_score"]
+        elif 'image_scores' == json_data[key]:
+            json_data[key] = [i["score"] for i in item.images_delta["images"]]
+
+        # high-level scan score
+        elif 'health' == json_data[key]:
+            json_data[key] = (float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"])/2)
+        elif 'logs' == json_data[key]:
+            json_data[key] = len(item.logs)
+
+        # LH test data
         elif 'seo_delta' == json_data[key]:
             json_data[key] = item.lighthouse_delta["scores"]["seo_delta"]
         elif 'pwa_delta' == json_data[key]:
@@ -157,16 +375,10 @@ def create_json_data(data, obj):
             json_data[key] = item.lighthouse_delta["scores"]["performance_delta"]
         elif 'accessibility_delta' == json_data[key]:
             json_data[key] = item.lighthouse_delta["scores"]["accessibility_delta"]
-        elif 'current_health' == json_data[key]:
-            json_data[key] = (float(item.lighthouse_delta["scores"]["average"]) + float(item.yellowlab_delta["scores"]["globalScore"])/2)
-        elif 'health' == json_data[key]:
-            json_data[key] = (float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"])/2)
-        elif 'logs' == json_data[key]:
-            json_data[key] = len(item.logs)
         elif 'current_lighthouse_average' == json_data[key]:
             json_data[key] = item.lighthouse_delta["scores"]["current_average"]
-        elif 'current_average' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["current_average"]
+        
+        # LH scan data
         elif 'seo' == json_data[key]:
             json_data[key] = item.lighthouse["scores"]["seo"]
         elif 'pwa' == json_data[key]:
@@ -180,6 +392,7 @@ def create_json_data(data, obj):
         elif 'accessibility' == json_data[key]:
             json_data[key] = item.lighthouse["scores"]["accessibility"]
 
+        # YL test data
         elif 'current_yellowlab_average' == json_data[key]:
             json_data[key] = item.yellowlab_delta["scores"]["current_average"]
         elif 'pageWeight_delta' == json_data[key]:
@@ -203,6 +416,7 @@ def create_json_data(data, obj):
         elif 'serverConfig_delta' == json_data[key]:
             json_data[key] = item.yellowlab_delta["scores"]["serverConfig_delta"]
         
+        # YL scan data
         elif 'yellowlab_average' == json_data[key]:
             json_data[key] = item.yellowlab["scores"]["globalScore"]
         elif 'pageWeight' == json_data[key]:
@@ -226,38 +440,60 @@ def create_json_data(data, obj):
         elif 'serverConfig' == json_data[key]:
             json_data[key] = item.yellowlab["scores"]["serverConfig"]
 
-        elif 'avg_image_score' == json_data[key]:
-            json_data[key] = item.images_delta["average_score"]
-        elif 'image_scores' == json_data[key]:
-            json_data[key] = [i["score"] for i in item.images_delta["images"]]
-
-
+    # return updated json
     return json_data
 
 
 
 
+def get_item(object_id: str=None) -> dict:
+    """ 
+    Tries to find an object that matches theh passed 'object_id'.
 
+    Expects: {
+        'object_id':  str,
+    }
 
-def get_item(object_id):
-    try:
-        item = Test.objects.get(id=uuid.UUID(object_id))
-        item_type = 'Test'
-    except:
+    Returns -> data: {
+        'item'      : object (Scan, Test, Testcase),
+        'item_type' : str,
+        'success'   : bool
+    }
+    """
+
+    # init item
+    item = None
+    item_type = ''
+    success = False
+
+    # check for item
+    if not item:
+        try:
+            item = Test.objects.get(id=uuid.UUID(object_id))
+            item_type = 'Test'
+            success = True
+        except:
+            pass
+    if not item:
         try:
             item = Scan.objects.get(id=uuid.UUID(object_id))
             item_type = 'Scan'
+            success = True
         except:
-            try:
-                item = Testcase.objects.get(id=uuid.UUID(object_id))
-                item_type = 'Testcase'
-            except:
-                return {'success': False}
-
+            pass
+    if not item:
+        try:
+            item = Testcase.objects.get(id=uuid.UUID(object_id))
+            item_type = 'Testcase'
+            success = True
+        except:
+            pass
+    
+    # format and return data
     data = {
-        'item_type': item_type, 
         'item': item,
-        'success': True
+        'item_type': item_type, 
+        'success': success
     }
 
     return data
@@ -265,10 +501,29 @@ def get_item(object_id):
 
 
 
+def automation_email(email: str=None, automation_id: str=None, object_id: str=None) -> dict:
+    """
+    Sends an automation email to the User with 
+    the passed 'email'
 
-def automation_email(email=None, automation_id=None, object_id=None):
+    Expects: {
+        'email'         : str,
+        'automation_id' : str,
+        'object_id'     : str
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if data is present
     if email and automation_id:
+        
+        # retrieving user
         user = User.objects.get(email=email)
+
+        # get automation and deciding if "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
         if schedule.site is not None:
@@ -283,11 +538,17 @@ def automation_email(email=None, automation_id=None, object_id=None):
         if not data['success']:
             return {'success': False}
 
+        # getting object data
         item = data['item']
         item_type = data['item_type']
 
-        exp_list = create_exp_str(item=item, automation=automation, is_email=True)
+        # generating expressions from automation
+        exp_list = create_exp_str(
+            item=item, 
+            automation=automation
+        )['exp_list']
 
+        # build email data
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
         subject = f'Alert for {url}'
         title = f'Alert for {url}'
@@ -300,7 +561,6 @@ def automation_email(email=None, automation_id=None, object_id=None):
             f'This message was triggered by an automation you created. ' 
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
-        subject = subject
 
         context = {
             'title' : title,
@@ -316,6 +576,7 @@ def automation_email(email=None, automation_id=None, object_id=None):
             'signature' : '- Cheers!',
         }
 
+        # send email
         sendgrid_email(message_obj=context)
 
         data = {
@@ -332,9 +593,29 @@ def automation_email(email=None, automation_id=None, object_id=None):
 
 
 
+def automation_report_email(email: str=None, automation_id: str=None, object_id: str=None) -> dict:
+    """
+    Sends an automation report email to the User with 
+    the passed 'email'
 
-def automation_report_email(email=None, automation_id=None, object_id=None):
+    Expects: {
+        'email'         : str,
+        'automation_id' : str,
+        'object_id'     : str
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if data is present
     if email and automation_id:
+        
+        # retrieving user
+        user = User.objects.get(email=email)
+
+        # get automation and deciding if "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
         if schedule.site is not None:
@@ -343,12 +624,15 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
         else:
             url_end = '/page/'+str(schedule.page.id)
             url = schedule.page.page_url
+        
+        # get `Report` if exists
         try:
             item = Report.objects.get(id=uuid.UUID(object_id))
             item_type = 'Report'
         except:
             return {'success': False}
 
+        # build email data
         exp_list = ''
         object_url = str(item.path)
         subject = f'Report for {url}'
@@ -362,9 +646,10 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
             f'This message was triggered by an automation created with Scanerr. ' 
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
-        subject = subject
+
         context = {
             'title' : title,
+            'subject': subject,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'exp_list': exp_list,
@@ -372,19 +657,12 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
             'home_page' : os.environ.get('CLIENT_URL_ROOT'),
             'button_text' : 'View Report',
             'content' : content,
+            'email': email,
             'signature' : '- Cheers!',
         }
 
-        html_message = render_to_string('api/automation_email.html', context)
-        plain_message = strip_tags(html_message)
-        send_mail(
-            from_email = os.getenv('EMAIL_HOST_USER'),
-            subject = subject,
-            message = plain_message,
-            recipient_list = [email],
-            html_message = html_message,
-            fail_silently = True,
-        )
+        # send email
+        sendgrid_email(message_obj=context)
 
         data = {
             'success': True
@@ -401,13 +679,33 @@ def automation_report_email(email=None, automation_id=None, object_id=None):
 
 
 def automation_webhook(
-        request_type=None, 
-        request_url=None, 
-        request_data=None,
-        automation_id=None, 
-        object_id=None,
-    ):
+        request_type: str=None, 
+        request_url: str=None, 
+        request_data: dict=None,
+        automation_id: str=None, 
+        object_id: str=None,
+    ) -> dict:
+    """
+    Sends a GET or POST request to the passed 'request_url'
+    with the passed 'request_data'
+
+    Expects: {
+        'request_type'    : str, 
+        'request_url'     : str, 
+        'request_data'    : dict,
+        'automation_id'   : str, 
+        'object_id'       : str,
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # checking that data is present
     if request_type and automation_id and request_url and request_data and object_id:
+
+        # deciding if "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
         if schedule.site is not None:
@@ -422,22 +720,22 @@ def automation_webhook(
         if not data['success']:
             return {'success': False}
 
+        # get object and type
         item = data['item']
         item_type = data['item_type']
         
+        # building json
         pre_json_data = json.loads(request_data)
-        json_data = create_json_data(data=pre_json_data, obj=item)
+        json_data = create_json_data(pre_json_data, item)
 
+        # send the request
         try:
             if request_type == 'POST':
                 response = requests.post(request_url, data=json_data)
             elif request_data == 'GET':
                 response = requests.get(request_url, params=json_data)
-
-            print(response.json())
-
         except:
-            data = {'success': False}
+            return {'success': False}
 
         data = {
             'success': True
@@ -453,9 +751,26 @@ def automation_webhook(
 
 
 
+def automation_phone(phone_number: str=None, automation_id: str=None, object_id: str=None) -> dict:
+    """
+    Sends an SMS alert to the passed 'phone_number' 
+    with the `Automation` data 
 
-def automation_phone(phone_number=None, automation_id=None, object_id=None):
+    Expects: {
+        'phone_number'    : str, 
+        'automation_id'   : str, 
+        'object_id'       : str,
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # checking if data is present
     if phone_number and automation_id and object_id:
+
+        # deciding on "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
         if schedule.site is not None:
@@ -470,11 +785,14 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
         if not data['success']:
             return {'success': False}
 
+        # get obj and type
         item = data['item']
         item_type = data['item_type']
 
-        exp_str = create_exp_str(item=item, automation=automation)
+        # build the exp_str
+        exp_str = create_exp(item=item, automation=automation)['exp_str']
 
+        # build message data
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
         pre_content = (
             f'Scanerr just finished running a {item_type} for {url}. ' 
@@ -484,13 +802,12 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
             f'This message was triggered by an automation you created. ' 
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
-
         body = f'Hi there,\n\n{pre_content}{content}\n{object_url}'
-
         account_sid = os.environ.get("TWILIO_SID")
         auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
         client = Client(account_sid, auth_token)
 
+        # send message
         message = client.messages.create(
             to=phone_number, 
             from_=os.environ.get('TWILIO_NUMBER'),
@@ -511,8 +828,24 @@ def automation_phone(phone_number=None, automation_id=None, object_id=None):
 
 
 
-def automation_slack(automation_id=None, object_id=None):
+def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
+    """
+    Sends a Slack alert with the `Automation` data 
+
+    Expects: {
+        'automation_id'   : str, 
+        'object_id'       : str,
+    }
+
+    Returns -> data: {
+        'success': bool
+    }
+    """
+
+    # check if data is present
     if automation_id and object_id:
+        
+        # getting account and deciding on "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         account = Account.objects.get(user=automation.user)
         schedule = automation.schedule
@@ -523,17 +856,19 @@ def automation_slack(automation_id=None, object_id=None):
             url_end = '/page/'+str(schedule.page.id)
             url = schedule.page.page_url
 
-
         # getting object
         data = get_item(object_id=object_id)
         if not data['success']:
             return {'success': False}
 
+        # get obj and type
         item = data['item']
         item_type = data['item_type']
 
-        exp_str = create_exp_str(item=item, automation=automation)
+        # build exp_str
+        exp_str = create_exp(item=item, automation=automation)['exp_str']
 
+        # build message data
         object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
         pre_content = (
             f'Scanerr just finished running a {item_type} for {url}. ' 
@@ -543,13 +878,12 @@ def automation_slack(automation_id=None, object_id=None):
             f'This message was triggered by an automation you created. ' 
             f'You can change the automation and schedule in your site\'s dashboard. '
         )
-
         body = f'Hi there,\n\n{pre_content}{content}\n{object_url}'
-
         token = account.slack['bot_access_token']
         channel = account.slack['slack_channel_id']
-
         client = WebClient(token=token) 
+
+        # send message
         try:
             response = client.chat_postMessage(
                 channel=channel,
@@ -582,34 +916,30 @@ def automation_slack(automation_id=None, object_id=None):
 
 
 
-
-
-
-def sendgrid_email(message_obj):
+def sendgrid_email(message_obj: dict=None) -> dict:
     """
     Tries to send an email via the SendGrid API.
 
     Expects the following:
-        "message_obj": <obj> {
-            'pre_content':  <str>,
-            'content':      <str>,
-            'subject':      <str>,
-            'title':        <str>,
-            'pre_header':   <str>,
-            'button_text':  <str>,
-            'exp_list':     <array>,
-            'email':        <str>,
-            'template':     <str>,
-            'object_url':   <str>,
-            'signature':    <str>,
-            'greeting':     <str>,
+        'message_obj': dict {
+            'pre_content':  str,
+            'content':      str,
+            'subject':      str,
+            'title':        str,
+            'pre_header':   str,
+            'button_text':  str,
+            'exp_list':     list,
+            'email':        str,
+            'template':     str,
+            'object_url':   str,
+            'signature':    str,
+            'greeting':     str,
         }
 
     Returns --> data: {
-        'message': True
+        'success': bool
     }
     """
-
 
     # defining data
     pre_content = message_obj.get('pre_content')
@@ -623,7 +953,6 @@ def sendgrid_email(message_obj):
     object_url = message_obj.get('object_url')
     signature = message_obj.get('signature', '- Cheers!')
     greeting = message_obj.get('greeting', 'Hi there,')
-
 
     # build template data
     template_data = {
@@ -647,7 +976,6 @@ def sendgrid_email(message_obj):
     if exp_list is not None:
         template = settings.AUTOMATION_TEMPLATE
 
-
     # init SendGrid message
     message = Mail(
         from_email=From('hello@scanerr.io', 'Scanerr'),  # prod -> settings.EMAIL_HOST_USER
@@ -663,13 +991,22 @@ def sendgrid_email(message_obj):
         sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
         response = sg.send(message)
         status = True
+        error = None
     except Exception as e:
         status = False
+        error = e.message
         print(e.message)
 
-    
+    # formatting resposne
     data = {
-        'success': status
+        'success': status,
+        'error': error
     }
 
     return data
+
+
+
+
+
+

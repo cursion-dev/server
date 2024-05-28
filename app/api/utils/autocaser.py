@@ -1,23 +1,38 @@
 from selenium import webdriver
-from selenium.webdriver import ActionChains
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.actions.action_builder import ActionBuilder
 from .driver_s import driver_init, driver_wait, quit_driver
 from ..models import Site, Case
 from scanerr import settings
-import time, os, json, sys, uuid, random, boto3
+import time, os, json, uuid, random, boto3
+
 
 
 
 
 
 class AutoCaser():
+    """ 
+    Generate new `Cases` for the passed 'site'.
+
+    Expects: {
+        'site'        : object,
+        'process'     : object,
+        'start_url'   : str,
+        'configs'     : dict,
+        'max_cases'   : int,
+        'max_layers'  : int
+    }
+
+    Use `AutoCaser.build_cases()` to generate new `Cases`
+
+    Returns -> None
+    """
 
 
     def __init__(
             self, 
-            site,
-            process,
+            site: object,
+            process: object,
             start_url: str=None,
             configs: dict=settings.CONFIGS,
             max_cases: int=4, 
@@ -174,7 +189,7 @@ class AutoCaser():
 
 
 
-    def get_element_image(self, element: object):
+    def get_element_image(self, element: object) -> str:
         try:
             image = element.screenshot_as_base64
             # sleep for .5 seconds to let image process
@@ -256,6 +271,9 @@ class AutoCaser():
 
 
     def get_current_elements(self) -> list:
+        # returns a list of interactable 
+        # elements on the current page and 
+        # removes and duplicates before returning
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
@@ -283,9 +301,10 @@ class AutoCaser():
         random.shuffle(forms)
         random.shuffle(inputs_textareas_buttons)
         random.shuffle(links)
-        
+
         current_elements = forms + inputs_textareas_buttons + links
 
+        # return result
         return current_elements
 
 
@@ -312,7 +331,6 @@ class AutoCaser():
             if elem['elements'] != None:
                 self.check_for_duplicates(selector=selector, elements=elem['elements'])
         
-
         # return result
         return found_duplicate
 
@@ -361,11 +379,11 @@ class AutoCaser():
 
     def record_new_element(self, elem: object, sub_elements: list) -> dict:
         """
-            returns -> {
-                'sub_elements': [],
-                'run': bool,
-                'added': bool,
-            }
+        returns -> {
+            'sub_elements': [],
+            'run': bool,
+            'added': bool,
+        }
         """
         # setting defaults
         run = True
@@ -658,7 +676,7 @@ class AutoCaser():
 
 
 
-    def get_elements(self):
+    def get_elements(self) -> list:
 
         # get site page
         if self.start_url is not None:
@@ -917,7 +935,7 @@ class AutoCaser():
 
 
 
-    def build_cases(self):
+    def build_cases(self) -> None:
 
         # run get_elements
         elements = self.get_elements()

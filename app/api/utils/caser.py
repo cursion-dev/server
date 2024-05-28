@@ -1,7 +1,7 @@
 from .driver_p import driver_init as driver_p_init
 from .driver_s import driver_init as driver_s_init
 from .driver_s import driver_wait, quit_driver
-import time, asyncio, uuid, json, boto3, os
+import time, uuid, json, boto3, os
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from ..models import * 
@@ -13,10 +13,25 @@ from scanerr import settings
 
 
 
+
 class Caser():
+    """ 
+    Run a `Testcase` for a specific `Site`.
+
+    Expects: {
+        'testcase' : object,
+    }
+
+    - Use `Caser.run_s()` to run with selenium
+    - Use `Caser.run_p()` to run with puppeteer
+
+    Returns -> None
+    """
 
 
-    def __init__(self, testcase):
+
+
+    def __init__(self, testcase: object=None):
         self.testcase = testcase
         self.site_url = self.testcase.site.site_url
         self.steps = self.testcase.steps
@@ -58,11 +73,44 @@ class Caser():
 
 
 
+
     @sync_to_async
     def update_testcase(
-            self, index=None, type=None, start_time=None, end_time=None, 
-            passed=None, exception=None, time_completed=None, image=None,
-        ):
+            self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
+            passed: bool=None, exception: str=None, time_completed: str=None, image: str=None,
+        ) -> None:
+        # updates Tescase for a puppeteer run (async) 
+        if start_time != None:
+            self.testcase.steps[index][type]['time_created'] = str(start_time)
+        if end_time != None:
+            self.testcase.steps[index][type]['time_completed'] = str(end_time)
+        if passed != None:
+            self.testcase.steps[index][type]['passed'] = passed
+        if exception != None:
+            self.testcase.steps[index][type]['exception'] = str(exception)
+        if image != None:
+            self.testcase.steps[index][type]['image'] = str(image)
+        if time_completed != None:
+            self.testcase.time_completed = time_completed
+            test_status = True
+            for step in self.testcase.steps:
+                if step['action']['passed'] == False:
+                    test_status = False
+                if step['assertion']['passed'] == False:
+                    test_status = False
+            self.testcase.passed = test_status
+        
+        self.testcase.save()
+        return None
+
+
+
+
+    def update_testcase_s(
+            self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
+            passed: bool=None, exception: str=None, time_completed: str=None, image: str=None,
+        ) -> None:
+        # updates Tescase for a selenium run (async) 
         if start_time != None:
             self.testcase.steps[index][type]['time_created'] = str(start_time)
         if end_time != None:
@@ -86,37 +134,15 @@ class Caser():
         self.testcase.save()
         return
 
-    def update_testcase_s(
-            self, index=None, type=None, start_time=None, end_time=None, 
-            passed=None, exception=None, time_completed=None, image=None,
-        ):
-        if start_time != None:
-            self.testcase.steps[index][type]['time_created'] = str(start_time)
-        if end_time != None:
-            self.testcase.steps[index][type]['time_completed'] = str(end_time)
-        if passed != None:
-            self.testcase.steps[index][type]['passed'] = passed
-        if exception != None:
-            self.testcase.steps[index][type]['exception'] = str(exception)
-        if image != None:
-            self.testcase.steps[index][type]['image'] = str(image)
-        if time_completed != None:
-            self.testcase.time_completed = time_completed
-            test_status = True
-            for step in self.testcase.steps:
-                if step['action']['passed'] == False:
-                    test_status = False
-                if step['assertion']['passed'] == False:
-                    test_status = False
-            self.testcase.passed = test_status
-        
-        self.testcase.save()
-        return
+
+
 
     @sync_to_async
     def format_element(self, element):
         elememt = json.dumps(element).rstrip('"').lstrip('"')
         return str(element)
+
+
 
 
     def format_element_s(self, element):
@@ -126,13 +152,12 @@ class Caser():
 
 
     
-    async def save_screenshot(self, page):
+    async def save_screenshot(self, page: object=None) -> str:
         '''
         Grabs & uploads a screenshot of the `page` 
         passed in the params. 
 
         Returns -> `image_url` <str:remote path to image>
-        
         '''
 
         # setup boto3 configurations
@@ -164,17 +189,17 @@ class Caser():
         os.remove(image)
 
         # returning image url
-        return  image_url
+        return image_url
+
 
 
     
-    def save_screenshot_s(self):
+    def save_screenshot_s(self) -> str:
         '''
         Grabs & uploads a screenshot of the `page` 
         passed in the params. 
 
         Returns -> `image_url` <str:remote path to image>
-        
         '''
 
         # setup boto3 configurations
@@ -206,11 +231,18 @@ class Caser():
         os.remove(image)
 
         # returning image url
-        return  image_url
+        return image_url
+
 
     
 
-    def run_s(self):
+    def run_s(self) -> None:
+        """
+        Runs the self.testcase using selenium as the driver
+
+        Returns -> None
+        """
+
         print(f'beginning testcase for {self.site_url}  \
             using case {self.case_name}')
         
@@ -234,7 +266,6 @@ class Caser():
                 self.driver.get(f'{self.site_url}')
                 time.sleep(int(self.configs['min_wait_time']))
 
-            
             if step['action']['type'] == 'navigate':
                 exception = None
                 passed = True
@@ -261,7 +292,6 @@ class Caser():
                     exception = e
                     passed = False
 
-                
                 self.update_testcase_s(
                     index=i, type='action', 
                     end_time=datetime.now(), 
@@ -270,8 +300,6 @@ class Caser():
                     image=image
                 )
             
-
-
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True
@@ -304,8 +332,6 @@ class Caser():
                     image=image
                 )
         
-
-
             if step['action']['type'] == 'change':
                 exception = None
                 passed = True
@@ -339,7 +365,6 @@ class Caser():
                     image=image
                 )
 
-            
             if step['action']['type'] == 'keyDown':
                 exception = None
                 passed = True
@@ -378,9 +403,6 @@ class Caser():
                     exception=exception,
                     image=image
                 )
-            
-
-
 
             if step['assertion']['type'] == 'match':
                 exception = None
@@ -416,7 +438,6 @@ class Caser():
                     exception=exception,
                     image=image
                 )
-
             
             if step['assertion']['type'] == 'exists':
                 exception = None
@@ -456,17 +477,18 @@ class Caser():
         )
         quit_driver(driver=self.driver)
         print('-- testcase run complete --')
+        
+        return None
 
 
 
 
+    async def run_p(self) -> None:
+        """
+        Runs the self.testcase using pupeteer as the driver
 
-
-
-
-    
-    async def run_p(self):
-
+        Returns -> None
+        """
 
         print(f'beginning testcase for {self.site_url}  \
             using case {self.case_name}')
@@ -516,15 +538,12 @@ class Caser():
         for step in self.steps:
             print(f'-- running step #{i+1} --')
 
-
             # adding catch if nav is not first
             if i == 0 and step['action']['type'] != 'navigate':
                 print(f'navigating to {self.site_url} before first step')
                 # using puppeteer, navigate to site root path & wait for page to load
                 await self.page.goto(f'{self.site_url}', self.page_options)
                 time.sleep(int(self.configs['min_wait_time']))
-
-
 
             if step['action']['type'] == 'navigate':
                 exception = None
@@ -555,8 +574,6 @@ class Caser():
                     image=image
                 )
                     
-
-
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True
@@ -589,7 +606,6 @@ class Caser():
                     exception=exception,
                     image=image
                 ) 
-
 
             if step['action']['type'] == 'change':
                 exception = None
@@ -626,7 +642,6 @@ class Caser():
                     image=image
                 ) 
 
-            
             if step['action']['type'] == 'keyDown':
                 exception = None
                 passed = True
@@ -654,9 +669,6 @@ class Caser():
                     exception=exception,
                     image=image
                 )
-            
-
-
 
             if step['assertion']['type'] == 'match':
                 exception = None
@@ -693,7 +705,6 @@ class Caser():
                     image=image
                 )
 
-            
             if step['assertion']['type'] == 'exists':
                 exception = None
                 passed = True
@@ -730,9 +741,8 @@ class Caser():
         await self.driver.close()
         print('-- testcase run complete --')
 
-    
-    
-    
+        return None
+
     
     
     

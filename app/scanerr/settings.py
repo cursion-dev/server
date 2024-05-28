@@ -23,21 +23,23 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True if os.environ.get('DEBUG') == 'True' else False
 
-ALLOWED_HOSTS = ['*']
+# Network settings
+CORS_ORIGIN_ALLOW_ALL = True
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+ALLOWED_HOSTS = [os.environ.get('DJANGO_ALLOWED_HOSTS')]
+
+# URLs
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
 LANDING_API_ROOT = os.environ.get('LANDING_API_ROOT')
-LANDING_API_KEY = os.environ.get('LANDING_API_KEY')
 API_URL_ROOT = os.environ.get('API_URL_ROOT')
 YELLOWLAB_ROOT = os.environ.get('YELLOWLAB_ROOT')
 LIGHTHOUSE_ROOT = os.environ.get('LIGHTHOUSE_ROOT')
-GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
-CORS_ORIGIN_ALLOW_ALL = True
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Scanerr.landing API KEY
+LANDING_API_KEY = os.environ.get('LANDING_API_KEY')
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -53,7 +55,6 @@ INSTALLED_APPS = [
     'markdownify.apps.MarkdownifyConfig',
     'storages',
 ]
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -65,9 +66,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
-
 ROOT_URLCONF = 'scanerr.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -83,7 +82,6 @@ TEMPLATES = [
         },
     },
 ]
-
 WSGI_APPLICATION = 'scanerr.wsgi.application'
 
 
@@ -99,7 +97,6 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT')
     }
 }
-
 
 
 # Password validation
@@ -132,7 +129,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 10,
 }
-
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=36),
@@ -141,15 +137,10 @@ SIMPLE_JWT = {
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
 
@@ -158,24 +149,15 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
-# needed for deployments without nginx
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-### ONLY NEEDED IF USING DJANGO-STORAGES | remote storage settings for serving static files to django admin ###
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# STORAGE_DOMAIN = os.environ.get('STORAGE_DOMAIN')
-# STATIC_ROOT = 'static'
-# MEDIA_ROOT = 'media'
-# STATIC_URL = f"https://{AWS_S3_ENDPOINT_URL}/{STATIC_ROOT}/"
-# MEDIA_URL = f"https://{AWS_S3_ENDPOINT_URL}/{MEDIA_ROOT}/"
-# AWS_S3_ENDPOINT_PATH = os.environ.get('AWS_S3_ENDPOINT_PATH')
-# AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
+# Static file service without nginx
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 # Used to authenticate with S3 using 'django-stores' pypi package and 'boto3'
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+
 
 # Configure which endpoint to send files to, and retrieve files from.
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
@@ -192,8 +174,10 @@ AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
 
+
 # Redis and Celery Config
 CELERY_BROKER_URL = "redis://redis:6379"
+
 
 # RabbitMQ and Celery Config
 # CELERY_BROKER_URL = "amqp://rabbitmq"
@@ -204,7 +188,7 @@ CELERY_BROKER_URL = "redis://redis:6379"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# email 
+# Email 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST')
 EMAIL_PORT = os.environ.get('EMAIL_PORT')
@@ -220,12 +204,16 @@ DEFAULT_TEMPLATE_NO_BUTTON = os.environ.get('DEFAULT_TEMPLATE_NO_BUTTON')
 AUTOMATION_TEMPLATE = os.environ.get('AUTOMATION_TEMPLATE')
 
 
-# google oAuth2
+# Google oAuth2
 GOOGLE_OAUTH2_CLIENT_ID = os.environ.get('GOOGLE_OAUTH2_CLIENT_ID')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
 
 
-# stripe keys
+# Google API key
+GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
+
+
+# Stripe keys
 if os.environ.get('STRIPE_ENV') == 'prod':
     STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_LIVE')
     STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_LIVE')
@@ -234,7 +222,7 @@ if os.environ.get('STRIPE_ENV') == 'dev':
     STRIPE_PRIVATE = os.environ.get('STRIPE_PRIVATE_TEST')
 
 
-# global configs object 
+# Global configs 
 CONFIGS = {
     'window_size': '1920,1080',
     'driver': 'selenium',
@@ -247,3 +235,7 @@ CONFIGS = {
     'disable_animations': False,
     'auto_height': True
 }
+
+
+
+

@@ -1,12 +1,19 @@
-import subprocess, json, uuid, boto3, shutil, os, requests
+import subprocess, json, uuid, boto3, os, requests
 from ..models import Site, Scan
 from scanerr import settings
 
 
 
+
+
+
 class Lighthouse():
 
-    """Initializes Google's Lighthouse CLI and runs an audit of the site"""
+    """
+    Initializes Google's Lighthouse CLI and runs an audit of the site
+
+    Use self.get_data() to init a run
+    """
 
 
     def __init__(self, scan=None, configs=None):

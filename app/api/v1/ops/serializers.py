@@ -2,11 +2,17 @@ from ...models import *
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
+
+
+
+
+
 kwargs = {
     'allow_null': False, 
     'read_only': True, 
     'pk_field': UUIDField(format='hex_verbose')
     }
+
 
 
 
@@ -22,6 +28,7 @@ class LogSerializer(serializers.HyperlinkedModelSerializer):
 
 
 
+
 class ProcessSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id',**kwargs)
@@ -31,6 +38,7 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'site', 'type', 'time_created', 'time_completed',
         'success', 'info_url', 'progress', 'info', 'exception'
         ]
+
 
 
 
@@ -46,6 +54,8 @@ class SiteSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
+
+
 class PageSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
@@ -57,6 +67,8 @@ class PageSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'user', 'site', 'page_url', 'time_created', 'info',
         'tags', 'account',
         ]
+
+
 
 
 class ScanSerializer(serializers.HyperlinkedModelSerializer):
@@ -71,6 +83,8 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
         'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
         'images', 'configs', 'tags', 'type',
         ]
+
+
 
 
 class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
@@ -93,6 +107,8 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
         'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags',
         ]
 
+
+
         
 class TestSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
@@ -110,6 +126,8 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
+
+
 class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     page = serializers.PrimaryKeyRelatedField(source='page.id', **kwargs)
@@ -125,6 +143,8 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
+
+
 class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
     site = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
@@ -138,6 +158,7 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
         'periodic_task_id', 'status', 'automation', 'extras', 'account',
         ]
+
 
 
 
@@ -158,13 +179,14 @@ class AutomationSerializer(serializers.HyperlinkedModelSerializer):
 
 class ReportSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
+    page = serializers.PrimaryKeyRelatedField(source='page.id', **kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Report
-        fields = ['id', 'site', 'user', 'time_created', 'type',
+        fields = ['id', 'site', 'page', 'user', 'time_created', 'type',
         'path', 'info', 'account',
         ]
 
@@ -185,6 +207,7 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
 
 
 
+
 class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
@@ -199,6 +222,8 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
         ]
 
 
+
+
 class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
@@ -211,3 +236,8 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
         'case', 'case_name', 'passed', 'configs', 'account',
         ]
+
+
+
+
+        

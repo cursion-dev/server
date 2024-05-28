@@ -1,14 +1,9 @@
 from .driver_s import driver_init, driver_wait, quit_driver
 from .driver_p import driver_init as driver_init_p, wait_for_page
-from selenium import webdriver
 from ..models import Site, Scan, Test, Mask
-from selenium.webdriver.chrome.options import Options
-from django.forms.models import model_to_dict
-from django.core.serializers.json import DjangoJSONEncoder
 from skimage.metrics import structural_similarity
 from scanerr import settings
 from PIL import Image as I, ImageChops, ImageStat
-from pyppeteer import launch
 from datetime import datetime
 from asgiref.sync import sync_to_async
 import time, os, sys, json, uuid, boto3, \
@@ -18,10 +13,12 @@ import time, os, sys, json, uuid, boto3, \
 
 
 
-class Image():
+
+class Imager():
     """
     High level Image handler used to compare screenshots of
-    a website and retrieve single one-page screenshots. 
+    a website.
+
     Also known as VRT or Visual Regression Testing.
     Contains three methods scan_s(), scan_p(), test(). 
     The _p appendage denotes using Puppeteer as the webdriver
@@ -42,7 +39,9 @@ class Image():
     """
 
 
-    def __init__(self, scan=None, configs=None):
+
+
+    def __init__(self, scan: object=None, configs: dict=None):
 
         # main scan object
         self.scan = scan
@@ -68,7 +67,6 @@ class Image():
             document.querySelectorAll('video').forEach(vid => vid.currentTime=0);
             """ 
         )
-
         self.set_jquery = (
             """
             var jq = document.createElement('script');
@@ -76,7 +74,6 @@ class Image():
             document.getElementsByTagName('head')[0].appendChild(jq);
             """
         )
-
         self.pause_animations_script = (
             """
             const styleElement = document.createElement('style');styleElement.setAttribute('id','style-tag');
@@ -88,11 +85,12 @@ class Image():
 
 
 
-    def check_timeout(self, timeout, start_time):
+
+    def check_timeout(self, timeout: int, start_time: str) -> bool:
         """
         Checks to see if the current time exceedes the alotted timeout. 
         
-        returns -> True if timeout exceeded
+        Returns -> True if timeout exceeded
         """
         current = datetime.now()
         diff = current - start_time
@@ -105,7 +103,7 @@ class Image():
 
 
 
-    def add_images(self, im1, im2):
+    def add_images(self, im1: object, im2: object) -> object:
         """
         Joins img1 and im2 vertically and saves as "new_img"
         
@@ -121,10 +119,12 @@ class Image():
 
 
     
-    def save_image(self, pic_id, image):
+    def save_image(self, pic_id: str, image: object) -> None:
         """
         Upload image to s3, save info as image_obj,
         add image_obj to image_array, & remove image file
+
+        Returns -> None
         """
         remote_path = f'static/sites/{self.scan.site.id}/{self.scan.page.id}/{self.scan.id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
@@ -150,17 +150,21 @@ class Image():
         # remove local copy
         os.remove(image)
 
+        return None
 
 
 
 
-
-
-
-    def scan_s(self, driver=None):
+    def scan_s(self, driver: object=None) -> list:
         """
         Grabs full length screenshots of the website and uploads 
         them to s3.
+
+        Expects: {
+            'driver': object
+        }
+
+        Returns -> self.image_array list
         """
 
         # initialize driver if not passed as param
@@ -291,42 +295,47 @@ class Image():
         # saving image
         self.save_image(pic_id=pic_id_2, image=final_img)
 
+        # clean up
         if not driver_present:
             quit_driver(driver)
 
+        # return images
         return self.image_array
 
 
 
 
-
-
-
-
-    async def scan_p(self):
+    async def scan_p(self) -> list:
         """
         Using Puppeteer, grabs full length screenshots of the website and uploads 
         them to s3.
+
+        Returns -> self.image_array list
         """
 
         @sync_to_async
         def get_page():
             _page = self.scan.page
             return _page
-
+        
+        # getting Scanerr `page` object
         _page = await get_page()
 
+        # starting up puppeteer driver
         driver = await driver_init_p(
             window_size=self.configs.get('window_size', '1920,1080'), 
             wait_time=int(self.configs.get('max_wait_time', 30))
         )
+
+        # initing new puppeteer page
         page = await driver.newPage()
 
+        # setting configs for driver
         sizes = self.configs.get('window_size', '1920,1080').split(',')
         is_mobile = False
         if self.configs.get('device') == 'mobile':
             is_mobile = True
-        
+
         page_options = {
             'waitUntil': 'networkidle0', 
             # 'timeout': int(self.configs.get('max_wait_time', 30))*1000
@@ -343,22 +352,22 @@ class Image():
         if self.configs.get('auto_height', True):
             page_height = await page.evaluate("document.scrollingElement.scrollHeight;")
 
+        # setting more driver configs
         viewport = {
             'width': int(sizes[0]),
             'height': int(page_height),
             'isMobile': is_mobile,
         }
-        
         userAgent = (
             "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
             (KHTML, like Gecko) Chrome/99.0.4812.0 Mobile Safari/537.36"
         )
-        
         emulate_options = {
             'viewport': viewport,
             'userAgent': userAgent
         }
 
+        # setting device type
         if self.configs.get('device') == 'mobile':
             await page.emulate(emulate_options)
         else:
@@ -367,15 +376,15 @@ class Image():
         # requesting page_url
         await page.goto(_page.page_url, page_options)
 
+        # handling anamations
         if self.configs.get('disable_animations') == True:
-            # inserting animation pausing script
             try:
+                # inserting animation pausing script
                 await page.evaluate(self.pause_animations_script)
             except:
                 print('cannot pause animations')
-
-            # pausing videos
             try:
+                # pausing videos
                 videos = await page.querySelectorAll('video')
                 for vid in videos:
                     await page.evaluate('(vid) => vid.pause()', vid)
@@ -479,20 +488,16 @@ class Image():
         # saving image
         await save_image(pic_id=pic_id, image=final_img)
 
+        # cleaning up
         await driver.close()
 
+        # returning images
         return self.image_array
 
 
 
 
-
-
-
-
-
-
-    def test(self, test, index=None):
+    def test(self, test: object, index: int=None) -> dict:
         """
         Compares each screenshot between the two scans and records 
         a score out of 100%.
@@ -501,6 +506,16 @@ class Image():
             - Structral Similarity Index (ssim)
             - PIL ImageChop Differences, Ratio
             - cv2 ORB Brute-force Matcher, Ratio
+
+        Expects: {
+            'test': object, 
+            'index': int,
+        }
+
+        Returns -> data: {
+            'average_score' : float(0-100),
+            'images'        : dict,
+        }
         """
 
         # setup temp dirs
@@ -573,7 +588,7 @@ class Image():
                 # build two new images with differences highlighted
                 def highlight_diffs(pre_img_path, post_img_path, index):
                     '''
-                        Returns -> two new images with highlights & float(ssim_score)
+                    Returns -> two new images with highlights & float(ssim_score)
                     '''
                     # Load the images
                     image1 = cv2.imread(pre_img_path)
@@ -707,8 +722,7 @@ class Image():
                     pre_img_diff = ssim_results['img_objs'][0]
                     post_img_diff = ssim_results['img_objs'][1]
                     
-                    # img_score_tupple = ssim(pre_img_array, post_img_array)
-                    # img_score_list = list(img_score_tupple)  statistics.fmean(img_score_list)
+                    # ssim scoring
                     ssim_img_score =  ssim_results['ssim_score'] * 100
 
                     # pillow scoring
@@ -767,12 +781,14 @@ class Image():
             avg_score = statistics.fmean(scores)
         except:
             avg_score = None
-            
+
+        # formatting response
         images_delta = {
             "average_score": avg_score,
             "images": img_test_results,
         }
 
+        # returning response
         return images_delta
 
 

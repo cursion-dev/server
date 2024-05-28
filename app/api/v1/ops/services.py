@@ -1,4 +1,3 @@
-import json, boto3, asyncio, os, requests
 from datetime import datetime
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
@@ -13,31 +12,49 @@ from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
 from ...utils.scanner import Scanner as S
 from ...utils.tester import Tester as T
-from ...utils.image import Image as I
+from ...utils.imager import Imager as I
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
 from ...utils.wordpress_p import Wordpress as W_P
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
+import json, boto3, asyncio, os, requests
 
 
 
 
 
-def record_api_call(request, data, status):
 
+def record_api_call(request: object, data: dict, status: str) -> None:
+    """ 
+    Records an request and resposne if 
+    the request was sent with Token auth. 
+    Creates a `Log` with the recorded info
+
+    Expects: {
+        request : object, 
+        data    : dict, 
+        status  : str
+    }
+    
+    Returns -> None
+    """
+    
+    # get auth type
     auth = request.headers.get('Authorization')
+
+    # check if Token auth
     if auth.startswith('Token'):
 
+        # getting the request data
         if request.method == 'POST':
             request_data = request.data
-
         elif request.method == 'GET':
             request_data = request.query_params
-
         elif request.method == 'DELETE':
             request_data = request.query_params
 
+        # recording info 
         log = Log.objects.create(
             user=request.user,
             path=request.path,
@@ -46,17 +63,60 @@ def record_api_call(request, data, status):
             request_payload=request_data,
             response_payload=data
         )
+
+    return None
+
+
+
+
+def check_account_and_resource(
+        request: object=None, 
+        user: object=None, 
+        resource: str=None, 
+        action: str=None,
+        **kwargs
+    ) -> dict:
+    """ 
+    Based on the passed "resource" & kwargs, checks to see 
+    if account is allowed to add/get a "resource".
+
+    Expects: {
+        'request'   : object, 
+        'user'      : object, 
+        'resource'  : str, 
+        **kwargs    : dict
+    }
     
-    return
-
-
-
-def check_account(request=None, user=None, resource=None, site_id=None):
+    Returns -> data: {
+        'allowed'   : bool,
+        'error'     : str,
+        'status'    : object 
+        'code'      : str
+    }
+    """
     
+    # setting defaults
     allowed = True
     error = None
     member = None
+    _status = status.HTTP_402_PAYMENT_REQUIRED
+    code = '402'
 
+    # checking for kwargs
+    site_id = kwargs.get('site_id')
+    site_url = kwargs.get('site_url')
+    page_id = kwargs.get('page_id')
+    page_url = kwargs.get('page_url')
+    test_id = kwargs.get('test_id')
+    scan_id = kwargs.get('scan_id')
+    case_id = kwargs.get('case_id')
+    testcase_id = kwargs.get('testcase_id')
+    schedule_id = kwargs.get('schedule_id')
+    automation_id = kwargs.get('automation_id')
+    process_id = kwargs.get('process_id')
+    report_id = kwargs.get('report_id')
+
+    # retrieving account
     if request is not None:
         user = request.user
     if Member.objects.filter(user=user).exists():
@@ -68,225 +128,374 @@ def check_account(request=None, user=None, resource=None, site_id=None):
     else:
         allowed = False
         error = 'no account assocation'
+        _status = status.HTTP_401_UNAUTHORIZED
+        code = '401'
     
     # returning early bc account 
     # is not funded or not associated
     if not allowed:
         data = {
             'allowed': allowed,
-            'error': error 
+            'error': error, 
+            'status': _status,
+            'code': code
         }
         return data
 
     # checking resource limit
     if resource is not None:
+        
         # checking pages
         if resource == 'page':
-            current_page_count = Page.objects.filter(account=account, site__id=site_id).count()
-            if current_page_count >= account.max_pages:
-                allowed = False
-                error = 'max pages reached, please upgrade'
+            if not page_id:
+                if site_id:
+                    if not Site.objects.filter(id=site_id, account=account).exists():
+                        allowed = False
+                        error = 'site not found'
+                        _status = status.HTTP_404_NOT_FOUND
+                        code = '404'
+                    else:
+                        current_count = Page.objects.filter(account=account, site__id=site_id).count()
+                        if current_count >= account.max_pages and action == 'add':
+                            allowed = False
+                            error = 'max pages reached, please upgrade'
+                            _status = status.HTTP_402_PAYMENT_REQUIRED
+                            code = '402'
+            if page_id:
+                if not Page.objects.filter(id=page_id, account=account).exists():
+                    allowed = False
+                    error = 'page not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if page_url:
+                if not Page.objects.filter(page_url=page_url, account=account).exists():
+                    allowed = False
+                    error = 'page already exists'
+                    _status = status.HTTP_409_CONFLICT
+                    code = '409'
+        
         # checking sites
         if resource == 'site':
-            current_site_count = Site.objects.filter(account=account).count()
-            if current_site_count >= account.max_sites:
-                allowed = False
-                error = 'max sites reached, please upgrade'
+            if not site_id:
+                current_count = Site.objects.filter(account=account).count()
+                if current_count >= account.max_sites and action == 'add':
+                    allowed = False
+                    error = 'max sites reached, please upgrade'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
+            if site_id:
+                if not Site.objects.filter(id=site_id, account=account).exists():
+                    allowed = False
+                    error = 'site not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if site_url:
+                if not Site.objects.filter(site_url=site_url, account=account).exists():
+                    allowed = False
+                    error = 'site already exists'
+                    _status = status.HTTP_409_CONFLICT
+                    code = '409'
+        
         # checking schedules
         if resource == 'schedule':
-            current_site_count = Schedule.objects.filter(account=account).count()
-            if current_site_count >= account.max_schedules:
-                allowed = False
-                error = 'max schedules reached, please upgrade'
+            if not schedule_id:
+                current_count = Schedule.objects.filter(account=account).count()
+                if current_count >= account.max_schedules and action == 'add':
+                    allowed = False
+                    error = 'max schedules reached, please upgrade'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
+                if page_id:
+                    if not Page.objects.filter(id=page_id, account=account).exists():
+                        allowed = False
+                        error = 'page not found'
+                        _status = status.HTTP_404_NOT_FOUND
+                        code = '404'
+                if site_id:
+                    if not Site.objects.filter(id=site_id, account=account).exists():
+                        allowed = False
+                        error = 'site not found'
+                        _status = status.HTTP_404_NOT_FOUND
+                        code = '404'
+            if schedule_id:
+                if not Schedule.objects.filter(id=schedule_id, account=account).exists():
+                    allowed = False
+                    error = 'schedule not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+                if page_id:
+                    if not Page.objects.filter(id=page_id, account=account).exists():
+                        allowed = False
+                        error = 'page not found'
+                        _status = status.HTTP_404_NOT_FOUND
+                        code = '404'
+                if site_id:
+                    if not Site.objects.filter(id=site_id, account=account).exists():
+                        allowed = False
+                        error = 'site not found'
+                        _status = status.HTTP_404_NOT_FOUND
+                        code = '404'
+        
+        # checking automations
+        if resource == 'automation':
+            if automation_id:
+                if not Automation.objects.filter(id=automation_id, account=account).exists():
+                    allowed = False
+                    error = 'automation not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
         # checking testcases
         if resource == 'testcase':
-            if not account.testcases:
-                allowed = False
-                error = 'testcases not allowed, please upgrade'
-    
+            if not testcase_id:
+                if not account.testcases:
+                    allowed = False
+                    error = 'testcases not allowed, please upgrade'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
+            if testcase_id:
+                if not Testcase.objects.filter(id=testcase_id, account=account).exists():
+                    allowed = False
+                    error = 'testcase not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if case_id:
+                if not Case.objects.filter(id=case_id, account=account).exists():
+                    allowed = False
+                    error = 'case not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if site_id:
+                if not Site.objects.filter(id=site_id, account=account).exists():
+                    allowed = False
+                    error = 'site not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            
+        # checking cases
+        if resource == 'case':
+            if case_id:
+                if not Case.objects.filter(id=case_id, account=account).exists():
+                    allowed = False
+                    error = 'case not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if site_id:
+                if not Site.objects.filter(id=site_id, account=account).exists():
+                    allowed = False
+                    error = 'site not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
+        # checking scans
+        if resource == 'scan':
+            if scan_id:
+                if not Scan.objects.filter(id=scan_id, page__account=account).exists():
+                    allowed = False
+                    error = 'scan not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
+        # checking tests
+        if resource == 'test':
+            if test_id:
+                if not Test.objects.filter(id=test_id, page__account=account).exists():
+                    allowed = False
+                    error = 'test not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+
+        # checking process
+        if resource == 'process':
+            if process_id:
+                if not Process.objects.filter(id=process_id, account=account).exists():
+                    allowed = False
+                    error = 'process not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
+        # checking reports
+        if resource == 'report':
+            if report_id:
+                if not Report.objects.filter(id=report_id, account=account).exists():
+                    allowed = False
+                    error = 'report not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if page_id:
+                if not Page.objects.filter(id=page_id, account=account).exists():
+                    allowed = False
+                    error = 'page not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
+        # checking logs
+        if resource == 'log':
+            if log_id:
+                if not Log.objects.filter(id=log_id, account=account).exists():
+                    allowed = False
+                    error = 'log not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            
     # returning data
     data = {
         'allowed': allowed,
-        'error': error 
+        'error': error, 
+        'status': _status,
+        'code': code
     }
     return data
-        
+
+
 
     
+### ------ Begin Site Services ------ ###
 
 
 
 
+def create_site(request: object, delay: bool=False) -> object:
+    """ 
+    Creates a new `Site`, initiates a Crawl, initial `Scans` 
+    for each added `Page`, and generates new `Cases`. 
 
+    Expects: {
+        request : object, 
+        delay   : bool
+    }
 
+    Returns -> HTTP Response object
+    """
 
-
-
-
-def create_site(request, delay=False):
+    # getting data
     site_url = request.data.get('site_url')
     page_urls = request.data.get('page_urls')
     onboarding = request.data.get('onboarding', None)
+    tags = request.data.get('tags', None)
+    configs = request.data.get('configs', settings.CONFIGS)
+    no_scan = request.data.get('no_scan', False)
+    
+    # gettting account
     user = request.user
     account = Member.objects.get(user=user).account
     sites = Site.objects.filter(account=account)
 
+    # checking if in onboarding flow
     if onboarding is not None:
         if str(onboarding).lower() == 'true':
             onboarding = True
         if str(onboarding).lower() == 'false':
             onboarding = False
 
+    # clean & check site url
     if site_url.endswith('/'):
         site_url = site_url.rstrip('/')
-
     if site_url is None or site_url == '':
         data = {'reason': 'the site_url cannot be empty',}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
-    check_data = check_account(request=request, resource='site')
+    # check account and resource
+    check_data = check_account_and_resource(request=request, resource='site', action='add')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if sites.count() >= account.max_sites:
-        data = {'reason': 'maximum number of sites reached',}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+    # creating site if checks passed
+    site = Site.objects.create(
+        site_url=site_url,
+        user=user,
+        tags=tags,
+        account=account
+    )
 
-    if Site.objects.filter(site_url=site_url, user=user).exists() and user.username != 'admin':
-        data = {'reason': 'site already exists',}
-        record_api_call(request, data, '409')
-        return Response(data, status=status.HTTP_409_CONFLICT)
-    else:
-        tags = request.data.get('tags', None)
-        configs = request.data.get('configs', settings.CONFIGS)
-        no_scan = request.data.get('no_scan', False)
-        site = Site.objects.create(
-            site_url=site_url,
-            user=user,
-            tags=tags,
-            account=account
-        )
+    # create process obj
+    process = Process.objects.create(
+        site=site,
+        type='case',
+        account=account,
+        progress=1
+    )
 
-        # create process obj
-        process = Process.objects.create(
-            site=site,
-            type='case',
-            account=account,
-            progress=1
-        )
+    # auto gen Cases using bg_autocase_task
+    create_auto_cases_bg.delay(
+        site_id=site.id,
+        process_id=process.id,
+        start_url=str(site.site_url),
+        configs=configs,
+        max_cases=3,
+        max_layers=8
+    )
+    
+    # check if this is account's first site and onboarding = True
+    if Site.objects.filter(account=account).count() == 1 \
+        and onboarding == True:
+        # send POST to landing/v1/ops/prospect
+        create_prospect.delay(user_email=str(user.email))
 
-        # auto gen Cases using bg_autocase_task
-        create_auto_cases_bg.delay(
-            site_id=site.id,
-            process_id=process.id,
-            start_url=str(site.site_url),
-            configs=configs,
-            max_cases=3,
-            max_layers=8
-        )
-        
-        # check if this is account's first site and onboarding = True
-        if Site.objects.filter(account=account).count() == 1 \
-            and onboarding == True:
-            # send POST to landing/v1/ops/prospect
-            create_prospect.delay(user_email=str(user.email))
+    # check if scan requested
+    if no_scan == False:
 
-        if no_scan == False:
-            if delay == True:
-                # adding pages passed in request
-                if page_urls is not None:
-                    for url in page_urls:
-                        if url.startswith(site.site_url):
-                            # add new page
-                            page = Page.objects.create(
-                                site=site,
-                                page_url=url,
-                                user=site.user,
-                                account=site.account,
-                            )
-                            create_scan(
-                                page_id=page.id, 
-                                configs=configs, 
-                                user_id=request.user.id,
-                                delay=True
-                            )
-                            site.time_crawl_started = datetime.now()
-                            site.time_crawl_completed = datetime.now()
-                            site.info["latest_scan"]["time_created"] = str(datetime.now())
-                            site.save()
-                else:
-                    create_site_and_pages_bg.delay(site_id=site.id, configs=configs)
-               
+        # check if delay was requested
+        if delay == True:
+
+            # adding pages passed in request
+            if page_urls is not None:
+                for url in page_urls:
+                    if url.startswith(site.site_url):
+                        # add new page
+                        page = Page.objects.create(
+                            site=site,
+                            page_url=url,
+                            user=site.user,
+                            account=site.account,
+                        )
+                        # create scan
+                        create_scan(
+                            page_id=page.id, 
+                            configs=configs, 
+                            user_id=request.user.id,
+                            delay=True
+                        )
+                        site.time_crawl_started = datetime.now()
+                        site.time_crawl_completed = datetime.now()
+                        site.info["latest_scan"]["time_created"] = str(datetime.now())
+                        site.save()
+            
+            # starting crawler and scans in background
             else:
-                # running crawler
-                pages = Crawler(url=site.site_url, max_urls=account.max_pages).get_links()
-                for url in pages:
-                    # add new page
-                    page = Page.objects.create(
-                        site=site,
-                        page_url=url,
-                        user=site.user,
-                        account=site.account,
-                    )
-                    # create initial scan
-                    scan = Scan.objects.create(
-                        site=site,
-                        page=page, 
-                        type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-                        configs=configs
-                    )
-                    # run each scan component
-                    S(site=site, page=page, configs=configs).first_scan()
-                    page.info["latest_scan"]["id"] = str(scan.id)
-                    page.info["latest_scan"]["time_created"] = str(scan.time_created)
-                    page.save()
+                create_site_and_pages_bg.delay(
+                    site_id=site.id, 
+                    configs=configs
+                )
+            
+        else:
+            # running crawler
+            pages = Crawler(url=site.site_url, max_urls=account.max_pages).get_links()
+            for url in pages:
+                # add new page
+                page = Page.objects.create(
+                    site=site,
+                    page_url=url,
+                    user=site.user,
+                    account=site.account,
+                )
+                # create initial scan
+                scan = Scan.objects.create(
+                    site=site,
+                    page=page, 
+                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    configs=configs
+                )
+                # run each scan component
+                S(site=site, page=page, configs=configs).build_scan()
+                page.info["latest_scan"]["id"] = str(scan.id)
+                page.info["latest_scan"]["time_created"] = str(scan.time_created)
+                page.save()
                 
-
-        serializer_context = {'request': request,}
-        serialized = SiteSerializer(site, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '201')
-        response = Response(data, status=status.HTTP_201_CREATED)
-        return response
-
-
-
-
-def crawl_site(request, id):
-    user = request.user
-    account = Member.objects.get(user=user).account
-
-    check_data = check_account(request=request)
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-    try:
-        site = Site.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Site with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-    
-    if site.account != account:
-        data = {'reason': 'cannot crawl a Site you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    configs = request.data.get('configs', None)
-    if not configs:
-        configs = settings.CONFIGS
-
-    # update site info
-    site.time_crawl_completed = None
-    site.save()
-
-    crawl_site_bg.delay(site_id=site.id, configs=configs)
-
+    # serialize response and return
     serializer_context = {'request': request,}
     serialized = SiteSerializer(site, context=serializer_context)
     data = serialized.data
@@ -297,31 +506,92 @@ def crawl_site(request, id):
 
 
 
-def get_sites(request):
-    site_id = request.query_params.get('site_id')
+def crawl_site(request: object, id: str) -> object:
+    """ 
+    Initiates a new Crawl for the passed `Site`.id
+
+    Expects: {
+        'request' : object, 
+        'id'      : str
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # setting configs
+    configs = request.data.get('configs', settings.CONFIGS)
 
+    # check account and resource
+    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # update site info
+    site.time_crawl_completed = None
+    site.save()
+
+    # starting crawl
+    crawl_site_bg.delay(site_id=site.id, configs=configs)
+
+    # serializing and returning
+    serializer_context = {'request': request,}
+    serialized = SiteSerializer(site, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def get_sites(request: object) -> object:
+    """ 
+    Get one or more `Sites` in paginated response
+
+    Expects: {
+        'request': object,
+    } 
+
+    Returns -> HTTP Response object
+    """
+
+    # getting request data
+    site_id = request.query_params.get('site_id')
+    user = request.user
+
+    # getting account
+    account = Member.objects.get(user=user).account
+
+    # check if site_id was passed
     if site_id != None:
+
+        # check account and resource
+        check_data = check_account_and_resource(request=request, site_id=site_id, resource='site')
+        if not check_data['allowed']:
+            data = {'reason': check_data['error'],}
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
         
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-        if site.account != account:
-            data = {'reason': 'cannot retrieve a Site you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        # get site if checks passed
+        site = Site.objects.get(id=site_id)
+
+        # serialize single site response and return
         serializer_context = {'request': request,}
         serialized = SiteSerializer(site, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     
+    # getting all account assoicated sites
     sites = Site.objects.filter(account=account).order_by('-time_created')
+
+    # serialize response and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(sites, request)
     serializer_context = {'request': request,}
@@ -333,21 +603,69 @@ def get_sites(request):
 
 
 
-def delete_site(request, id):
+def get_site(request: object, id: str) -> object:
+    """
+    Get single `Site` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
-    
-    try:
-        site = Site.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Site with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-    if site.account != account:
-        data = {'reason': 'delete a Site you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        site_id=id, resource='site'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get site if checks passed
+    site = Site.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = SiteSerializer(site, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK) 
+
+
+
+
+def delete_site(request: object, id: str) -> object:
+    """ 
+    Deletes the `Site` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get site if checks passed
+    site = Site.objects.get(id=id)
 
     # remove s3 objects
     delete_site_s3_bg.delay(site_id=id)
@@ -358,7 +676,8 @@ def delete_site(request, id):
     # remove site
     site.delete()
 
-    data = {'message': 'Site has been deleted',}
+    # returning response
+    data = {'message': 'site deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -366,12 +685,29 @@ def delete_site(request, id):
 
 
 
-def delete_many_sites(request):
+def delete_many_sites(request: object) -> object:
+    """ 
+    Deletes one or more `Sites` associated
+    with the passed "request.ids" 
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     ids = request.data.get('ids')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check for ids
     if ids is not None:
+
+        # setting defaults
         count = len(ids)
         num_succeeded = 0
         succeeded = []
@@ -380,20 +716,26 @@ def delete_many_sites(request):
         user = request.user
         this_status = True
 
+        # loop through passed ids
         for id in ids:
+
+            # trying to delete site
             try:
                 site = Site.objects.get(id=id)
                 if site.account == account:
                     delete_site_s3_bg.delay(site_id=id)
                     delete_tasks(site=site)
                     site.delete()
+                # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
             except:
+                # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
 
+        # format response
         data = {
             'success': this_status,
             'num_succeeded': num_succeeded,
@@ -401,10 +743,13 @@ def delete_many_sites(request):
             'num_failed': num_failed,
             'failed': failed, 
         }
+
+        # returning response
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
     
+    # returning error
     data = {
         'reason': 'you must provide an array of id\'s'
     }
@@ -415,67 +760,88 @@ def delete_many_sites(request):
 
 
 
+### ------ Begin Page Services ------ ###
 
 
 
 
+def create_page(request: object, delay: bool=False) -> object:
+    """ 
+    Creates one or more pages.
 
+    Expcets: {
+        'requests': object
+    }
+    
+    Returns -> HTTP Response object
+    """
 
-def create_page(request, delay=False):
+    # getting request data
     site_id = request.data.get('site_id')
     page_url = request.data.get('page_url')
     page_urls = request.data.get('page_urls')
+    tags = request.data.get('tags', None)
+    configs = request.data.get('configs', settings.CONFIGS)
+    no_scan = request.data.get('no_scan', False)
+
+    # retrieving user, account, & site
     user = request.user
     account = Member.objects.get(user=user).account
     site = Site.objects.get(id=site_id)
-    pages = Page.objects.filter(site=site)
 
+    # creating many pages if page_urls was passed
     if page_urls is not None:
         data = create_many_pages(request=request, obj_response=False)
         record_api_call(request, data, '201')
         response = Response(data, status=status.HTTP_201_CREATED)
         return response
-
+    
+    # validating page_url
     if page_url.endswith('/'):
         page_url = page_url.rstrip('/')
-
     if page_url is None or page_url == '':
         data = {'reason': 'the page_url cannot be empty',}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
-    check_data = check_account(request=request, resource='page', site_id=site_id)
+    # check account and resource
+    check_data = check_account_and_resource(
+        request=request, resource='page', site_id=site_id, page_url=page_url,
+        action='add'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if pages.count() >= account.max_pages:
-        data = {'reason': 'maximum number of pages reached',}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+    # adding page if checks passed
+    page = Page.objects.create(
+        site=site,
+        page_url=page_url,
+        user=user,
+        tags=tags,
+        account=account
+    )
 
-    if Page.objects.filter(page_url=page_url, user=user).exists():
-        data = {'reason': 'page already exists',}
-        record_api_call(request, data, '409')
-        return Response(data, status=status.HTTP_409_CONFLICT)
-    else:
-        tags = request.data.get('tags', None)
-        configs = request.data.get('configs', None)
-        no_scan = request.data.get('no_scan', False)
-        page = Page.objects.create(
+    # deciding on scan
+    if no_scan == False:
+
+        # create initial scan
+        scan = Scan.objects.create(
             site=site,
-            page_url=page_url,
-            user=user,
-            tags=tags,
-            account=account
+            page=page, 
+            type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+            configs=configs
         )
+        page.info["latest_scan"]["id"] = str(scan.id)
+        page.info["latest_scan"]["time_created"] = str(scan.time_created)
+        page.save()
 
-        if not configs:
-            configs = settings.CONFIGS
+        if delay == True:
+            # running scan in background
+            scan_page_bg.delay(scan_id=scan.id, configs=configs)
 
-        if no_scan == False:
-
+        else:
             # create initial scan
             scan = Scan.objects.create(
                 site=site,
@@ -483,57 +849,66 @@ def create_page(request, delay=False):
                 type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
                 configs=configs
             )
+            # run each scan component
+            S(site=site, page=page, configs=configs).build_scan()
             page.info["latest_scan"]["id"] = str(scan.id)
             page.info["latest_scan"]["time_created"] = str(scan.time_created)
             page.save()
-
-            if delay == True:
-                scan_page_bg.delay(scan_id=scan.id, configs=configs)
-
-            else:
-                # create initial scan
-                scan = Scan.objects.create(
-                    site=site,
-                    page=page, 
-                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-                    configs=configs
-                )
-                # run each scan component
-                S(site=site, page=page, configs=configs).first_scan()
-                page.info["latest_scan"]["id"] = str(scan.id)
-                page.info["latest_scan"]["time_created"] = str(scan.time_created)
-                page.save()
-                
-
-        serializer_context = {'request': request,}
-        serialized = PageSerializer(page, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '201')
-        response = Response(data, status=status.HTTP_201_CREATED)
-        return response
+            
+    # serialize response and return
+    serializer_context = {'request': request,}
+    serialized = PageSerializer(page, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
 
 
 
 
-def create_many_pages(request, obj_response=False):
+def create_many_pages(request: object, obj_response: bool=False) -> object | dict:
+    """ 
+    Bulk creates `Pages` for each url passed in "page_urls"
+
+    Expcets: {
+        'request'       : object,
+        'obj_response'  : bool
+    }
+
+    Returns -> dict or HTTP Response object
+    """
+
+    # get request data
     site_id = request.data.get('site_id')
     page_urls = request.data.get('page_urls')
+    tags = request.data.get('tags', None)
+    configs = request.data.get('configs', settings.CONFIGS)
+    no_scan = request.data.get('no_scan', False)
+    
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # get site and current pages
     site = Site.objects.get(id=site_id)
     pages = Page.objects.filter(site=site)
 
-    check_data = check_account(request=request, resource='page', site_id=site_id)
+    # check account and resource
+    check_data = check_account_and_resource(
+        request=request, resource='page', site_id=site_id, action='add'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
+    # pre check for max_pages
     if (pages.count() + len(page_urls)) >= account.max_pages:
         data = {'reason': 'maximum number of pages reached',}
         record_api_call(request, data, '402')
         return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
+    # setting defaults
     count = len(page_urls)
     num_succeeded = 0
     succeeded = []
@@ -541,17 +916,17 @@ def create_many_pages(request, obj_response=False):
     failed = []
     this_status = True
 
+    # looping through each "page_url"
     for url in page_urls:
 
+        # clean url
         if url.endswith('/'):
             url = url.rstrip('/')
 
+        # check for duplicates
         if not Page.objects.filter(page_url=url, user=user).exists():
             
             # adding pages
-            tags = request.data.get('tags', None)
-            configs = request.data.get('configs', None)
-            no_scan = request.data.get('no_scan', False)
             page = Page.objects.create(
                 site=site,
                 page_url=url,
@@ -560,9 +935,7 @@ def create_many_pages(request, obj_response=False):
                 account=account
             )
 
-            if not configs:
-                configs = settings.CONFIGS
-
+            # deciding on scan
             if no_scan == False:
 
                 # create initial scan
@@ -572,6 +945,8 @@ def create_many_pages(request, obj_response=False):
                     type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
                     configs=configs
                 )
+                
+                # update page with new scan data
                 page.info["latest_scan"]["id"] = str(scan.id)
                 page.info["latest_scan"]["time_created"] = str(scan.time_created)
                 page.save()
@@ -589,6 +964,7 @@ def create_many_pages(request, obj_response=False):
             failed.append(url)
             num_failed = num_failed + 1
 
+    # formatting response
     data = {
         'success': this_status,
         'num_succeeded': num_succeeded,
@@ -596,6 +972,8 @@ def create_many_pages(request, obj_response=False):
         'num_failed': num_failed,
         'failed': failed, 
     }
+
+    # decide on response type
     if obj_response:
         record_api_call(request, data, '201')
         response = Response(data, status=status.HTTP_201_CREATED)
@@ -605,55 +983,59 @@ def create_many_pages(request, obj_response=False):
 
 
 
+def get_pages(request: object) -> object:
+    """ 
+    Get one or more `Pages` from either 
+    "page_id" or "site_id"
 
-def get_pages(request):
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     site_id = request.query_params.get('site_id')
     page_id = request.query_params.get('page_id')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check for params
     if page_id is None and site_id is None:
         data = {'reason': 'must provide a Site or Page id'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
-
-    if site_id != None:
-        
-        try:
-            site = Site.objects.get(id=site_id)
-            print('got site')
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-        if site.account != account:
-            data = {'reason': 'cannot retrieve a Site you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-
-
+    # check account and resource
+    check_data = check_account_and_resource(
+        request=request, resource='page', site_id=site_id, page_id=page_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # getting single page
     if page_id != None:
         
-        try:
-            page = Page.objects.get(id=page_id)
-        except:
-            data = {'reason': 'cannot find a Page with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-        if page.account != account:
-            data = {'reason': 'cannot retrieve a Page you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        # get page
+        page = Page.objects.get(id=page_id)
 
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = PageSerializer(page, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    
+    # get site and assocaited pages
+    site = Site.objects.get(id=site_id)
     pages = Page.objects.filter(site=site).order_by('-time_created')
+
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(pages, request)
     serializer_context = {'request': request,}
@@ -665,21 +1047,66 @@ def get_pages(request):
 
 
 
-def delete_page(request, id):
+def get_page(request: object, id: str) -> object:
+    """
+    Get single `Page` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
-    
-    try:
-        page = Page.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Page with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-    if page.account != account:
-        data = {'reason': 'delete a Page you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        page_id=id, resource='page'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get page if checks passed
+    page = Page.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = PageSerializer(page, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK) 
+
+
+
+
+def delete_page(request: object, id: str) -> object:
+    """ 
+    Deletes the `Page` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+    
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, page_id=id, resource='page')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
     # remove s3 objects
     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
@@ -690,6 +1117,7 @@ def delete_page(request, id):
     # remove page
     page.delete()
 
+    # format and return
     data = {'message': 'Page has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -698,12 +1126,29 @@ def delete_page(request, id):
 
 
 
-def delete_many_pages(request):
+def delete_many_pages(request: object) -> object:
+    """ 
+    Deletes one or more `Pages` associated
+    with the passed "request.ids" 
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     ids = request.data.get('ids')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check for ids
     if ids is not None:
+
+        # setting defaults
         count = len(ids)
         num_succeeded = 0
         succeeded = []
@@ -712,20 +1157,26 @@ def delete_many_pages(request):
         user = request.user
         this_status = True
 
+        # loop through passed ids
         for id in ids:
+
+            # trying to delete site
             try:
                 page = Page.objects.get(id=id)
                 if page.account == account:
                     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
                     delete_tasks(page=page)
                     page.delete()
+                # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
             except:
+                # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
 
+        # format data
         data = {
             'success': this_status,
             'num_succeeded': num_succeeded,
@@ -733,10 +1184,13 @@ def delete_many_pages(request):
             'num_failed': num_failed,
             'failed': failed, 
         }
+        
+        # returning response
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
     
+    # returning error
     data = {
         'reason': 'you must provide an array of id\'s'
     }
@@ -747,87 +1201,87 @@ def delete_many_pages(request):
 
 
 
+### ------ Begin Scan Services ------ ###
 
 
 
 
+def create_scan(request: object=None, delay: bool=False, **kwargs) -> dict | object:
+    """ 
+    Create one or more `Scans` depanding on 
+    `Page` or `Site` scope
 
-def create_scan(request=None, delay=False, *args, **kwargs):
+    Expects: {
+        'request': object, 
+        'delay': bool
+    }
+
+    Returns -> dict or HTTP Response object
+    """
+
+    # get request data
     if request is not None:
         site_id = request.data.get('site_id')
         page_id = request.data.get('page_id')
-        configs = request.data.get('configs')
+        configs = request.data.get('configs', settings.CONFIGS)
         types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
         tags = request.data.get('tags')
         user = request.user
+    
+    # getting kwargs data
     if request is None:
         site_id = kwargs.get('site_id')
         page_id = kwargs.get('page_id')
-        configs = kwargs.get('configs')
+        configs = kwargs.get('configs', settings.CONFIGS)
         types = kwargs.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
         tags = kwargs.get('tags')
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
+    
+    # getting account
     account = Member.objects.get(user=user).account
 
-    if request is not None:
-        check_data = check_account(user=user, resource='scan')
-        if not check_data['allowed']:
-            data = {'reason': check_data['error'], 'success': False}
-            if request is not None:
-                record_api_call(request, data, '402')
-                return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-            return data
-
+    # verifying types
     if len(types) == 0:
         types = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
-        
-    
+
+    # deciding on scope
+    resource = 'site' if site_id else 'page'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource=resource, page_id=page_id, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {
+            'reason': check_data['error'], 
+            'success': False, 
+            'code': check_data['code'], 
+            'status': check_data['status']
+        }
+        if request is not None:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # get site or page
     if site_id is not None:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id', 'success': False,}
-            if request is not None:
-                record_api_call(request, data, '404')
-                return Response(data, status=status.HTTP_404_NOT_FOUND)
-            return data
-
-        if site.account != account:
-            data = {'reason': 'create a Scan of a Site you do not own', 'success': False,}
-            if request is not None:
-                record_api_call(request, data, '403')
-                return Response(data, status=status.HTTP_403_FORBIDDEN)
-            return data
-    
+        site = Site.objects.get(id=site_id)
     if page_id is not None:
-        try:
-            page = Page.objects.get(id=page_id)
-        except:
-            data = {'reason': 'cannot find a Page with that id', 'success': False,}
-            if request is not None:
-                record_api_call(request, data, '404')
-                return Response(data, status=status.HTTP_404_NOT_FOUND)
-            return data
+        page = Page.objects.get(id=page_id)
 
-        if page.account != account:
-            data = {'reason': 'create a Scan of a Page you do not own', 'success': False,}
-            if request is not None:
-                record_api_call(request, data, '403')
-                return Response(data, status=status.HTTP_403_FORBIDDEN)
-            return data
-
-    if not configs:
-        configs = settings.CONFIGS
-
+    # setting pages to loop through
     if site_id is not None and page_id is None:
         pages = Page.objects.filter(site=site)
-    
     if site_id is None and page_id is not None:
         pages = [page,]
 
+    # setting default
     created_scans = []
+
+    # looping through each page
     for p in pages:
+
         # creating scan obj
         created_scan = Scan.objects.create(
             site=p.site,
@@ -856,7 +1310,8 @@ def create_scan(request=None, delay=False, *args, **kwargs):
             if 'vrt' in types or 'full' in types:
                 run_vrt_bg.delay(scan_id=created_scan.id)
         else:
-            updated_scan = S(scan=created_scan, configs=configs).first_scan()
+            # running scan synchronously
+            S(scan=created_scan, configs=configs).build_scan()
             message = 'Scans have completed running'
 
     # returning dynaminc response
@@ -873,30 +1328,45 @@ def create_scan(request=None, delay=False, *args, **kwargs):
 
 
 
-def create_many_scans(request):
+def create_many_scans(request: object) -> object:
+    """ 
+    Bulk creates `Scans` for each requested `Page`.
+    Either scoped for many `Pages` or many `Sites`.
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
-    configs = request.data.get('configs')
-    type = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+    configs = request.data.get('configs', settings.CONFIGS)
+    types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     tags = request.data.get('tags')
     user = request.user
 
+    # setting defaults
     num_succeeded = 0
     succeeded = []
     num_failed = 0
     failed = []
     this_status = True
 
+    # scoped for sites
     if site_ids:
         for id in site_ids:
             data = {
                 'site_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
             try:
+                # create scan
                 res = create_scan(delay=True, **data)
                 if res['success']:
                     num_succeeded += 1
@@ -906,21 +1376,22 @@ def create_many_scans(request):
                     this_status = False
                     failed.append(str(id))
             except Exception as e:
-                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
 
+    # scoped for pages
     if page_ids:
         for id in page_ids:
             data = {
                 'page_id': str(id), 
                 'configs': configs,
-                'type': type,
+                'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
             }
             try:
+                # create scan
                 res = create_scan(delay=True, **data)
                 if res['success']:
                     num_succeeded += 1
@@ -930,11 +1401,11 @@ def create_many_scans(request):
                     this_status = False
                     failed.append(str(id))
             except Exception as e:
-                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
 
+    # format and return
     data = {
         'success': this_status,
         'num_succeeded': num_succeeded,
@@ -942,66 +1413,60 @@ def create_many_scans(request):
         'num_failed': num_failed,
         'failed': failed, 
     }
-    
     record_api_call(request, data, '201')
     return Response(data, status=status.HTTP_201_CREATED)
 
 
 
-def get_scans(request):
 
-    user = request.user
-    account = Member.objects.get(user=user).account
+def get_scans(request: object) -> object:
+    """ 
+    Get one or more `Scans`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     scan_id = request.query_params.get('scan_id')
     page_id = request.query_params.get('page_id')
-    time_begin = request.query_params.get('time_begin')
-    time_end = request.query_params.get('time_end')
     lean = request.query_params.get('lean')
+    user = request.user
+    account = Member.objects.get(user=user).account
+    
+    # deciding on scope
+    resource = 'page' if page_id else 'scan'
 
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource=resource, page_id=page_id, scan_id=scan_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single scan
     if scan_id != None:
-        try:
-            scan = Scan.objects.get(id=scan_id)
-        except:
-            data = {'reason': 'cannot find a Scan with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
 
-        if scan.site.account != account:
-            data = {'reason': 'cannot retrieve Scans you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        # get scan
+        scan = Scan.objects.get(id=scan_id)
         
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = ScanSerializer(scan, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    
-    try:
-        page = Page.objects.get(id=page_id)
-    except:
-        data = {'reason': 'cannot find a Page with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-    
-
-    if page.account != account:
-        data = {'reason': 'cannot retrieve Scans you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-
-    
-    if time_begin == None and page != None and time_end != None:
-        scans = Scan.objects.filter(page=page).filter(time_created__lte=time_end).order_by('-time_created')
-    elif time_end == None and page != None and time_begin != None:  
-        scans = Scan.objects.filter(page=page).filter(time_created__gte=time_begin).order_by('-time_created')
-    elif time_end == None and time_begin == None and page != None:
-        scans = Scan.objects.filter(page=page).order_by('-time_created')
-    elif time_end != None and time_begin != None and page != None:
-        scans = Scan.objects.filter(page=page).filter(time_created__gte=time_begin).filter(time_created__lte=time_end).order_by('-time_created')
-
+    # get page scoped scans
+    page = Page.objects.get(id=page_id)
+    scans = Scan.objects.filter(page=page)
         
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(scans, request)
     serializer_context = {'request': request,}
@@ -1015,34 +1480,79 @@ def get_scans(request):
 
 
 
-def get_scan_lean(request, id):
+def get_scan(request: object, id: str) -> object:
+    """
+    Get single `Scan` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    try:
-        scan = Scan.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Scan with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        scan_id=id, resource='scan'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if scan.site.account != account:
-        data = {'reason': 'cannot retrieve Scans you do not own'}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # get scan if checks passed
+    scan = Scan.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = ScanSerializer(scan, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_scan_lean(request: object, id: str) -> object:
+    """ 
+    Get a single `Scan` and only return scores & timestamps
+
+    Expects: {
+        'request' : object, 
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource='scan', scan_id=id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get scan if checks passed
+    scan = Scan.objects.get(id=id)
 
     # get lighthouse scores if exists
-    try:
-        lighthouse = {"scores": scan.lighthouse.get('scores')}
-    except:
-        lighthouse = None
+    lighthouse = {"scores": scan.lighthouse.get('scores')}
     
     # get yellowlab scores if exists
-    try:
-        yellowlab = {"scores": scan.yellowlab.get('scores')}
-    except:
-        yellowlab = None
+    yellowlab = {"scores": scan.yellowlab.get('scores')}
 
+    # format data
     data = {
         "id": str(scan.id),
         "site": str(scan.site.id),
@@ -1054,6 +1564,7 @@ def get_scan_lean(request, id):
         "yellowlab": yellowlab,
     }
 
+    # return response
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -1061,27 +1572,39 @@ def get_scan_lean(request, id):
 
 
 
-def delete_scan(request, id):
-    try:
-        scan = Scan.objects.get(id=id)
-    except Exception as e:
-        data = {'reason': 'cannot find a Scan with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-    site = scan.site
+def delete_scan(request: object, id: str) -> object:
+    """ 
+    Deletes the `Scan` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check account and resource
+    check_data = check_account_and_resource(request=request, scan_id=id, resource='scan')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get scan if checks passes
+    scan = Scan.objects.get(id=id)
 
-    if site.account != account:
-        data = {'reason': 'delete Scans of a Site you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-
+    # remove s3 objects
     delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
+
+    # delete scan
     scan.delete()
 
+    # return response
     data = {'message': 'Scan has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -1090,12 +1613,29 @@ def delete_scan(request, id):
 
 
 
-def delete_many_scans(request):
+def delete_many_scans(request: object) -> object:
+    """ 
+    Deletes one or more `Scans` associated
+    with the passed "request.ids" 
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     ids = request.data.get('ids')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check for ids
     if ids is not None:
+
+        # setting defaults
         count = len(ids)
         num_succeeded = 0
         succeeded = []
@@ -1104,20 +1644,25 @@ def delete_many_scans(request):
         user = request.user
         this_status = True
 
+        # loop through passed ids
         for id in ids:
+            
+            # trying to delete scan
             try:
                 scan = Scan.objects.get(id=id)
                 if scan.site.account == account:
                     delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
                     scan.delete()
+                # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
             except Exception as e:
-                print(e)
+                # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
 
+        # format data
         data = {
             'success': this_status,
             'num_succeeded': num_succeeded,
@@ -1126,10 +1671,12 @@ def delete_many_scans(request):
             'failed': failed, 
         }
         
+        # returning response
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
 
+    # return error
     data = {
         'reason': 'you must provide an array of id\'s'
     }
@@ -1140,15 +1687,27 @@ def delete_many_scans(request):
 
 
 
+### ------ Begin Test Services ------ ###
 
 
 
 
+def create_test(request: object=None, delay: bool=False, **kwargs) -> dict | object:
+    """ 
+    Create one or more `Tests` depanding on 
+    `Page` or `Site` scope
 
-def create_test(request=None, delay=False, *args, **kwargs):
+    Expects: {
+        'request': object, 
+        'delay': bool
+    }
+
+    Returns -> dict or HTTP Response object
+    """
+
+    # get data from request
     if request is not None:
-        # get data from request
-        configs = request.data.get('configs')
+        configs = request.data.get('configs', settings.CONFIGS)
         pre_scan_id = request.data.get('pre_scan')
         post_scan_id = request.data.get('post_scan')
         index = request.data.get('index')
@@ -1159,8 +1718,10 @@ def create_test(request=None, delay=False, *args, **kwargs):
         site_id = request.data.get('site_id')
         page_id = request.data.get('page_id')
         user = request.user
+
+    # get data from kwargs
     if request is None:
-        configs = kwargs.get('configs')
+        configs = kwargs.get('configs', settings.CONFIGS)
         pre_scan_id = kwargs.get('pre_scan')
         post_scan_id = kwargs.get('post_scan')
         index = kwargs.get('index')
@@ -1172,78 +1733,59 @@ def create_test(request=None, delay=False, *args, **kwargs):
         page_id = kwargs.get('page_id')
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
-        # get data from kwargs
+
+    # get account
     account = Member.objects.get(user=user).account
 
-    check_data = check_account(request=request, user=user, resource='test')
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'], 'success': False}
-        print(data)
-        if request is not None:
-            record_api_call(request, data, '402')
-            return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-        return data
-
-    if site_id is not None:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id', 'success': False,}
-            print(data)
-            if request is not None:
-                record_api_call(request, data, '404')
-                return Response(data, status=status.HTTP_404_NOT_FOUND)
-            return data
-
-        if site.account != account:
-            data = {'reason': 'create a Test of a Site you do not own', 'success': False,}
-            print(data)
-            if request is not None:
-                record_api_call(request, data, '403')
-                return Response(data, status=status.HTTP_403_FORBIDDEN)
-            return data
-    
-    if page_id is not None:
-        try:
-            page = Page.objects.get(id=page_id)
-        except:
-            data = {'reason': 'cannot find a Page with that id', 'success': False,}
-            print(data)
-            if request is not None:
-                record_api_call(request, data, '404')
-                return Response(data, status=status.HTTP_404_NOT_FOUND)
-            return data
-        if page.account != account:
-            data = {'reason': 'create a Test of a Page you do not own', 'success': False,}
-            print(data)
-            if request is not None:
-                record_api_call(request, data, '403')
-                return Response(data, status=status.HTTP_403_FORBIDDEN)
-            return data
-        
-
+    # verifying test_type
     if len(test_type) == 0:
         test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
-    
-    if not configs:
-        configs = settings.CONFIGS
 
+    # deciding on scope
+    resource = 'site' if site_id else 'page'
 
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource=resource, page_id=page_id, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {
+            'reason': check_data['error'], 
+            'success': False, 
+            'code': check_data['code'], 
+            'status': check_data['status']
+        }
+        if request is not None:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # deciding on scope
+    if site_id is not None:
+        site = Site.objects.get(id=site_id)    
+    if page_id is not None:
+        page = Page.objects.get(id=page_id)
+
+    # building pages list
     if site_id is not None and page_id is None:
         pages = Page.objects.filter(site=site)
-    
     if site_id is None and page_id is not None:
         pages = [page]
 
+    # setting default
     created_tests = []
+
+    # looping through pages
     for p in pages:
 
+        # checking for scan completion
         if not Scan.objects.filter(page=p).exists():
             data = {'reason': 'Page not yet onboarded', 'success': False,}
             print(data)
             record_api_call(request, data, '400')
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
         
+        # verifying pre_ and post_ scans exists
         if pre_scan_id:
             try:
                 pre_scan = Scan.objects.get(id=pre_scan_id)
@@ -1269,6 +1811,7 @@ def create_test(request=None, delay=False, *args, **kwargs):
         if pre_scan_id is None:
             pre_scan = Scan.objects.filter(page=p).order_by('-time_created')[0]
 
+        # verifying pre_ and post_ scans completion
         if pre_scan:
             if pre_scan.time_completed == None:
                 data = {'reason': 'pre_scan still running', 'success': False,}
@@ -1277,7 +1820,6 @@ def create_test(request=None, delay=False, *args, **kwargs):
                     record_api_call(request, data, '400')
                     return Response(data, status=status.HTTP_400_BAD_REQUEST)
                 return data
-        
         if post_scan:
             if post_scan.time_completed == None:
                 data = {'reason': 'post_scan still running', 'success': False,}
@@ -1294,9 +1836,12 @@ def create_test(request=None, delay=False, *args, **kwargs):
             type=test_type,
             tags=tags,
         )
+
+        # add test.id to list
         created_tests.append(str(test.id))
 
         if delay == True:
+            # running test in background
             create_test_bg.delay(
                 page_id=p.id,
                 test_id=test.id,
@@ -1308,15 +1853,25 @@ def create_test(request=None, delay=False, *args, **kwargs):
                 tags=tags,
             )
             message = 'Tests are being created in the background'
-            
-        else:
-            if not pre_scan and not post_scan:
-                new_scan = S(site=p.site, page=p, configs=configs, type=test_type)
-                post_scan = new_scan.second_scan()
-                pre_scan = post_scan.paired_scan
 
+        # run with no delay  
+        else:
+            # getting pre_scan and building post_scan
+            if not pre_scan and not post_scan:
+                if scan.objects.filter(page=p).exists():
+                    pre_scan = Scan.objects.filter(page=p).order_by('-time_created')[0]
+                    post_scan = S(site=p.site, page=p, configs=configs, type=test_type).build_scan()
+                else:
+                    data = {'reason': 'no pre_scan available', 'success': False,}
+                    print(data)
+                    if request is not None:
+                        record_api_call(request, data, '400')
+                        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+                    return data
+
+            # building post_scan
             if not post_scan and pre_scan:
-                post_scan = S(site=p.site, page=p, scan=pre_scan, configs=configs, type=test_type).second_scan()
+                post_scan = S(site=p.site, page=p, configs=configs, type=test_type).build_scan()
 
             # updating parired scans
             pre_scan.paired_scan = post_scan
@@ -1335,7 +1890,6 @@ def create_test(request=None, delay=False, *args, **kwargs):
             updated_test = T(test=test).run_test(index=index)
             message = 'Tests have completed running'
 
-    
     # returning dynaminc response
     data = {
         'success': True,
@@ -1350,20 +1904,34 @@ def create_test(request=None, delay=False, *args, **kwargs):
 
 
 
-def create_many_tests(request):
+def create_many_tests(request: object) -> object:
+    """ 
+    Bulk creates `Tests` for each requested `Page`.
+    Either scoped for many `Pages` or many `Sites`.
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
-    configs = request.data.get('configs')
-    type = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+    configs = request.data.get('configs', settings.CONFIGS)
+    types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     tags = request.data.get('tags')
     user = request.user
 
+    # setting defaults
     num_succeeded = 0
     succeeded = []
     num_failed = 0
     failed = []
     this_status = True
 
+    # scoped for sites
     if site_ids:
         for id in site_ids:
             data = {
@@ -1374,6 +1942,7 @@ def create_many_tests(request):
                 'user_id': str(user.id)
             }
             try:
+                # create test
                 res = create_test(delay=True, **data)
                 if res['success']:
                     num_succeeded += 1
@@ -1383,11 +1952,11 @@ def create_many_tests(request):
                     this_status = False
                     failed.append(str(id))
             except Exception as e:
-                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
 
+    # scoped for pages
     if page_ids:
         for id in page_ids:
             data = {
@@ -1398,8 +1967,8 @@ def create_many_tests(request):
                 'user_id': str(user.id)
             }
             try:
+                # create test
                 res = create_test(delay=True, **data)
-                print(res)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
@@ -1408,11 +1977,11 @@ def create_many_tests(request):
                     this_status = False
                     failed.append(str(id))
             except Exception as e:
-                print(e)
                 num_failed += 1
                 this_status = False
                 failed.append(str(id))
 
+    # format and return
     data = {
         'success': this_status,
         'num_succeeded': num_succeeded,
@@ -1420,125 +1989,149 @@ def create_many_tests(request):
         'num_failed': num_failed,
         'failed': failed, 
     }
-
     record_api_call(request, data, '201')
     return Response(data, status=status.HTTP_201_CREATED)
     
 
 
 
-def get_tests(request):
-    user = request.user
-    account = Member.objects.get(user=user).account
+def get_tests(request: object) -> object:
+    """ 
+    Get one or more `Tests`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     test_id = request.query_params.get('test_id')
     page_id = request.query_params.get('page_id')
-    time_begin = request.query_params.get('time_begin')
-    time_end = request.query_params.get('time_end')
     lean = request.query_params.get('lean')
+    user = request.user
+    account = Member.objects.get(user=user).account
     
+    # deciding on scope
+    resource = 'page' if page_id else 'test'
 
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource=resource, page_id=page_id, test_id=test_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single test
     if test_id != None:
-
-        try:
-            test = Test.objects.get(id=test_id)
-        except:
-            data = {'reason': 'cannot find a Test with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-
-        if test.site.account != account:
-            data = {'reason': 'cannot retrieve Tests you do not own'}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
         
+        # get test
+        test = Test.objects.get(id=test_id)
+
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = TestSerializer(test, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
+    # get all page scoped tests
+    page = Page.objects.get(id=page_id)
+    tests = Test.objects.filter(page=page).order_by('-time_created')
 
-    try:
-        page = Page.objects.get(id=page_id)
-    except:
-        if page_id != None:
-            data = {'reason': 'cannot find a Page with that id',}
-            this_status = status.HTTP_404_NOT_FOUND
-            status_code = '404'
-        else:
-            data = {'reason': 'you did not provide the page_id'}
-            this_status = status.HTTP_400_BAD_REQUEST
-            status_code = '400'
-        record_api_call(request, data, status_code)
-        return Response(data, status=this_status)
-
-    if page.site.account != account:
-        data = {'reason': 'cannot retrieve Tests you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    if time_begin == None and page != None and time_end != None:
-        tests = Test.objects.filter(page=page).filter(time_completed__lte=time_end).order_by('-time_created')
-    elif time_end == None and page != None and time_begin != None:  
-        tests = Test.objects.filter(page=page).filter(time_completed__gte=time_begin).order_by('-time_created')
-    elif time_end != None and time_begin != None and page != None:
-        tests = Test.objects.filter(page=page).filter(time_completed__gte=time_begin).filter(time_completed__lte=time_end).order_by('-time_created')
-    elif time_end == None and time_begin == None and Site != None:
-        tests = Test.objects.filter(page=page).order_by('-time_created')
-    else:
-        data = {'reason': 'you did not provide the right params',}
-        record_api_call(request, data, '400')
-        return Response(data, status=status.HTTP_400_BAD_REQUEST)
-        
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(tests, request)
     serializer_context = {'request': request,}
     serialized = TestSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
         serialized = SmallTestSerializer(result_page, many=True, context=serializer_context)
-        
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
-
     return response
 
 
 
 
-def get_test_lean(request, id):
+def get_test(request: object, id: str) -> object:
+    """
+    Get single `Test` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    try:
-        test = Test.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Test with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        test_id=id, resource='scan'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if test.site.account != account:
-        data = {'reason': 'cannot retrieve Tests you do not own'}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # get test if checks passed
+    test = Test.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = TestSerializer(test, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_test_lean(request: object, id: str) -> object:
+    """ 
+    Get a single `Test` and only return scores & timestamps
+
+    Expects: {
+        'request' : object, 
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource='scan', scan_id=id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get test if checks passed
+    test = Test.objects.get(id=id)
 
     # get images_delta if exists
-    try:
-        images_delta = {"average_score": test.images_delta.get('average_score')}
-    except:
-        images_delta = None
+    images_delta = {"average_score": test.images_delta.get('average_score')}
 
     # get lighthouse_delta if exists
-    try:
-        lighthouse_delta = {"scores": test.lighthouse_delta.get('scores')}
-    except:
-        lighthouse_delta = None
+    lighthouse_delta = {"scores": test.lighthouse_delta.get('scores')}
 
-     # get lighthouse_delta if exists
-    try:
-        yellowlab_delta = {"scores": test.yellowlab_delta['scores']}
-    except:
-        yellowlab_delta = None
+    # get lighthouse_delta if exists
+    yellowlab_delta = {"scores": test.yellowlab_delta['scores']}
 
+    # format data
     data = {
         "id": str(test.id),
         "site": str(test.site.id),
@@ -1554,6 +2147,7 @@ def get_test_lean(request, id):
         "images_delta": images_delta,
     }
 
+    # return
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -1561,26 +2155,39 @@ def get_test_lean(request, id):
 
 
 
-def delete_test(request, id):
-    try:
-        test = Test.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Test with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-    site = test.site
+def delete_test(request: object, id: str) -> object:
+    """ 
+    Deletes the `Test` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
     user = request.user
     account = Member.objects.get(user=user).account
 
-    if site.account != account:
-        data = {'reason': 'delete Tests of a Site you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, test_id=id, resource='test')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get test if checks passed
+    test = Test.objects.get(id=id)
     
+    # remove s3 objects
     delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
+
+    # delete test
     test.delete()
 
+    # return response
     data = {'message': 'Test has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -1589,12 +2196,29 @@ def delete_test(request, id):
 
 
 
-def delete_many_tests(request):
+def delete_many_tests(request: object) -> object:
+    """ 
+    Deletes one or more `Tests` associated
+    with the passed "request.ids" 
+
+    Expcets: {
+        'request' : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     ids = request.data.get('ids')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # check for ids
     if ids is not None:
+
+        # setting defaults
         count = len(ids)
         num_succeeded = 0
         succeeded = []
@@ -1603,19 +2227,25 @@ def delete_many_tests(request):
         user = request.user
         this_status = True
 
+        # loop through passed ids
         for id in ids:
+
+            # trying to delete site
             try:
                 test = Test.objects.get(id=id)
                 if test.site.account == account:
                     delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
                     test.delete()
+                # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
             except:
+                # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
 
+        # format data
         data = {
             'success': this_status,
             'num_succeeded': num_succeeded,
@@ -1623,10 +2253,13 @@ def delete_many_tests(request):
             'num_failed': num_failed,
             'failed': failed, 
         }
+
+        # return response
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
     
+    # return error
     data = {
         'reason': 'you must provide an array of id\'s'
     }
@@ -1637,69 +2270,66 @@ def delete_many_tests(request):
 
 
 
+### ------ Begin Schedule Services ------ ###
 
 
 
 
-def create_or_update_schedule(request):
-    user = request.user
-    account = Member.objects.get(user=user).account
+def create_or_update_schedule(request: object) -> object:
+    """ 
+    Creates or Updates a `Schedule` 
 
-    check_data = check_account(request=request, resource='schedule')
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-    try:
-        site = Site.objects.get(id=request.data.get('site_id'))
-        if site.account != account and site.account != None:
-            data = {'reason': 'cannot create a Schedule for a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    except:
-        site = None
-    try:
-        page = Page.objects.get(id=request.data.get('page_id'))
-        if page.account != account and page.account != None:
-            data = {'reason': 'cannot create a Schedule for a Page you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    except:
-        page = None
-    try:
-        schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
-        if schedule.account != account and schedule.account != None:
-            data = {'reason': 'update a Schedule you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    except:
-        schedule = None
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
 
-
-    schedule_status = request.data.get('status', None)
-    begin_date_raw = request.data.get('begin_date', None)
-    time = request.data.get('time', None)
-    timezone = request.data.get('timezone', None)
-    freq = request.data.get('frequency', None)
-    task_type = request.data.get('task_type', None)
+    # get request data
+    schedule_status = request.data.get('status')
+    begin_date_raw = request.data.get('begin_date')
+    time = request.data.get('time')
+    timezone = request.data.get('timezone')
+    freq = request.data.get('frequency')
+    task_type = request.data.get('task_type')
     test_type = request.data.get('test_type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
     scan_type = request.data.get('scan_type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
-    configs = request.data.get('configs', None)
-    schedule_id = request.data.get('schedule_id', None)
-    site_id = request.data.get('site_id', None)
-    page_id = request.data.get('page_id', None)
-    case_id = request.data.get('case_id', None)
-    updates = request.data.get('updates', None)
+    configs = request.data.get('configs', settings.CONFIGS)
+    schedule_id = request.data.get('schedule_id')
+    site_id = request.data.get('site_id')
+    page_id = request.data.get('page_id')
+    case_id = request.data.get('case_id')
+    updates = request.data.get('updates')
 
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+    
+    # deciding on action type
+    action = 'add' if schedule_id else None
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='schedule', page_id=page_id, 
+        site_id=site_id, schedule_id=schedule_id, action=action
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get schedule if checks passed and id is present
+    if schedule_id:
+        schedule = Schedule.objects.get(id=schedule_id)
+    
     # converting to str for **kwargs
     if site_id is not None:
         site_id = str(site_id)
     if page_id is not None:
         page_id = str(page_id)
 
-    if configs is None:
-        configs = settings.CONFIGS
-
+    # toggling schedule status
     if schedule_status != None and schedule != None:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
         if task.enabled == True:
@@ -1710,69 +2340,45 @@ def create_or_update_schedule(request):
             schedule.status = 'Active'
         task.save() 
         schedule.save()
-        # retriving object again to avoid cacheing issues
-        schedule_new = Schedule.objects.get(id=request.data.get('schedule_id'))
     
-    # if not status change, updating data
-    else:
-        if Automation.objects.filter(schedule=schedule).exists():
-            automation = Automation.objects.filter(schedule=schedule)[0]
-            auto_id = str(automation.id)
-        else:
-            auto_id = None
+    # creating or updating schedule
+    if not schedule_status:
 
-        if task_type == 'test':
-            task = 'api.tasks.create_test_bg'
-            arguments = {
-                'site_id': site_id,
-                'page_id': page_id,
-                'configs': configs, 
-                'type': test_type,
-                'automation_id': auto_id
-            }
+        # get automation if schedule exists
+        auto_id = None
+        if schedule:
+            if Automation.objects.filter(schedule=schedule).exists():
+                automation = Automation.objects.filter(schedule=schedule)[0]
+                auto_id = str(automation.id)
 
-        if task_type == 'scan':
-            task = 'api.tasks.create_scan_bg'
-            arguments = {
-                'site_id': site_id,
-                'page_id': page_id,
-                'configs': configs,
-                'type': scan_type,
-                'automation_id': auto_id
-            }
+        # build task
+        task = f'api.tasks.create_{task_type}_bg'
 
-        if task_type == 'report':
-            task = 'api.tasks.create_report_bg'
-            arguments = {
-                'site_id': site_id,
-                'page_id': page_id,
-                'automation_id': auto_id
-            }
+        # build args
+        arguments = {
+            'site_id': site_id,
+            'page_id': page_id,
+            'updates': updates,
+            'configs': configs,
+            'case_id': case_id,
+            'type': scan_type if task_type == 'scan' else test_type,
+            'automation_id': auto_id
+        }
 
-
-        if task_type == 'testcase':
-            task = 'api.tasks.create_testcase_bg'
-            arguments = {
-                'site_id': site_id,
-                'page_id': page_id,
-                'updates': updates,
-                'configs': configs,
-                'case_id': case_id,
-                'automation_id': auto_id,
-            }
-
-        format_str = '%m/%d/%Y'
+        # setting start date default
+        begin_date = datetime.now()
         
-        try:
-            begin_date = datetime.strptime(begin_date_raw, format_str)
-        except:
-            begin_date = datetime.now()
+        # parsing begin date
+        if begin_date_raw:
+            begin_date = datetime.strptime(begin_date_raw, '%m/%d/%Y')
 
+        # building cron expression time & date
         num_day_of_week = begin_date.weekday()
         day = begin_date.strftime("%d")
         minute = time[3:5]
         hour = time[0:2]
 
+        # building cron expression freq
         if freq == 'daily':
             day_of_week = '*'
             day_of_month = '*'
@@ -1783,7 +2389,7 @@ def create_or_update_schedule(request):
             day_of_week = '*'
             day_of_month = day
 
-        
+        # deciding on scope
         if site is not None:
             url = site.site_url
             level = 'site'
@@ -1791,9 +2397,10 @@ def create_or_update_schedule(request):
             url = page.page_url
             level = 'page'
 
+        # building unique task name
+        task_name = f'{task_type}_{level}_{url}_{freq}_@{time}_{account.user.id}'
 
-        task_name = str(task_type) + '_' + str(level) + '_' + str(url) + '_' + str(freq) + '_@' + str(time) + '_' + str(account.user.id)
-
+        # building or updating chrontab 
         crontab, _ = CrontabSchedule.objects.get_or_create(
             timezone=timezone, 
             minute=minute, 
@@ -1802,8 +2409,11 @@ def create_or_update_schedule(request):
             day_of_month=day_of_month,
         )
 
+        # updating periodic task if schedule
+        periodic_task = None
         if schedule:
             if PeriodicTask.objects.filter(id=schedule.periodic_task_id).exists():
+                # update existing task
                 periodic_task = PeriodicTask.objects.filter(id=schedule.periodic_task_id)
                 periodic_task.update(
                     crontab=crontab,
@@ -1811,21 +2421,19 @@ def create_or_update_schedule(request):
                     task=task,
                     kwargs=json.dumps(arguments),
                 )
+                # get periodic task by id
                 periodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-            else:
-                periodic_task = PeriodicTask.objects.create(
-                    crontab=crontab,
-                    name=task_name, 
-                    task=task,
-                    kwargs=json.dumps(arguments),
-                )
 
-        else:
+        # check if no task yet
+        if not periodic_task:
+
+            # check if task exists
             if PeriodicTask.objects.filter(name=task_name).exists():
                 data = {'reason': 'Schedule already exists',}
                 record_api_call(request, data, '401')
                 return Response(data, status=status.HTTP_401_UNAUTHORIZED)
-                
+
+            # create new periodic task 
             periodic_task = PeriodicTask.objects.create(
                 crontab=crontab, 
                 name=task_name, 
@@ -1833,6 +2441,7 @@ def create_or_update_schedule(request):
                 kwargs=json.dumps(arguments),
             )
 
+        # building extras for scheduls
         extras = {
             "configs": configs,
             "test_type": test_type,
@@ -1841,24 +2450,33 @@ def create_or_update_schedule(request):
             "updates": updates
         }
         
+        # update existing schedule
         if schedule:
-            schedule_query = Schedule.objects.filter(id=schedule_id)
-            if schedule_query.exists():
-                schedule_query.update(
-                    user=request.user, 
-                    timezone=timezone,
-                    begin_date=begin_date, 
-                    time=time, 
-                    frequency=freq,
-                    task=task, 
-                    crontab_id=crontab.id, 
-                    task_type=task_type,
-                    extras=extras, 
-                    account=account
-                )
-                schedule_new = Schedule.objects.get(id=schedule_id)
-        else:
-            schedule_new = Schedule.objects.create(
+            
+            # update each param if passed
+            if timezone:
+                schedule.timezone = timezone
+            if begin_date:
+                schedule.begin_date = begin_date 
+            if time:
+                schedule.time = time
+            if freq:
+                schedule.frequency = freq
+            if task:
+                schedule.task = task
+            if chrontab_id:
+                schedule.chrontab_id = chrontab_id
+            if task_type:
+                schedule.task_type = task_type
+            if extras:
+                schedule.extras = extras 
+            
+            # save udpdates
+            schedule.save()
+
+        # create new schedule
+        if not schedule:
+            schedule = Schedule.objects.create(
                 user=request.user, 
                 site=site,
                 page=page, 
@@ -1874,8 +2492,9 @@ def create_or_update_schedule(request):
                 account=account
             )
 
+    # serialize and return
     serializer_context = {'request': request,}
-    data = ScheduleSerializer(schedule_new, context=serializer_context).data
+    data = ScheduleSerializer(schedule, context=serializer_context).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -1883,59 +2502,58 @@ def create_or_update_schedule(request):
 
 
 
-def get_schedules(request):
-    user = request.user
-    account = Member.objects.get(user=user).account
+def get_schedules(request: object) -> object:
+    """ 
+    Get one or more `Schedules`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     schedule_id = request.query_params.get('schedule_id')
     site_id = request.query_params.get('site_id')
     page_id = request.query_params.get('page_id')
+    user = request.user
+    account = Member.objects.get(user=user).account
 
-    if schedule_id != None:
-        try:
-            schedule = Schedule.objects.get(id=schedule_id)
-        except:
-            data = {'reason': 'cannot find a Schedule with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        if schedule.site.account != user or schedule.account != account:
-            data = {'reason': 'cannot retrieve Schedules of a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource='schedule', page_id=page_id, site_id=site_id, 
+        schedule_id=schedule_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single schedule
+    if schedule_id:
         
+        # get schedule
+        schedule = Schedule.objects.get(id=schedule_id)
+
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = ScheduleSerializer(schedule, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
-
-    if site_id is not None:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        if site.account != account:
-            data = {'reason': 'cannot retrieve Schedules of a Site you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
+    
+    # get all site scoped schedules
+    if site_id:
+        site = Site.objects.get(id=site_id)
         schedules = Schedule.objects.filter(site=site).order_by('-time_created')
     
-    if page_id is not None:
-        try:
-            page = Page.objects.get(id=page_id)
-        except:
-            data = {'reason': 'cannot find a Page with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        if page.account != account:
-            data = {'reason': 'cannot retrieve Schedules of a Page you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
+    # get all page scoped schedules
+    if page_id:
+        page = Page.objects.get(id=page_id)
         schedules = Schedule.objects.filter(page=page).order_by('-time_created')
-        
+    
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(schedules, request)
     serializer_context = {'request': request,}
@@ -1947,27 +2565,78 @@ def get_schedules(request):
 
 
 
-def delete_schedule(request, id):
+def get_schedule(request: object, id: str) -> object:
+    """
+    Get single `Schedule` from the passed "id"
 
-    try:
-        schedule = Schedule.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Schedule with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
 
-    task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    if schedule.account != account:
-        data = {'reason': 'delete Schedules you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        schedule_id=id, resource='schedule'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
+    # get schedule if checks passed
+    schedule = Schedule.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = ScheduleSerializer(schedule, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_schedule(request: object, id: str) -> object:
+    """ 
+    Deletes the `Schedule` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, schedule_id=id, resource='schedule')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get schedule and task if checks passed
+    schedule = Schedule.objects.get(id=id)
+    task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
+
+    # delete schedule
     schedule.delete()
+
+    # delete task
     task.delete()
 
+    # return response
     data = {'message': 'Schedule has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -1976,81 +2645,123 @@ def delete_schedule(request, id):
 
 
 
+def delete_tasks(page: object=None, site: object=None) -> None:
+    """ 
+    Helper function to delete any `Schedules` & `PerodicTasks`
+    associated with the passed "site" or "page"
 
+    Expects: {
+        'page': object, 
+        'site': object
+    }
 
-def delete_tasks(page=None, site=None):
+    Returns -> None
+    """ 
+
     # get any schedules
-    if page is not None:
+    if page:
         schedules = Schedule.objects.filter(page=page)
-    if site is not None:
+    if site:
         schedules = Schedule.objects.filter(site=site)
+
     # remove any associated tasks
     for schedule in schedules:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
         task.delete()
-    return
+    
+    return None
 
 
 
 
-def create_or_update_automation(request):
-    user = request.user
-    account = Member.objects.get(user=user).account
+### ------ Begin Automation Services ------ ###
 
-    check_data = check_account(request=request)
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-    try:
-        schedule = Schedule.objects.get(id=request.data.get('schedule_id'))
-        try:
-            automation = Automation.objects.get(id=schedule.automation.id)
-            if automation.account != account and automation.account != None:
-                data = {'reason': 'You cannot update a Automation you do not own',}
-                record_api_call(request, data, '403')
-                return Response(data, status=status.HTTP_403_FORBIDDEN)
-        except:
-            automation = None
-        if schedule.account != account and schedule.account != None:
-            data = {'reason': 'You cannot create a Automation of a Schedule you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    except:
-        schedule = None
-        automation = None
 
-    # get data 
-    name = request.data.get('name')
-    expressions = request.data.get('expressions')
+
+def create_or_update_automation(request: object) -> object:
+    """ 
+    Creates or Updates an `Automation` 
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
     actions = request.data.get('actions')
     site_id = request.data.get('site_id')
     page_id = request.data.get('page_id')
+    schedule_id = request.data.get('schedule_id')
+    automation_id = request.data.get('automation_id')
+    name = request.data.get('name')
+    expressions = request.data.get('expressions')
 
+    # set defaults
+    automation = None
+    schedule = None
+    
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # deciding on recsource
+    resource = 'automation' if automation_id else 'schedule'
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource=resource, 
+        automation_id=automation_id, schedule_id=schedule_id, 
+        site_id=site_id, page_id=page_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get schedule if checks passed
+    if schedule_id:
+        schedule = Schedule.objects.get(id=schedule_id)
+    if automation_id:
+        automation = Automation.objects.get(id=automation_id)
+
+    # update existing automation
     if automation:
-        automation.name = name
-        automation.expressions = expressions
-        automation.actions = actions
-        automation.schedule = schedule
+        if name:
+            automation.name = name
+        if expressions:
+            automation.expressions = expressions
+        if actions:
+            automation.actions = actions
+        if schedule:
+            automation.schedule = schedule
+        # save updates
         automation.save()
 
+    # create new automation
     if not automation:
         automation = Automation.objects.create(
             name=name, 
             expressions=expressions, 
             actions=actions,
             schedule=schedule, 
-            user=request.user, 
+            user=user, 
             account=account
         )
 
+    # update schedule 
     if schedule:
+
+        # update schedule with new automation
         schedule.automation = automation
         schedule.save()
+
         # update associated periodicTask
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
         
+        # get associated page or site id
         site_id = None
         if schedule.site is not None:
             site_id = str(schedule.site.id)
@@ -2058,18 +2769,20 @@ def create_or_update_automation(request):
         if schedule.page is not None:
             page_id = str(schedule.page.id)
 
+        # update periodic task
         arguments = {
             'site_id': site_id,
             'page_id': page_id,
             'automation_id': str(automation.id),
-            'configs': json.loads(task.kwargs).get('configs', None), 
-            'type': json.loads(task.kwargs).get('type', None),
-            'case_id': json.loads(task.kwargs).get('case_id', None),
-            'updates': json.loads(task.kwargs).get('updates', None)
+            'configs': json.loads(task.kwargs).get('configs'), 
+            'type': json.loads(task.kwargs).get('type'),
+            'case_id': json.loads(task.kwargs).get('case_id'),
+            'updates': json.loads(task.kwargs).get('updates')
         }
         task.kwargs=json.dumps(arguments)
         task.save()
 
+    # serialize and return
     serializer_context = {'request': request,}
     data = AutomationSerializer(automation, context=serializer_context).data
     record_api_call(request, data, '200')
@@ -2078,28 +2791,51 @@ def create_or_update_automation(request):
 
     
 
-def get_automations(request):
+
+def get_automations(request: object) -> object:
+    """ 
+    Get one or more `Automations`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     automation_id = request.query_params.get('automation_id')
+    
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    if automation_id != None:        
-        try:
-            automation = Automation.objects.get(id=automation_id)
-        except:
-            data = {'reason': 'cannot find a Automation with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        if automation.account != account:
-            data = {'reason': 'cannot retrieve an Automation you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource='automation', automation_id=automation_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single automation
+    if automation_id:        
+        
+        # get automation
+        automation = Automation.objects.get(id=automation_id)
+        
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = AutomationSerializer(automation, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     
-    automations = Automation.objects.filter(user=user).order_by('-time_created')
+    # get all automations associated with account
+    automations = Automation.objects.filter(account=account).order_by('-time_created')
+
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(automations, request)
     serializer_context = {'request': request,}
@@ -2110,24 +2846,75 @@ def get_automations(request):
 
 
 
-def delete_automation(request, id):
+
+def get_automation(request: object, id: str) -> object:
+    """
+    Get single `Automation` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    try:
-        automation = Automation.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Automation with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-    
-    if automation.account != account:
-        data = {'reason': 'delete an automation you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        automation_id=id, resource='automation'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
+    # get automation if checks passed
+    automation = Automation.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = AutomationSerializer(automation, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_automation(request: object, id: str) -> object:
+    """ 
+    Deletes the `Automation` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, automation_id=id, resource='automation')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get automation if checks passed
+    automation = Automation.objects.get(id=id)
+
+    # delete automation
     automation.delete()
 
+    # return response
     data = {'message': 'Automation has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -2136,63 +2923,103 @@ def delete_automation(request, id):
 
 
 
+### ------ Begin Report Services ------ ###
 
 
 
 
+def create_or_update_report(request: object) -> object:
+    """ 
+    Creates or Updates an `Report` 
 
-def create_or_update_report(request):
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
 
-    user = request.user
-    account = Member.objects.get(user=user).account
-
-    report_id = request.data.get('report_id', None)
-    page_id = request.data.get('page_id', None)
+    # get request data
+    report_id = request.data.get('report_id')
+    page_id = request.data.get('page_id')
     report_type = request.data.get('type', ['lighthouse', 'yellowlab'])
     text_color = request.data.get('text_color', '#24262d')
     background_color = request.data.get('background_color', '#e1effd')
     highlight_color = request.data.get('highlight_color', '#4283f8')
-    page = Page.objects.get(id=page_id)
 
+    # set defaults
+    report = None
+    page = None
+    
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='report', 
+        report_id=report_id, page_id=page_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get page if checks passed
+    if page_id:    
+        page = Page.objects.get(id=page_id)
+    # get report if checks passed
+    if report_id:
+        report = Report.objects.get(id=report_id)
+
+    # build report info
     info = {
         "text_color": text_color,
         "background_color": background_color,
         "highlight_color": highlight_color,
     }
     
-    if report_id:
-        try:
-            report = Report.objects.get(id=report_id)
-        except:
-            data = {'reason': 'cannot find a Report with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-
-        if report.account != account:
-            data = {'reason': 'update a Report you do not own'}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    else:
+    # update report
+    if report:
+        if info:
+            report.info = info
+        if report_type:
+            report.type = report_type
+        # save updates
+        report.save()
+        
+    # create new report
+    if not report:
         report = Report.objects.create(
             user=request.user, 
             page=page, 
-            account=account
+            site=page.site, 
+            account=account,
+            info=info,
+            type=report_type
         )
-
-    # update report data
-    report.info = info
-    report.type = report_type
-    report.save()
+    
+    # get uncached report 
     un_cached_report = Report.objects.get(id=report.id)
 
-
     # generate report
-    updated_report = R(report=un_cached_report).make_test_report()
+    report_data = R(report=un_cached_report).generate_report()
 
-
+    # serialize report
     serializer_context = {'request': request,}
-    data = ReportSerializer(updated_report, context=serializer_context).data
+    new_report = ReportSerializer(
+        report_data['report'], 
+        context=serializer_context
+    ).data
+
+    # format return data
+    data = {
+        'report': new_report,
+        'success': report_data['success'],
+        'message': report_data['message']
+    }
+
+    # serialize and return
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -2200,34 +3027,58 @@ def create_or_update_report(request):
 
 
 
+def get_reports(request: object) -> object:
+    """ 
+    Get one or more `Reports`.
 
-def get_reports(request):
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     page_id = request.query_params.get('page_id', None)
     report_id = request.query_params.get('report_id', None)
+    
+    # get user and account
     user = request.user 
     account = Member.objects.get(user=user).account
 
-    if page_id:
-        try:
-            page = Page.objects.get(id=page_id)
-            reports = Report.objects.filter(page=page, account=account).order_by('-time_created')
-        except:
-            data = {'reason': 'cannot find a Page with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=user, resource='report', report_id=report_id,
+        page_id=page_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
+    # get single report
     if report_id:
-        try:
-            report = Report.objects.get(id=report_id)
-        except:
-            data = {'reason': 'cannot find a Report with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        
+        # get report
+        report = Report.objects.get(id=report_id)
 
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = ReportSerializer(report, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    # get reports scoped to page if checks passed
+    if page_id:
+        page = Page.objects.get(id=page_id)
+        reports = Report.objects.filter(page=page, account=account).order_by('-time_created')
+
+    # get reports scoped to user if checks passed
     if page_id is None and report_id is None:
         reports = Report.objects.filter(user=request.user).order_by('-time_created')
 
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(reports, request)
     serializer_context = {'request': request,}
@@ -2235,26 +3086,73 @@ def get_reports(request):
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
-    
-    
 
 
 
-def delete_report(request, id):
+
+def get_report(request: object, id: str) -> object:
+    """
+    Get single `Report` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    try:
-        report = Report.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Report with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+       report_id=id, resource='report'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if report.account != account:
-        data = {'reason': 'delete Reports you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # get report if checks passed
+    report = Report.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = ReportSerializer(report, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_report(request: object, id: str) -> object:
+    """ 
+    Deletes the `Report` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, report_id=id, resource='report')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get report if checks passed
+    report = Report.objects.get(id=id)
 
     # remove s3 objects
     delete_report_s3_bg.delay(report_id=id)
@@ -2262,6 +3160,7 @@ def delete_report(request, id):
     # remove report
     report.delete()
 
+    # return reponse
     data = {'message': 'Report has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -2270,9 +3169,18 @@ def delete_report(request, id):
 
 
 
+def export_report(request: object) -> object:
+    """
+    Used to create and send a Scanerr.landing 
+    `Report` to the passed "email"  
 
+    Expects: {
+        'request': object
+    }
 
-def export_report(request):
+    Returns -> HTTP Response object
+    """
+
     # getting data from request
     report_id = request.data.get('report_id')
     email = request.data.get('email')
@@ -2298,10 +3206,115 @@ def export_report(request):
 
 
 
+### ------ Begin Cases Services ------ ###
 
 
 
-def save_case_steps(steps, steps_id):
+
+def create_or_update_case(request: object) -> object:
+    """ 
+    Creates or Updates a `Report` 
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    case_id = request.data.get('case_id')
+    steps = request.data.get('steps')
+    site_url = request.data.get('site_url')
+    name = request.data.get('name')
+    tags = request.data.get('tags')
+    _type = request.data.get('type')
+    
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # setting defaults
+    site = None
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='case', 
+        case_id=case_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get site if site_url passed
+    if site_url:
+        if Site.objects.filter(account=account, site_url=site_url).exists():
+            site = Site.objects.filter(account=account, site_url=site_url)[0]
+
+    # get case if checks passed
+    if case_id:
+        case = Case.objects.get(id=case_id)
+
+    # udpate case   
+    if case:
+        if steps is not None:
+            steps_data = save_case_steps(steps, case_id)
+            case.steps = steps_data
+        if name is not None:
+            case.name = name
+        if tags is not None:
+            case.tags = tags
+        # save updates
+        case.save()
+    
+    # create case
+    if not case:
+
+        # generate new uuid
+        case_id = uuid.uuid4()
+
+        # save step data in s3
+        steps_data = save_case_steps(steps, case_id)
+        
+        # create new case
+        case = Case.objects.create(
+            id = case_id,
+            user = request.user,
+            name = name, 
+            type = _type if _type is not None else "recorded",
+            site = site,
+            site_url = site_url,
+            steps = steps_data,
+            account = account
+        )
+
+    # serialize and return
+    serializer_context = {'request': request,}
+    data = CaseSerializer(case, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def save_case_steps(steps: dict, steps_id: str) -> dict:
+    """ 
+    Helper function that uploads the "steps" data to 
+    s3 bucket
+
+    Expects: {
+        'steps'   : dict, 
+        'step_id' : str
+    }
+
+    Returns -> data: {
+        'num_steps' : int,
+        'url'       : str
+    }
+    """
+
     # setup boto3 configurations
     s3 = boto3.client(
         's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
@@ -2329,148 +3342,137 @@ def save_case_steps(steps, steps_id):
     # remove local copy
     os.remove(steps_file)
 
-    return {
+    # format data
+    data = {
         'num_steps': len(steps),
         'url': steps_url
     }
 
+    # return response
+    return data
 
 
 
-def create_or_update_case(request):
-    case_id = request.data.get('case_id')
-    steps = request.data.get('steps')
-    site_url = request.data.get('site_url')
-    name = request.data.get('name')
-    tags = request.data.get('tags')
-    _type = request.data.get('type')
-    user = request.user
-    account = Member.objects.get(user=user).account
-    site = None
 
-    check_data = check_account(request=request)
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+def get_cases(request: object) -> object:
+    """ 
+    Get one or more `Cases`.
 
-    if case_id:
-        try:
-            case = Case.objects.get(id=case_id)
-        except:
-            data = {'reason': 'cannot find a Case with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        
-        if case.account != account:
-            data = {'reason': 'cannot retrieve Cases you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        else:
-            if steps is not None:
-                steps_data = save_case_steps(steps, case_id)
-                case.steps = steps_data
-            if name is not None:
-                case.name = name
-            if tags is not None:
-                case.tags = tags
-            case.save()
+    Expects: {
+        'request': object
+    }
     
-    else:
-        case_id = uuid.uuid4()
-        steps_data = save_case_steps(steps, case_id)
-        
-        if site_url is not None:
-            try:
-                site = Site.objects.filter(account=account, site_url=site_url)[0]
-            except:
-                pass
+    Returns -> HTTP Response object
+    """
 
-        case = Case.objects.create(
-            id = case_id,
-            user = request.user,
-            name = name, 
-            type = _type if _type is not None else "recorded",
-            site = site,
-            site_url = site_url,
-            steps = steps_data,
-            account = account
-        )
-
-
-    serializer_context = {'request': request,}
-    data = CaseSerializer(case, context=serializer_context).data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
-
-
-
-
-def get_cases(request):
+    # get request data
     case_id = request.query_params.get('case_id')
     site_id = request.query_params.get('site_id')
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # setting defaulta
     case = None
     site = None
 
-    if case_id != None:        
-        try:
-            case = Case.objects.get(id=case_id)
-        except:
-            data = {'reason': 'cannot find a Case with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='case', 
+        case_id=case_id, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-        if case.account != account:
-            data = {'reason': 'cannot retrieve an Case you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
+    # get single case
+    if case_id:        
+
+        # get case
+        case = Case.objects.get(id=case_id)
+
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = CaseSerializer(case, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    if site_id != None:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-        if site.account != account:
-            data = {'reason': 'cannot retrieve an Case you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    # filter by site association
-    if site is not None:
+    # get site if checks passed
+    if site_id:
+        site = Site.objects.get(id=site_id)
+
+    # get cases scoped by site
+    if site:
         cases = Case.objects.filter(account=account, site=site).order_by('-time_created')
-        paginator = LimitOffsetPagination()
-        result_page = paginator.paginate_queryset(cases, request)
-        serializer_context = {'request': request,}
-        serialized = CaseSerializer(result_page, many=True, context=serializer_context)
-        response = paginator.get_paginated_response(serialized.data)
-        record_api_call(request, response.data, '200')
-        return response
-
-    else:
+    
+    # get cases scoped by account
+    if not site:
         cases = Case.objects.filter(account=account).order_by('-time_created')
-        paginator = LimitOffsetPagination()
-        result_page = paginator.paginate_queryset(cases, request)
-        serializer_context = {'request': request,}
-        serialized = CaseSerializer(result_page, many=True, context=serializer_context)
-        response = paginator.get_paginated_response(serialized.data)
-        record_api_call(request, response.data, '200')
-        return response
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(cases, request)
+    serializer_context = {'request': request,}
+    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
 
 
 
 
-def search_cases(request):
-    # get data
+def get_case(request: object, id: str) -> object:
+    """
+    Get single `Case` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+       case_id=id, resource='case'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get case if checks passed
+    case = Case.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = CaseSerializer(case, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def search_cases(request: object) -> object:
+    """ 
+    Searches for matching `Cases` to the passed 
+    "query"
+
+    Expects: {
+        'request': obejct
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     user = request.user
     account = Member.objects.get(user=user).account
     query = request.query_params.get('query')
@@ -2481,6 +3483,7 @@ def search_cases(request):
         Q(account=account, site_url__icontains=query) 
     ).order_by('-time_created')
     
+    # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
     serializer_context = {'request': request,}
@@ -2491,54 +3494,28 @@ def search_cases(request):
 
 
 
-def delete_case(request, id):
-    user = request.user
-    account = Member.objects.get(user=user).account
 
-    try:
-        case = Case.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Case with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
+def create_auto_cases(request: object) -> object:
+    """
+    Initiates a new `Case` generation task for the `Site` 
+    associated with either the passed "site_url" or "site_id" 
+
+    Expects: {
+        'request': object
+    }
     
-    if case.account != account:
-        data = {'reason': 'delete an Case you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
-    
-    # setup boto3 configurations
-    s3 = boto3.resource('s3', 
-        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-        region_name=str(settings.AWS_S3_REGION_NAME), 
-        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-    )
+    Returns -> HTTP Response object
+    """
 
-    # delete s3 steps object
-    bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    bucket.objects.filter(Prefix=str(f'static/cases/{case.id}.json')).delete()
-
-    case.delete()
-
-    data = {'message': 'Case has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
-
-
-
-
-
-
-def create_auto_cases(request):
-    # get data
+    # get request data
     site_id = request.data.get('site_id')
     site_url = request.data.get('site_url')
     start_url = request.data.get('start_url')
     max_cases = request.data.get('max_cases', 4)
     max_layers = request.data.get('max_layers', 6)
-    configs = request.data.get('configs')
+    configs = request.data.get('configs', settings.CONFIGS)
+    
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
@@ -2547,28 +3524,20 @@ def create_auto_cases(request):
         site = Site.objects.filter(account=account, site_url=site_url)[0]
         site_id = str(site.id)
 
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='case', 
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
     # get site if only site_id present
-    if site_id is not None:
+    if site_id and not site_url:
         site = Site.objects.get(id=site_id)
-        if site.account != account:
-            # return error response
-            data = {'reason': 'site not found',}
-            record_api_call(request, data, '404')
-            response = Response(data, status=status.HTTP_404_NOT_FOUND)
-            return response
-
-    if site_id is None and site_url is None:
-        # return error response
-        data = {'reason': 'site not found',}
-        record_api_call(request, data, '404')
-        response = Response(data, status=status.HTTP_404_NOT_FOUND)
-        return response
-
-    
-    # get/set configs
-    if not configs:
-        configs = settings.CONFIGS
-
+   
     # create process obj
     process = Process.objects.create(
         site=site,
@@ -2599,24 +3568,37 @@ def create_auto_cases(request):
 
 
 
+def copy_case(request: object) -> object:
+    """ 
+    Creates a copy of the passed `Case`
 
-def copy_case(request):
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response obejct
+    """
+
+    # get request data
     case_id = request.data.get('case_id')
+
+    # get user and acount
     user = request.user
     account = Member.objects.get(user=user).account
 
-    # check data
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='case', 
+        case_id=case_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get case if checks passed
     if case_id:
-        try:
-            case = Case.objects.get(id=case_id, account=account)
-        except:
-            data = {'reason': 'cannot find a Case with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-    else:
-        data = {'reason': 'you must provide case_id'}
-        record_api_call(request, data, '409')
-        return Response(data, status=status.HTTP_409_CONFLICT)
+        case = Case.objects.get(id=case_id, account=account)
 
     # download steps 
     steps = requests.get(case.steps['url']).json()
@@ -2647,66 +3629,116 @@ def copy_case(request):
 
 
 
+def delete_case(request: object, id: str) -> object:
+    """ 
+    Deletes the `Case` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='case', 
+        case_id=id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get case if checks passed
+    case = Case.objects.get(id=id)
+    
+    # delete case s3 objects
+    delete_case_s3_bg.delay(case_id=id)
+
+    # delete case
+    case.delete()
+
+    # return response
+    data = {'message': 'Case has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
 
 
 
 
+### ------ Begin Testcase Services ------ ###
 
 
-def create_testcase(request, delay=False):
+
+
+def create_testcase(request: object, delay: bool=False) -> object:
+    """ 
+    Creates a new `Testcase` from the passed "case_id" for the 
+    passed "site_id"
+
+    Expects: {
+        'request': obejct
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     case_id = request.data.get('case_id')
     site_id = request.data.get('site_id')
     updates = request.data.get('updates')
     configs = request.data.get('configs', settings.CONFIGS)
+    
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-
-    check_data = check_account(request=request, resource='testcase')
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='testcase', 
+        case_id=case_id, site_id=site_id
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-    if case_id:
-        try:
-            case = Case.objects.get(id=case_id, account=account)
-        except:
-            data = {'reason': 'cannot find a Case with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # get case & site if checks passed
+    case = Case.objects.get(id=case_id, account=account)
+    site = Site.objects.get(id=site_id, account=account)
 
-        try:
-            site = Site.objects.get(id=site_id, account=account)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-    
-    else:
-        data = {'reason': 'you must provide both site_id and case_id'}
-        record_api_call(request, data, '409')
-        return Response(data, status=status.HTTP_409_CONFLICT)
-
+    # getting steps from case
     steps = requests.get(case.steps['url']).json()
+
+    # adding new info to steps for testcase
     for step in steps:
+        # expanding action
         if step['action']['type'] != None:
             step['action']['time_created'] = None
             step['action']['time_completed'] = None
             step['action']['exception'] = None
             step['action']['passed'] = None
             step['action']['img'] = None
-
+        # expanding assertion
         if step['assertion']['type'] != None:
             step['assertion']['time_created'] = None
             step['assertion']['time_completed'] = None
             step['assertion']['exception'] = None
             step['assertion']['passed'] = None
 
+    # updating values if requested
     if updates != None:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
-        
+
+    # create new tescase 
     testcase = Testcase.objects.create(
         case = case,
         case_name = case.name,
@@ -2717,20 +3749,10 @@ def create_testcase(request, delay=False):
         account = account
     )
 
-    if delay:
-        # pass the newly created Testcase to the backgroud task to run
-        create_testcase_bg.delay(testcase_id=testcase.id)
-    else:
-        # running testcase
-        if configs.get('driver', 'puppeteer') == 'puppeteer':
-            testresult = asyncio.run(
-                Caser(testcase=testcase).run_p()
-            )
-        if configs.get('driver', 'puppeteer') == 'selenium':
-            testresult = Caser(testcase=testcase).run_s()
+    # pass the newly created Testcase to the backgroud task to run
+    create_testcase_bg.delay(testcase_id=testcase.id)
 
-        testcase = Testcase.objects.get(id=testcase.id)
-
+    # serialize and return
     serializer_context = {'request': request,}
     data = TestcaseSerializer(testcase, context=serializer_context).data
     record_api_call(request, data, '201')
@@ -2740,43 +3762,59 @@ def create_testcase(request, delay=False):
 
 
 
-def get_testcases(request):
+def get_testcases(request: object) -> object:
+    """ 
+    Get one or more `Testcase`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
     testcase_id = request.query_params.get('testcase_id')
     site_id = request.query_params.get('site_id')
     lean = request.query_params.get('lean')
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    if testcase_id != None:        
-        try:
-            testcase = Testcase.objects.get(id=testcase_id)
-        except:
-            data = {'reason': 'cannot find a Testcase with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='testcase', 
+        testcase_id=testcase_id, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
-        if testcase.account != account:
-            data = {'reason': 'cannot retrieve an Testcase you do not own',}
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
-        
+    # get single testcase
+    if testcase_id:        
+
+        # get testcase
+        testcase = Testcase.objects.get(id=testcase_id)
+
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = TestcaseSerializer(testcase, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    if site_id != None:
-        try:
-            site = Site.objects.get(id=site_id, account=account)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+    # get testcases scoped to site
+    if site_id:
+        site = Site.objects.get(id=site_id, account=account)
         testcases = Testcase.objects.filter(site=site).order_by('-time_created')
     
-    else:
+    # get testcases scoped to account
+    if not site_id:
         testcases = Testcase.objects.filter(account=account).order_by('-time_created')
 
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(testcases, request)
     serializer_context = {'request': request,}
@@ -2789,27 +3827,81 @@ def get_testcases(request):
 
 
 
-def delete_testcase(request, id):
+
+def get_testcase(request: object, id: str) -> object:
+    """
+    Get single `Testcase` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
 
-    try:
-        testcase = Testcase.objects.get(id=id)
-    except:
-        data = {'reason': 'cannot find a Testcase with that id'}
-        record_api_call(request, data, '404')
-        return Response(data, status=status.HTTP_404_NOT_FOUND)
-    
-    if testcase.account != account:
-        data = {'reason': 'delete an Testcase you do not own',}
-        record_api_call(request, data, '403')
-        return Response(data, status=status.HTTP_403_FORBIDDEN)
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+       testcase_id=id, resource='testcase'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get testcase if checks passed
+    testcase = Testcase.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = TestcaseSerializer(testcase, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_testcase(request: object, id: str) -> object:
+    """ 
+    Deletes the `Testcase` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='testcase', 
+        testcase_id=id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get testcase if checks passed
+    testcase = Testcase.objects.get(id=id)
 
     # remove s3 objects
     delete_testcase_s3_bg.delay(testcase_id=id)
 
+    # delete testcase
     testcase.delete()
 
+    # return response
     data = {'message': 'Testcase has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -2818,45 +3910,67 @@ def delete_testcase(request, id):
 
 
 
+### ------ Begin Process Services ------ ###
 
 
 
 
+def get_processes(request: object) -> object:
+    """ 
+    Get one or more `Processes`.
 
-def get_processes(request):
-    site_id = request.query_params.get('site_id', None)
-    process_id = request.query_params.get('process_id', None)
-    _type = request.query_params.get('type', None)
-    account = Account.objects.get(user=request.user)
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
+    site_id = request.query_params.get('site_id')
+    process_id = request.query_params.get('process_id')
+    _type = request.query_params.get('type')
 
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='process', 
+        process_id=process_id, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single process
+    if process_id:
+        
+        # get process
+        process = Process.objects.get(id=process_id)
+        
+        # serialize and return
+        serializer_context = {'request': request,}
+        data = ProcessSerializer(process, context=serializer_context).data
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+
+    # get processes scoped to site
     if site_id:
-        try:
-            site = Site.objects.get(id=site_id)
-        except:
-            data = {'reason': 'cannot find a Site with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        site = Site.objects.get(id=site_id)
         processes = Process.objects.filter(site=site).order_by('-time_created')
 
-    if process_id:
-        try:
-            process = Process.objects.get(id=process_id)
-            serializer_context = {'request': request,}
-            data = ProcessSerializer(process, context=serializer_context).data
-            record_api_call(request, data, '200')
-            response = Response(data, status=status.HTTP_200_OK)
-            return response
-        except:
-            data = {'reason': 'cannot find a Process with that id'}
-            record_api_call(request, data, '404')
-            return Response(data, status=status.HTTP_404_NOT_FOUND)
-
+    # get processes scoped to accout and/or type
     if site_id is None and process_id is None:
         if _type is None:
             processes = Process.objects.filter(account=account).order_by('-time_created')
         if _type is not None:
             processes = Process.objects.filter(account=account, type=_type).order_by('-time_created')
 
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(processes, request)
     serializer_context = {'request': request,}
@@ -2868,37 +3982,92 @@ def get_processes(request):
 
 
 
+def get_process(request: object, id: str) -> object:
+    """
+    Get single `Process` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+       process_id=id, resource='process'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get process if checks passed
+    process = Process.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = ProcessSerializer(process, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
 
 
 
-def get_logs(request):
 
+### ------ Begin Log Services ------ ###
+
+
+
+
+def get_logs(request: object) -> object:
+    """ 
+    Get one or more `Testcase`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
     log_id = request.query_params.get('log_id')
     request_status = request.query_params.get('success')
     request_type = request.query_params.get('request_type')
 
-    if log_id != None:
+    # get user 
+    user = request.user
+
+    # get single log
+    if log_id:
+
+        # get log
         log = Log.objects.get(id=log_id)
-        if log.user != request.user:
-            data = {'reason': 'cannot retrieve Logs you do not own',}
-            record_api_call(request, data, '403')
-            return Response(data, status=status.HTTP_403_FORBIDDEN)
         
+        # serialize and return
         serializer_context = {'request': request,}
         serialized = LogSerializer(log, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
+    # filtering logs by passed params
     if request_status != None and request_type != None:
-        logs = Log.objects.filter(status=request_status, request_type=request_type, user=request.user).order_by('-time_created')
+        logs = Log.objects.filter(status=request_status, request_type=request_type, user=user).order_by('-time_created')
     elif request_status == None and request_type != None:
-        logs = Log.objects.filter(request_type=request_type, user=request.user).order_by('-time_created')
+        logs = Log.objects.filter(request_type=request_type, user=user).order_by('-time_created')
     elif request_status != None and request_type == None:
-        logs = Log.objects.filter(status=request_status, user=request.user).order_by('-time_created')
+        logs = Log.objects.filter(status=request_status, user=user).order_by('-time_created')
     else:
-        logs = Log.objects.filter(user=request.user).order_by('-time_created')
+        logs = Log.objects.filter(user=user).order_by('-time_created')
 
+    # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(logs, request)
     serializer_context = {'request': request,}
@@ -2909,10 +4078,50 @@ def get_logs(request):
 
 
 
+def get_log(request: object, id: str) -> object:
+    """
+    Get single `Log` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+       log_id=id, resource='log'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get log if checks passed
+    log = Log.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = LogSerializer(log, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
 
 
 
-def search_resources(request):
+
+### ------ Begin Search Services ------ ###
+
+
+
+
+def search_resources(request: object) -> object:
     """
     This method will search for any `Page` or `Site`
     that is associated with the user's `Account` and
@@ -2995,189 +4204,43 @@ def search_resources(request):
             'type': 'case',
         })
         i+=1
-        
+    
+    # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
 
 
 
+### ------ Begin Metrics Services ------ ###
 
 
 
 
-def migrate_site(request, delay=False):
-    login_url = request.data.get('login_url', None)
-    admin_url = request.data.get('admin_url', None)
-    plugin_name = request.data.get('plugin_name', 'Cloudways WordPress Migrator')
-    username = request.data.get('username', None)
-    password = request.data.get('password', None)
-    site_id = request.data.get('site_id', None)
-    email_address = request.data.get('email_address', None)
-    destination_url = request.data.get('destination_url', None)
-    sftp_address = request.data.get('sftp_address', None) 
-    dbname = request.data.get('dbname', None)
-    sftp_username = request.data.get('sftp_username', None)
-    sftp_password = request.data.get('sftp_password', None)
-    wait_time = request.data.get('wait_time', 30)
-    driver = request.data.get('driver', 'puppeteer')
+def get_home_metrics(request: object) -> object:
+    """ 
+    Builds metrics for account "Home" view 
+    on Scanerr.client
 
-    site = Site.objects.get(id=site_id)
-    process = Process.objects.create(
-        site=site,
-        type='migration'
-    )
-    process_id = process.id
+    Expects: {
+        'request' : object
+    }
 
-    if delay:
-        migrate_site_bg.delay(
-            login_url, 
-            admin_url, 
-            username, 
-            password, 
-            email_address, 
-            destination_url, 
-            sftp_address, 
-            dbname, 
-            sftp_username, 
-            sftp_password, 
-            plugin_name, 
-            wait_time, 
-            process_id, 
-            driver
-        )
-        
-        serializer_context = {'request': request,}
-        data = ProcessSerializer(process, context=serializer_context).data
-        record_api_call(request, data, '201')
-        response = Response(data, status=status.HTTP_201_CREATED)
-        return response
+    Returns -> HTTP Response object
+    """
 
-
-
-    if driver == 'selenium':
-
-        # init wordpress
-        wp = W(
-            login_url=login_url, 
-            admin_url=admin_url,
-            username=username,
-            password=password,
-            email_address=email_address,
-            destination_url=destination_url,
-            sftp_address=sftp_address,
-            dbname=dbname,
-            sftp_username=sftp_username,
-            sftp_password=sftp_password, 
-            wait_time=wait_time,
-            process_id=process.id
-        )
-
-        # login
-        wp_status = wp.login()
-
-        # adjust lang
-        wp_status = wp.begin_lang_check()
-
-        # install plugin
-        wp_status = wp.install_plugin(plugin_name=plugin_name)
-
-        # launch migration
-        wp_status = wp.launch_migration()
-
-        # run migration
-        wp_status = wp.run_migration()
-
-        # re adjust lang
-        # wp_status = wp.end_lang_check()
-
-        if wp_status: 
-            data = {
-                'success': 'success',
-                'message': 'site migration succeeded'
-            }
-        else:
-            data = {
-                'success': 'failed',
-                'message': 'site migration failed'
-            }
-
-        response = Response(data, status=status.HTTP_200_OK)
-        record_api_call(request, data, '200')
-        return response
-
-    else:
-
-        # init wordpress for puppeteer
-        wp_status = asyncio.run(
-            W_P(
-                login_url=login_url, 
-                admin_url=admin_url,
-                username=username,
-                password=password, 
-                wait_time=wait_time,
-            ).run_full(plugin_name=plugin_name)
-        )
-
-        if wp_status: 
-            data = {
-                'success': 'success',
-                'message': 'site migration succeeded'
-            }
-        else:
-            data = {
-                'success': 'failed',
-                'message': 'site migration failed'
-            }
-
-        response = Response(data, status=status.HTTP_200_OK)
-        record_api_call(request, data, '200')
-        return response
-
-
-
-
-
-
-
-
-
-
-def create_site_screenshot(request):
-    user = request.user
-    site_id = request.data.get('site_id', None)
-    url = request.data.get('url', None)
-    configs = request.data.get('configs', None)
-    site = None
-
-    if site_id is not None:
-        site = Site.objects.get(id=site_id)
-
-    if configs is not None:
-        if configs['driver'] == 'puppeteer':
-            data = asyncio.run(I().screenshot_p(site=site, url=url, configs=configs))
-        elif configs['driver'] == 'selenium':
-            data = I().screenshot(site=site, url=url, configs=configs)
-    else:
-        data = I().screenshot(site=site, url=url, configs=configs)
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
-
-
-
-
-
-
-
-def get_home_stats(request):
+    # get user, account, & sites
     user = request.user
     account = Member.objects.get(user=user).account
     sites = Site.objects.filter(account=account)
+    
+    # setting defaults
     site_count = sites.count()
     test_count = 0
     scan_count = 0
     schedule_count = 0
+    
+    # calculating metrics
     for site in sites:
         tests = Test.objects.filter(site=site)
         scans = Scan.objects.filter(site=site)
@@ -3186,12 +4249,15 @@ def get_home_stats(request):
         scan_count = scan_count + scans.count()
         schedule_count = schedule_count + schedules.count()
 
+    # format data
     data = {
         "sites": site_count, 
         "tests": test_count,
         "scans": scan_count,
         "schedules": schedule_count,
     }
+    
+    # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
@@ -3199,16 +4265,32 @@ def get_home_stats(request):
 
 
 
-def get_site_stats(request):
+def get_site_metrics(request: object) -> object:
+    """ 
+    Builds metrics for account "Site" view 
+    on Scanerr.client
+
+    Expects: {
+        'request' : object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user, account, site, & pages
     user = request.user
     account = Member.objects.get(user=user).account
     site_id = request.query_params.get('site_id')
     site = Site.objects.get(id=site_id)
     pages = Page.objects.filter(site=site)
+
+    # setting detaults
     page_count = pages.count()
     test_count = 0
     scan_count = 0
     schedule_count = Schedule.objects.filter(site=site).count()
+
+    # calculating metrics
     for page in pages:
         tests = Test.objects.filter(page=page)
         scans = Scan.objects.filter(page=page)
@@ -3217,12 +4299,15 @@ def get_site_stats(request):
         scan_count = scan_count + scans.count()
         schedule_count = schedule_count + schedules.count()
 
+    # format data
     data = {
         "pages": page_count, 
         "tests": test_count,
         "scans": scan_count,
         "schedules": schedule_count,
     }
+
+    # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
@@ -3230,7 +4315,18 @@ def get_site_stats(request):
 
 
 
-def get_celery_metrics(request):
+def get_celery_metrics(request: object) -> object:
+    """ 
+    Builds metrics for current Celery task load.
+    Used to provision and terminate new pods in 
+    k8s cluster on PROD
+
+    Expects: {
+        'request' : object
+    }
+
+    Returns -> HTTP Response object
+    """
 
     # Inspect all nodes.
     i = celery.app.control.inspect()
@@ -3257,11 +4353,147 @@ def get_celery_metrics(request):
     if num_replicas > 0:
         ratio = num_tasks / num_replicas
 
-    # return response
+    # format data
     data = {
         "num_tasks": num_tasks,
         "num_replicas": num_replicas,
         "ratio": ratio
     }
+
+    # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response
+
+
+
+
+### ------ Begin Beta Services ------ ###
+
+
+
+
+def create_site_screenshot(request: object) -> object:
+    """
+    Used to grab a single screenshot of the passed `Site`
+
+    Expects: {
+        'request': object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    site_id = request.data.get('site_id', None)
+    url = request.data.get('url', None)
+    configs = request.data.get('configs', settings.CONFIGS)
+
+    # get user
+    user = request.user
+    
+    # set default
+    site = None
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='site', 
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get site if checks passsed
+    if site_id is not None:
+        site = Site.objects.get(id=site_id)
+
+    # get screenshot 
+    if configs['driver'] == 'puppeteer':
+        data = asyncio.run(I().screenshot_p(site=site, url=url, configs=configs))
+    elif configs['driver'] == 'selenium':
+        data = I().screenshot(site=site, url=url, configs=configs)
+
+    
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def migrate_site(request: object) -> object:
+    """
+    Initiate a `Site` migration task in background
+
+    Expects: {
+        'request': object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    login_url = request.data.get('login_url', None)
+    admin_url = request.data.get('admin_url', None)
+    plugin_name = request.data.get('plugin_name', 'Cloudways WordPress Migrator')
+    username = request.data.get('username', None)
+    password = request.data.get('password', None)
+    site_id = request.data.get('site_id', None)
+    email_address = request.data.get('email_address', None)
+    destination_url = request.data.get('destination_url', None)
+    sftp_address = request.data.get('sftp_address', None) 
+    dbname = request.data.get('dbname', None)
+    sftp_username = request.data.get('sftp_username', None)
+    sftp_password = request.data.get('sftp_password', None)
+    wait_time = request.data.get('wait_time', 30)
+    driver = request.data.get('driver', 'puppeteer')
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='site', 
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get site if checks passed
+    site = Site.objects.get(id=site_id)
+
+    # create new Process
+    process = Process.objects.create(
+        site=site,
+        type='migration'
+    )
+
+    # start migrtation task in background
+    migrate_site_bg.delay(
+        login_url, 
+        admin_url, 
+        username, 
+        password, 
+        email_address, 
+        destination_url, 
+        sftp_address, 
+        dbname, 
+        sftp_username, 
+        sftp_password, 
+        plugin_name, 
+        wait_time, 
+        process.id, 
+        driver
+    )
+    
+    # serialize and return
+    serializer_context = {'request': request,}
+    data = ProcessSerializer(process, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+
