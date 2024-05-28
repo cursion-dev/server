@@ -291,13 +291,13 @@ def jwt_login(*, user: object) -> str:
     api_token = Token.objects.get(user=user)
         
     # setting user active
-    is_active = str(user.is_active).lower
+    is_active = str(user.is_active).lower()
 
     # building params for redirect
     param_string = str(
-        '?access='+access+'&refresh='+refresh+
-        '&username='+user.username+'&id='+str(user.id)+
-        '&email='+user.email+'&is_active='+is_active+
+        '?access='+str(access)+'&refresh='+str(refresh)+
+        '&username='+str(user.username)+'&id='+str(user.id)+
+        '&email='+str(user.email)+'&is_active='+str(is_active)+
         '&created='+str(user.date_joined)+'&updated='+str(user.last_login)+
         '&api_token='+str(api_token.key)
     )
