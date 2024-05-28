@@ -431,8 +431,8 @@ def google_login(request: object) -> str:
     """
         
     # get request data
-    code = request.params.get('code')
-    error = request.params.get('error')
+    code = request.GET.get('code')
+    error = request.GET.get('error')
 
     # build login url
     login_url = f'{settings.CLIENT_URL_ROOT}/login'
@@ -487,7 +487,7 @@ def slack_oauth_middleware(request: object) -> object:
     """
 
     # get request data
-    code = request.params.get('code')
+    code = request.GET.get('code')
 
     # get account
     account = Account.objects.get(user=request.user)
