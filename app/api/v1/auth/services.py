@@ -341,6 +341,13 @@ def get_or_create_user(email: str,  **extra_fields) -> object:
     if extra_fields.get('last_name') is not None:
         extras['last_name'] = extra_fields.get('last_name')
 
+    # create the user
+    user = User.objects.create(
+        username=email, 
+        email=email, 
+        **extra_fields
+    )
+
     # creating API token
     Token.objects.create(user=user)
 
