@@ -2309,6 +2309,11 @@ def create_or_update_schedule(request: object) -> object:
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # setting defaults
+    schedule = None
+    site = None
+    page = None
     
     # deciding on action type
     action = 'add' if not schedule_id else None
@@ -2324,15 +2329,16 @@ def create_or_update_schedule(request: object) -> object:
         return Response(data, status=check_data['status'])
 
     # get schedule if checks passed and id is present
-    schedule = None
     if schedule_id:
         schedule = Schedule.objects.get(id=schedule_id)
     
     # converting to str for **kwargs
     if site_id is not None:
         site_id = str(site_id)
+        site = Site.objects.get(id=site_id)
     if page_id is not None:
         page_id = str(page_id)
+        page = Page.objects.get(id=page_id)
 
     # toggling schedule status
     if schedule_status != None and schedule != None:
