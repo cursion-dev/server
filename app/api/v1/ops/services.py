@@ -1464,7 +1464,7 @@ def get_scans(request: object) -> object:
 
     # get page scoped scans
     page = Page.objects.get(id=page_id)
-    scans = Scan.objects.filter(page=page)
+    scans = Scan.objects.filter(page=page).order_by('-time_created')
         
     # serialize and return
     paginator = LimitOffsetPagination()
