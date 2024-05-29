@@ -2476,8 +2476,8 @@ def create_or_update_schedule(request: object) -> object:
                 schedule.frequency = freq
             if task:
                 schedule.task = task
-            if chrontab_id:
-                schedule.chrontab_id = chrontab_id
+            if chrontab:
+                schedule.chrontab_id = chrontab.id
             if task_type:
                 schedule.task_type = task_type
             if extras:
