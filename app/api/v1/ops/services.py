@@ -2311,7 +2311,7 @@ def create_or_update_schedule(request: object) -> object:
     account = Member.objects.get(user=user).account
     
     # deciding on action type
-    action = 'add' if schedule_id else None
+    action = 'add' if not schedule_id else None
 
     # checking account and resource 
     check_data = check_account_and_resource(
@@ -2324,6 +2324,7 @@ def create_or_update_schedule(request: object) -> object:
         return Response(data, status=check_data['status'])
 
     # get schedule if checks passed and id is present
+    schedule = None
     if schedule_id:
         schedule = Schedule.objects.get(id=schedule_id)
     
