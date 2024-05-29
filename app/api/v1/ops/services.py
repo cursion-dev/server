@@ -2375,7 +2375,8 @@ def create_or_update_schedule(request: object) -> object:
         
         # parsing begin date
         if begin_date_raw:
-            begin_date = datetime.strptime(begin_date_raw, '%m/%d/%Y')
+            # begin_date = datetime.strptime(begin_date_raw, '%Y-%m-%d %H:%M:%S.%f') 
+            begin_date = datetime.fromisoformat(begin_date_raw[:-1] + '+00:00')
 
         # building cron expression time & date
         num_day_of_week = begin_date.weekday()
