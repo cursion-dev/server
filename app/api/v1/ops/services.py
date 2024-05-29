@@ -2412,7 +2412,7 @@ def create_or_update_schedule(request: object) -> object:
         # building unique task name
         task_name = f'{task_type}_{level}_{url}_{freq}_@{time}_{account.user.id}'
 
-        # building or updating chrontab 
+        # building or updating crontab 
         crontab, _ = CrontabSchedule.objects.get_or_create(
             timezone=timezone, 
             minute=minute, 
@@ -2476,8 +2476,8 @@ def create_or_update_schedule(request: object) -> object:
                 schedule.frequency = freq
             if task:
                 schedule.task = task
-            if chrontab:
-                schedule.chrontab_id = chrontab.id
+            if crontab:
+                schedule.crontab_id = crontab.id
             if task_type:
                 schedule.task_type = task_type
             if extras:
