@@ -1464,7 +1464,7 @@ def get_scans(request: object) -> object:
 
     # get page scoped scans
     page = Page.objects.get(id=page_id)
-    scans = Scan.objects.filter(page=page)
+    scans = Scan.objects.filter(page=page).order_by('-time_created')
         
     # serialize and return
     paginator = LimitOffsetPagination()
@@ -2309,6 +2309,11 @@ def create_or_update_schedule(request: object) -> object:
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # setting defaults
+    schedule = None
+    site = None
+    page = None
     
     # deciding on action type
     action = 'add' if not schedule_id else None
@@ -2324,15 +2329,16 @@ def create_or_update_schedule(request: object) -> object:
         return Response(data, status=check_data['status'])
 
     # get schedule if checks passed and id is present
-    schedule = None
     if schedule_id:
         schedule = Schedule.objects.get(id=schedule_id)
     
     # converting to str for **kwargs
     if site_id is not None:
         site_id = str(site_id)
+        site = Site.objects.get(id=site_id)
     if page_id is not None:
         page_id = str(page_id)
+        page = Page.objects.get(id=page_id)
 
     # toggling schedule status
     if schedule_status != None and schedule != None:
@@ -2375,7 +2381,8 @@ def create_or_update_schedule(request: object) -> object:
         
         # parsing begin date
         if begin_date_raw:
-            begin_date = datetime.strptime(begin_date_raw, '%m/%d/%Y')
+            # begin_date = datetime.strptime(begin_date_raw, '%Y-%m-%d %H:%M:%S.%f') 
+            begin_date = datetime.fromisoformat(begin_date_raw[:-1] + '+00:00')
 
         # building cron expression time & date
         num_day_of_week = begin_date.weekday()
@@ -2405,7 +2412,7 @@ def create_or_update_schedule(request: object) -> object:
         # building unique task name
         task_name = f'{task_type}_{level}_{url}_{freq}_@{time}_{account.user.id}'
 
-        # building or updating chrontab 
+        # building or updating crontab 
         crontab, _ = CrontabSchedule.objects.get_or_create(
             timezone=timezone, 
             minute=minute, 
@@ -2469,8 +2476,8 @@ def create_or_update_schedule(request: object) -> object:
                 schedule.frequency = freq
             if task:
                 schedule.task = task
-            if chrontab_id:
-                schedule.chrontab_id = chrontab_id
+            if crontab:
+                schedule.crontab_id = crontab.id
             if task_type:
                 schedule.task_type = task_type
             if extras:
