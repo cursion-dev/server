@@ -315,8 +315,8 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                                     
                     # scrolling to element using plain JavaScript
-                    driver.execute_script("arguments[0].scrollIntoView();", element)
-                    driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    self.driver.execute_script("window.scrollBy(0, -100);")
 
                     # clicking element
                     element.click()
@@ -351,8 +351,8 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
-                    driver.execute_script("arguments[0].scrollIntoView();", element)
-                    driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    self.driver.execute_script("window.scrollBy(0, -100);")
 
                     # changing value of element
                     value = step["action"]["value"]
@@ -398,8 +398,8 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
-                    driver.execute_script("arguments[0].scrollIntoView();", element)
-                    driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    self.driver.execute_script("window.scrollBy(0, -100);")
 
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
@@ -434,8 +434,8 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
-                    driver.execute_script("arguments[0].scrollIntoView();", element)
-                    driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    self.driver.execute_script("window.scrollBy(0, -100);")
 
                     # gettintg elem text
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
@@ -475,8 +475,8 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
-                    driver.execute_script("arguments[0].scrollIntoView();", element)
-                    driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    self.driver.execute_script("window.scrollBy(0, -100);")
                     
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
