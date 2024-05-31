@@ -315,6 +315,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                                     
                     # scrolling to element using plain JavaScript
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
@@ -352,6 +353,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
@@ -400,6 +402,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
@@ -437,6 +440,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
@@ -479,6 +483,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     
@@ -493,7 +498,7 @@ class Caser():
                     passed = False
 
                 self.update_testcase_s(
-                    index=i, type='action', 
+                    index=i, type='assertion', 
                     end_time=datetime.now(), 
                     passed=passed, 
                     exception=exception,
