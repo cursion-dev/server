@@ -279,8 +279,8 @@ class Caser():
                     # using selenium, navigate to requested path & wait for page to load
                     driver_wait(
                         driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
+                        interval=int(self.configs.get('interval', 1)),  
+                        min_wait_time=int(self.configs.get('min_wait_time', 3)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
                     )
                     self.driver.get(f'{self.site_url}{step["action"]["path"]}')
@@ -317,6 +317,7 @@ class Caser():
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # clicking element
                     element.click()
@@ -353,6 +354,7 @@ class Caser():
                     # scrolling to element and back down a bit
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # changing value of element
                     value = step["action"]["value"]
@@ -400,6 +402,7 @@ class Caser():
                     # scrolling to element and back down a bit
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
@@ -436,6 +439,7 @@ class Caser():
                     # scrolling to element and back down a bit
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
