@@ -312,9 +312,13 @@ class Caser():
                     print(f'clicking element -> {step["action"]["element"]}')
                     # using selenium, find and click on the 'element' 
                     selector = self.format_element_s(step["action"]["element"])
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
                                     
                     # scrolling to element using plain JavaScript
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+                    driver.execute_script("window.scrollBy(0, -100);")
+
+                    # clicking element
                     element.click()
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
@@ -342,10 +346,14 @@ class Caser():
                 
                 try:
                     print(f'changing element to value -> {step["action"]["value"]}') 
-                    # using selenium, find and click on the 'element'
+                    # using selenium, find and change the 'element'.value
                     selector = self.format_element_s(step["action"]["element"])
-                                    
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    # scrolling to element and back down a bit
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+                    driver.execute_script("window.scrollBy(0, -100);")
+
                     # changing value of element
                     value = step["action"]["value"]
                     element.send_keys(value)
@@ -384,9 +392,16 @@ class Caser():
                             break
                         n -= 1
                     selector = self.format_element_s(elm)
-                                    
-                    # using selenium, press the selected key
+                                
+                    # using selenium, find elemenmtn and send 'Key' event
+                    selector = self.format_element_s(step["action"]["element"])
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    # scrolling to element and back down a bit
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+                    driver.execute_script("window.scrollBy(0, -100);")
+
+                    # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
                     time.sleep(int(self.configs['min_wait_time']))
                     image = self.save_screenshot_s()
@@ -416,13 +431,19 @@ class Caser():
                     print(f'asserting that element value -> {step["assertion"]["element"]} matches {step["assertion"]["value"]}')
                     # using selenium, find elememt and assert if element.text == assertion.text
                     selector = self.format_element_s(step["action"]["element"])
-                    
-                    # scrolling to element using plain JavaScript
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    # scrolling to element and back down a bit
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+                    driver.execute_script("window.scrollBy(0, -100);")
+
+                    # gettintg elem text
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
                     elementText = elementText.strip()
                     print(f'elementText => {elementText}')
                     print(f'value => {step["assertion"]["value"]}')
+
+                    # assert text
                     assert elementText == step["assertion"]["value"]
                     image = self.save_screenshot_s()
 
@@ -451,6 +472,11 @@ class Caser():
                     print(f'asserting that element -> {step["assertion"]["element"]} exists')
                     # using puppeteer, find elememt and assert it exists
                     selector = self.format_element_s(step["action"]["element"])
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+
+                    # scrolling to element and back down a bit
+                    driver.execute_script("arguments[0].scrollIntoView();", element)
+                    driver.execute_script("window.scrollBy(0, -100);")
                     
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
