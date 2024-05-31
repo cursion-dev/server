@@ -3248,6 +3248,7 @@ def create_or_update_case(request: object) -> object:
 
     # setting defaults
     site = None
+    case = None
 
     # checking account and resource 
     check_data = check_account_and_resource(
