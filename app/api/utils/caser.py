@@ -299,6 +299,39 @@ class Caser():
                     exception=exception,
                     image=image
                 )
+
+            
+            if step['action']['type'] == 'scroll':
+                exception = None
+                passed = True
+                self.update_testcase_s(
+                    index=i, type='action', 
+                    start_time=datetime.now()
+                )
+
+                try:
+                    print(f'scrolling -> {step["action"]["value"]}')
+                                    
+                    # scrolling using plain JavaScript
+                    self.driver.execute_script(f'window.scrollTo(${step["action"]["value"]});')
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+
+                    # get image
+                    image = self.save_screenshot_s()
+                
+                except Exception as e:
+                    image = self.save_screenshot_s()
+                    exception = e
+                    passed = False
+
+                self.update_testcase_s(
+                    index=i, type='action', 
+                    end_time=datetime.now(), 
+                    passed=passed, 
+                    exception=exception,
+                    image=image
+                )
+        
             
             if step['action']['type'] == 'click':
                 exception = None
@@ -608,7 +641,38 @@ class Caser():
                     exception=exception,
                     image=image
                 )
-                    
+
+            if step['action']['type'] == 'scroll':
+                exception = None
+                passed = True
+                await self.update_testcase(
+                    index=i, type='action', 
+                    start_time=datetime.now()
+                )
+
+                try:
+                    print(f'scrolling -> {step["action"]["value"]}')
+              
+                    # scrolling using plain JavaScript
+                    await self.page.evaluate(f'window.scrollTo(${step["action"]["value"]});')
+                    time.sleep(int(self.configs['min_wait_time']))
+
+                    # get image
+                    image = await self.save_screenshot(page=self.page)
+                
+                except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
+                    exception = e
+                    passed = False
+
+                await self.update_testcase(
+                    index=i, type='action', 
+                    end_time=datetime.now(), 
+                    passed=passed, 
+                    exception=exception,
+                    image=image
+                ) 
+               
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True
