@@ -313,7 +313,7 @@ class Caser():
                     print(f'scrolling -> {step["action"]["value"]}')
                                     
                     # scrolling using plain JavaScript
-                    self.driver.execute_script(f'window.scrollTo(${step["action"]["value"]});')
+                    self.driver.execute_script(f'window.scrollTo({step["action"]["value"]});')
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get image
@@ -654,7 +654,7 @@ class Caser():
                     print(f'scrolling -> {step["action"]["value"]}')
               
                     # scrolling using plain JavaScript
-                    await self.page.evaluate(f'window.scrollTo(${step["action"]["value"]});')
+                    await self.page.evaluate(f'window.scrollTo({step["action"]["value"]});')
                     time.sleep(int(self.configs['min_wait_time']))
 
                     # get image
