@@ -279,8 +279,8 @@ class Caser():
                     # using selenium, navigate to requested path & wait for page to load
                     driver_wait(
                         driver=self.driver, 
-                        interval=int(self.configs.get('interval', 5)),  
-                        min_wait_time=int(self.configs.get('min_wait_time', 10)),
+                        interval=int(self.configs.get('interval', 1)),  
+                        min_wait_time=int(self.configs.get('min_wait_time', 3)),
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
                     )
                     self.driver.get(f'{self.site_url}{step["action"]["path"]}')
@@ -299,6 +299,39 @@ class Caser():
                     exception=exception,
                     image=image
                 )
+
+            
+            if step['action']['type'] == 'scroll':
+                exception = None
+                passed = True
+                self.update_testcase_s(
+                    index=i, type='action', 
+                    start_time=datetime.now()
+                )
+
+                try:
+                    print(f'scrolling -> {step["action"]["value"]}')
+                                    
+                    # scrolling using plain JavaScript
+                    self.driver.execute_script(f'window.scrollTo({step["action"]["value"]});')
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+
+                    # get image
+                    image = self.save_screenshot_s()
+                
+                except Exception as e:
+                    image = self.save_screenshot_s()
+                    exception = e
+                    passed = False
+
+                self.update_testcase_s(
+                    index=i, type='action', 
+                    end_time=datetime.now(), 
+                    passed=passed, 
+                    exception=exception,
+                    image=image
+                )
+        
             
             if step['action']['type'] == 'click':
                 exception = None
@@ -315,8 +348,10 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                                     
                     # scrolling to element using plain JavaScript
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # clicking element
                     element.click()
@@ -351,8 +386,10 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # changing value of element
                     value = step["action"]["value"]
@@ -398,8 +435,10 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
@@ -434,8 +473,10 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
                     elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
@@ -475,6 +516,7 @@ class Caser():
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
+                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     
@@ -489,7 +531,7 @@ class Caser():
                     passed = False
 
                 self.update_testcase_s(
-                    index=i, type='action', 
+                    index=i, type='assertion', 
                     end_time=datetime.now(), 
                     passed=passed, 
                     exception=exception,
@@ -599,7 +641,38 @@ class Caser():
                     exception=exception,
                     image=image
                 )
-                    
+
+            if step['action']['type'] == 'scroll':
+                exception = None
+                passed = True
+                await self.update_testcase(
+                    index=i, type='action', 
+                    start_time=datetime.now()
+                )
+
+                try:
+                    print(f'scrolling -> {step["action"]["value"]}')
+              
+                    # scrolling using plain JavaScript
+                    await self.page.evaluate(f'window.scrollTo({step["action"]["value"]});')
+                    time.sleep(int(self.configs['min_wait_time']))
+
+                    # get image
+                    image = await self.save_screenshot(page=self.page)
+                
+                except Exception as e:
+                    image = await self.save_screenshot(page=self.page)
+                    exception = e
+                    passed = False
+
+                await self.update_testcase(
+                    index=i, type='action', 
+                    end_time=datetime.now(), 
+                    passed=passed, 
+                    exception=exception,
+                    image=image
+                ) 
+               
             if step['action']['type'] == 'click':
                 exception = None
                 passed = True

@@ -981,9 +981,8 @@ def create_auto_cases_bg(
 
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+@shared_task
 def create_testcase_bg(
-        self, 
         testcase_id: str=None, 
         site_id: str=None, 
         case_id: str=None, 
