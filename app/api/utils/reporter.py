@@ -196,7 +196,7 @@ class Reporter():
         # page url
         font_size = max((30 * (26/len(self.page.page_url))), 16)
         self.c.setFont('Helvetica-Bold', font_size)
-        self.draw_wrapped_line(text=self.page.page_url, length=40, x_pos=.5, y_pos=9, y_offset=.5)
+        self.draw_wrapped_line(text=self.page.page_url, length=55, x_pos=.5, y_pos=9, y_offset=.5)
         # self.c.drawString(.5*inch, 9*inch, self.page.page_url)
 
         # if len(self.page.page_url) <= 12:
