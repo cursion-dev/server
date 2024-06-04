@@ -194,9 +194,9 @@ class Reporter():
         self.c.drawString(.5*inch, 10*inch, 'Web Vitals for')
         
         # page url
-        font_size = max((30 * (19/len(self.page.page_url))), 16)
+        font_size = max((30 * (19/len(self.page.page_url))), 12)
         self.c.setFont('Helvetica-Bold', 30)
-        self.draw_wrapped_line(text=self.page.page_url, length=28, x_pos=.5, y_pos=9, y_offset=.5)
+        self.draw_wrapped_line(text=self.page.page_url, length=40, x_pos=.5, y_pos=9, y_offset=.5)
         # self.c.drawString(.5*inch, 9*inch, self.page.page_url)
 
         # if len(self.page.page_url) <= 12:
