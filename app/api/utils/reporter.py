@@ -192,17 +192,26 @@ class Reporter():
         self.c.setFont('Helvetica-Bold', 45)
         self.c.setFillColor(HexColor(self.text_color))
         self.c.drawString(.5*inch, 10*inch, 'Web Vitals for')
-        if len(self.page.page_url) <= 12:
-            self.c.setFont('Helvetica-Bold', 30)
-            self.c.drawString(.5*inch, 9*inch, self.page.page_url)
-        elif 12 < len(self.page.page_url):
-            extra_chars = len(self.page.page_url) - 12
-            m = (2/5)
-            y_offset = .5
-            length = int(20 + (extra_chars * m))
-            self.c.setFont('Helvetica-Bold', int(45 - (extra_chars * m)))
-            self.c.setFillColor(HexColor(self.text_color))
-            self.draw_wrapped_line(text=self.page.page_url, length=length, x_pos=.5, y_pos=9, y_offset=y_offset)
+        
+        # page url
+        font_size = max((30 * (26/len(self.page.page_url))), 16)
+        self.c.setFont('Helvetica-Bold', 30)
+        self.draw_wrapped_line(text=self.page.page_url, length=28, x_pos=.5, y_pos=9, y_offset=.5)
+        # self.c.drawString(.5*inch, 9*inch, self.page.page_url)
+
+        # if len(self.page.page_url) <= 12:
+        #     self.c.setFont('Helvetica-Bold', 30)
+        #     self.c.drawString(.5*inch, 9*inch, self.page.page_url)
+        
+        # elif 12 < len(self.page.page_url):
+        #     extra_chars = len(self.page.page_url) - 12
+        #     m = (2/5)
+        #     y_offset = .5
+        #     length = int(20 + (extra_chars * m))
+        #     self.c.setFont('Helvetica-Bold', int(45 - (extra_chars * m)))
+        #     self.c.setFillColor(HexColor(self.text_color))
+        #     self.draw_wrapped_line(text=self.page.page_url, length=length, x_pos=.5, y_pos=9, y_offset=y_offset)
+        
         # cover img
         cover_img = os.path.join(settings.BASE_DIR, "api/utils/report_assets/cover_img.png")
         self.c.drawImage(cover_img, 1*inch, 2*inch, 6.04*inch, 4.68*inch, mask='auto')
