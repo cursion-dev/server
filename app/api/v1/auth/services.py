@@ -74,36 +74,38 @@ def register_user(request: object) -> object:
         return Response(data=data, status=status.HTTP_409_CONFLICT)
     
     # validate password and create user
-    if validate_password(password) == None:
+    try:
+        # check password
+        if validate_password(password) == None:
             
-        # create user
-        user = User.objects.create(
-            username=username,
-            email=username,
-            first_name=first_name,
-            last_name=last_name
-        )
+            # create user
+            user = User.objects.create(
+                username=username,
+                email=username,
+                first_name=first_name,
+                last_name=last_name
+            )
 
-        # setting password
-        user.set_password(raw_password=password)
-        user.save()
-        
-        # generating JWTs
-        refresh = RefreshToken.for_user(user)
+            # setting password
+            user.set_password(raw_password=password)
+            user.save()
+            
+            # generating JWTs
+            refresh = RefreshToken.for_user(user)
 
-        # generate API token
-        api_token = Token.objects.create(user=user)
-        
-        # returning data
-        data = {
-            'user': UserSerializer(user).data,
-            'token': str(refresh.access_token),
-            'refresh': str(refresh),
-            'api_token': str(api_token.key)
-        }
-        return Response(data=data, status=status.HTTP_201_CREATED)
+            # generate API token
+            api_token = Token.objects.create(user=user)
+            
+            # returning data
+            data = {
+                'user': UserSerializer(user).data,
+                'token': str(refresh.access_token),
+                'refresh': str(refresh),
+                'api_token': str(api_token.key)
+            }
+            return Response(data=data, status=status.HTTP_201_CREATED)
 
-    else:
+    except:
         data = {'detail': 'Please choose a stronger password.'}
         return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
 
