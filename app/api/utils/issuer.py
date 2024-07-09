@@ -86,14 +86,14 @@ class Issuer():
             # build intro
             intro = str(
                 f'Testcase `{self.testcase.case_name}` failed on **Step {step_index}**,' + 
-                f' "{failed_step['action']['type']}".\n\n'
+                f' `{failed_step["action"]["type"]}`.\n\n'
             )
             
             # build main_issue
             main_issue = str(
                 f'### Main Issue or Exception:\n' + 
-                f' ```{failed_step['action']['exception']}``` \n\n' +
-                f' <img src="{failed_step['action']['image']}" className="max-w-3/4"/> \n\n'
+                f' ```{failed_step["action"]["exception"]}``` \n\n' +
+                f' <img src="{failed_step["action"]["image"]}" className="max-w-3/4"/> \n\n'
             )
 
             # build recommendation
