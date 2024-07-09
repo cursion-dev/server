@@ -813,9 +813,12 @@ def create_page(request: object, delay: bool=False) -> object:
 
     # creating many pages if page_urls was passed
     if page_urls is not None:
-        data = create_many_pages(request=request, obj_response=False)
-        record_api_call(request, data, '201')
-        response = Response(data, status=status.HTTP_201_CREATED)
+        print('trying to add many pages')
+        data = create_many_pages(request=request, http_response=False)
+        _status = status.HTTP_201_CREATED
+        if data.get('reason') is not None:
+            _status = status.HTTP_402_PAYMENT_REQUIRED
+        response = Response(data, status=_status)
         return response
     
     # validating page_url
@@ -888,13 +891,13 @@ def create_page(request: object, delay: bool=False) -> object:
 
 
 
-def create_many_pages(request: object, obj_response: bool=False) -> object:
+def create_many_pages(request: object, http_response: bool=True) -> object:
     """ 
     Bulk creates `Pages` for each url passed in "page_urls"
 
     Expcets: {
         'request'       : object,
-        'obj_response'  : bool
+        'http_response'  : bool
     }
 
     Returns -> dict or HTTP Response object
@@ -922,14 +925,19 @@ def create_many_pages(request: object, obj_response: bool=False) -> object:
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if http_response:
+            return Response(data, status=check_data['status'])
+        return data
 
     # pre check for max_pages
-    if (pages.count() + len(page_urls)) >= account.max_pages:
+    if (pages.count() + len(page_urls)) > account.max_pages:
+        print('max pages aparently')
         data = {'reason': 'maximum number of pages reached',}
         record_api_call(request, data, '402')
-        return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
-
+        if http_response:
+            return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
+        return data
+    
     # setting defaults
     count = len(page_urls)
     num_succeeded = 0
@@ -995,12 +1003,22 @@ def create_many_pages(request: object, obj_response: bool=False) -> object:
         'failed': failed, 
     }
 
+    # record successful API call
+    record_api_call(request, data, '201')
+
     # decide on response type
-    if obj_response:
-        record_api_call(request, data, '201')
+    if http_response:
+        print('requested http response')
+        # returning HTTP Response
         response = Response(data, status=status.HTTP_201_CREATED)
         return response
+    
+    # return dict response
+    print('requested data response')
     return data
+
+    
+    
 
 
 
