@@ -116,6 +116,13 @@ class TestcaseAdmin(admin.ModelAdmin):
 
 
 
+@admin.register(Issue)
+class IssueAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'account', 'time_created', 'read',)
+
+
+
+
 @admin.register(Mask)
 class MaskAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'mask_id', 'active', 'time_created',)

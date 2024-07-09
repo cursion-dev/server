@@ -160,6 +160,8 @@ kubectl port-forward service/app-service 8000:8000
    - `kubectl delete secret <sec-name>` ... may have to do this in the k8s dashboard
  - Restart both celery & app deployments for a config-map change:
    - `kubectl rollout restart deployment app-deployment celery-deployment`
+ - Get Current IPs for pods:
+   - `kubectl exec <container-id> -- curl -s http://checkip.dyndns.org/ | sed 's/[a-zA-Z<>/ :]//g'`
 
 
 

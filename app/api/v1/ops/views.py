@@ -537,6 +537,41 @@ class TestcaseDetail(APIView):
 
 
 
+### ------ Begin Issue Views ------ ###
+
+
+
+
+class Issues(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_issue(request)        
+        return response
+    
+    def get(self, request):
+        response = get_issues(request)
+        return response
+
+
+
+
+class IssueDetail(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        response = get_issue(request, id)
+        return response
+
+    def delete(self, request, id):
+        response = delete_issue(request, id)        
+        return response
+
+
+
+
 ### ------ Begin Log Views ------ ###
 
 

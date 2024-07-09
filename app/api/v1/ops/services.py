@@ -111,6 +111,7 @@ def check_account_and_resource(
     scan_id = kwargs.get('scan_id')
     case_id = kwargs.get('case_id')
     testcase_id = kwargs.get('testcase_id')
+    issue_id = kwargs.get('issue_id')
     schedule_id = kwargs.get('schedule_id')
     automation_id = kwargs.get('automation_id')
     process_id = kwargs.get('process_id')
@@ -168,7 +169,7 @@ def check_account_and_resource(
                     _status = status.HTTP_404_NOT_FOUND
                     code = '404'
             if page_url:
-                if not Page.objects.filter(page_url=page_url, account=account).exists():
+                if Page.objects.filter(page_url=page_url, account=account).exists():
                     allowed = False
                     error = 'page already exists'
                     _status = status.HTTP_409_CONFLICT
@@ -284,6 +285,27 @@ def check_account_and_resource(
                 if not Site.objects.filter(id=site_id, account=account).exists():
                     allowed = False
                     error = 'site not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+        
+        # checking issues
+        if resource == 'issue':
+            if issue_id:
+                if not Issue.objects.filter(id=issue_id, account=account).exists():
+                    allowed = False
+                    error = 'issue not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if site_id:
+                if not Site.objects.filter(id=site_id, account=account).exists():
+                    allowed = False
+                    error = 'site not found'
+                    _status = status.HTTP_404_NOT_FOUND
+                    code = '404'
+            if page_id:
+                if not Page.objects.filter(id=page_id, account=account).exists():
+                    allowed = False
+                    error = 'page not found'
                     _status = status.HTTP_404_NOT_FOUND
                     code = '404'
         
@@ -486,7 +508,7 @@ def create_site(request: object, delay: bool=False) -> object:
                 scan = Scan.objects.create(
                     site=site,
                     page=page, 
-                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    type=settings.TYPES,
                     configs=configs
                 )
                 # run each scan component
@@ -830,7 +852,7 @@ def create_page(request: object, delay: bool=False) -> object:
         scan = Scan.objects.create(
             site=site,
             page=page, 
-            type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+            type=settings.TYPES,
             configs=configs
         )
         page.info["latest_scan"]["id"] = str(scan.id)
@@ -846,7 +868,7 @@ def create_page(request: object, delay: bool=False) -> object:
             scan = Scan.objects.create(
                 site=site,
                 page=page, 
-                type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                type=settings.TYPES,
                 configs=configs
             )
             # run each scan component
@@ -942,7 +964,7 @@ def create_many_pages(request: object, obj_response: bool=False) -> object:
                 scan = Scan.objects.create(
                     site=site,
                     page=page, 
-                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    type=settings.TYPES,
                     configs=configs
                 )
                 
@@ -1224,7 +1246,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         site_id = request.data.get('site_id')
         page_id = request.data.get('page_id')
         configs = request.data.get('configs', settings.CONFIGS)
-        types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+        types = request.data.get('type', settings.TYPES)
         tags = request.data.get('tags')
         user = request.user
     
@@ -1233,7 +1255,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         site_id = kwargs.get('site_id')
         page_id = kwargs.get('page_id')
         configs = kwargs.get('configs', settings.CONFIGS)
-        types = kwargs.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+        types = kwargs.get('type', settings.TYPES)
         tags = kwargs.get('tags')
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
@@ -1243,7 +1265,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # verifying types
     if len(types) == 0:
-        types = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
+        types = settings.TYPES
 
     # deciding on scope
     resource = 'site' if site_id else 'page'
@@ -1344,7 +1366,7 @@ def create_many_scans(request: object) -> object:
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
     configs = request.data.get('configs', settings.CONFIGS)
-    types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+    types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
 
@@ -1708,10 +1730,11 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # get data from request
     if request is not None:
         configs = request.data.get('configs', settings.CONFIGS)
+        threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
         pre_scan_id = request.data.get('pre_scan')
         post_scan_id = request.data.get('post_scan')
         index = request.data.get('index')
-        test_type = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+        test_type = request.data.get('type', settings.TYPES)
         tags = request.data.get('tags')
         pre_scan = None
         post_scan = None
@@ -1722,10 +1745,11 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # get data from kwargs
     if request is None:
         configs = kwargs.get('configs', settings.CONFIGS)
+        threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
         pre_scan_id = kwargs.get('pre_scan')
         post_scan_id = kwargs.get('post_scan')
         index = kwargs.get('index')
-        test_type = kwargs.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+        test_type = kwargs.get('type', settings.TYPES)
         tags = kwargs.get('tags')
         pre_scan = None
         post_scan = None
@@ -1739,7 +1763,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # verifying test_type
     if len(test_type) == 0:
-        test_type = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
+        test_type = settings.TYPES
 
     # deciding on scope
     resource = 'site' if site_id else 'page'
@@ -1835,6 +1859,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
             page=p,
             type=test_type,
             tags=tags,
+            threshold=threshold,
+            status='working',
         )
 
         # add test.id to list
@@ -1920,7 +1946,8 @@ def create_many_tests(request: object) -> object:
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
     configs = request.data.get('configs', settings.CONFIGS)
-    types = request.data.get('type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+    threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
+    types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
 
@@ -1937,6 +1964,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'site_id': str(id), 
                 'configs': configs,
+                'threshold': threshold,
                 'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
@@ -1964,6 +1992,7 @@ def create_many_tests(request: object) -> object:
             data = {
                 'page_id': str(id), 
                 'configs': configs,
+                'threshold': threshold,
                 'type': types,
                 'tags': tags,
                 'user_id': str(user.id)
@@ -2274,6 +2303,244 @@ def delete_many_tests(request: object) -> object:
 
 
 
+### ------ Begin Issue Services ------ ###
+
+
+
+def create_or_update_issue(request: object=None, **kwargs) -> object:
+    """ 
+    Creates or Updates an `Issue` 
+
+    Expects: {
+        'request': object
+        'kwargs': dict
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    if request is not None:
+        id = request.data.get('id')
+        trigger = request.data.get('trigger')
+        title = request.data.get('title')
+        details = request.data.get('details')
+        status = request.data.get('status')
+        affected = request.data.get('affected')
+        labels = request.data.get('labels')
+        account = Member.objects.get(user=request.user).account
+    
+    # get kwargs data
+    if request is None:
+        id = kwargs.get('id')
+        trigger = kwargs.get('trigger')
+        title = kwargs.get('title')
+        details = kwargs.get('details')
+        status = kwargs.get('status')
+        affected = kwargs.get('affected')
+        labels = kwargs.get('labels')
+        account_id = kwargs.get('account_id')
+        account = Account.objects.get(id=account_id)
+
+    # get Issue if id is present
+    if id is not None:
+        issue = Issue.objects.get(id=id)
+        
+        # update data
+        if trigger is not None:
+            issue.trigger = trigger
+        if title is not None:
+            issue.title = title
+        if details is not None:
+            issue.details = details
+        if status is not None:
+            issue.status = status
+        if affected is not None:
+            issue.affected = affected
+        if labels is not None:
+            issue.labels = labels
+        
+        # save new data
+        issue.save()
+
+    # create new Issue
+    if id is None:
+        issue = Issue.objects.create(
+            account  = account,
+            title    = title,
+            details  = details,
+            labels   = labels, 
+            trigger  = trigger,
+            affected = affected
+        )
+    
+    # decide on response type
+    if request is not None:
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = IssueSerializer(issue, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    # return object response
+    return issue
+
+
+
+
+def get_issues(request: object) -> object:
+    """ 
+    Get one or more `Issues`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    issue_id = request.query_params.get('issue_id')
+    site_id = request.query_params.get('site_id')
+    page_id = request.query_params.get('page_id')
+    account = Member.objects.get(user=request.user).account
+    issues = None
+    
+    # deciding on scope
+    resource = 'issue'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, page_id=page_id, site_id=site_id,
+        issue_id=issue_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single issue
+    if issue_id != None:
+        
+        # get test
+        issue = Issue.objects.get(id=issue_id)
+
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = IssueSerializer(issue, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    # get all issues scoped page if page_id passed
+    if page_id is not None:
+        issues = Issues.objects.filter(
+            affected__icontains={'id': page_id}, 
+            account=account
+        ).order_by('-time_created')
+    
+    # get all issues scoped page if page_id passed
+    if site_id is not None:
+        issues = Issues.objects.filter(
+            affected__icontains={'id': site_id}, 
+            account=account
+        ).order_by('-time_created')
+    
+    # get all account assocoiated issues
+    if issues is None:
+        issues = Issues.objects.filter(
+            account=account
+        ).order_by('-time_created')
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(issues, request)
+    serializer_context = {'request': request,}
+    serialized = IssueSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def get_issue(request: object, id: str) -> object:
+    """
+    Get single `Issue` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, 
+        issue_id=id, resource='issue'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get issue if checks passed
+    issue = Issue.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = IssueSerializer(issue, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_issue(request: object, id: str) -> object:
+    """ 
+    Deletes the `Issue` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # check account and resource
+    check_data = check_account_and_resource(request=request, issue_id=id, resource='issue')
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get issue if checks passed
+    issue = Issue.objects.get(id=id)
+
+    # delete test
+    issue.delete()
+
+    # return response
+    data = {'message': 'Issue has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
 ### ------ Begin Schedule Services ------ ###
 
 
@@ -2297,8 +2564,8 @@ def create_or_update_schedule(request: object) -> object:
     timezone = request.data.get('timezone')
     freq = request.data.get('frequency')
     task_type = request.data.get('task_type')
-    test_type = request.data.get('test_type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
-    scan_type = request.data.get('scan_type', ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'])
+    test_type = request.data.get('test_type', settings.TYPES)
+    scan_type = request.data.get('scan_type', settings.TYPES)
     configs = request.data.get('configs', settings.CONFIGS)
     schedule_id = request.data.get('schedule_id')
     site_id = request.data.get('site_id')

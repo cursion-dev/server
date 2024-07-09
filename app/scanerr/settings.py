@@ -237,5 +237,11 @@ CONFIGS = {
 }
 
 
+# Global Test.threshold
+TEST_THRESHOLD = 101
+
+
+# Global Scan & Test types
+TYPES = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
 
 
