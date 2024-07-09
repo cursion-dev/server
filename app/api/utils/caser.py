@@ -1,6 +1,7 @@
 from .driver_p import driver_init as driver_p_init
 from .driver_s import driver_init as driver_s_init
 from .driver_s import driver_wait, quit_driver
+from .issuer import Issuer
 import time, uuid, json, boto3, os
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -545,6 +546,10 @@ class Caser():
         )
         quit_driver(driver=self.driver)
         print('-- testcase run complete --')
+
+        if not self.testcase.passed:
+            print('generating new Issue...')
+            Issuer(testcase=self.testcase).build_issue()
         
         return None
 
@@ -839,6 +844,10 @@ class Caser():
         )
         await self.driver.close()
         print('-- testcase run complete --')
+
+        if not self.testcase.passed:
+            print('generating new Issue...')
+            Issuer(testcase=self.testcase).build_issue()
 
         return None
 

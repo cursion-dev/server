@@ -121,8 +121,8 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
-        'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type',
-        'tags', 'pre_scan_configs', 'post_scan_configs', 'component_scores',
+        'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type', 'threshold',
+        'tags', 'pre_scan_configs', 'post_scan_configs', 'component_scores', 'status',
         ]
 
 
@@ -139,7 +139,7 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'lighthouse_delta', 
-        'yellowlab_delta', 'tags', 'component_scores', 
+        'yellowlab_delta', 'tags', 'component_scores', 'threshold', 'status',
         ]
 
 
@@ -240,4 +240,15 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
 
 
 
-        
+class IssueSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+
+    class Meta:
+        model = Issue
+        fields = ['id', 'time_created', 'trigger', 'account', 'title',
+        'details', 'status', 'affected', 'labels'
+        ]
+
+
+

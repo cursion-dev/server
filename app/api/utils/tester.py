@@ -3,6 +3,7 @@ from datetime import datetime
 from .imager import Imager
 from scanerr import settings
 from difflib import SequenceMatcher
+from .issuer import Issuer
 import os, json, random, \
 string, re, requests, uuid, boto3
 
@@ -348,14 +349,14 @@ class Tester():
             pre_accessibility = int(self.test.pre_scan.lighthouse["scores"]['accessibility'])
             pre_performance = int(self.test.pre_scan.lighthouse["scores"]['performance'])
             pre_best_practices = int(self.test.pre_scan.lighthouse["scores"]['best_practices'])
-            pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa'])
+            pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
             
             # get post scores
             post_seo = int(self.test.post_scan.lighthouse["scores"]['seo'])
             post_accessibility = int(self.test.post_scan.lighthouse["scores"]['accessibility'])
             post_performance = int(self.test.post_scan.lighthouse["scores"]['performance'])
             post_best_practices = int(self.test.post_scan.lighthouse["scores"]['best_practices'])
-            post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa'])
+            post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
 
             # try to get pre and post crux scores
             try:
@@ -512,6 +513,118 @@ class Tester():
 
 
 
+    def get_lh_audits_deltas(self, scores: dict) -> str:
+        # finds and records the changes in LH audit data
+        # then saves as .json file in s3 and returns 
+
+        # defaults
+        audits = {
+            "seo":[],
+            "accessibility": [],
+            "performance": [],
+            "pwa": [],
+            "best_practices": [],
+            "crux": []
+        }
+
+        # get pre & post audits
+        pre_scan_audits = requests.get(self.test.pre_scan.lighthouse['audits']).json()
+        post_scan_audits = requests.get(self.test.post_scan.lighthouse['audits']).json()
+
+        # deciding which categories to 
+        # compare based on score
+        cats = []
+        for key in scores:
+            # checking for a delta score
+            if '_delta' in key and 'average' not in key:
+                # check if delta not Zero
+                if scores[key] is not None:
+                    if float(scores[key]) != 0:
+                        cats.append(str(key).split('_delta')[0])
+
+        # compare each audit in each of the 
+        # selected categories
+        for cat in cats:
+            for audit in post_scan_audits[cat]:
+                found = False
+                for aud in pre_scan_audits[cat]:
+                    if audit == aud:
+                        found = True
+                        break
+
+                # record post_ audit if not 
+                # found in pre_
+                if not found:
+                    audits[cat].append(audit)
+
+        # save data at .json in s3
+        lh_audit_file_uri = self.save_data_to_s3(_data=audits)
+
+        print(f'LH audit deltas -> {lh_audit_file_uri}')
+
+        # return uri
+        return lh_audit_file_uri
+
+
+
+
+    def get_yl_audits_deltas(self, scores: dict) -> str:
+        # finds and records the changes in YL audit data
+        # then saves as .json file in s3 and returns 
+
+        # defaults
+        audits = {
+            "pageWeight":[],
+            "images": [],
+            "domComplexity": [],
+            "javascriptComplexity": [],
+            "badJavascript": [],
+            "jQuery": [],
+            "cssComplexity": [],
+            "badCSS": [],
+            "fonts": [],
+            "serverConfig": [],
+        }
+
+        # get pre & post audits
+        pre_scan_audits = requests.get(self.test.pre_scan.yellowlab['audits']).json()
+        post_scan_audits = requests.get(self.test.post_scan.yellowlab['audits']).json()
+
+        # deciding which categories to 
+        # compare based on score
+        cats = []
+        for key in scores:
+            # checking for a delta score
+            if '_delta' in key and 'average' not in key:
+                # check if delta not Zero
+                if scores[key] is not None:
+                    if float(scores[key]) != 0:
+                        cats.append(str(key).split('_delta')[0])
+
+        # compare each audit in each of the 
+        # selected categories
+        for cat in cats:
+            for audit in post_scan_audits[cat]:
+                found = False
+                for aud in pre_scan_audits[cat]:
+                    if audit == aud:
+                        found = True
+                        break
+
+                # record post_ audit if not 
+                # found in pre_
+                if not found:
+                    audits[cat].append(audit)
+
+        # save data at .json in s3
+        yl_audit_file_uri = self.save_data_to_s3(_data=audits)
+
+        # return uri
+        return yl_audit_file_uri
+
+
+
+
     def update_site_info(self, test: object) -> object:
         # updates associated Site with 
         # new Test data
@@ -539,6 +652,7 @@ class Tester():
             site.info['latest_test']['time_created'] = str(test.time_created)
             site.info['latest_test']['time_completed'] = str(test.time_completed)
             site.info['latest_test']['score'] = site_avg_test_score
+            site.info['latest_test']['status'] = test.status
             site.save()
 
         # returning updated site
@@ -559,10 +673,41 @@ class Tester():
         page.info['latest_test']['time_created'] = str(test.time_created)
         page.info['latest_test']['time_completed'] = str(test.time_completed)
         page.info['latest_test']['score'] = (round(test.score * 100) / 100)
+        page.info['latest_test']['status'] = test.status
         page.save()
 
         # return updated page
         return page
+
+
+
+
+    def save_data_to_s3(self, _data: dict) -> str:
+        # Saves passed data as an s3 object and 
+        # returns the remote uri as a str
+
+        # save _data s3 json file
+        file_id = uuid.uuid4()
+        with open(f'{file_id}.json', 'w') as fp:
+            json.dump(_data, fp)
+        
+        # upload to s3 and return url
+        data_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+        remote_path = f'static/sites/{self.test.site.id}/{self.test.page.id}/{self.test.id}/{file_id}.json'
+        root_path = settings.AWS_S3_URL_PATH
+        data_file_uri = f"{root_path}/{remote_path}"
+    
+        # upload to s3
+        with open(data_file, 'rb') as data:
+            self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+            )
+
+        # remove local copy
+        os.remove(data_file) 
+
+        # return uri
+        return data_file_uri
 
 
 
@@ -636,25 +781,8 @@ class Tester():
                     "post_micro_delta": delta_html_data['post_micro_delta'],
                 }
 
-                # save html_delta s3 json file
-                file_id = uuid.uuid4()
-                with open(f'{file_id}.json', 'w') as fp:
-                    json.dump(html_delta_context, fp)
-                
-                # upload to s3 and return url
-                html_delta_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
-                remote_path = f'static/sites/{self.test.site.id}/{self.test.page.id}/{self.test.id}/{file_id}.json'
-                root_path = settings.AWS_S3_URL_PATH
-                html_delta_uri = f"{root_path}/{remote_path}"
-            
-                # upload to s3
-                with open(html_delta_file, 'rb') as data:
-                    self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                        remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
-                    )
-                # remove local copy
-                os.remove(html_delta_file)
-
+                # save and get s3 object uri
+                html_delta_uri = self.save_data_to_s3(_data=html_delta_context)
                 print(f'html_delta => {html_delta_uri}')
 
             except Exception as e:
@@ -682,31 +810,35 @@ class Tester():
 
         # testing LH
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
-            try:
-                # scores & data
-                lighthouse_data = self.delta_lighthouse()
-                lighthouse_avg = lighthouse_data['scores']['average_delta']
-                if lighthouse_avg != None and lighthouse_avg > -100:
-                    lighthouse_score = (100 + lighthouse_avg)/100
-                if lighthouse_avg != None and lighthouse_avg <= -100:
-                    lighthouse_score = 0
+            # try:
+            # scores & data
+            lighthouse_data = self.delta_lighthouse()
+            lh_audits_uri = self.get_lh_audits_deltas(scores=lighthouse_data['scores'])
+            lighthouse_data['audits'] = lh_audits_uri
+            lighthouse_avg = lighthouse_data['scores']['average_delta']
+            if lighthouse_avg != None and lighthouse_avg > -100:
+                lighthouse_score = (100 + lighthouse_avg)/100
+            if lighthouse_avg != None and lighthouse_avg <= -100:
+                lighthouse_score = 0
 
-                # weights
-                if lighthouse_score == None:
-                    delta_lh_w = 0
-                elif lighthouse_score > 1:
-                    delta_lh_w = 1
-                    lighthouse_score = 1
-                else:
-                    delta_lh_w = 1
-            except Exception as e:
-                print(e)
+            # weights
+            if lighthouse_score == None:
+                delta_lh_w = 0
+            elif lighthouse_score > 1:
+                delta_lh_w = 1
+                lighthouse_score = 1
+            else:
+                delta_lh_w = 1
+            # except Exception as e:
+            #     print(e)
 
         # testing YL
         if 'yellowlab' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
                 yellowlab_data = self.delta_yellowlab()
+                yl_audits_uri = self.get_yl_audits_deltas(scores=yellowlab_data['scores'])
+                yellowlab_data['audits'] = lh_audits_uri
                 yellowlab_avg = yellowlab_data['scores']['average_delta']
                 if yellowlab_avg != None and yellowlab_avg > -100:
                     yellowlab_score = (100 + yellowlab_avg)/100
@@ -772,6 +904,7 @@ class Tester():
         self.test.yellowlab_delta = yellowlab_data
         self.test.images_delta = images_data
         self.test.score = score
+        self.test.status = 'passed' if score >= self.test.threshold else 'failed'
         self.test.component_scores['html'] = (micro_diff_score * 100)
         self.test.component_scores['logs'] = (num_logs_ratio * 100)
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100)
@@ -782,6 +915,11 @@ class Tester():
         # updating associated page and site
         self.update_page_info(self.test)
         self.update_site_info(self.test)
+
+        # create issue if failed
+        if self.test.status == 'failed':
+            print('generating new Issue...')
+            Issuer(test=self.test).build_issue()
 
         # returning updated test
         return self.test
