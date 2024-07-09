@@ -1130,6 +1130,9 @@ def delete_page(request: object, id: str) -> object:
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
+    # get page by id
+    page = Page.objects.get(id=id)
+
     # remove s3 objects
     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
 
