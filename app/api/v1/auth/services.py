@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.middleware import get_user
 from django.contrib.auth.password_validation import validate_password
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
@@ -83,7 +84,8 @@ def register_user(request: object) -> object:
                 username=username,
                 email=username,
                 first_name=first_name,
-                last_name=last_name
+                last_name=last_name,
+                last_login=timezone.now()
             )
 
             # setting password
@@ -155,6 +157,9 @@ def login_user(request: object) -> object:
 
             # get API token
             api_token = Token.objects.get(user=user)
+
+            # update user last_login
+            user.last_login = timezone.now()
             
             # returning data
             data = {
@@ -295,12 +300,16 @@ def jwt_login(*, user: object) -> str:
     # setting user active
     is_active = str(user.is_active).lower()
 
+    # update user last_login
+    user.last_login = timezone.now()
+    user.save()
+
     # building params for redirect
     param_string = str(
         '?access='+str(access)+'&refresh='+str(refresh)+
         '&username='+str(user.username)+'&id='+str(user.id)+
         '&email='+str(user.email)+'&is_active='+str(is_active)+
-        '&created='+str(user.date_joined)+'&updated='+str(user.last_login)+
+        '&created='+str(user.date_joined)+'&updated='+str(timezone.now())+
         '&api_token='+str(api_token.key)
     )
 
@@ -347,6 +356,7 @@ def get_or_create_user(email: str,  **extra_fields) -> object:
     user = User.objects.create(
         username=email, 
         email=email, 
+        last_login=timezone.now(),
         **extra_fields
     )
 
