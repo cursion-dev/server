@@ -557,6 +557,17 @@ class Issues(APIView):
 
 
 
+class IssuesSearch(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = search_issues(request)
+        return response
+
+
+
+
 class IssueDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']

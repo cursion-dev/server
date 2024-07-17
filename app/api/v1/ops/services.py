@@ -1880,7 +1880,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
             page=p,
             type=test_type,
             tags=tags,
-            threshold=threshold,
+            threshold=float(threshold),
             status='working',
         )
 
@@ -1898,6 +1898,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
                 pre_scan=pre_scan_id, 
                 post_scan=post_scan_id,
                 tags=tags,
+                threshold=float(threshold),
             )
             message = 'Tests are being created in the background'
 
@@ -2346,7 +2347,7 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         trigger = request.data.get('trigger')
         title = request.data.get('title')
         details = request.data.get('details')
-        status = request.data.get('status')
+        _status = request.data.get('status')
         affected = request.data.get('affected')
         labels = request.data.get('labels')
         account = Member.objects.get(user=request.user).account
@@ -2357,7 +2358,7 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         trigger = kwargs.get('trigger')
         title = kwargs.get('title')
         details = kwargs.get('details')
-        status = kwargs.get('status')
+        _status = kwargs.get('status')
         affected = kwargs.get('affected')
         labels = kwargs.get('labels')
         account_id = kwargs.get('account_id')
@@ -2374,8 +2375,8 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
             issue.title = title
         if details is not None:
             issue.details = details
-        if status is not None:
-            issue.status = status
+        if _status is not None:
+            issue.status = _status
         if affected is not None:
             issue.affected = affected
         if labels is not None:
@@ -2456,23 +2457,22 @@ def get_issues(request: object) -> object:
 
     # get all issues scoped page if page_id passed
     if page_id is not None:
-        issues = Issues.objects.filter(
+        issues = Issue.objects.filter(
             affected__icontains={'id': page_id}, 
             account=account
-        ).order_by('-time_created')
-    
+        ).order_by('status', '-time_created')
     # get all issues scoped page if page_id passed
     if site_id is not None:
-        issues = Issues.objects.filter(
+        issues = Issue.objects.filter(
             affected__icontains={'id': site_id}, 
             account=account
-        ).order_by('-time_created')
+        ).order_by('status', '-time_created')
     
     # get all account assocoiated issues
     if issues is None:
-        issues = Issues.objects.filter(
+        issues = Issue.objects.filter(
             account=account
-        ).order_by('-time_created')
+        ).order_by('status', '-time_created')
 
     # serialize and return
     paginator = LimitOffsetPagination()
@@ -2520,6 +2520,42 @@ def get_issue(request: object, id: str) -> object:
     data = serialized.data
     record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def search_issues(request: object) -> object:
+    """ 
+    Searches for matching `Issues` to the passed 
+    "query"
+
+    Expects: {
+        'request': obejct
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    user = request.user
+    account = Member.objects.get(user=user).account
+    query = request.query_params.get('query')
+    
+    # search for issues
+    issues = Issue.objects.filter(
+        Q(account=account, title__icontains=query) |
+        Q(account=account, details__icontains=query) |
+        Q(account=account, affected__icontains={'str':query})
+    ).order_by('status', '-time_created')
+    
+    # serialize and rerturn
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(issues, request)
+    serializer_context = {'request': request,}
+    serialized = IssueSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response 
 
 
 
@@ -2588,6 +2624,7 @@ def create_or_update_schedule(request: object) -> object:
     test_type = request.data.get('test_type', settings.TYPES)
     scan_type = request.data.get('scan_type', settings.TYPES)
     configs = request.data.get('configs', settings.CONFIGS)
+    threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
     schedule_id = request.data.get('schedule_id')
     site_id = request.data.get('site_id')
     page_id = request.data.get('page_id')
@@ -2661,6 +2698,7 @@ def create_or_update_schedule(request: object) -> object:
             'configs': configs,
             'case_id': case_id,
             'type': scan_type if task_type == 'scan' else test_type,
+            'threshold': threshold,
             'automation_id': auto_id
         }
 
@@ -2747,7 +2785,8 @@ def create_or_update_schedule(request: object) -> object:
             "test_type": test_type,
             "scan_type": scan_type, 
             "case_id": case_id, 
-            "updates": updates
+            "updates": updates,
+            "threshold": threshold,
         }
         
         # update existing schedule
@@ -3026,6 +3065,7 @@ def create_or_update_automation(request: object) -> object:
         schedule = Schedule.objects.get(id=schedule_id)
     if automation_id:
         automation = Automation.objects.get(id=automation_id)
+        schedule = automation.schedule
 
     # update existing automation
     if automation:
@@ -3076,6 +3116,7 @@ def create_or_update_automation(request: object) -> object:
             'automation_id': str(automation.id),
             'configs': json.loads(task.kwargs).get('configs'), 
             'type': json.loads(task.kwargs).get('type'),
+            'threshold': json.loads(task.kwargs).get('threshold'),
             'case_id': json.loads(task.kwargs).get('case_id'),
             'updates': json.loads(task.kwargs).get('updates')
         }
@@ -4530,13 +4571,15 @@ def get_home_metrics(request: object) -> object:
     Returns -> HTTP Response object
     """
 
-    # get user, account, & sites
+    # get user, account, sites, & issues
     user = request.user
     account = Member.objects.get(user=user).account
     sites = Site.objects.filter(account=account)
+    issues = Issue.objects.filter(account=account, status='open')
     
     # setting defaults
     site_count = sites.count()
+    issues_count = issues.count()
     test_count = 0
     scan_count = 0
     schedule_count = 0
@@ -4556,6 +4599,7 @@ def get_home_metrics(request: object) -> object:
         "tests": test_count,
         "scans": scan_count,
         "schedules": schedule_count,
+        "open_issues": issues_count,
     }
     
     # return response

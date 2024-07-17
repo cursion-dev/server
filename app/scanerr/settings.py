@@ -238,7 +238,7 @@ CONFIGS = {
 
 
 # Global Test.threshold
-TEST_THRESHOLD = 101
+TEST_THRESHOLD = 95
 
 
 # Global Scan & Test types

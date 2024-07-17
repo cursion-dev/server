@@ -85,15 +85,16 @@ class Issuer():
 
             # build intro
             intro = str(
-                f'Testcase `{self.testcase.case_name}` failed on **Step {step_index}**,' + 
-                f' `{failed_step["action"]["type"]}`.\n\n'
+                f'Testcase [{self.testcase.case_name}](/{trigger["type"]}/{trigger["id"]})' + 
+                f' failed on **Step {step_index}**, "{failed_step["action"]["type"]}".\n\n' +
+                f' **Affected Site:** [{affected["str"]}](/{affected["type"]}/{affected["id"]})\n\n'
             )
             
             # build main_issue
             main_issue = str(
                 f'### Main Issue or Exception:\n' + 
-                f' ```{failed_step["action"]["exception"]}``` \n\n' +
-                f' <img src="{failed_step["action"]["image"]}" className="max-w-3/4"/> \n\n'
+                f' ```shell\n{failed_step["action"]["exception"]}\n``` \n\n' +
+                f' [View Image]({failed_step["action"]["image"]})\n\n'
             )
 
             # build recommendation
@@ -114,7 +115,7 @@ class Issuer():
                         ordered_scores.append({key: self.test.component_scores[key]})
 
             # build components str
-            comp_str = str('| Component | Score |\n|-----|-----|')
+            comp_str = str('| Component | Score |\n|:-----|-----:|')
             for score in ordered_scores:
                 for key in score:
                     comp_str += f'\n| {key} | {round(score[key], 2)} |'
@@ -124,7 +125,8 @@ class Issuer():
 
             # build intro
             intro = str(
-                f'Test failed for the page "{self.test.page.page_url}" ' + 
+                f'[Test](/{trigger["type"]}/{trigger["id"]}) failed for the page ' + 
+                f'[{affected["str"]}](/{affected["type"]}/{affected["id"]}) ' + 
                 f'based on the set threshold of {round(self.test.threshold, 2)}%.\n\n'
             )
 

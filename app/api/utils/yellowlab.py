@@ -21,6 +21,7 @@ class Yellowlab():
         self.site = self.scan.site
         self.page = self.scan.page
         self.configs = configs
+        self.audits_url = ''
 
         # initial audits object
         self.audits = {
@@ -208,11 +209,11 @@ class Yellowlab():
         os.remove(audit_file)
 
         # updating opjects
-        self.audits = audits_url
+        self.audits_url = audits_url
 
         data = {
             "scores": self.scores, 
-            "audits": self.audits,
+            "audits": self.audits_url,
             "failed": False
         }
 
@@ -251,7 +252,7 @@ class Yellowlab():
 
         data = {
             "scores": self.scores, 
-            "audits": self.audits,
+            "audits": self.audits_url,
             "failed": failed
         }
             

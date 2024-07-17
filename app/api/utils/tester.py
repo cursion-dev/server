@@ -838,7 +838,7 @@ class Tester():
                 # scores & data
                 yellowlab_data = self.delta_yellowlab()
                 yl_audits_uri = self.get_yl_audits_deltas(scores=yellowlab_data['scores'])
-                yellowlab_data['audits'] = lh_audits_uri
+                yellowlab_data['audits'] = yl_audits_uri
                 yellowlab_avg = yellowlab_data['scores']['average_delta']
                 if yellowlab_avg != None and yellowlab_avg > -100:
                     yellowlab_score = (100 + yellowlab_avg)/100
@@ -905,11 +905,11 @@ class Tester():
         self.test.images_delta = images_data
         self.test.score = score
         self.test.status = 'passed' if score >= self.test.threshold else 'failed'
-        self.test.component_scores['html'] = (micro_diff_score * 100)
-        self.test.component_scores['logs'] = (num_logs_ratio * 100)
-        self.test.component_scores['lighthouse'] = (lighthouse_score * 100)
-        self.test.component_scores['yellowlab'] = (yellowlab_score * 100)
-        self.test.component_scores['vrt'] = (images_score * 100)
+        self.test.component_scores['html'] = (micro_diff_score * 100) if micro_diff_w != 0 else None
+        self.test.component_scores['logs'] = (num_logs_ratio * 100) if num_logs_w != 0 else None
+        self.test.component_scores['lighthouse'] = (lighthouse_score * 100) if delta_lh_w != 0 else None
+        self.test.component_scores['yellowlab'] = (yellowlab_score * 100) if delta_yl_w != 0 else None
+        self.test.component_scores['vrt'] = (images_score * 100) if images_w != 0 else None
         self.test.save()
 
         # updating associated page and site

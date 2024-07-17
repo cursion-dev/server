@@ -235,7 +235,47 @@ class Caser():
         return image_url
 
 
+
+    @sync_to_async
+    def format_exception(self, exception: str) -> str:
+        """ 
+        Cleans the passed `exception` of any 
+        system refs and unnecessary info
+
+        Expects: {
+            "exception": str
+        }
+
+        Returns -> str
+        """
+
+        split_e = str(exception).split('Stacktrace:')
+        new_exception = split_e[0]
+
+        return new_exception
+
+
     
+
+    def format_exception_s(self, exception: str) -> str:
+        """ 
+        Cleans the passed `exception` of any 
+        system refs and unnecessary info
+
+        Expects: {
+            "exception": str
+        }
+
+        Returns -> str
+        """
+
+        split_e = str(exception).split('Stacktrace:')
+        new_exception = split_e[0]
+
+        return new_exception
+
+    
+
 
     def run_s(self) -> None:
         """
@@ -290,7 +330,7 @@ class Caser():
 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -322,7 +362,7 @@ class Caser():
                 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -361,7 +401,7 @@ class Caser():
                 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -400,7 +440,7 @@ class Caser():
                 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -448,7 +488,7 @@ class Caser():
                 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -491,7 +531,7 @@ class Caser():
 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -528,7 +568,7 @@ class Caser():
 
                 except Exception as e:
                     image = self.save_screenshot_s()
-                    exception = e
+                    exception = self.format_exception_s(e)
                     passed = False
 
                 self.update_testcase_s(
@@ -635,7 +675,7 @@ class Caser():
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 
@@ -667,7 +707,7 @@ class Caser():
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(
@@ -700,7 +740,7 @@ class Caser():
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(
@@ -735,7 +775,7 @@ class Caser():
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(
@@ -763,7 +803,7 @@ class Caser():
                 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(
@@ -798,7 +838,7 @@ class Caser():
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(
@@ -827,7 +867,7 @@ class Caser():
 
                 except Exception as e:
                     image = await self.save_screenshot(page=self.page)
-                    exception = e
+                    exception = await self.format_exception(e)
                     passed = False
 
                 await self.update_testcase(

@@ -507,7 +507,7 @@ class Automation(models.Model):
     actions = models.JSONField(serialize=True, null=True, blank=True, default=get_actions_default)
 
     def __str__(self):
-        return f'{self.name}'
+        return f'{self.id}'
 
 
 

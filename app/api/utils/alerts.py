@@ -543,7 +543,7 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
         item_type = data['item_type']
 
         # generating expressions from automation
-        exp_list = create_exp_str(
+        exp_list = create_exp(
             item=item, 
             automation=automation
         )['exp_list']

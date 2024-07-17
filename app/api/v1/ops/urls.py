@@ -34,6 +34,7 @@ urlpatterns = [
     path('testcase/delay', views.TestcaseDelay.as_view(), name='testcase-delay'),
     path('testcase/<uuid:id>', views.TestcaseDetail.as_view(), name='testcase-detail'),
     path('issue', views.Issues.as_view(), name='issue'),
+    path('issue/search', views.IssuesSearch.as_view(), name='issue-search'),
     path('issue/<uuid:id>', views.IssueDetail.as_view(), name='issue-detail'),
     path('report', views.Reports.as_view(), name='report'),
     path('report/<uuid:id>', views.ReportDetail.as_view(), name='report-detail'),
