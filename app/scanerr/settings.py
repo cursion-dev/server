@@ -213,6 +213,10 @@ GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
 GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
 
 
+# OpenAI's GPT API key
+GPT_API_KEY = os.environ.get('GPT_API_KEY')
+
+
 # Stripe keys
 if os.environ.get('STRIPE_ENV') == 'prod':
     STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_LIVE')
