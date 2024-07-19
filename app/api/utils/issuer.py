@@ -92,7 +92,7 @@ class Issuer():
             # build intro
             intro = str(
                 f'#### Testcase [{self.testcase.case_name}](/{trigger["type"]}/{trigger["id"]})' + 
-                f' failed on **Step {step_index}**, `{failed_step["action"]["type"]}`.\n\n' +
+                f' failed on **Step {step_index}**, `{failed_step["action"]["type"]}`.\n\n\n' +
                 f' **Affected Site:** [{affected["str"]}](/{affected["type"]}/{affected["id"]})\n\n\n'
             )
             
@@ -243,6 +243,7 @@ class Issuer():
                             Omit the title or header in your response. \
                             Remove any disclaimer or notes section. \
                             Remove any reference to selenium documentation. \
+                            Remove any reference of 'alternative selector strategies'. \
                             Max Length of Response: 170 words. \
                             Tone: Instructive"
                     },
