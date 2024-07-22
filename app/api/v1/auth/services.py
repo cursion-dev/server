@@ -191,9 +191,10 @@ def update_user(request: object) -> object:
 
     # get request data
     email = request.data.get('email')
+    user = request.user
 
     # check if an email is already associated with a user
-    if User.objects.filter(email=email).exists():
+    if User.objects.filter(email=email).exists() and user.email != email:
         return Response(status=status.HTTP_417_EXPECTATION_FAILED)
     
     # update user email
@@ -627,6 +628,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
         slack = request.data.get('slack')
+        configs = request.data.get('configs')
         user = request.user
 
     # get kwargs data
@@ -647,6 +649,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
         slack = kwargs.get('slack')
+        configs = kwargs.get('configs')
         user_id = kwargs.get('user')
         user = User.objects.get(id=user_id)
 
@@ -689,6 +692,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.price_id = price_id
         if slack is not None:
             account.slack = slack
+        if configs is not None:
+            account.configs = configs
         
         # saving updated info
         account.save()

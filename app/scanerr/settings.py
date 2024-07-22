@@ -237,7 +237,8 @@ CONFIGS = {
     'max_wait_time': 30,
     'timeout': 300,
     'disable_animations': False,
-    'auto_height': True
+    'auto_height': True,
+    'create_issue': True
 }
 
 

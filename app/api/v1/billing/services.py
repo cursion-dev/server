@@ -300,14 +300,6 @@ def get_billing_info(request: object) -> object:
             'max_schedules': account.max_schedules,
             'retention_days': account.retention_days,
             'testcases': account.testcases,
-            'slack': {
-                'slack_name': account.slack['slack_name'], 
-                'bot_user_id': account.slack['bot_user_id'], 
-                'slack_team_id': account.slack['slack_team_id'], 
-                'bot_access_token': account.slack['bot_access_token'], 
-                'slack_channel_id': account.slack['slack_channel_id'], 
-                'slack_channel_name': account.slack['slack_channel_name'],
-            }
         },
     }
     

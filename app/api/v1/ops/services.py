@@ -395,13 +395,16 @@ def create_site(request: object, delay: bool=False) -> object:
     page_urls = request.data.get('page_urls')
     onboarding = request.data.get('onboarding', None)
     tags = request.data.get('tags', None)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     no_scan = request.data.get('no_scan', False)
     
     # gettting account
     user = request.user
     account = Member.objects.get(user=user).account
     sites = Site.objects.filter(account=account)
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # checking if in onboarding flow
     if onboarding is not None:
@@ -545,7 +548,10 @@ def crawl_site(request: object, id: str) -> object:
     account = Member.objects.get(user=user).account
 
     # setting configs
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # check account and resource
     check_data = check_account_and_resource(request=request, site_id=id, resource='site')
@@ -803,13 +809,16 @@ def create_page(request: object, delay: bool=False) -> object:
     page_url = request.data.get('page_url')
     page_urls = request.data.get('page_urls')
     tags = request.data.get('tags', None)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     no_scan = request.data.get('no_scan', False)
 
     # retrieving user, account, & site
     user = request.user
     account = Member.objects.get(user=user).account
     site = Site.objects.get(id=site_id)
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # creating many pages if page_urls was passed
     if page_urls is not None:
@@ -907,12 +916,15 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     site_id = request.data.get('site_id')
     page_urls = request.data.get('page_urls')
     tags = request.data.get('tags', None)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     no_scan = request.data.get('no_scan', False)
     
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # get site and current pages
     site = Site.objects.get(id=site_id)
@@ -1266,7 +1278,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     if request is not None:
         site_id = request.data.get('site_id')
         page_id = request.data.get('page_id')
-        configs = request.data.get('configs', settings.CONFIGS)
+        configs = request.data.get('configs', None)
         types = request.data.get('type', settings.TYPES)
         tags = request.data.get('tags')
         user = request.user
@@ -1275,7 +1287,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     if request is None:
         site_id = kwargs.get('site_id')
         page_id = kwargs.get('page_id')
-        configs = kwargs.get('configs', settings.CONFIGS)
+        configs = kwargs.get('configs', None)
         types = kwargs.get('type', settings.TYPES)
         tags = kwargs.get('tags')
         user_id = kwargs.get('user_id')
@@ -1283,6 +1295,9 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     
     # getting account
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # verifying types
     if len(types) == 0:
@@ -1386,10 +1401,14 @@ def create_many_scans(request: object) -> object:
     # get request data
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
+    account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # setting defaults
     num_succeeded = 0
@@ -1750,7 +1769,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # get data from request
     if request is not None:
-        configs = request.data.get('configs', settings.CONFIGS)
+        configs = request.data.get('configs', None)
         threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
         pre_scan_id = request.data.get('pre_scan')
         post_scan_id = request.data.get('post_scan')
@@ -1765,7 +1784,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # get data from kwargs
     if request is None:
-        configs = kwargs.get('configs', settings.CONFIGS)
+        configs = kwargs.get('configs', None)
         threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
         pre_scan_id = kwargs.get('pre_scan')
         post_scan_id = kwargs.get('post_scan')
@@ -1781,6 +1800,9 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # get account
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # verifying test_type
     if len(test_type) == 0:
@@ -1967,11 +1989,15 @@ def create_many_tests(request: object) -> object:
     # get request data
     site_ids = request.data.get('site_ids')
     page_ids = request.data.get('page_ids')
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
     types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
+    account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # setting defaults
     num_succeeded = 0
@@ -2623,7 +2649,7 @@ def create_or_update_schedule(request: object) -> object:
     task_type = request.data.get('task_type')
     test_type = request.data.get('test_type', settings.TYPES)
     scan_type = request.data.get('scan_type', settings.TYPES)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
     schedule_id = request.data.get('schedule_id')
     site_id = request.data.get('site_id')
@@ -2634,6 +2660,9 @@ def create_or_update_schedule(request: object) -> object:
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # setting defaults
     schedule = None
@@ -3855,11 +3884,14 @@ def create_auto_cases(request: object) -> object:
     start_url = request.data.get('start_url')
     max_cases = request.data.get('max_cases', 4)
     max_layers = request.data.get('max_layers', 6)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # get site if only site_url present
     if site_url is not None:
@@ -4036,11 +4068,14 @@ def create_testcase(request: object, delay: bool=False) -> object:
     case_id = request.data.get('case_id')
     site_id = request.data.get('site_id')
     updates = request.data.get('updates')
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
     
     # get user and account
     user = request.user
     account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
 
     # checking account and resource 
     check_data = check_account_and_resource(
@@ -4593,6 +4628,14 @@ def get_home_metrics(request: object) -> object:
         scan_count = scan_count + scans.count()
         schedule_count = schedule_count + schedules.count()
 
+        # getting associated pages
+        pages = Page.objects.filter(site=site)
+
+        # adding page scoped schedules 
+        for page in pages:
+            schedules = Schedule.objects.filter(page=page)
+            schedule_count = schedule_count + schedules.count()
+
     # format data
     data = {
         "sites": site_count, 
@@ -4731,10 +4774,14 @@ def create_site_screenshot(request: object) -> object:
     # get request data
     site_id = request.data.get('site_id', None)
     url = request.data.get('url', None)
-    configs = request.data.get('configs', settings.CONFIGS)
+    configs = request.data.get('configs', None)
 
     # get user
     user = request.user
+    account = Member.objects.get(user=user).account
+
+    # updating configs if None:
+    configs = account.configs if configs == None else configs
     
     # set default
     site = None

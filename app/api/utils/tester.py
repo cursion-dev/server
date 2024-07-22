@@ -917,7 +917,7 @@ class Tester():
         self.update_site_info(self.test)
 
         # create issue if failed
-        if self.test.status == 'failed':
+        if self.test.status == 'failed' and self.test.configs.get('create_issue'):
             print('generating new Issue...')
             Issuer(test=self.test).build_issue()
 
