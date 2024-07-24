@@ -788,6 +788,58 @@ def delete_many_sites(request: object) -> object:
 
 
 
+def get_sites_zapier(request: object) -> object:
+    """ 
+    Get all `Sites` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    sites = None
+    
+    # deciding on scope
+    resource = 'site'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource,
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all account assocoiated sites
+    if sites is None:
+        sites = Site.objects.filter(
+            account=account,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for site in sites:
+        data.append({
+            'id'               :  str(site.id),
+            'site_url'         :  str(site.site_url),
+            'time_created'     :  str(site.time_created),
+            'tags'             :  site.tags,
+            'info'             :  site.info,
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
 ### ------ Begin Page Services ------ ###
 
 
@@ -1032,9 +1084,6 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     
     
 
-
-
-
 def get_pages(request: object) -> object:
     """ 
     Get one or more `Pages` from either 
@@ -1251,6 +1300,68 @@ def delete_many_pages(request: object) -> object:
     }
     record_api_call(request, data, '400')
     response = Response(data, status=status.HTTP_400_BAD_REQUEST)
+    return response
+
+
+
+
+def get_pages_zapier(request: object) -> object:
+    """ 
+    Get all `Pages` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    site_id = request.query_params.get('site_id')
+    pages = None
+    
+    # deciding on scope
+    resource = 'page'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all site associated pages
+    if site_id:
+        pages = Page.objects.filter(
+            account=account,
+            site__id=site_id,
+        ).order_by('-time_created')
+
+    # get all account assocoiated pages
+    if pages is None:
+        pages = Page.objects.filter(
+            account=account,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for page in pages:
+        data.append({
+            'id'               :  str(page.id),
+            'page_url'         :  str(page.page_url),
+            'site'             :  str(page.site.id),
+            'site_url'         :  str(page.site.site_url),
+            'time_created'     :  str(page.time_created),
+            'tags'             :  page.tags,
+            'info'             :  page.info,
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
     return response
 
 
@@ -1749,6 +1860,88 @@ def delete_many_scans(request: object) -> object:
 
 
 
+def get_scans_zapier(request: object) -> object:
+    """ 
+    Get all `Scans` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    page_id = request.query_params.get('page_id')
+    site_id = request.query_params.get('site_id')
+    scans = None
+    
+    # deciding on scope
+    resource = 'scan'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, page_id=page_id, 
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all page associated scans
+    if page_id:
+        scans = Scan.objects.filter(
+            page__account=account,
+            page__id=page_id,
+        ).exclude(
+            time_completed=None,
+        ).order_by('-time_created')
+
+    # get all site associated scans
+    if site_id:
+        scans = Scan.objects.filter(
+            site__account=account,
+            site__id=site_id,
+        ).exclude(
+            time_completed=None,
+        ).order_by('-time_created')
+
+    # get all account assocoiated tests
+    if scans is None:
+        scans = Scan.objects.filter(
+            site__account=account,
+        ).exclude(
+            time_completed=None,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for scan in scans:
+        data.append({
+            'id'               :  str(scan.id),
+            'page'             :  str(scan.page.id),
+            'site'             :  str(scan.site.id),
+            'time_created'     :  str(scan.time_created),
+            'time_completed'   :  str(scan.time_completed),
+            'type'             :  scan.type,
+            'html'             :  scan.html,
+            'logs'             :  scan.logs,
+            'images'           :  scan.images,
+            'lighthouse'       :  scan.lighthouse,
+            'yellowlab'        :  scan.yellowlab,
+            'configs'          :  scan.configs,
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
 ### ------ Begin Test Services ------ ###
 
 
@@ -2155,7 +2348,7 @@ def get_test(request: object, id: str) -> object:
 
     # check account and resource
     check_data = check_account_and_resource(request=request, 
-        test_id=id, resource='scan'
+        test_id=id, resource='test'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2346,6 +2539,94 @@ def delete_many_tests(request: object) -> object:
     }
     record_api_call(request, data, '400')
     response = Response(data, status=status.HTTP_400_BAD_REQUEST)
+    return response
+
+
+
+
+def get_tests_zapier(request: object) -> object:
+    """ 
+    Get all `Tests` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    page_id = request.query_params.get('page_id')
+    site_id = request.query_params.get('site_id')
+    tests = None
+    
+    # deciding on scope
+    resource = 'test'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, page_id=page_id, 
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all page associated tests
+    if page_id:
+        tests = Test.objects.filter(
+            page__account=account,
+            page__id=page_id,
+        ).exclude(
+            time_completed=None,
+            pre_scan=None,
+            post_scan=None,
+        ).order_by('-time_created')
+
+    # get all site associated tests
+    if site_id:
+        tests = Test.objects.filter(
+            site__account=account,
+            site__id=site_id,
+        ).exclude(
+            time_completed=None,
+            pre_scan=None,
+            post_scan=None,
+        ).order_by('-time_created')
+
+    # get all account assocoiated tests
+    if tests is None:
+        tests = Test.objects.filter(
+            site__account=account,
+        ).exclude(
+            time_completed=None,
+            pre_scan=None,
+            post_scan=None,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for test in tests:
+        data.append({
+            'id'               :  str(test.id),
+            'page'             :  str(test.page.id),
+            'site'             :  str(test.site.id),
+            'pre_scan'         :  str(test.pre_scan.id) if test.pre_scan else None,
+            'post_scan'        :  str(test.post_scan.id) if test.post_scan else None,
+            'time_created'     :  str(test.time_created),
+            'time_completed'   :  str(test.time_completed),
+            'type'             :  test.type,
+            'status'           :  str(test.status),
+            'score'            :  test.status,
+            'threshold'        :  test.threshold,
+            'component_scores' :  test.component_scores,
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
     return response
 
 
@@ -2618,6 +2899,78 @@ def delete_issue(request: object, id: str) -> object:
     # return response
     data = {'message': 'Issue has been deleted',}
     record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_issues_zapier(request: object) -> object:
+    """ 
+    Get all `Issues` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    page_id = request.query_params.get('page_id')
+    site_id = request.query_params.get('site_id')
+    issues = None
+    
+    # deciding on scope
+    resource = 'issue'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, page_id=page_id,
+        site_id=site_id
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get all page associated issues
+    if page_id:
+        issues = Issue.objects.filter(
+            account=account,
+            affected__icontains=page_id,
+        ).order_by('-time_created')
+
+    # get all site associated issues
+    if site_id:
+        issues = Issue.objects.filter(
+            account=account,
+            affected__icontains=site_id,
+        ).order_by('-time_created')
+
+    # get all account assocoiated issues
+    if issues is None:
+        issues = Issue.objects.filter(
+            account=account
+        ).order_by('status', '-time_created')
+
+    # build response data
+    data = []
+
+    for issue in issues:
+        data.append({
+            'id'            :  str(issue.id),
+            'title'         :  str(issue.title),
+            'time_created'  :  str(issue.time_created),
+            'details'       :  str(issue.details),
+            'trigger'       :  issue.trigger,
+            'affected'      :  issue.affected,
+            'labels'        :  issue.labels,
+            'status'        :  str(issue.status),
+        })
+
+    # serialize and return
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
@@ -4280,6 +4633,64 @@ def delete_testcase(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Testcase has been deleted',}
+    record_api_call(request, data, '200')
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_testcases_zapier(request: object) -> object:
+    """ 
+    Get all `Testcases` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    testcases = None
+    
+    # deciding on scope
+    resource = 'testcase'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all account assocoiated testcases
+    if testcases is None:
+        testcases = Testcase.objects.filter(
+            account=account,
+        ).exclude(
+            time_completed=None,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for testcase in testcases:
+        data.append({
+            'id'              :  str(testcase.id),
+            'case'            :  str(testcase.case.id),
+            'case_name'       :  str(testcase.case_name),
+            'site'            :  str(testcase.site.id),
+            'time_created'    :  str(testcase.time_created),
+            'time_completed'  :  str(testcase.time_completed),
+            'configs'         :  testcase.configs,
+            'passed'          :  str(testcase.passed),
+        })
+
+    # serialize and return
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response

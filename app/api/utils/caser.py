@@ -586,7 +586,7 @@ class Caser():
         )
         quit_driver(driver=self.driver)
         print('-- testcase run complete --')
-
+        
         if not self.testcase.passed and self.testcase.configs.get('create_issue'):
             print('generating new Issue...')
             Issuer(testcase=self.testcase).build_issue()
@@ -885,7 +885,7 @@ class Caser():
         await self.driver.close()
         print('-- testcase run complete --')
 
-        if not self.testcase.passed and self.test.configs.get('create_issue'):
+        if not self.testcase.passed and self.testcase.configs.get('create_issue'):
             print('generating new Issue...')
             Issuer(testcase=self.testcase).build_issue()
 

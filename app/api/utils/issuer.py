@@ -146,7 +146,7 @@ class Issuer():
             intro = str(
                 f'[Test](/{trigger["type"]}/{trigger["id"]}) failed for the page ' + 
                 f'[{affected["str"]}](/{affected["type"]}/{affected["id"]}) ' + 
-                f'based on the set threshold of {round(self.test.threshold, 2)}%.\n\n\n'
+                f'based on the set threshold of **{round(self.test.threshold, 2)}%**.\n\n\n'
             )
 
             # build main_issue
@@ -241,6 +241,7 @@ class Issuer():
                             Format with markdown. \
                             Format each recommendation as a markdown task. \
                             Omit the title or header in your response. \
+                            Omit any links in your response. \
                             Remove any disclaimer or notes section. \
                             Remove any reference to selenium documentation. \
                             Remove any reference of 'alternative selector strategies'. \

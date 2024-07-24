@@ -300,6 +300,7 @@ def get_billing_info(request: object) -> object:
             'max_schedules': account.max_schedules,
             'retention_days': account.retention_days,
             'testcases': account.testcases,
+            'meta': account.meta
         },
     }
     
