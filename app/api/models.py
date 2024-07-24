@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from datetime import datetime
 from django.contrib.postgres.fields import JSONField
+from scanerr import settings
 import uuid
 
 
@@ -249,6 +250,13 @@ def get_tags_default():
 
 
 
+def get_default_configs():
+    configs = settings.CONFIGS
+    return configs
+
+
+
+
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -270,6 +278,7 @@ class Account(models.Model):
     price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     interval = models.CharField(max_length=50, serialize=True, null=True, blank=True, default='month')
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
+    configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
     meta = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
@@ -507,7 +516,7 @@ class Automation(models.Model):
     actions = models.JSONField(serialize=True, null=True, blank=True, default=get_actions_default)
 
     def __str__(self):
-        return f'{self.name}'
+        return f'{self.id}'
 
 
 

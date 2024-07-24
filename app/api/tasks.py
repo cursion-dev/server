@@ -293,6 +293,7 @@ def create_scan(
     # run scan and automation if necessary
     scan = S(scan=created_scan, configs=configs).build_scan()
     if automation_id:
+        print('running automation from `task.create_scan`')
         Automater(automation_id, scan.id).run_automation()
     
     logger.info('Created new scan of site')
@@ -461,6 +462,7 @@ def run_test(self, test_id: str, automation_id: str=None) -> None:
     # execute test
     test = T(test=test).run_test()
     if automation_id:
+        print('running automation from `task.run_test`')
         automater(automation_id, test.id)
 
     logger.info('Test completed')
@@ -481,6 +483,7 @@ def create_test(
         pre_scan: str=None,
         post_scan: str=None,
         tags: list=None,
+        threshold: float=settings.TEST_THRESHOLD,
     ) -> None:
     """ 
     Creates a `post_scan` if necessary, waits for completion,
@@ -496,6 +499,7 @@ def create_test(
         pre_scan      : str,
         post_scan     : str,
         tags          : list,
+        threshold     : float,
     }
     
     Returns -> None
@@ -512,6 +516,8 @@ def create_test(
             page=page,
             type=type,
             tags=tags,
+            threshold=float(threshold),
+            status='working'
         )
 
     # get pre_ & post_ scans
@@ -574,6 +580,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
         automation_id : str
         pre_scan      : str
         post_scan     : str
+        threshold     : float
     }
     
     Returns -> None
@@ -586,6 +593,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
     type = kwargs.get('type')
     configs = kwargs.get('configs')
     tags = kwargs.get('tags')
+    threshold = kwargs.get('threshold')
     automation_id = kwargs.get('automation_id')
     pre_scan = kwargs.get('pre_scan')
     post_scan = kwargs.get('post_scan')
@@ -606,6 +614,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                 type=type,
                 configs=configs,
                 tags=tags,
+                threshold=float(threshold),
                 pre_scan=pre_scan,
                 post_scan=post_scan,
                 automation_id=automation_id
@@ -620,6 +629,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
             type=type,
             configs=configs,
             tags=tags,
+            threshold=float(threshold),
             pre_scan=pre_scan,
             post_scan=post_scan,
             automation_id=automation_id

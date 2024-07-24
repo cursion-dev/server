@@ -75,6 +75,7 @@ class GetResetLink(APIView):
 
     def post(self, request): 
         response = send_reset_email(request)
+        return response
 
 
 

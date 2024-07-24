@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.middleware import get_user
 from django.contrib.auth.password_validation import validate_password
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
@@ -83,7 +84,8 @@ def register_user(request: object) -> object:
                 username=username,
                 email=username,
                 first_name=first_name,
-                last_name=last_name
+                last_name=last_name,
+                last_login=timezone.now()
             )
 
             # setting password
@@ -155,6 +157,9 @@ def login_user(request: object) -> object:
 
             # get API token
             api_token = Token.objects.get(user=user)
+
+            # update user last_login
+            user.last_login = timezone.now()
             
             # returning data
             data = {
@@ -186,9 +191,10 @@ def update_user(request: object) -> object:
 
     # get request data
     email = request.data.get('email')
+    user = request.user
 
     # check if an email is already associated with a user
-    if User.objects.filter(email=email).exists():
+    if User.objects.filter(email=email).exists() and user.email != email:
         return Response(status=status.HTTP_417_EXPECTATION_FAILED)
     
     # update user email
@@ -295,12 +301,16 @@ def jwt_login(*, user: object) -> str:
     # setting user active
     is_active = str(user.is_active).lower()
 
+    # update user last_login
+    user.last_login = timezone.now()
+    user.save()
+
     # building params for redirect
     param_string = str(
         '?access='+str(access)+'&refresh='+str(refresh)+
         '&username='+str(user.username)+'&id='+str(user.id)+
         '&email='+str(user.email)+'&is_active='+str(is_active)+
-        '&created='+str(user.date_joined)+'&updated='+str(user.last_login)+
+        '&created='+str(user.date_joined)+'&updated='+str(timezone.now())+
         '&api_token='+str(api_token.key)
     )
 
@@ -347,6 +357,7 @@ def get_or_create_user(email: str,  **extra_fields) -> object:
     user = User.objects.create(
         username=email, 
         email=email, 
+        last_login=timezone.now(),
         **extra_fields
     )
 
@@ -617,6 +628,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
         slack = request.data.get('slack')
+        configs = request.data.get('configs')
         user = request.user
 
     # get kwargs data
@@ -637,6 +649,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
         slack = kwargs.get('slack')
+        configs = kwargs.get('configs')
         user_id = kwargs.get('user')
         user = User.objects.get(id=user_id)
 
@@ -679,6 +692,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.price_id = price_id
         if slack is not None:
             account.slack = slack
+        if configs is not None:
+            account.configs = configs
         
         # saving updated info
         account.save()

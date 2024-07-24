@@ -213,6 +213,10 @@ GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
 GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
 
 
+# OpenAI's GPT API key
+GPT_API_KEY = os.environ.get('GPT_API_KEY')
+
+
 # Stripe keys
 if os.environ.get('STRIPE_ENV') == 'prod':
     STRIPE_PUBLIC = os.environ.get('STRIPE_PUBLIC_LIVE')
@@ -233,12 +237,13 @@ CONFIGS = {
     'max_wait_time': 30,
     'timeout': 300,
     'disable_animations': False,
-    'auto_height': True
+    'auto_height': True,
+    'create_issue': True
 }
 
 
 # Global Test.threshold
-TEST_THRESHOLD = 101
+TEST_THRESHOLD = 95
 
 
 # Global Scan & Test types

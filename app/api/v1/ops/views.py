@@ -89,6 +89,17 @@ class SitesDelete(APIView):
 
 
 
+class SitesZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_sites_zapier(request)
+        return response
+
+
+
+
 ### ------ Begin Page Views ------ ###
 
 
@@ -142,6 +153,17 @@ class PagesDelete(APIView):
 
     def post(self, request):
         response = delete_many_pages(request)
+        return response
+
+
+
+
+class PagesZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_pages_zapier(request)
         return response
 
 
@@ -228,6 +250,17 @@ class ScansDelete(APIView):
 
 
 
+class ScansZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_scans_zapier(request)
+        return response
+
+
+
+
 ### ------ Begin Test Views ------ ###
 
 
@@ -304,6 +337,18 @@ class TestsDelete(APIView):
     def post(self, request):
         response = delete_many_tests(request)
         return response
+
+
+
+
+class TestsZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_tests_zapier(request)
+        return response
+
 
 
 
@@ -537,6 +582,17 @@ class TestcaseDetail(APIView):
 
 
 
+class TestcasesZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_testcases_zapier(request)
+        return response
+
+
+
+
 ### ------ Begin Issue Views ------ ###
 
 
@@ -557,6 +613,17 @@ class Issues(APIView):
 
 
 
+class IssuesSearch(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = search_issues(request)
+        return response
+
+
+
+
 class IssueDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
@@ -567,6 +634,17 @@ class IssueDetail(APIView):
 
     def delete(self, request, id):
         response = delete_issue(request, id)        
+        return response
+
+
+
+
+class IssuesZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_issues_zapier(request)
         return response
 
 

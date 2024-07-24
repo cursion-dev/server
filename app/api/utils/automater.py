@@ -39,7 +39,7 @@ class Automater():
         Tries to get the focus object from self.object - if found 
         will set self.object and self.use_exp
 
-        Returns -> bool
+        Returns -> bool or object
         """
 
         if self.automation.schedule.task_type == 'scan':
@@ -94,7 +94,7 @@ class Automater():
             value = str(expression['value'])
 
             # getting data
-            if self.object == None:
+            if self.object:
                 
                 # get comparison value
                 value = str(float(re.search(r'\d+', str(expression['value'])).group()))
@@ -265,7 +265,7 @@ class Automater():
                     object_id='{str(self.object_id)}')"
 
             # adding action to act_list
-            self.act_list.append(act)
+            self.act_list.append(action_type)
 
 
 
@@ -273,13 +273,13 @@ class Automater():
     def run_automation(self) -> None:
 
         # get object data
-        proceed = self.get_object()
+        self.get_object()
 
         # setting default
         exp_string = '1 == 1'
 
         # if obj was retrieved
-        if proceed:
+        if self.object:
 
             # build expression if self.use_exp
             if self.use_exp:
