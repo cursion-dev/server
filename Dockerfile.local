@@ -1,7 +1,19 @@
+# pull main ubuntu image and set platform to linux/amd64
 FROM --platform=linux/amd64 ubuntu:latest
-ENV DOCKER_DEFAULT_PLATFORM linux/amd64 
+ENV DOCKER_DEFAULT_PLATFORM linux/amd64
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
+
+# increasing allocated memory to node
+ENV NODE_OPTIONS=--max_old_space_size=7000
+ENV NODE_OPTIONS="--max-old-space-size=7000"
+
+# telling Puppeteer to skip installing Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
+
+# telling phantomas where Chrome binary is and that we're in docker
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
+ENV DOCKERIZED=yes
 
 # create the app user
 RUN groupadd --system app & useradd --system app 
@@ -28,20 +40,8 @@ RUN rm google-chrome-stable_current_amd64.deb
 # begin npm portion
 RUN npm cache clean --force
 
-# increasing allocated memory to node
-RUN export NODE_OPTIONS="--max-old-space-size=4096"
-ENV NODE_OPTIONS=--max_old_space_size=7000
-ENV NODE_OPTIONS="--max-old-space-size=7000"
-
 # installing lighthouse & yellowlabtools
 RUN npm install -g lighthouse lighthouse-plugin-crux lodash
-
-# telling Puppeteer to skip installing Chrome
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
-
-# telling phantomas where Chrome binary is and that we're in docker
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome-stable
-ENV DOCKERIZED yes
 
 # setting --no-sandbox for Phantomas 
 RUN google-chrome-stable --no-sandbox --version

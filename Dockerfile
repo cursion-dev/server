@@ -3,16 +3,20 @@ FROM python:3.9-slim
 ENV PYTHONUNBUFFERED 1
 
 # increasing allocated memory to node
-ENV NODE_OPTIONS --max_old_space_size=20000
-ENV NODE_OPTIONS "--max-old-space-size=20000"
-ENV GENERATE_SOURCEMAP false
+ENV NODE_OPTIONS=--max_old_space_size=20000
+ENV NODE_OPTIONS="--max-old-space-size=20000"
+ENV GENERATE_SOURCEMAP=false
 
 # telling Puppeteer to skip installing Chrome
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
 
 # telling phantomas where Chrome binary is and that we're in docker
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/chromium
-ENV DOCKERIZED yes
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/chromium
+ENV DOCKERIZED=yes
+
+# Set up the Chromium environment
+ENV XDG_CONFIG_HOME=/tmp/.chromium
+ENV XDG_CACHE_HOME=/tmp/.chromium
 
 # create the app user
 RUN addgroup --system app && adduser --system app 
@@ -43,10 +47,6 @@ RUN chromium --disable-dev-shm-usage  --version
 # installing requirements
 COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3 -m pip install -r /requirements.txt
-
-# Set up the Chromium environment
-ENV XDG_CONFIG_HOME /tmp/.chromium
-ENV XDG_CACHE_HOME /tmp/.chromium
 
 # removing chromium config
 RUN rm -rf ~/.config/chromium
