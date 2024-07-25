@@ -761,7 +761,6 @@ def get_account(request: object) -> object:
     serializer_context = {'request': request,}
     serialized = AccountSerializer(account, context=serializer_context)
     data = serialized.data
-    record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
 
 

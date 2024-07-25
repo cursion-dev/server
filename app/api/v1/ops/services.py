@@ -1387,8 +1387,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # get request data
     if request is not None:
-        site_id = request.data.get('site_id')
-        page_id = request.data.get('page_id')
+        site_id = request.data.get('site_id', '')
+        page_id = request.data.get('page_id', '')
         configs = request.data.get('configs', None)
         types = request.data.get('type', settings.TYPES)
         tags = request.data.get('tags')
@@ -1396,8 +1396,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     
     # getting kwargs data
     if request is None:
-        site_id = kwargs.get('site_id')
-        page_id = kwargs.get('page_id')
+        site_id = kwargs.get('site_id', '')
+        page_id = kwargs.get('page_id', '')
         configs = kwargs.get('configs', None)
         types = kwargs.get('type', settings.TYPES)
         tags = kwargs.get('tags')
@@ -1409,6 +1409,10 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
+
+    # checking args
+    site_id = site_id if len(site_id) > 0 else None
+    page_id = page_id if len(page_id) > 0 else None
 
     # verifying types
     if len(types) == 0:
@@ -1971,8 +1975,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
         tags = request.data.get('tags')
         pre_scan = None
         post_scan = None
-        site_id = request.data.get('site_id')
-        page_id = request.data.get('page_id')
+        site_id = request.data.get('site_id', '')
+        page_id = request.data.get('page_id', '')
         user = request.user
 
     # get data from kwargs
@@ -1986,8 +1990,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
         tags = kwargs.get('tags')
         pre_scan = None
         post_scan = None
-        site_id = kwargs.get('site_id')
-        page_id = kwargs.get('page_id')
+        site_id = kwargs.get('site_id', '')
+        page_id = kwargs.get('page_id', '')
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
 
@@ -2000,6 +2004,10 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # verifying test_type
     if len(test_type) == 0:
         test_type = settings.TYPES
+
+    # checking args
+    site_id = site_id if len(site_id) > 0 else None
+    page_id = page_id if len(page_id) > 0 else None
 
     # deciding on scope
     resource = 'site' if site_id else 'page'
