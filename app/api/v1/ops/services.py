@@ -2550,7 +2550,7 @@ def get_tests_zapier(request: object) -> object:
             'time_completed'   :  str(test.time_completed),
             'type'             :  test.type,
             'status'           :  str(test.status),
-            'score'            :  test.status,
+            'score'            :  test.score,
             'threshold'        :  test.threshold,
             'component_scores' :  test.component_scores,
         })
