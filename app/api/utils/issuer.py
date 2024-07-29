@@ -91,9 +91,9 @@ class Issuer():
 
             # build intro
             intro = str(
-                f'Testcase [{self.testcase.case_name}](/{trigger["type"]}/{trigger["id"]})' + 
+                f'Testcase [{self.testcase.case_name}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
                 f' failed on **Step {step_index}**, `{failed_step["action"]["type"]}`.\n\n\n' +
-                f' **Affected Site:** [{affected["str"]}](/{affected["type"]}/{affected["id"]})\n\n\n'
+                f' **Affected Site:** [{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]})\n\n\n'
             )
             
             # build main_issue
@@ -145,7 +145,7 @@ class Issuer():
             # build intro
             intro = str(
                 f'[Test](/{trigger["type"]}/{trigger["id"]}) failed for the page ' + 
-                f'[{affected["str"]}](/{affected["type"]}/{affected["id"]}) ' + 
+                f'[{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]}) ' + 
                 f'based on the set threshold of **{round(self.test.threshold, 2)}%**.\n\n\n'
             )
 
@@ -163,6 +163,9 @@ class Issuer():
                 f'\n\n### Recommendations:\n' +
                 f'{response}'
             )
+        
+        # clean recommendation
+        recommendation = recommendation.replace('localhost', 'app.scanerr.io')
 
         # build details from components
         details = intro + main_issue + recommendation

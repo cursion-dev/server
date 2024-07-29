@@ -2550,7 +2550,7 @@ def get_tests_zapier(request: object) -> object:
             'time_completed'   :  str(test.time_completed),
             'type'             :  test.type,
             'status'           :  str(test.status),
-            'score'            :  test.status,
+            'score'            :  test.score,
             'threshold'        :  test.threshold,
             'component_scores' :  test.component_scores,
         })
@@ -4621,7 +4621,6 @@ def get_testcases_zapier(request: object) -> object:
         })
 
     # serialize and return
-    record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
