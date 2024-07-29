@@ -201,7 +201,7 @@ class Issuer():
         # initializing
         recommendation = ''
 
-        # building recomendation
+        # building recommendation
         # for self.test
         if self.test:
             
@@ -226,7 +226,7 @@ class Issuer():
                 ]
             ).choices[0].message.content
         
-        # building recomendation
+        # building recommendation
         # for self.testcase
         if self.testcase:
 

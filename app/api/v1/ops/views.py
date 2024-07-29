@@ -56,17 +56,6 @@ class SiteDetail(APIView):
 
 
 
-class SiteDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):
-        response = create_site(request, delay=True)
-        return response
-
-
-
-
 class SiteCrawl(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
@@ -131,17 +120,6 @@ class PageDetail(APIView):
 
     def delete(self, request, id):
         response = delete_page(request, id)
-        return response
-
-
-
-
-class PageDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):
-        response = create_page(request, delay=True)
         return response
 
 
@@ -212,17 +190,6 @@ class ScanLean(APIView):
 
     def get(self, request, id):
         response = get_scan_lean(request, id)
-        return response
-
-
-
-
-class ScanDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):
-        response = create_scan(request, delay=True)
         return response
 
 
@@ -303,17 +270,6 @@ class TestLean(APIView):
 
     def get(self, request, id):
         response = get_test_lean(request, id)
-        return response
-
-
-
-
-class TestDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):
-        response = create_test(request, delay=True)
         return response
 
 
@@ -551,17 +507,6 @@ class Testcases(APIView):
     
     def get(self, request):
         response = get_testcases(request)
-        return response
-
-
-
-
-class TestcaseDelay(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-
-    def post(self, request):
-        response = create_testcase(request, delay=True)
         return response
 
 

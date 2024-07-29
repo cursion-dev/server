@@ -463,63 +463,36 @@ def create_site(request: object, delay: bool=False) -> object:
     # check if scan requested
     if no_scan == False:
 
-        # check if delay was requested
-        if delay == True:
-
-            # adding pages passed in request
-            if page_urls is not None:
-                for url in page_urls:
-                    if url.startswith(site.site_url):
-                        # add new page
-                        page = Page.objects.create(
-                            site=site,
-                            page_url=url,
-                            user=site.user,
-                            account=site.account,
-                        )
-                        # create scan
-                        create_scan(
-                            page_id=page.id, 
-                            configs=configs, 
-                            user_id=request.user.id,
-                            delay=True
-                        )
-                        site.time_crawl_started = datetime.now()
-                        site.time_crawl_completed = datetime.now()
-                        site.info["latest_scan"]["time_created"] = str(datetime.now())
-                        site.save()
-            
-            # starting crawler and scans in background
-            else:
-                create_site_and_pages_bg.delay(
-                    site_id=site.id, 
-                    configs=configs
-                )
-            
+        # adding pages passed in request
+        if page_urls is not None:
+            for url in page_urls:
+                if url.startswith(site.site_url):
+                    # add new page
+                    page = Page.objects.create(
+                        site=site,
+                        page_url=url,
+                        user=site.user,
+                        account=site.account,
+                    )
+                    # create scan
+                    create_scan(
+                        page_id=page.id, 
+                        configs=configs, 
+                        user_id=request.user.id,
+                        delay=True
+                    )
+                    site.time_crawl_started = datetime.now()
+                    site.time_crawl_completed = datetime.now()
+                    site.info["latest_scan"]["time_created"] = str(datetime.now())
+                    site.save()
+        
+        # starting crawler and scans in background
         else:
-            # running crawler
-            pages = Crawler(url=site.site_url, max_urls=account.max_pages).get_links()
-            for url in pages:
-                # add new page
-                page = Page.objects.create(
-                    site=site,
-                    page_url=url,
-                    user=site.user,
-                    account=site.account,
-                )
-                # create initial scan
-                scan = Scan.objects.create(
-                    site=site,
-                    page=page, 
-                    type=settings.TYPES,
-                    configs=configs
-                )
-                # run each scan component
-                S(site=site, page=page, configs=configs).build_scan()
-                page.info["latest_scan"]["id"] = str(scan.id)
-                page.info["latest_scan"]["time_created"] = str(scan.time_created)
-                page.save()
-                
+            create_site_and_pages_bg.delay(
+                site_id=site.id, 
+                configs=configs
+            )
+            
     # serialize response and return
     serializer_context = {'request': request,}
     serialized = SiteSerializer(site, context=serializer_context)
@@ -923,23 +896,9 @@ def create_page(request: object, delay: bool=False) -> object:
         page.info["latest_scan"]["time_created"] = str(scan.time_created)
         page.save()
 
-        if delay == True:
-            # running scan in background
-            scan_page_bg.delay(scan_id=scan.id, configs=configs)
+        # running scan in background
+        scan_page_bg.delay(scan_id=scan.id, configs=configs)
 
-        else:
-            # create initial scan
-            scan = Scan.objects.create(
-                site=site,
-                page=page, 
-                type=settings.TYPES,
-                configs=configs
-            )
-            # run each scan component
-            S(site=site, page=page, configs=configs).build_scan()
-            page.info["latest_scan"]["id"] = str(scan.id)
-            page.info["latest_scan"]["time_created"] = str(scan.time_created)
-            page.save()
             
     # serialize response and return
     serializer_context = {'request': request,}
@@ -1411,6 +1370,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     configs = account.configs if configs == None else configs
 
     # checking args
+    site_id = '' if site_id is None else site_id
+    page_id = '' if page_id is None else page_id
     site_id = site_id if len(site_id) > 0 else None
     page_id = page_id if len(page_id) > 0 else None
 
@@ -1472,20 +1433,16 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         p.info['latest_scan']['id'] = str(created_scan.id)
         p.save()
 
-        if delay == True:
-            # running scans in parallel 
-            if 'html' in types or 'logs' in types or 'full' in types:
-                run_html_and_logs_bg.delay(scan_id=created_scan.id)
-            if 'lighthouse' in types or 'full' in types:
-                run_lighthouse_bg.delay(scan_id=created_scan.id)
-            if 'yellowlab' in types or 'full' in types:
-                run_yellowlab_bg.delay(scan_id=created_scan.id)
-            if 'vrt' in types or 'full' in types:
-                run_vrt_bg.delay(scan_id=created_scan.id)
-        else:
-            # running scan synchronously
-            S(scan=created_scan, configs=configs).build_scan()
-            message = 'Scans have completed running'
+        # running scans components in parallel 
+        if 'html' in types or 'logs' in types or 'full' in types:
+            run_html_and_logs_bg.delay(scan_id=created_scan.id)
+        if 'lighthouse' in types or 'full' in types:
+            run_lighthouse_bg.delay(scan_id=created_scan.id)
+        if 'yellowlab' in types or 'full' in types:
+            run_yellowlab_bg.delay(scan_id=created_scan.id)
+        if 'vrt' in types or 'full' in types:
+            run_vrt_bg.delay(scan_id=created_scan.id)
+    
 
     # returning dynaminc response
     data = {
@@ -2006,6 +1963,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
         test_type = settings.TYPES
 
     # checking args
+    site_id = '' if site_id is None else site_id
+    page_id = '' if page_id is None else page_id
     site_id = site_id if len(site_id) > 0 else None
     page_id = page_id if len(page_id) > 0 else None
 
@@ -2110,56 +2069,19 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
         # add test.id to list
         created_tests.append(str(test.id))
 
-        if delay == True:
-            # running test in background
-            create_test_bg.delay(
-                page_id=p.id,
-                test_id=test.id,
-                configs=configs,
-                type=test_type,
-                index=index,
-                pre_scan=pre_scan_id, 
-                post_scan=post_scan_id,
-                tags=tags,
-                threshold=float(threshold),
-            )
-            message = 'Tests are being created in the background'
-
-        # run with no delay  
-        else:
-            # getting pre_scan and building post_scan
-            if not pre_scan and not post_scan:
-                if scan.objects.filter(page=p).exists():
-                    pre_scan = Scan.objects.filter(page=p).order_by('-time_created')[0]
-                    post_scan = S(site=p.site, page=p, configs=configs, type=test_type).build_scan()
-                else:
-                    data = {'reason': 'no pre_scan available', 'success': False,}
-                    print(data)
-                    if request is not None:
-                        record_api_call(request, data, '400')
-                        return Response(data, status=status.HTTP_400_BAD_REQUEST)
-                    return data
-
-            # building post_scan
-            if not post_scan and pre_scan:
-                post_scan = S(site=p.site, page=p, configs=configs, type=test_type).build_scan()
-
-            # updating parired scans
-            pre_scan.paired_scan = post_scan
-            post_scan.paried_scan = pre_scan
-            pre_scan.save()
-            post_scan.save()
-
-            # updating test object
-            test.type = test_type
-            test.type = test_type
-            test.pre_scan = pre_scan
-            test.post_scan = post_scan
-            test.save()
-
-            # running tester
-            updated_test = T(test=test).run_test(index=index)
-            message = 'Tests have completed running'
+        # running test in background
+        create_test_bg.delay(
+            page_id=p.id,
+            test_id=test.id,
+            configs=configs,
+            type=test_type,
+            index=index,
+            pre_scan=pre_scan_id, 
+            post_scan=post_scan_id,
+            tags=tags,
+            threshold=float(threshold),
+        )
+        message = 'Tests are being created in the background'
 
     # returning dynaminc response
     data = {
