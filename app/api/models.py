@@ -94,6 +94,7 @@ def get_lh_delta_default():
             "average_delta" : None,
             "current_average": None, 
         },
+        "audits": None
     }
     return lh_delta_default
 
@@ -115,6 +116,7 @@ def get_yl_delta_default():
             "fonts_delta": None,
             "serverConfig_delta": None, 
         },
+        "audits": None
     }
     return yl_delta_default
 
