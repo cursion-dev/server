@@ -30,6 +30,7 @@ urlpatterns = [
     path('case/search', views.CasesSearch.as_view(), name='case-search'),
     path('case/auto', views.AutoCases.as_view(), name='case-auto'),
     path('case/copy', views.CopyCases.as_view(), name='case-copy'),
+    path('cases/zapier', views.CasesZapier.as_view(), name='cases-zapier'),
     path('testcase', views.Testcases.as_view(), name='testcase'),
     path('testcase/<uuid:id>', views.TestcaseDetail.as_view(), name='testcase-detail'),
     path('testcases/zapier', views.TestcasesZapier.as_view(), name='testcases-zapier'),

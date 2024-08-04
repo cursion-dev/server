@@ -492,6 +492,17 @@ class CopyCases(APIView):
 
 
 
+class CasesZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_cases_zapier(request)
+        return response
+
+
+
+
 ### ------ Begin Testcase Views ------ ###
 
 

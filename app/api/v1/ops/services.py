@@ -4330,6 +4330,70 @@ def delete_case(request: object, id: str) -> object:
 
 
 
+def get_cases_zapier(request: object) -> object:
+    """ 
+    Get all `Cases` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    account = Member.objects.get(user=request.user).account
+    site_id = request.query_params.get('site_id')
+    cases = None
+    
+    # deciding on scope
+    resource = 'case'
+
+    # check account and resource 
+    check_data = check_account_and_resource(
+        user=request.user, resource=resource, site_id=site_id,
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get all site_id associated cases
+    if site_id:
+        site = Site.objects.get(id=site_id)
+        cases = Case.objects.filter(
+            account=account,
+            site=site
+        ).order_by('-time_created')
+
+
+    # get all account assocoiated cases
+    if cases is None:
+        cases = Case.objects.filter(
+            account=account,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for case in cases:
+        data.append({
+            'id'              :  str(case.id),
+            'name'            :  case.name,
+            'time_created'    :  str(case.time_created),
+            'site'            :  str(case.site.id),
+            'site_url'        :  case.site_url,
+            'steps'           :  case.steps,
+            'tags'            :  case.tags
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
 ### ------ Begin Testcase Services ------ ###
 
 
