@@ -2697,19 +2697,19 @@ def get_issues(request: object) -> object:
         issues = Issue.objects.filter(
             affected__icontains={'id': page_id}, 
             account=account
-        ).order_by('status', '-time_created')
+        ).order_by('-status', '-time_created')
     # get all issues scoped page if page_id passed
     if site_id is not None:
         issues = Issue.objects.filter(
             affected__icontains={'id': site_id}, 
             account=account
-        ).order_by('status', '-time_created')
+        ).order_by('-status', '-time_created')
     
     # get all account assocoiated issues
     if issues is None:
         issues = Issue.objects.filter(
             account=account
-        ).order_by('status', '-time_created')
+        ).order_by('-status', '-time_created')
 
     # serialize and return
     paginator = LimitOffsetPagination()
@@ -2783,7 +2783,7 @@ def search_issues(request: object) -> object:
         Q(account=account, title__icontains=query) |
         Q(account=account, details__icontains=query) |
         Q(account=account, affected__icontains={'str':query})
-    ).order_by('status', '-time_created')
+    ).order_by('-status', '-time_created')
     
     # serialize and rerturn
     paginator = LimitOffsetPagination()
@@ -2870,20 +2870,20 @@ def get_issues_zapier(request: object) -> object:
         issues = Issue.objects.filter(
             account=account,
             affected__icontains=page_id,
-        ).order_by('-time_created')
+        ).order_by('-status','-time_created')
 
     # get all site associated issues
     if site_id:
         issues = Issue.objects.filter(
             account=account,
             affected__icontains=site_id,
-        ).order_by('-time_created')
+        ).order_by('-status', '-time_created')
 
     # get all account assocoiated issues
     if issues is None:
         issues = Issue.objects.filter(
             account=account
-        ).order_by('status', '-time_created')
+        ).order_by('-status', '-time_created')
 
     # build response data
     data = []
