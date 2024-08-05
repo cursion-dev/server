@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from .driver_s import *
+from .driver import *
 
 
 
@@ -93,10 +93,20 @@ class Crawler():
                     if url_is_valid(url):
                         if url.startswith('/'):
                             url = self.url + url
+                        
                         # check status of page
-                        req_status = requests.get(url).status_code
-                        bad_status = [404, 500, 301]
-                        if not (req_status in bad_status):
+                        self.driver.get(url)
+                        # wait for page to load
+                        driver_wait(
+                            driver=self.driver,
+                            max_wait_time=20, 
+                            interval=2
+                        )
+                        
+                        # req_status = requests.get(url).status_code
+                        # bad_status = [404, 500, 301]
+
+                        if self.driver.current_url == url:
                             if url.endswith('/'):
                                 url = url.rstrip('/')
                             if not (url in follow_urls):

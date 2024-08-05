@@ -8,8 +8,7 @@ then
   python3 manage.py migrate --no-input &&
   python3 manage.py collectstatic --no-input &&
   python3 manage.py create_admin &&
-  python3 manage.py driver_s_test &&
-  python3 manage.py driver_p_test &&
+  python3 manage.py driver_test &&
   python3 manage.py runserver 0.0.0.0:8000
 fi
 

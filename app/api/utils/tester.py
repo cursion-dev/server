@@ -860,7 +860,7 @@ class Tester():
         if 'vrt' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
-                images_data = Imager().test(test=self.test, index=index)
+                images_data = Imager().test_vrt(test=self.test, index=index)
                 if images_data['average_score'] != None:
                     images_score = images_data['average_score'] / 100
 

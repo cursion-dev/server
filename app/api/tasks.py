@@ -5,7 +5,6 @@ from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
 from .utils.reporter import Reporter as R
 from .utils.wordpress import Wordpress as W
-from .utils.wordpress_p import Wordpress as W_P
 from .utils.automater import Automater
 from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
@@ -14,7 +13,6 @@ from .utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
     _yellowlab
 )
-from .utils.driver_p import driver_test
 from .utils.alerts import send_invite_link, send_remove_alert
 from .models import *
 from django.contrib.auth.models import User
@@ -52,21 +50,6 @@ s3 = boto3.resource('s3',
     region_name=str(settings.AWS_S3_REGION_NAME), 
     endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
 )
-
-
-
-
-@shared_task
-def test_pupeteer() -> None:
-    """ 
-    Spins up a puppeteer driver instance and
-    tests to ensure it can access the browser and internet
-
-    Returns -> None
-    """
-    asyncio.run(driver_test())
-    logger.info('Tested pupeteer instalation')
-    return None
 
 
 
@@ -268,7 +251,7 @@ def create_scan(
         page_id         : str, 
         type            : list,
         automation_id   : str, 
-        configs         : str,
+        configs         : dict,
         tags            : list,
     }
     
@@ -291,7 +274,7 @@ def create_scan(
         )
 
     # run scan and automation if necessary
-    scan = S(scan=created_scan, configs=configs).build_scan()
+    scan = S(scan=created_scan).build_scan()
     if automation_id:
         print('running automation from `task.create_scan`')
         Automater(automation_id, scan.id).run_automation()
@@ -1055,12 +1038,7 @@ def create_testcase_bg(
         )
 
     # running testcase
-    if configs.get('driver', 'puppeteer') == 'puppeteer':
-        testresult = asyncio.run(
-            Caser(testcase=testcase).run_p()
-        )
-    if configs.get('driver', 'puppeteer') == 'selenium':
-        testresult = Caser(testcase=testcase).run_s()
+    testresult = Caser(testcase=testcase).run()
 
     # run automation if requested
     if automation_id:
@@ -1365,55 +1343,36 @@ def migrate_site_bg(
     Returns -> None
     """
 
-    if driver == 'selenium':
-        # init wordpress for selenium
-        wp = W(
-            login_url=login_url, 
-            admin_url=admin_url,
-            username=username,
-            password=password,
-            email_address=email_address,
-            destination_url=destination_url,
-            sftp_address=sftp_address,
-            dbname=dbname,
-            sftp_username=sftp_username,
-            sftp_password=sftp_password, 
-            wait_time=wait_time,
-            process_id=process_id,
+    # init wordpress for selenium
+    wp = W(
+        login_url=login_url, 
+        admin_url=admin_url,
+        username=username,
+        password=password,
+        email_address=email_address,
+        destination_url=destination_url,
+        sftp_address=sftp_address,
+        dbname=dbname,
+        sftp_username=sftp_username,
+        sftp_password=sftp_password, 
+        wait_time=wait_time,
+        process_id=process_id,
 
-        )
+    )
 
-        # login
-        wp_status = wp.login()
-        # adjust lang
-        wp_status = wp.begin_lang_check()
-        # install plugin
-        wp_status = wp.install_plugin(plugin_name=plugin_name)
-        # launch migration
-        wp_status = wp.launch_migration()
-        # run migration
-        wp_status = wp.run_migration()
-        # re adjust lang
-        # wp_status = wp.end_lang_check()
+    # login
+    wp_status = wp.login()
+    # adjust lang
+    wp_status = wp.begin_lang_check()
+    # install plugin
+    wp_status = wp.install_plugin(plugin_name=plugin_name)
+    # launch migration
+    wp_status = wp.launch_migration()
+    # run migration
+    wp_status = wp.run_migration()
+    # re adjust lang
+    # wp_status = wp.end_lang_check()
     
-    else:
-        # init wordpress for puppeteer
-        wp_status = asyncio.run(
-            W_P(
-                login_url=login_url, 
-                admin_url=admin_url,
-                username=username,
-                password=password,
-                email_address=email_address,
-                destination_url=destination_url,
-                sftp_address=sftp_address,
-                dbname=dbname,
-                sftp_username=sftp_username,
-                sftp_password=sftp_password, 
-                wait_time=wait_time,
-                process_id=process_id,
-            ).run_full(plugin_name=plugin_name)
-        )
 
     logger.info('Finished Migration')
     return None

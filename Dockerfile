@@ -27,7 +27,17 @@ RUN apt-get update && apt-get install -y python3 python3-pip
 # installing system deps
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     gfortran openssl libpq-dev curl libjpeg-dev chromium chromium-driver \ 
-    libfontconfig 
+    libfontconfig firefox
+
+# installing gekodriver
+RUN curl -fL -o /tmp/geckodriver.tar.gz \
+    https://github.com/mozilla/geckodriver/releases/download/v0.34.0/geckodriver-v0.34.0-linux64.tar.gz 
+RUN tar -xzf /tmp/geckodriver.tar.gz -C /tmp/
+RUN chmod +x /tmp/geckodriver
+RUN mv /tmp/geckodriver /usr/local/bin/
+
+# Cleanup unnecessary stuff
+RUN apt-get purge -y --auto-remove
 
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \

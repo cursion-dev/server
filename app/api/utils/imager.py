@@ -1,5 +1,4 @@
-from .driver_s import driver_init, driver_wait, quit_driver
-from .driver_p import driver_init as driver_init_p, wait_for_page
+from .driver import driver_init, driver_wait, quit_driver
 from ..models import Site, Scan, Test, Mask
 from skimage.metrics import structural_similarity
 from scanerr import settings
@@ -20,34 +19,24 @@ class Imager():
     a website.
 
     Also known as VRT or Visual Regression Testing.
-    Contains three methods scan_s(), scan_p(), test(). 
-    The _p appendage denotes using Puppeteer as the webdriver
-    and the _s appendage denotes using Selenium as the webdriver:
+    Contains two methods scan() & test():
 
-        def scan_s(driver=None) -> using selenium
+        def scan_vrt(driver=None) -> using selenium
             grabs multiple screenshots of the website 
             and uploads them to s3.
 
-        def scan_p() -> using puppeteer
-            grabs multiple screenshots of the website 
-            and uploads them to s3.
-
-        def test(test=<test:object>) -> compares each 
+        def test_vrt(test=<test:object>) -> compares each 
             screenshot in the two scans and records 
             a score out of 100%
-
     """
 
 
 
 
-    def __init__(self, scan: object=None, configs: dict=None):
+    def __init__(self, scan: object=None):
 
         # main scan object
         self.scan = scan
-
-        # main configs object
-        self.configs = configs
         
         # main image_array for scans
         self.image_array = []
@@ -155,7 +144,7 @@ class Imager():
 
 
 
-    def scan_s(self, driver: object=None) -> list:
+    def scan_vrt(self, driver: object=None) -> list:
         """
         Grabs full length screenshots of the website and uploads 
         them to s3.
@@ -170,7 +159,11 @@ class Imager():
         # initialize driver if not passed as param
         driver_present = True
         if not driver:
-            driver = driver_init()
+            driver = driver_init(
+                browser=self.scan.configs.get('browser', 'chrome'),
+                window_size=self.scan.configs.get('window_size', '1920,1080'),
+                device=self.scan.configs.get('device', 'desktop'),
+            )
             driver_present = False
 
         # request page_url 
@@ -179,22 +172,21 @@ class Imager():
         # waiting for network requests to resolve
         driver_wait(
             driver=driver, 
-            interval=int(self.configs.get('interval', 5)),  
-            min_wait_time=int(self.configs.get('min_wait_time', 10)),
-            max_wait_time=int(self.configs.get('max_wait_time', 30)),
+            interval=int(self.scan.configs.get('interval', 5)),  
+            min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
+            max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
         )
 
         # defining browser demesions
-        sizes = self.configs.get('window_size', '1920,1080').split(',')
+        sizes = self.scan.configs.get('window_size', '1920,1080').split(',')
 
         # getting full_page_height
-        if self.configs.get('auto_height', True):
+        if self.scan.configs.get('auto_height', True):
             full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
-            sizes = self.configs.get('window_size', '1920,1080').split(',')
             driver.set_window_size(int(sizes[0]), int(full_page_height))
 
 
-        if self.configs.get('disable_animations') == True:
+        if self.scan.configs.get('disable_animations') == True:
             # inserting animation pausing script
             try:
                 driver.execute_script(self.pause_animations_script)
@@ -208,8 +200,8 @@ class Imager():
                 print('cannnot pause videos')
 
         # mask all listed ids        
-        if self.configs.get('mask_ids') is not None and self.configs.get('mask_ids') != '':
-            ids = self.configs.get('mask_ids').split(',')
+        if self.scan.configs.get('mask_ids') is not None and self.scan.configs.get('mask_ids') != '':
+            ids = self.scan.configs.get('mask_ids').split(',')
             for id in ids:
                 try:
                     driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
@@ -233,20 +225,28 @@ class Imager():
         last_height = -1
         bottom = False
         start_time = datetime.now()
+        err_mrgn = 0
         while not bottom:
 
             # checking if maxed out time
-            if self.check_timeout(self.configs.get('timeout', 300), start_time):
+            if self.check_timeout(self.scan.configs.get('timeout', 300), start_time):
                 break
 
             # scroll single frame
             if index != 0:
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(self.configs.get('min_wait_time', 10)))
+                time.sleep(int(self.scan.configs.get('min_wait_time', 10)))
 
             # get current position and compare to previous
             new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
             height_diff = new_height - last_height
+
+            # setting err_mrgn if not auto_height
+            if index == 0:
+                if not self.scan.configs.get('auto_height', False):
+                    print(f'{sizes[1]} - {new_height}')
+                    err_mrgn = int(sizes[1]) - int(new_height)
+                    print(f'setting error margin to {err_mrgn}')
 
             print(f'new_height => {new_height} | height_diff => {height_diff}')
 
@@ -257,9 +257,9 @@ class Imager():
                 # waiting for network requests to resolve
                 driver_wait(
                     driver=driver, 
-                    interval=int(self.configs.get('interval', 5)),  
-                    min_wait_time=int(self.configs.get('min_wait_time', 10)),
-                    max_wait_time=int(self.configs.get('max_wait_time', 30)),
+                    interval=int(self.scan.configs.get('interval', 5)),  
+                    min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
+                    max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
                 )
 
                 # get screenshot
@@ -267,14 +267,15 @@ class Imager():
                 image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
 
                 # resizing image to remove duplicate portions
-                img = I.open(image)
-                width, height = img.size
-                left = 0
-                top = height - (height_diff/2)
-                right = width
-                _bottom = height
-                new_img = img.crop((left, top, right, _bottom))
-                new_img.save(image, quality=100)
+                if index != 0:
+                    img = I.open(image)
+                    width, height = img.size
+                    left = 0
+                    top = height - ((height_diff/2)) # divide by 2 for "driver.scale_factor" 
+                    right = width
+                    botm = height
+                    new_img = img.crop((left, top, right, botm))
+                    new_img.save(image, quality=100)
                             
                 # adding new image to bottom of existing image (if not index = 0)
                 pic_id_2 = uuid.uuid4()
@@ -305,199 +306,7 @@ class Imager():
 
 
 
-    async def scan_p(self) -> list:
-        """
-        Using Puppeteer, grabs full length screenshots of the website and uploads 
-        them to s3.
-
-        Returns -> self.image_array list
-        """
-
-        @sync_to_async
-        def get_page():
-            _page = self.scan.page
-            return _page
-        
-        # getting Scanerr `page` object
-        _page = await get_page()
-
-        # starting up puppeteer driver
-        driver = await driver_init_p(
-            window_size=self.configs.get('window_size', '1920,1080'), 
-            wait_time=int(self.configs.get('max_wait_time', 30))
-        )
-
-        # initing new puppeteer page
-        page = await driver.newPage()
-
-        # setting configs for driver
-        sizes = self.configs.get('window_size', '1920,1080').split(',')
-        is_mobile = False
-        if self.configs.get('device') == 'mobile':
-            is_mobile = True
-
-        page_options = {
-            'waitUntil': 'networkidle0', 
-            # 'timeout': int(self.configs.get('max_wait_time', 30))*1000
-        }
-
-        # requesting page_url to get height of 
-        await page.goto(_page.page_url, page_options)
-
-        # waiting for page to load
-        await wait_for_page(page=page)
-
-        # getting full page_height
-        page_height = int(sizes[1])
-        if self.configs.get('auto_height', True):
-            page_height = await page.evaluate("document.scrollingElement.scrollHeight;")
-
-        # setting more driver configs
-        viewport = {
-            'width': int(sizes[0]),
-            'height': int(page_height),
-            'isMobile': is_mobile,
-        }
-        userAgent = (
-            "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 \
-            (KHTML, like Gecko) Chrome/99.0.4812.0 Mobile Safari/537.36"
-        )
-        emulate_options = {
-            'viewport': viewport,
-            'userAgent': userAgent
-        }
-
-        # setting device type
-        if self.configs.get('device') == 'mobile':
-            await page.emulate(emulate_options)
-        else:
-            await page.setViewport(viewport)
-
-        # requesting page_url
-        await page.goto(_page.page_url, page_options)
-
-        # handling anamations
-        if self.configs.get('disable_animations') == True:
-            try:
-                # inserting animation pausing script
-                await page.evaluate(self.pause_animations_script)
-            except:
-                print('cannot pause animations')
-            try:
-                # pausing videos
-                videos = await page.querySelectorAll('video')
-                for vid in videos:
-                    await page.evaluate('(vid) => vid.pause()', vid)
-            except Exception as e:
-                print(e)
-
-        # mask all listed ids
-        if self.configs.get('mask_ids') is not None and self.configs.get('mask_ids') != '':
-            ids = self.configs.get('mask_ids').split(',')
-            for id in ids:
-                try:
-                    await page.evaluate(f"document.getElementById('{id}').style.visibility='hidden';")
-                    print('masked an element')
-                except:
-                    print('cannot find element via id provided')
-
-
-        # mask all Global mask ids that are active
-        @sync_to_async
-        def get_active_global_masks():
-            masks = Mask.objects.filter(active=True)
-            active_masks = []
-            if len(masks) > 0:
-                for mask in masks:
-                    active_masks.append(mask.id)
-            return active_masks
-
-        active_masks = await get_active_global_masks()
-
-        for mask in active_masks:
-            try:
-                await page.evaluate(f"document.getElementById('{mask}').style.visibility='hidden';")
-                print('masked an element')
-            except:
-                print('cannot find element via global mask id provided')
-    
-        @sync_to_async
-        def save_image(*args, **kwargs):
-            self.save_image(pic_id=pic_id, image=final_img)
-
-        # scroll one frame at a time and capture screenshot
-        final_img = None
-        index = 0
-        last_height = -1
-        bottom = False
-        start_time = datetime.now()
-        while not bottom:
-
-            # checking if maxed out time
-            if self.check_timeout(int(self.configs.get('timeout', 300)), start_time):
-                break
-
-            # scroll single frame
-            if index != 0:
-                await page.evaluate("window.scrollBy(0, document.documentElement.clientHeight);")
-                time.sleep(int(self.configs.get('min_wait_time', 10)))
-
-            # get current position and compare to previous
-            new_height = await page.evaluate("window.pageYOffset + document.documentElement.clientHeight")
-            height_diff = new_height - last_height
-            if height_diff > 20:
-                last_height = new_height
-                pic_id = uuid.uuid4()
-
-                # interact with and wait for page to load
-                await page.mouse.move(0, 0)
-                await page.mouse.move(0, 100)
-                time.sleep(int(self.configs.get('min_wait_time', 10)))
-                await wait_for_page(page=page)
-            
-                # get screenshot
-                await page.screenshot({'path': f'{pic_id}.png'})
-                image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-                
-                # resizing image to remove duplicate portions
-                img = I.open(image)
-                width, height = img.size
-                left = 0
-                top = height - (height_diff)
-                right = width
-                _bottom = height
-                new_img = img.crop((left, top, right, _bottom))
-                new_img.save(image, quality=100)
-                
-                # adding new image to bottom of existing image (if not index = 0)
-                pic_id_2 = uuid.uuid4()
-                if index != 0 and final_img is not None:
-                    self.add_images(final_img, image).save(f'{pic_id_2}.png')
-                    os.remove(final_img)
-                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
-                else:
-                    I.open(image).save(f'{pic_id_2}.png')
-                    final_img = os.path.join(settings.BASE_DIR, f'{pic_id_2}.png')
-                
-                os.remove(image)
-                index += 1 
-            
-            else:
-                bottom = True
-        
-        # saving image
-        await save_image(pic_id=pic_id, image=final_img)
-
-        # cleaning up
-        await driver.close()
-
-        # returning images
-        return self.image_array
-
-
-
-
-    def test(self, test: object, index: int=None) -> dict:
+    def test_vrt(self, test: object, index: int=None) -> dict:
         """
         Compares each screenshot between the two scans and records 
         a score out of 100%.

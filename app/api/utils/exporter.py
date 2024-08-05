@@ -1,4 +1,4 @@
-from .driver_s import driver_init, driver_wait, quit_driver
+from .driver import driver_init, driver_wait, quit_driver
 from PIL import Image as I
 from .alerts import sendgrid_email
 from scanerr import settings

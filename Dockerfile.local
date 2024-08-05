@@ -21,9 +21,9 @@ RUN groupadd --system app & useradd --system app
 # installing python3 & pip
 RUN apt-get update && apt-get install -y python3.10 python3-pip
 
-# installing system deps || chromium-browser chromium-driver
+# installing system deps
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
-    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig
+    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig firefox
     
 # extra packages
 RUN apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 libgl1
@@ -36,6 +36,16 @@ RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
 RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 RUN apt-get install -y ./google-chrome-stable_current_amd64.deb
 RUN rm google-chrome-stable_current_amd64.deb 
+
+# installing gekodriver
+RUN curl -fL -o /tmp/geckodriver.tar.gz \
+    https://github.com/mozilla/geckodriver/releases/download/v0.34.0/geckodriver-v0.34.0-linux64.tar.gz 
+RUN tar -xzf /tmp/geckodriver.tar.gz -C /tmp/
+RUN chmod +x /tmp/geckodriver
+RUN mv /tmp/geckodriver /usr/local/bin/
+
+# Cleanup unnecessary stuff
+RUN apt-get purge -y --auto-remove
 
 # begin npm portion
 RUN npm cache clean --force
