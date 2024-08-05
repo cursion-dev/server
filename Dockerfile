@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip
 # installing system deps
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     gfortran openssl libpq-dev curl libjpeg-dev chromium chromium-driver \ 
-    libfontconfig firefox
+    libfontconfig firefox-esr
 
 # installing gekodriver
 RUN curl -fL -o /tmp/geckodriver.tar.gz \
