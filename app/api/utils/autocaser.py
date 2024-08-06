@@ -937,7 +937,13 @@ class AutoCaser():
     def build_cases(self) -> None:
 
         # run get_elements
-        elements = self.get_elements()
+        try:
+            elements = self.get_elements()
+        except Exception as e:
+            # catching failures
+            print(e)
+            elements = []
+
 
         # get/decide on value for element
         def get_elem_value(element):
