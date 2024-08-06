@@ -1,4 +1,3 @@
-import requests
 from bs4 import BeautifulSoup
 from .driver import *
 
@@ -40,8 +39,10 @@ class Crawler():
         # which are within the same self.url domain
 
         follow_urls = []
-        crawled_urls = [self.url,]
+        crawled_urls = []
+        saved_urls = [self.url,]
         
+
         def url_is_valid(url: str=None) -> bool:
             # checks if the passed url is 
             # a valid url to follow and 
@@ -71,8 +72,16 @@ class Crawler():
                     return False
             return True
 
-        
-        def add_urls(start_url):
+
+        def crawl_url(start_url: str=None, max_depth: int=5):
+
+            # adding url to list of crawled_urls
+            crawled_urls.append(start_url)
+            
+            # setting depth
+            depth = 0
+
+            # get requested start_url
             self.driver.get(start_url)
 
             # wait for page to load
@@ -86,7 +95,13 @@ class Crawler():
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
 
             # iterating through all <a> tags
+
             for link in soup.find_all('a'):
+                
+                # check if max_depth has been reached
+                if depth >= max_depth:
+                    break
+                
                 url = link.get('href')
                 if url is not None:
                     # validate url
@@ -97,37 +112,66 @@ class Crawler():
                         # check status of page
                         self.driver.get(url)
                         # wait for page to load
-                        driver_wait(
+                        resolved = driver_wait(
                             driver=self.driver,
                             max_wait_time=20, 
                             interval=2
                         )
-                        
-                        # req_status = requests.get(url).status_code
-                        # bad_status = [404, 500, 301]
 
+                        # skipping url if not responding
+                        if not resolved:
+                            continue
+                        
+                        # clean and decide to record url
                         if self.driver.current_url == url:
                             if url.endswith('/'):
                                 url = url.rstrip('/')
                             if not (url in follow_urls):
                                 follow_urls.append(url)
+                                depth += 1
+                                print(f'{depth} urls saved of {max_depth} allowed')
             
+    
+        def record_urls():
+            # adds all follow_urls to saved_urls
+            # if not already recorded
+            
+            max_reached = False
+            
+            # iterate through existing follow_urls
+            for url in follow_urls:
+                # pass if already crawled
+                if not url in crawled_urls:
+                    if not url in saved_urls:
+                        saved_urls.append(url)
+                        print(f'saving -> {url}')
+                    if len(saved_urls) >= self.max_urls:
+                        print('max pages reached')
+                        max_reached = True
+                        break
+            return max_reached
+       
         # layer 0
-        add_urls(self.url)
+        crawl_url(self.url, max_depth=self.max_urls)
 
         # iterate through layers
-        while (len(follow_urls) > len(crawled_urls)) and (len(crawled_urls) < self.max_urls):
+        while (len(follow_urls) > len(saved_urls)) and (len(saved_urls) < self.max_urls):
+            
+            # crawl each follow_url that 
+            # has not been crawled
             for url in follow_urls:
-                if not url in crawled_urls:
-                    crawled_urls.append(url)
-                    print(url)
-                    add_urls(url)
-                if len(crawled_urls) >= self.max_urls:
-                    print('max pages reached')
+                # add existing follow_urls first
+                max_reached = record_urls()
+                if max_reached:
                     break
+                
+                # crawl new url if not in crawled_urls
+                if not url in crawled_urls:
+                    crawl_url(url, max_depth=self.max_urls)
+
 
         # quit driver and return
         quit_driver(self.driver)
-        return crawled_urls
+        return saved_urls
 
 
