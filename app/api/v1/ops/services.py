@@ -1371,8 +1371,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     # checking args
     site_id = '' if site_id is None else site_id
     page_id = '' if page_id is None else page_id
-    site_id = site_id if len(site_id) > 0 else None
-    page_id = page_id if len(page_id) > 0 else None
+    site_id = site_id if len(str(site_id)) > 0 else None
+    page_id = page_id if len(str(page_id)) > 0 else None
 
     # verifying types
     if len(types) == 0:
@@ -1964,8 +1964,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # checking args
     site_id = '' if site_id is None else site_id
     page_id = '' if page_id is None else page_id
-    site_id = site_id if len(site_id) > 0 else None
-    page_id = page_id if len(page_id) > 0 else None
+    site_id = site_id if len(str(site_id)) > 0 else None
+    page_id = page_id if len(str(page_id)) > 0 else None
 
     # deciding on scope
     resource = 'site' if site_id else 'page'
