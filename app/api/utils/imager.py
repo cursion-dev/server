@@ -225,7 +225,6 @@ class Imager():
         last_height = -1
         bottom = False
         start_time = datetime.now()
-        err_mrgn = 0
         while not bottom:
 
             # checking if maxed out time
@@ -240,14 +239,6 @@ class Imager():
             # get current position and compare to previous
             new_height = driver.execute_script("return window.pageYOffset + document.documentElement.clientHeight")
             height_diff = new_height - last_height
-
-            # setting err_mrgn if not auto_height
-            if index == 0:
-                if not self.scan.configs.get('auto_height', False):
-                    print(f'{sizes[1]} - {new_height}')
-                    err_mrgn = int(sizes[1]) - int(new_height)
-                    print(f'setting error margin to {err_mrgn}')
-
             print(f'new_height => {new_height} | height_diff => {height_diff}')
 
             if height_diff > 20:
