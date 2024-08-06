@@ -16,11 +16,11 @@ class Yellowlab():
     """
 
 
-    def __init__(self, scan=None, configs=None):
+    def __init__(self, scan=None):
         self.scan = scan
         self.site = self.scan.site
         self.page = self.scan.page
-        self.configs = configs
+        self.configs = scan.configs
         self.audits_url = ''
 
         # initial audits object
