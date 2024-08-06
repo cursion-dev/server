@@ -2489,6 +2489,7 @@ def get_tests_zapier(request: object) -> object:
     account = Member.objects.get(user=request.user).account
     page_id = request.query_params.get('page_id')
     site_id = request.query_params.get('site_id')
+    _status = request.query_params.get('status')
     tests = None
     
     # deciding on scope
@@ -2535,6 +2536,10 @@ def get_tests_zapier(request: object) -> object:
             pre_scan=None,
             post_scan=None,
         ).order_by('-time_created')
+
+    # filter my status if requested
+    if status is not None:
+        tests = tests.filter(status=_status)
 
     # build response data
     data = []
@@ -4646,6 +4651,7 @@ def get_testcases_zapier(request: object) -> object:
     """
 
     # get request data
+    passed = request.query_params.get('passed')
     account = Member.objects.get(user=request.user).account
     testcases = None
     
@@ -4668,6 +4674,10 @@ def get_testcases_zapier(request: object) -> object:
         ).exclude(
             time_completed=None,
         ).order_by('-time_created')
+
+    # filter by passed if requested
+    if passed is not None:
+        testcases = testcases.filter(passed=passed)
 
     # build response data
     data = []
