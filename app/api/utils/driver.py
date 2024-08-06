@@ -123,6 +123,7 @@ def driver_test() -> None:
     # testing selenium
     try:
         driver = driver_init()
+        driver.set_page_load_timeout(20)
         driver.get('https://google.com')
         title = driver.title
         assert title == 'Google'
