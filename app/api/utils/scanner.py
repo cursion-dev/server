@@ -488,7 +488,7 @@ def _lighthouse(scan_id: str, test_id: str=None, automation_id: str=None) -> obj
 
     try:
         # running lighthouse
-        lh_data = Lighthouse(scan=scan, configs=scan.configs).get_data() 
+        lh_data = Lighthouse(scan=scan).get_data() 
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
@@ -525,7 +525,7 @@ def _yellowlab(scan_id: str, test_id: str=None, automation_id: str=None) -> obje
     
     try:
         # running yellowlab
-        yl_data = Yellowlab(scan=scan, configs=scan.configs).get_data()
+        yl_data = Yellowlab(scan=scan).get_data()
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
