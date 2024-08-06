@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.actions.action_builder import ActionBuilder
+from datetime import datetime
 import time, os, sys
 
 
@@ -155,7 +156,7 @@ def driver_wait(
         interval: int=1, 
         max_wait_time: int=30, 
         min_wait_time: int=3
-    ) -> object:
+    ) -> bool:
     """
     Expects the driver instance and waits 
     for either the page to fully load or the max_wait_time
@@ -168,7 +169,7 @@ def driver_wait(
         'min_wait_time' : int
     }
 
-    Returns -> driver object
+    Returns -> bool (True if page is loaded)
     """
 
     def interact_with_page(driver):
@@ -182,7 +183,6 @@ def driver_wait(
         action.perform()
         return
 
-
     resolved = False
     page_state = 'loading'
     wait_time = 0
@@ -191,18 +191,35 @@ def driver_wait(
     time.sleep(min_wait_time)
 
     while int(wait_time) < int(max_wait_time) and page_state != 'complete':
+
+        # get current timestamp
+        pre_check_time = datetime.now()
+        
         # wait 1 sec or <interval:int> sec 
         time.sleep(interval)
 
-        page_state = driver.execute_script('return document.readyState')
-        print(f'document state is {page_state}')
-        
-        wait_time += interval
-    
-    # interacting with page once available
-    interact_with_page(driver)
+        try:
+            page_state = driver.execute_script('return document.readyState')
+        except Exception as e:
+            print(e)
 
-    return None
+        # get time after waiting for script
+        post_check_time = datetime.now()
+
+        # get seconds between checks
+        time_to_add = (post_check_time - pre_check_time).total_seconds()
+
+        print(f'document state is {page_state}')
+        if page_state == 'complete':
+            resolved = True
+        
+        wait_time += time_to_add
+    
+    # interacting with page if available
+    if resolved:
+        interact_with_page(driver)
+
+    return resolved
 
 
 

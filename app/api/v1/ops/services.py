@@ -533,6 +533,7 @@ def crawl_site(request: object, id: str) -> object:
         return Response(data, status=check_data['status'])
 
     # update site info
+    site = Site.objects.get(id=id)
     site.time_crawl_completed = None
     site.save()
 
