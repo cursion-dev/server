@@ -81,7 +81,8 @@ class Scanner():
         )
         driver.get(self.page.page_url)
         driver_data = get_data(
-            driver=driver, 
+            driver=driver,
+            browser=self.scan.configs['browser'],
             max_wait_time=self.scan.configs['max_wait_time']
         )
         if 'html' in self.scan.type or 'full' in self.scan.type:
