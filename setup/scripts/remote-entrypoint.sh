@@ -7,8 +7,7 @@ then
   python3 manage.py migrate --no-input &&
   python3 manage.py collectstatic --no-input &&
   python3 manage.py create_admin &&
-  python3 manage.py driver_s_test &&
-  python3 manage.py driver_p_test &&
+  python3 manage.py driver_test &&
   gunicorn  --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
 fi
 

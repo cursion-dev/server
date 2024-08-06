@@ -33,7 +33,6 @@ prometheus-client==0.8.0
 prompt-toolkit==3.0.43
 psycopg2==2.9.9
 pyjwt==2.1.0
-pyppeteer==1.0.2
 pytz==2021.1
 redis==3.5.3
 requests==2.25.1

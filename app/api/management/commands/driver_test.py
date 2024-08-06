@@ -1,4 +1,4 @@
-from ...utils.driver_s import driver_test
+from ...utils.driver import driver_test
 from django.core.management.base import BaseCommand
 
 # testing selenium, chromedriver, and chromium installation and configs

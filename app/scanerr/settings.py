@@ -229,7 +229,7 @@ if os.environ.get('STRIPE_ENV') == 'dev':
 # Global configs 
 CONFIGS = {
     'window_size': '1920,1080',
-    'driver': 'selenium',
+    'browser': 'chrome',
     'device': 'desktop',
     'mask_ids': None,
     'interval': 1,

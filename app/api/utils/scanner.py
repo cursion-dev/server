@@ -1,6 +1,7 @@
-from .driver_s import driver_init as driver_s_init, quit_driver
-from .driver_s import driver_wait, get_data as get_s_driver_data
-from .driver_p import get_data
+from .driver import (
+    driver_init, quit_driver, 
+    driver_wait , get_data
+)
 from ..models import *
 from .automater import Automater
 from .tester import Tester
@@ -25,7 +26,6 @@ class Scanner():
         'site'    : object,
         'page'    : object,
         'scan'    : object,
-        'configs' : dict,
         'type'    : list
     }
 
@@ -42,14 +42,12 @@ class Scanner():
             site: object=None, 
             page: object=None,
             scan: object=None, 
-            configs: dict=settings.CONFIGS,
             type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
         ):
 
         self.site = site
         self.page = page
         self.scan = scan
-        self.configs = configs
         self.type = type
 
         # getting page and site if None
@@ -74,50 +72,31 @@ class Scanner():
         images = None
         lh_data = None
         yl_data = None
-
-        # creating Scan obj if None was passed
-        if self.scan is None:
-            self.scan = Scan.objects.create(site=self.site, page=self.page, type=self.type)
         
         # running scan steps with selenium driver
-        if self.configs['driver'] == 'selenium':
-            driver = driver_s_init(
-                window_size=self.configs['window_size'], 
-                device=self.configs['device']
-            )
-            driver.get(self.page.page_url)
-            s_driver_data = get_s_driver_data(
-                driver=self.driver, 
-                max_wait_time=self.configs['max_wait_time']
-            )
-            if 'html' in self.scan.type or 'full' in self.scan.type:
-                html = s_driver_data['html']
-            if 'logs' in self.scan.type or 'full' in self.scan.type:
-                logs = s_driver_data['logs']
-            if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = Imager(scan=self.scan, configs=self.configs).scan_s(driver=driver)
-            quit_driver(driver)
-        
-        # running scan steps with puppeteer driver
-        if self.configs['driver'] == 'puppeteer':
-            p_driver_data = asyncio.run(
-                get_data(
-                    url=self.page.page_url, 
-                    configs=self.configs
-                )
-            )
-            if 'html' in self.scan.type or 'full' in self.scan.type:
-                html = p_driver_data['html']
-            if 'logs' in self.scan.type or 'full' in self.scan.type:
-                logs = p_driver_data['logs']
-            if 'vrt' in self.scan.type or 'full' in self.scan.type:
-                images = asyncio.run(Imager(scan=self.scan, configs=self.configs).scan_p())
-        
-        # running LH & YL if requested
+        driver = driver_init(
+            browser=self.scan.configs['browser'],
+            window_size=self.scan.configs['window_size'], 
+            device=self.scan.configs['device']
+        )
+        driver.get(self.page.page_url)
+        driver_data = get_data(
+            driver=self.driver, 
+            max_wait_time=self.scan.configs['max_wait_time']
+        )
+        if 'html' in self.scan.type or 'full' in self.scan.type:
+            html = driver_data['html']
+        if 'logs' in self.scan.type or 'full' in self.scan.type:
+            logs = driver_data['logs']
+        if 'vrt' in self.scan.type or 'full' in self.scan.type:
+            images = Imager(scan=self.scan).scan_vrt(driver=driver)
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
-            lh_data = Lighthouse(scan=self.scan, configs=self.configs).get_data() 
+            lh_data = Lighthouse(scan=self.scan).get_data() 
         if 'yellowlab' in self.scan.type or 'full' in self.scan.type:
-            yl_data = Yellowlab(scan=self.scan, configs=self.configs).get_data()
+            yl_data = Yellowlab(scan=self.scan).get_data()
+
+        # quiting selenium instance
+        quit_driver(driver)
 
         # updating Scan object
         if html is not None:
@@ -132,7 +111,6 @@ class Scanner():
             self.scan.yellowlab = yl_data
 
         # saving scan data
-        self.scan.configs = self.configs
         self.scan.time_completed = datetime.now()
         self.scan.save()
 
@@ -404,49 +382,39 @@ def _html_and_logs(scan_id: str, test_id: str=None, automation_id: str=None) -> 
     scan = Scan.objects.get(id=scan_id)
 
     try:
-        # get html and logs if driver is selenium
-        if scan.configs['driver'] == 'selenium':
-            # init driver & get data
-            driver = driver_s_init(
-                window_size=scan.configs['window_size'], 
-                device=scan.configs['device']
-            )
-            driver.get(scan.page.page_url)
-            s_driver_data = get_s_driver_data(
-                driver=driver, 
-                max_wait_time=int(scan.configs['max_wait_time'])
-            )
-            if 'html' in scan.type or 'full' in scan.type:
-                html = s_driver_data['html']
-                scan = Scan.objects.get(id=scan_id)
-                save_html(html, scan)
-            if 'logs' in scan.type or 'full' in scan.type:
-                logs = s_driver_data['logs']
-                scan = Scan.objects.get(id=scan_id)
-                scan.logs = logs
-                scan.save()
-            quit_driver(driver)
+        # get html and logs using selenium
+        # init driver & get data
+        driver = driver_init(
+            browser=scan.configs['browser'],
+            window_size=scan.configs['window_size'], 
+            device=scan.configs['device']
+        )
+        driver.get(scan.page.page_url)
+        driver_data = get_data(
+            driver=driver,
+            browser=scan.configs['browser'],
+            max_wait_time=int(scan.configs['max_wait_time']),
+            min_wait_time=int(scan.configs['min_wait_time']),
+            interval=int(scan.configs['interval'])
+        )
+        if 'html' in scan.type or 'full' in scan.type:
+            html = driver_data['html']
+            scan = Scan.objects.get(id=scan_id)
+            save_html(html, scan)
+        if 'logs' in scan.type or 'full' in scan.type:
+            logs = driver_data['logs']
+            scan = Scan.objects.get(id=scan_id)
+            scan.logs = logs
+            scan.save()
+        quit_driver(driver)
 
-        # get html and logs if driver is puppeteer
-        if scan.configs['driver'] == 'puppeteer':
-            # init driver & get data
-            p_driver_data = asyncio.run(
-                get_data(
-                    url=scan.page.page_url, 
-                    configs=scan.configs
-                )
-            )
-            if 'html' in scan.type or 'full' in scan.type:
-                html = p_driver_data['html']
-                scan = Scan.objects.get(id=scan_id)
-                save_html(html, scan)
-            if 'logs' in scan.type or 'full' in scan.type:
-                logs = p_driver_data['logs']
-                scan = Scan.objects.get(id=scan_id)
-                scan.logs = logs
-                scan.save()
     except Exception as e:
         print(e)
+        # try to quit selenium session
+        try:
+            quit_driver(driver)
+        except:
+            pass
 
     # checking if scan is done
     scan = check_scan_completion(scan, test_id, automation_id)
@@ -476,14 +444,13 @@ def _vrt(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
     
     try:
         # run Imager using selenium
-        if scan.configs['driver'] == 'selenium':
-            driver = driver_s_init(window_size=scan.configs['window_size'], device=scan.configs['device'])
-            images = Imager(scan=scan, configs=scan.configs).scan_s(driver=driver)
-            quit_driver(driver)
-
-        # run Imager using puppeteer
-        if scan.configs['driver'] == 'puppeteer':
-            images = asyncio.run(Imager(scan=scan, configs=scan.configs).scan_p())
+        driver = driver_init(
+            window_size=scan.configs.get('window_size', '1920,1080'), 
+            device=scan.configs.get('device', 'desktop'),
+            browser=scan.configs.get('browser', 'chrome')
+        )
+        images = Imager(scan=scan).scan_vrt(driver=driver)
+        quit_driver(driver)
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)

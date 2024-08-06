@@ -61,6 +61,21 @@ services:
       - db
 
 
+  yellowlab:
+    container_name: yellowlab
+    hostname: yellowlab
+    privileged: true
+    restart: always
+    image: scanerr/ylt
+    ports:
+      - 8383:8383
+    depends_on:
+      - redis
+      - celery 
+      - app
+      - db
+
+
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy

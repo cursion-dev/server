@@ -27,7 +27,12 @@ RUN apt-get update && apt-get install -y python3 python3-pip
 # installing system deps
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     gfortran openssl libpq-dev curl libjpeg-dev chromium chromium-driver \ 
-    libfontconfig 
+    libfontconfig firefox-esr
+
+# installing google-chrome-stable
+RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN apt-get install -y ./google-chrome-stable_current_amd64.deb
+RUN rm google-chrome-stable_current_amd64.deb
 
 # installing node and npm --> n lts
 RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \

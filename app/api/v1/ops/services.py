@@ -15,7 +15,6 @@ from ...utils.tester import Tester as T
 from ...utils.imager import Imager as I
 from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
-from ...utils.wordpress_p import Wordpress as W_P
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
 import json, boto3, asyncio, os, requests
@@ -534,6 +533,7 @@ def crawl_site(request: object, id: str) -> object:
         return Response(data, status=check_data['status'])
 
     # update site info
+    site = Site.objects.get(id=id)
     site.time_crawl_completed = None
     site.save()
 
@@ -1372,8 +1372,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     # checking args
     site_id = '' if site_id is None else site_id
     page_id = '' if page_id is None else page_id
-    site_id = site_id if len(site_id) > 0 else None
-    page_id = page_id if len(page_id) > 0 else None
+    site_id = site_id if len(str(site_id)) > 0 else None
+    page_id = page_id if len(str(page_id)) > 0 else None
 
     # verifying types
     if len(types) == 0:
@@ -1965,8 +1965,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # checking args
     site_id = '' if site_id is None else site_id
     page_id = '' if page_id is None else page_id
-    site_id = site_id if len(site_id) > 0 else None
-    page_id = page_id if len(page_id) > 0 else None
+    site_id = site_id if len(str(site_id)) > 0 else None
+    page_id = page_id if len(str(page_id)) > 0 else None
 
     # deciding on scope
     resource = 'site' if site_id else 'page'
@@ -5164,60 +5164,6 @@ def get_celery_metrics(request: object) -> object:
 
 
 
-def create_site_screenshot(request: object) -> object:
-    """
-    Used to grab a single screenshot of the passed `Site`
-
-    Expects: {
-        'request': object
-    }
-
-    Returns -> HTTP Response object
-    """
-
-    # get request data
-    site_id = request.data.get('site_id', None)
-    url = request.data.get('url', None)
-    configs = request.data.get('configs', None)
-
-    # get user
-    user = request.user
-    account = Member.objects.get(user=user).account
-
-    # updating configs if None:
-    configs = account.configs if configs == None else configs
-    
-    # set default
-    site = None
-
-    # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='site', 
-        site_id=site_id
-    )
-    if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
-
-    # get site if checks passsed
-    if site_id is not None:
-        site = Site.objects.get(id=site_id)
-
-    # get screenshot 
-    if configs['driver'] == 'puppeteer':
-        data = asyncio.run(I().screenshot_p(site=site, url=url, configs=configs))
-    elif configs['driver'] == 'selenium':
-        data = I().screenshot(site=site, url=url, configs=configs)
-
-    
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
-
-
-
-
 def migrate_site(request: object) -> object:
     """
     Initiate a `Site` migration task in background
@@ -5243,7 +5189,7 @@ def migrate_site(request: object) -> object:
     sftp_username = request.data.get('sftp_username', None)
     sftp_password = request.data.get('sftp_password', None)
     wait_time = request.data.get('wait_time', 30)
-    driver = request.data.get('driver', 'puppeteer')
+    driver = request.data.get('driver', 'selenium')
 
     # checking account and resource 
     check_data = check_account_and_resource(
