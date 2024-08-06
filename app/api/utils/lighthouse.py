@@ -21,7 +21,7 @@ class Lighthouse():
         self.site = self.scan.site
         self.page = self.scan.page
         self.configs = scan.configs
-        self.sizes = configs['window_size'].split(',')
+        self.sizes = scan.configs['window_size'].split(',')
         self.audits_url = ''
 
         # initial scores object
