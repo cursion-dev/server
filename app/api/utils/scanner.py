@@ -75,14 +75,14 @@ class Scanner():
         
         # running scan steps with selenium driver
         driver = driver_init(
-            browser=self.scan.configs.get[('browser', 'chrome'),
+            browser=self.scan.configs.get('browser', 'chrome'),
             window_size=self.scan.configs['window_size'], 
             device=self.scan.configs['device']
         )
         driver.get(self.page.page_url)
         driver_data = get_data(
             driver=driver,
-            browser=self.scan.configs.get[('browser', 'chrome'),
+            browser=self.scan.configs.get('browser', 'chrome'),
             max_wait_time=self.scan.configs['max_wait_time']
         )
         if 'html' in self.scan.type or 'full' in self.scan.type:
@@ -386,14 +386,14 @@ def _html_and_logs(scan_id: str, test_id: str=None, automation_id: str=None) -> 
         # get html and logs using selenium
         # init driver & get data
         driver = driver_init(
-            browser=scan.configs.get[('browser', 'chrome'),
+            browser=scan.configs.get('browser', 'chrome'),
             window_size=scan.configs['window_size'], 
             device=scan.configs['device']
         )
         driver.get(scan.page.page_url)
         driver_data = get_data(
             driver=driver,
-            browser=scan.configs.get[('browser', 'chrome'),
+            browser=scan.configs.get('browser', 'chrome'),
             max_wait_time=int(scan.configs['max_wait_time']),
             min_wait_time=int(scan.configs['min_wait_time']),
             interval=int(scan.configs['interval'])

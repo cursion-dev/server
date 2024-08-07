@@ -183,7 +183,7 @@ class Caser():
         
         # initate driver
         self.driver = driver_init(
-            browser=self.configs.get[('browser', 'chrome'),
+            browser=self.configs.get('browser', 'chrome'),
             window_size=self.configs['window_size'], 
             device=self.configs['device']
         )
