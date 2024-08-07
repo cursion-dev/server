@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beat-deployment
+  labels:
+    deployment: beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beat-deployment
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: beat-deployment
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: beat
+          image:  <IMAGE> # scanerr/server:9dbc3d9 # 
+          imagePullPolicy: Always
+          command: ["/remote-entrypoint.sh", "beat"]
+          resources:
+            limits:
+              cpu: ".5"
+              memory: "1Gi"
+            requests:
+              cpu: ".5"
+              memory: "1Gi"
+strategy: {}
+
+
