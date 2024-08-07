@@ -120,6 +120,7 @@ kubectl port-forward service/app-service 8000:8000
 ### 4. Spin up Scanerr deployments and services
 - `kubectl apply -f ./k8s/prod/app-configs.yaml`
 - `kubectl apply -f ./k8s/prod/redis-deployment.yaml`
+- `kubectl apply -f ./k8s/prod/rabbitmq-deployment.yaml`
 - `kubectl apply --server-side -f https://github.com/kedacore/keda/releases/download/v2.11.0/keda-2.11.0.yaml`
 - `kubectl apply -f ./k8s/prod/app-deployment.yaml`
 - `kubectl apply -f ./k8s/prod/celery-deployment.yaml`
