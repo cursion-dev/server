@@ -176,11 +176,11 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 # Redis and Celery Config
-# CELERY_BROKER_URL = "redis://redis:6379"
+CELERY_BROKER_URL = "redis://redis:6379"
 
 
 # RabbitMQ and Celery Config
-CELERY_BROKER_URL = "amqp://rabbitmq"
+# CELERY_BROKER_URL = "amqp://rabbitmq"
 
 
 # Default primary key field type

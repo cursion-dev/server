@@ -163,6 +163,8 @@ kubectl port-forward service/app-service 8000:8000
    - `kubectl rollout restart deployment app-deployment celery-deployment`
  - Get Current IPs for pods:
    - `kubectl exec <container-id> -- curl -s http://checkip.dyndns.org/ | sed 's/[a-zA-Z<>/ :]//g'`
+ - Force delete pods that are stuck in `Terminating`:
+   - `for p in $(kubectl get pods | grep Terminating | awk '{print $1}'); do kubectl delete pod $p --grace-period=0 --force;done`
 
 
 
