@@ -17,6 +17,14 @@ app = Celery('scanerr')
 # configure namespace
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
+# celery and beat configs
+app.conf.update(
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    worker_hijack_root_logger=False,
+    task_always_eager=False,
+)
+
 # setting tasks to auto-discover
 app.autodiscover_tasks()
 
