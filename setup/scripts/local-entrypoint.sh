@@ -17,7 +17,7 @@ if [[ $1 == *"celery"* ]]
 then
   python3 manage.py wait_for_db && 
   echo "pausing for migrations to complete..." && sleep 7s &&
-  celery -A scanerr worker --beat --scheduler django --loglevel=info
+  celery -A scanerr worker --loglevel=info
 fi
 
 # spin up celery beat in remote env
@@ -27,3 +27,4 @@ then
   echo "pausing for migrations to complete..." && sleep 7s &&
   celery -A scanerr beat --scheduler django --loglevel=info
 fi
+

@@ -19,9 +19,12 @@ spec:
         - name: regcred
       containers:
         - name: beat
-          image:  <IMAGE> # scanerr/server:9dbc3d9 # 
+          image: <IMAGE> # scanerr/server:bf1dab1 # 
           imagePullPolicy: Always
           command: ["/remote-entrypoint.sh", "beat"]
+          envFrom:
+            - configMapRef:
+                name: app-configs
           resources:
             limits:
               cpu: ".5"
@@ -29,6 +32,5 @@ spec:
             requests:
               cpu: ".5"
               memory: "1Gi"
-strategy: {}
 
 
