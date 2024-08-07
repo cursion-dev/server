@@ -77,12 +77,12 @@ services:
     restart: always
     build:
       context: .
-      dockerfile: Dockerfile.local
-    entrypoint: ["/local-entrypoint.sh", "beat"]
+      dockerfile: Dockerfile
+    entrypoint: ["/remote-entrypoint.sh", "beat"]
     volumes:
       - ./app:/scanerr
     env_file:
-      - ./env/.env.local
+      - ./env/.env.dev
     depends_on:
       - celery
       - rabbitmq
