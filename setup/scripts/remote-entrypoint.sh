@@ -3,7 +3,8 @@
 # spin up app in remote env
 if [[ $1 == *"app"* ]]
 then 
-  python3 manage.py wait_for_db && python3 manage.py makemigrations  --no-input &&
+  python3 manage.py wait_for_db && 
+  python3 manage.py makemigrations  --no-input &&
   python3 manage.py migrate --no-input &&
   python3 manage.py collectstatic --no-input &&
   python3 manage.py create_admin &&
@@ -18,7 +19,6 @@ then
   echo "pausing for migrations to complete..." && sleep 7s &&
   celery -A scanerr worker --loglevel=info
 fi
-
 
 # spin up celery beat in remote env
 if [[ $1 == *"beat"* ]]
