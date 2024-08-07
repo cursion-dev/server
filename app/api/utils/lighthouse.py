@@ -79,9 +79,12 @@ class Lighthouse():
         stdout_string = stdout_value.decode('iso-8859-1')
 
         # clean string of any errors
-        delm = '{\n  "lighthouseVersion"'
-        stdout_string = delm + stdout_string.split(delm)[1]
-
+        try:
+            delm = '{\n  "lighthouseVersion"'
+            stdout_string = delm + stdout_string.split(delm)[1]
+        except Exception as e:
+            print(e)
+            
         # encode back to bytes
         stdout_value = stdout_string.encode('iso-8859-1')
         

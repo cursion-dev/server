@@ -42,6 +42,14 @@ services:
       - "6379"
 
 
+  rabbitmq:
+    container_name: scanerr-rabbitmq
+    hostname: scanerr-rabbitmq
+    image: rabbitmq:alpine
+    ports:
+      - "5672"
+
+
   celery:
     container_name: scanerr-celery
     hostname: scanerr-celery
@@ -56,6 +64,7 @@ services:
     volumes:
       - ./app:/scanerr
     depends_on:
+      - rabbitmq
       - redis
       - app
       - db
@@ -70,6 +79,7 @@ services:
     ports:
       - 8383:8383
     depends_on:
+      - rabbitmq
       - redis
       - celery 
       - app
