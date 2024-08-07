@@ -70,6 +70,27 @@ services:
       - db
 
 
+  beat:
+    container_name: scanerr-beat
+    hostname: scanerr-beat
+    privileged: true
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/remote-entrypoint.sh", "beat"]
+    volumes:
+      - ./app:/scanerr
+    env_file:
+      - ./env/.env.dev
+    depends_on:
+      - celery
+      - rabbitmq
+      - db
+      - redis
+      - app
+
+
   yellowlab:
     container_name: yellowlab
     hostname: yellowlab

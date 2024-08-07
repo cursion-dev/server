@@ -42,6 +42,14 @@ services:
       - "6379"
 
 
+  rabbitmq:
+    container_name: scanerr-rabbitmq
+    hostname: scanerr-rabbitmq
+    image: rabbitmq:alpine
+    ports:
+      - "5672"
+
+
   celery:
     container_name: scanerr-celery
     hostname: scanerr-celery
@@ -59,6 +67,27 @@ services:
       - redis
       - app
       - db
+
+
+  beat:
+    container_name: scanerr-beat
+    hostname: scanerr-beat
+    privileged: true
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/remote-entrypoint.sh", "beat"]
+    volumes:
+      - ./app:/scanerr
+    env_file:
+      - ./env/.env.prod
+    depends_on:
+      - celery
+      - rabbitmq
+      - db
+      - redis
+      - app
 
 
   yellowlab:
