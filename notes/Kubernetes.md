@@ -125,6 +125,7 @@ kubectl port-forward service/app-service 8000:8000
 - `kubectl apply -f ./k8s/prod/app-deployment.yaml`
 - `kubectl apply -f ./k8s/prod/celery-deployment.yaml`
 - `kubectl apply -f ./k8s/prod/celery-autoscaler.yaml`
+- `kubectl apply -f ./k8s/prod/beat-deployment.yaml`
 
 
 #### 4.a  Spin up YLT deploymemt, service, and autoscaler
