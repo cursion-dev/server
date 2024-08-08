@@ -72,12 +72,13 @@ def check_account_and_resource(
         request: object=None, 
         user: object=None, 
         resource: str=None, 
-        action: str=None,
+        action: str='get',
         **kwargs
     ) -> dict:
     """ 
     Based on the passed "resource" & kwargs, checks to see 
-    if account is allowed to add/get a "resource".
+    if account is allowed to add/get a "resource". 
+    Also increments the `Account.usage` for the specified resource.
 
     Expects: {
         'request'   : object, 
@@ -158,7 +159,7 @@ def check_account_and_resource(
                         current_count = Page.objects.filter(account=account, site__id=site_id).count()
                         if current_count >= account.max_pages and action == 'add':
                             allowed = False
-                            error = 'max pages reached, please upgrade'
+                            error = 'max pages reached'
                             _status = status.HTTP_402_PAYMENT_REQUIRED
                             code = '402'
             if page_id:
@@ -178,9 +179,9 @@ def check_account_and_resource(
         if resource == 'site':
             if not site_id:
                 current_count = Site.objects.filter(account=account).count()
-                if current_count >= account.max_sites and action == 'add':
+                if current_count >= account.max_sites and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
                     allowed = False
-                    error = 'max sites reached, please upgrade'
+                    error = 'max sites reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
             if site_id:
@@ -200,9 +201,9 @@ def check_account_and_resource(
         if resource == 'schedule':
             if not schedule_id:
                 current_count = Schedule.objects.filter(account=account).count()
-                if current_count >= account.max_schedules and action == 'add':
+                if current_count >= account.max_schedules and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
                     allowed = False
-                    error = 'max schedules reached, please upgrade'
+                    error = 'max schedules reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
                 if page_id:
@@ -247,12 +248,18 @@ def check_account_and_resource(
         
         # checking testcases
         if resource == 'testcase':
-            if not testcase_id:
+            if not testcase_id and action == 'add':
                 if not account.testcases:
                     allowed = False
                     error = 'testcases not allowed, please upgrade'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
+                else:
+                    if not check_and_increment_resource(account, 'testcases'):
+                        allowed = False
+                        error = 'max testcases reached'
+                        _status = status.HTTP_402_PAYMENT_REQUIRED
+                        code = '402'
             if testcase_id:
                 if not Testcase.objects.filter(id=testcase_id, account=account).exists():
                     allowed = False
@@ -310,6 +317,12 @@ def check_account_and_resource(
         
         # checking scans
         if resource == 'scan':
+            if not scan_id and action == 'add':
+                if not check_and_increment_resource(account, 'scan'):
+                    allowed = False
+                    error = 'max scans reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
             if scan_id:
                 if not Scan.objects.filter(id=scan_id, page__account=account).exists():
                     allowed = False
@@ -319,6 +332,12 @@ def check_account_and_resource(
         
         # checking tests
         if resource == 'test':
+            if not test_id and action == 'add':
+                if not check_and_increment_resource(account, 'test'):
+                    allowed = False
+                    error = 'max tests reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
             if test_id:
                 if not Test.objects.filter(id=test_id, page__account=account).exists():
                     allowed = False
@@ -367,6 +386,36 @@ def check_account_and_resource(
         'code': code
     }
     return data
+
+
+
+
+    def check_and_increment_resource(account: object, resource: str) -> bool:
+        """ 
+        Adds 1 to the Account.usage.{resource} if 
+        {resource}_allowed has not been reached.
+
+        Expcets: {
+            'account'  : <object>,
+            'resource' : <str> 'scan', 'test', or 'testcase
+        }
+
+        Returns: Bool, True if resource was incremented.
+        """
+
+        # define defaults
+        success = False
+
+        # check allowance
+        if (int(account.usage[resource]) + 1) <= int(account.usage[f'{resource}s_allowed']):
+            
+            # increment and update success
+            account.usage[resource] = 1 + int(account.usage[resource])
+            account.save()
+            success = True
+
+        # return response
+        return success
 
 
 
@@ -1382,7 +1431,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     # deciding on scope
     resource = 'site' if site_id else 'page'
 
-    # check account and resource 
+    # check account and resource for site or page
     check_data = check_account_and_resource(
         user=user, resource=resource, page_id=page_id, site_id=site_id
     )
@@ -1415,6 +1464,22 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # looping through each page
     for p in pages:
+
+        # check for account usage
+        check_data = check_account_and_resource(
+            user=user, action='add', resource='scan'
+        )
+        if not check_data['allowed']:
+            data = {
+                'reason': check_data['error'], 
+                'success': False, 
+                'code': check_data['code'], 
+                'status': check_data['status']
+            }
+            if request is not None:
+                record_api_call(request, data, check_data['code'])
+                return Response(data, status=check_data['status'])
+            return data
 
         # creating scan obj
         created_scan = Scan.objects.create(
@@ -1971,7 +2036,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # deciding on scope
     resource = 'site' if site_id else 'page'
 
-    # check account and resource 
+    # check account and resource for page or site
     check_data = check_account_and_resource(
         user=user, resource=resource, page_id=page_id, site_id=site_id
     )
@@ -2004,6 +2069,22 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # looping through pages
     for p in pages:
+
+        # check for account usage
+        check_data = check_account_and_resource(
+            user=user, action='add', resource='test'
+        )
+        if not check_data['allowed']:
+            data = {
+                'reason': check_data['error'], 
+                'success': False, 
+                'code': check_data['code'], 
+                'status': check_data['status']
+            }
+            if request is not None:
+                record_api_call(request, data, check_data['code'])
+                return Response(data, status=check_data['status'])
+            return data
 
         # checking for scan completion
         if not Scan.objects.filter(page=p).exists():
@@ -4432,7 +4513,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
     # checking account and resource 
     check_data = check_account_and_resource(
         request=request, resource='testcase', 
-        case_id=case_id, site_id=site_id
+        case_id=case_id, site_id=site_id, action='add',
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4941,7 +5022,7 @@ def search_resources(request: object) -> object:
     pages = []
     sites = []
 
-    # check for object specification i.e 'site: or case:'
+    # check for object specification i.e 'site:', 'case:', 'issue:'
     resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
     query = query.replace('https://', '').replace('http://', '').split(':')[-1]
 
@@ -4963,9 +5044,16 @@ def search_resources(request: object) -> object:
             name__icontains=query
         )
 
-    # adding first 5 sites if present
+    # search for issues
+    if resource_type == 'issue' or resource_type == query:
+        issues = Issue.objects.filter(account=account).filter(
+            name__icontains=query
+        )
+
+    # adding first several sites if present
     i = 0
-    while i <= 3 and i <= (len(sites)-1):
+    max_sites = 10 if resource_type == 'site' else 3
+    while i <= max_sites and i <= (len(sites)-1):
         data.append({
             'name': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
@@ -4974,9 +5062,10 @@ def search_resources(request: object) -> object:
         })
         i+=1
     
-    # adding first 5 pages if present
+    # adding first several pages if present
     i = 0
-    while i <= 4 and i <= (len(pages)-1):
+    max_pages = 10 if resource_type == 'page' else 3
+    while i <= max_pages and i <= (len(pages)-1):
         data.append({
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
@@ -4985,14 +5074,27 @@ def search_resources(request: object) -> object:
         })
         i+=1
     
-    # adding first 5 cases if present
+    # adding first several cases if present
     i = 0
-    while i <= 4 and i <= (len(cases)-1):
+    max_cases = 10 if resource_type == 'case' else 3
+    while i <= max_cases and i <= (len(cases)-1):
         data.append({
             'name': str(cases[i].name),
             'path': f'/case/{cases[i].id}',
             'id'  : str(cases[i].id),
             'type': 'case',
+        })
+        i+=1
+    
+    # adding first several issues if present
+    i = 0
+    max_issues = 10 if resource_type == 'issue' else 3
+    while i <= max_issues and i <= (len(issues)-1):
+        data.append({
+            'name': str(issues[i].title),
+            'path': f'/issue/{issue[i].id}',
+            'id'  : str(issues[i].id),
+            'type': 'issue',
         })
         i+=1
     

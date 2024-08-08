@@ -627,6 +627,12 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
+        scans_allowed = request.data.get('scans_allowed')
+        tests_allowed = request.data.get('tests_allowed')
+        testcases_allowed = request.data.get('testcases_allowed')
+        scans = request.data.get('scans')
+        tests = request.data.get('tests')
+        testcases = request.data.get('testcases')
         slack = request.data.get('slack')
         configs = request.data.get('configs')
         user = request.user
@@ -648,6 +654,12 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
+        scans_allowed = kwargs.get('scans_allowed')
+        tests_allowed = kwargs.get('tests_allowed')
+        testcases_allowed = kwargs.get('testcases_allowed')
+        scans = kwargs.get('scans')
+        tests = kwargs.get('tests')
+        testcases = kwargs.get('testcases')
         slack = kwargs.get('slack')
         configs = kwargs.get('configs')
         user_id = kwargs.get('user')
@@ -690,6 +702,18 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.product_id = product_id
         if price_id is not None:
             account.price_id = price_id
+        if scans_allowed is not None:
+            account.usage['scans_allowed'] = scans_allowed
+        if tests_allowed is not None:
+            account.usage['tests_allowed'] = tests_allowed
+        if testcases_allowed is not None:
+            account.usage['testcases_allowed'] = testcases_allowed
+        if scans is not None:
+            account.usage['scans'] = scans
+        if tests is not None:
+            account.usage['tests'] = tests
+        if testcases is not None:
+            account.usage['testcases'] = testcases
         if slack is not None:
             account.slack = slack
         if configs is not None:
@@ -721,7 +745,15 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
-            price_id=price_id
+            price_id=price_id,
+            usage={
+                'scans': 0,
+                'tests': 0,
+                'testcases': 0,
+                'scans_allowed': scans_allowed if scans_allowed is not None else 30, 
+                'tests_allowed': tests_allowed if tests_allowed is not None else 30, 
+                'testcases_allowed': testcases_allowed if testcases_allowed is not None else 15,
+            },
         )
     
     # serialize and return

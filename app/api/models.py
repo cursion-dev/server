@@ -259,6 +259,19 @@ def get_default_configs():
 
 
 
+def get_usage_default():
+    usage = {
+        'scans': 0,
+        'tests': 0,
+        'testcases': 0,
+        'scans_allowed': 30, 
+        'tests_allowed': 30, 
+        'testcases_allowed': 15,
+    }
+
+
+
+
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -279,6 +292,7 @@ class Account(models.Model):
     price_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     interval = models.CharField(max_length=50, serialize=True, null=True, blank=True, default='month')
+    usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
     meta = models.JSONField(serialize=True, null=True, blank=True)

@@ -2,12 +2,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from django.core import serializers
+from datetime import date, datetime
 from ...models import Account, Card, Site
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from ..auth.serializers import AccountSerializer
 from scanerr import settings
 import stripe
+
 
 
 
@@ -27,15 +29,18 @@ def stripe_setup(request: object) -> object:
     "user" and `Account`
 
     Expects: {
-        'name'           : <str> 'basic', 'pro', 'plus', 'custom' (OPTIONAL)
-        'interval'       : <str> 'month' or 'year' (OPTIONAL)
-        'price_amount'   : <int> 1000 == $10 (OPTIONAL)
-        'max_sites'      : <int> total # `Sites` per `Account` (OPTIONAL)
-        'max_pages'      : <int> total # `Pages` per `Site` (OPTIONAL)
-        'max_schedules'  : <int> total # `Schedules` per `Account` (OPTIONAL)
-        'retention_days' : <int> total # days to keep data (OPTIONAL)
-        'testcases'      : <str> 'true' or 'false' (OPTIONAL)
-        'meta'           : <dict> any extra data for the account (OPTIONAL)
+        'name'              : <str> 'basic', 'pro', 'plus', 'custom' (REQUIRED)
+        'interval'          : <str> 'month' or 'year' (REQUIRED)
+        'price_amount'      : <int> 1000 == $10 (REQUIRED)
+        'max_sites'         : <int> total # `Sites` per `Account` (REQUIRED)
+        'max_pages'         : <int> total # `Pages` per `Site` (REQUIRED)
+        'max_schedules'     : <int> total # `Schedules` per `Account` (REQUIRED)
+        'retention_days'    : <int> total # days to keep data (REQUIRED)
+        'testcases'         : <str> 'true' or 'false' (OPTIONAL)
+        'scans_allowed'     : <int> total # of `Scans` per `Account` per month (OPTIONAL)
+        'tests_allowed'     : <int> total # of `Tests` per `Account` per month (OPTIONAL)
+        'testcases_allowed' : <int> total # of `Testcases` per `Account` per month (OPTIONAL)
+        'meta'              : <dict> any extra data for the account (OPTIONAL)
     }
     
     Returns -> data: {
@@ -53,6 +58,9 @@ def stripe_setup(request: object) -> object:
     max_schedules = int(request.data.get('max_schedules'))
     retention_days = int(request.data.get('retention_days'))
     testcases = str(request.data.get('testcases', 'False'))
+    scans_allowed = int(request.data.get('scans_allowed'))
+    tests_allowed = int(request.data.get('tests_allowed'))
+    testcases_allowed = int(request.data.get('testcases_allowed'))
     meta = request.data.get('meta')
     
     # get user
@@ -82,6 +90,14 @@ def stripe_setup(request: object) -> object:
             max_schedules=max_schedules,
             retention_days=retention_days,
             testcases=testcases, 
+            usage={
+                'scans': 0,
+                'tests': 0,
+                'testcases': 0,
+                'scans_allowed': scans_allowed if scans_allowed is not None else 30, 
+                'tests_allowed': tests_allowed if tests_allowed is not None else 30, 
+                'testcases_allowed': testcases_allowed if testcases_allowed is not None else 15,
+            },
             meta=meta
         )
 
@@ -142,7 +158,8 @@ def stripe_setup(request: object) -> object:
         stripe.Price.modify(account.price_id, active=False)
 
     # update `Account` with new Stripe info
-    Account.objects.filter(user=user).update(
+    create_or_update_account(
+        id=account.id,
         type = name,
         cust_id = customer.id,
         sub_id = subscription.id,
@@ -155,6 +172,9 @@ def stripe_setup(request: object) -> object:
         max_schedules = max_schedules,
         retention_days = retention_days,
         testcases = testcases,
+        scans_allowed = scans_allowed,
+        tests_allowed = tests_allowed,
+        testcases_allowed = testcases_allowed,
         meta = meta
     )        
 
@@ -392,6 +412,14 @@ def cancel_subscription(request: object) -> object:
         account.interval = 'month'
         account.price_amount = 0
         account.testcases = False
+        account.usage = {
+            'scans': 0,
+            'tests': 0,
+            'testcases': 0,
+            'scans_allowed': 30, 
+            'tests_allowed': 30, 
+            'testcases_allowed': 15,
+        }
 
         # save Account
         account.save()
@@ -458,5 +486,62 @@ def get_stripe_invoices(request: object) -> object:
     # return response
     return Response(data, status=status.HTTP_200_OK)
 
+
+
+
+def reset_account_usage(account_id: str=None) -> None:
+    """ 
+    Loops through each active `Account`, checks to see
+    if timezone.today() is the start of the 
+    next billing cycle, and resets `Account.usage`
+
+    Expcets: {
+        'account_id': <str> (OPTIONAL)
+    }
+
+    Returns: None
+    """
+
+    # check for account_id
+    if account_id is not None:
+        accounts = [Account.objects.get(id=account_id)]
+    else:
+        # get all active accounts
+        accounts = Account.objects.filter(active=True)
+
+    # loop through each
+    for account in accounts:
+
+        # check if account is active and not free
+        if account.active and account.type != 'free':
+                
+            # get current date
+            today = datetime.today().strftime('%Y-%m-%d')
+            print(f'today -> {today}')
+
+            # get stripe sub
+            sub = stripe.Subscription.retrieve(
+                account.sub_id
+            )
+
+            # get and formate sub.current_peroid_start
+            sub_date = datetime.fromtimestamp(
+                sub.current_peroid_start
+            ).strftime('%Y-%m-%d')
+            print(f'sub_date -> {today}')
+
+            # reset accout usage if today is 
+            # begining of sub payment peroid
+            if today == sub_date:
+                
+                # reset account.ussage
+                create_or_update_account(
+                    id=account.id,
+                    scans=0,
+                    tests=0,
+                    testcases=0
+                )
+
+    return None
 
 

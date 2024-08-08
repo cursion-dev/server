@@ -14,6 +14,7 @@ from .utils.scanner import (
     _yellowlab
 )
 from .utils.alerts import send_invite_link, send_remove_alert
+from .v1.billing.services import reset_account_usage
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -1045,6 +1046,26 @@ def create_testcase_bg(
         automater(automation_id, testcase.id)
 
     logger.info('Ran full testcase')
+    return None
+
+
+
+
+@shared_task
+def reset_account_usage_bg(account_id: str=None):
+    """ 
+    Loops through each active `Account`, checks to see
+    if timezone.today() is the start of the 
+    next billing cycle, and resets `Account.usage`
+
+    Expcets: {
+        'account_id': <str> (OPTIONAL)
+    }
+
+    Returns: None
+    """
+    # running method from billing.services
+    reset_account_usage(account_id)
     return None
 
 
