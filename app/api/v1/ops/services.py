@@ -5114,7 +5114,7 @@ def search_resources(request: object) -> object:
     while i <= max_issues and i <= (len(issues)-1):
         data.append({
             'name': str(issues[i].title),
-            'path': f'/issue/{issue[i].id}',
+            'path': f'/issue/{issues[i].id}',
             'id'  : str(issues[i].id),
             'type': 'issue',
         })
