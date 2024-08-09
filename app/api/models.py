@@ -268,6 +268,7 @@ def get_usage_default():
         'tests_allowed': 30, 
         'testcases_allowed': 15,
     }
+    return usage
 
 
 
