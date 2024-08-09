@@ -2879,7 +2879,7 @@ def search_issues(request: object) -> object:
     issues = Issue.objects.filter(
         Q(account=account, title__icontains=query) |
         Q(account=account, details__icontains=query) |
-        Q(account=account, affected__icontains={'str':query})
+        Q(account=account, affected__icontains=query)
     ).order_by('-status', '-time_created')
     
     # serialize and rerturn
