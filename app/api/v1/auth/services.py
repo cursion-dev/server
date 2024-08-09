@@ -622,7 +622,6 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         max_pages = request.data.get('max_pages')
         max_schedules = request.data.get('max_schedules')
         retention_days = request.data.get('retention_days')
-        testcases = request.data.get('testcases')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
@@ -635,6 +634,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         testcases = request.data.get('testcases')
         slack = request.data.get('slack')
         configs = request.data.get('configs')
+        meta = request.data.get('meta')
         user = request.user
 
     # get kwargs data
@@ -649,7 +649,6 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         max_pages = kwargs.get('max_pages')
         max_schedules = kwargs.get('max_schedules')
         retention_days = kwargs.get('retention_days')
-        testcases = kwargs.get('testcases')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
@@ -662,6 +661,7 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         testcases = kwargs.get('testcases')
         slack = kwargs.get('slack')
         configs = kwargs.get('configs')
+        meta = kwargs.get('meta')
         user_id = kwargs.get('user')
         user = User.objects.get(id=user_id)
 
@@ -692,8 +692,6 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.max_schedules = max_schedules
         if retention_days is not None:
             account.retention_days = retention_days
-        if testcases is not None:
-            account.testcases = testcases
         if cust_id is not None:
             account.cust_id = cust_id
         if sub_id is not None:
@@ -718,6 +716,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.slack = slack
         if configs is not None:
             account.configs = configs
+        if meta is not None:
+            account.meta = meta
         
         # saving updated info
         account.save()
@@ -741,11 +741,11 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             max_pages=max_pages,
             max_schedules=max_schedules if max_schedules is not None else 0,
             retention_days=retention_days if retention_days is not None else 14,
-            testcases=testcases if testcases is not None else False,
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
             price_id=price_id,
+            meta=meta,
             usage={
                 'scans': 0,
                 'tests': 0,

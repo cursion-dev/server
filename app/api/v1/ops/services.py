@@ -249,17 +249,11 @@ def check_account_and_resource(
         # checking testcases
         if resource == 'testcase':
             if not testcase_id and action == 'add':
-                if not account.testcases:
+                if not check_resource(account, 'testcases'):
                     allowed = False
-                    error = 'testcases not allowed, please upgrade'
+                    error = 'max testcases reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
-                else:
-                    if not check_and_increment_resource(account, 'testcases'):
-                        allowed = False
-                        error = 'max testcases reached'
-                        _status = status.HTTP_402_PAYMENT_REQUIRED
-                        code = '402'
             if testcase_id:
                 if not Testcase.objects.filter(id=testcase_id, account=account).exists():
                     allowed = False
@@ -318,7 +312,7 @@ def check_account_and_resource(
         # checking scans
         if resource == 'scan':
             if not scan_id and action == 'add':
-                if not check_and_increment_resource(account, 'scan'):
+                if not check_resource(account, 'scans'):
                     allowed = False
                     error = 'max scans reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
@@ -333,7 +327,7 @@ def check_account_and_resource(
         # checking tests
         if resource == 'test':
             if not test_id and action == 'add':
-                if not check_and_increment_resource(account, 'test'):
+                if not check_resource(account, 'tests'):
                     allowed = False
                     error = 'max tests reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
@@ -390,32 +384,28 @@ def check_account_and_resource(
 
 
 
-    def check_and_increment_resource(account: object, resource: str) -> bool:
-        """ 
-        Adds 1 to the Account.usage.{resource} if 
-        {resource}_allowed has not been reached.
+def check_resource(account: object, resource: str) -> bool:
+    """ 
+    Validates if account can add a new {resource} 
 
-        Expcets: {
-            'account'  : <object>,
-            'resource' : <str> 'scan', 'test', or 'testcase
-        }
+    Expcets: {
+        'account'  : <object>,
+        'resource' : <str> 'scan', 'test', or 'testcase
+    }
 
-        Returns: Bool, True if resource was incremented.
-        """
+    Returns: Bool, True if resource was incremented.
+    """
 
-        # define defaults
-        success = False
+    # define defaults
+    success = False
 
-        # check allowance
-        if (int(account.usage[resource]) + 1) <= int(account.usage[f'{resource}s_allowed']):
-            
-            # increment and update success
-            account.usage[resource] = 1 + int(account.usage[resource])
-            account.save()
-            success = True
+    # check allowance
+    if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+        # update success
+        success = True
 
-        # return response
-        return success
+    # return response
+    return success
 
 
 
@@ -722,6 +712,13 @@ def delete_site(request: object, id: str) -> object:
     
     # remove any associated tasks 
     delete_tasks(site=site)
+
+    # remove any associated Issues
+    issues = Issue.objects.filter(
+        affected__icontains=id
+    )
+    for issue in issues:
+        issue.delete()
     
     # remove site
     site.delete()
@@ -1225,6 +1222,13 @@ def delete_page(request: object, id: str) -> object:
 
     # remove any schedules and associated tasks
     delete_tasks(page=page)
+
+    # remove any associated Issues
+    issues = Issue.objects.filter(
+        affected__icontains=id
+    )
+    for issue in issues:
+        issue.delete()
     
     # remove page
     page.delete()
@@ -1481,6 +1485,10 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
                 return Response(data, status=check_data['status'])
             return data
 
+        # increment account.usage.scans
+        account.usage['scans'] += 1
+        account.save() 
+
         # creating scan obj
         created_scan = Scan.objects.create(
             site=p.site,
@@ -1508,7 +1516,6 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         if 'vrt' in types or 'full' in types:
             run_vrt_bg.delay(scan_id=created_scan.id)
     
-
     # returning dynaminc response
     data = {
         'success': True,
@@ -2149,6 +2156,10 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
         # add test.id to list
         created_tests.append(str(test.id))
+
+        # update account.usage.tests
+        account.usage['tests'] += 1
+        account.save()
 
         # running test in background
         create_test_bg.delay(
@@ -3396,10 +3407,20 @@ def delete_tasks(page: object=None, site: object=None) -> None:
     """ 
 
     # get any schedules
+    schedules = []
+    
+    # get all page scopped Schedules
     if page:
-        schedules = Schedule.objects.filter(page=page)
+        schedules += Schedule.objects.filter(page=page)
+    
+    # get all site & page scopped Schedules
     if site:
-        schedules = Schedule.objects.filter(site=site)
+        # get site scopped
+        schedules += Schedule.objects.filter(site=site)
+        # iterate over each site associated page and to schedules[]
+        pages = Page.objects.filter(site=site)
+        for p in pages:
+            schedules += Schedule.objects.filter(page=p)
 
     # remove any associated tasks
     for schedule in schedules:
@@ -5021,6 +5042,7 @@ def search_resources(request: object) -> object:
     cases = []
     pages = []
     sites = []
+    issues = []
 
     # check for object specification i.e 'site:', 'case:', 'issue:'
     resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
@@ -5047,7 +5069,7 @@ def search_resources(request: object) -> object:
     # search for issues
     if resource_type == 'issue' or resource_type == query:
         issues = Issue.objects.filter(account=account).filter(
-            name__icontains=query
+            title__icontains=query
         )
 
     # adding first several sites if present
@@ -5129,36 +5151,44 @@ def get_home_metrics(request: object) -> object:
     issues = Issue.objects.filter(account=account, status='open')
     
     # setting defaults
-    site_count = sites.count()
-    issues_count = issues.count()
-    test_count = 0
-    scan_count = 0
-    schedule_count = 0
-    
+    issues = issues.count()
+    tests = account.usage['tests']
+    scans = account.usage['scans']
+    testcases = account.usage['testcases']
+    schedules = 0
+
     # calculating metrics
     for site in sites:
-        tests = Test.objects.filter(site=site)
-        scans = Scan.objects.filter(site=site)
-        schedules = Schedule.objects.filter(site=site)
-        test_count = test_count + tests.count()
-        scan_count = scan_count + scans.count()
-        schedule_count = schedule_count + schedules.count()
+        schedules += Schedule.objects.filter(site=site).count()
 
         # getting associated pages
         pages = Page.objects.filter(site=site)
 
         # adding page scoped schedules 
         for page in pages:
-            schedules = Schedule.objects.filter(page=page)
-            schedule_count = schedule_count + schedules.count()
+            schedules += Schedule.objects.filter(page=page).count()
 
+    # calculate usages
+    sites = sites.count()
+    sites_usage = round((sites/account.max_sites)*100, 2) if sites > 0 else 0
+    schedule_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
+    tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
+    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
+    
     # format data
     data = {
-        "sites": site_count, 
-        "tests": test_count,
-        "scans": scan_count,
-        "schedules": schedule_count,
-        "open_issues": issues_count,
+        "sites": sites, 
+        "sites_usage": sites_usage,
+        "tests": tests,
+        "tests_usage": tests_usage,
+        "scans": scans,
+        "scans_usage": scans_usage,
+        "schedules": schedules,
+        "schedules_usage": schedule_usage,
+        "testcases": testcases,
+        "testcases_usage": testcases_usage,
+        "open_issues": issues,
     }
     
     # return response
@@ -5186,29 +5216,40 @@ def get_site_metrics(request: object) -> object:
     account = Member.objects.get(user=user).account
     site_id = request.query_params.get('site_id')
     site = Site.objects.get(id=site_id)
+    max_sites = account.max_sites
     pages = Page.objects.filter(site=site)
 
     # setting detaults
-    page_count = pages.count()
-    test_count = 0
-    scan_count = 0
-    schedule_count = Schedule.objects.filter(site=site).count()
+    testcases = round(account.usage['testcases'] / max_sites) if account.usage['testcases'] > 0 else 0
+    tests = round(account.usage['tests'] / max_sites) if account.usage['tests'] > 0 else 0
+    scans = round(account.usage['scans'] / max_sites) if account.usage['scans'] > 0 else 0
+    schedules = Schedule.objects.filter(site=site).count()
 
-    # calculating metrics
+    # calculating page scoped schedules
     for page in pages:
-        tests = Test.objects.filter(page=page)
-        scans = Scan.objects.filter(page=page)
-        schedules = Schedule.objects.filter(page=page)
-        test_count = test_count + tests.count()
-        scan_count = scan_count + scans.count()
-        schedule_count = schedule_count + schedules.count()
+        schedules += Schedule.objects.filter(page=page).count()
+    
+    # calculate usage
+    pages = pages.count()
+    pages_usage = round((pages/account.max_pages)*100, 2) if pages > 0 else 0
+    scans_usage = round((scans/round(account.usage['scans_allowed']/max_sites))* 100, 2) if scans > 0 else 0
+    tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
+    testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
+    schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
+
 
     # format data
     data = {
-        "pages": page_count, 
-        "tests": test_count,
-        "scans": scan_count,
-        "schedules": schedule_count,
+        "pages": pages, 
+        "pages_usage": pages_usage, 
+        "tests": tests,
+        "tests_usage": tests_usage,
+        "scans": scans,
+        "scans_usage": scans_usage,
+        "schedules": schedules,
+        "schedules_usage": schedules_usage,
+        "testcases": testcases,
+        "testcases_usage": testcases_usage,
     }
 
     # return response

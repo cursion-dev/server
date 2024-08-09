@@ -14,13 +14,12 @@ from .utils.scanner import (
     _yellowlab
 )
 from .utils.alerts import send_invite_link, send_remove_alert
-from .v1.billing.services import reset_account_usage
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta
 from scanerr import settings
-import asyncio, boto3, time, requests, json
+import asyncio, boto3, time, requests, json, stripe
 
 
 
@@ -51,6 +50,36 @@ s3 = boto3.resource('s3',
     region_name=str(settings.AWS_S3_REGION_NAME), 
     endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
 )
+
+
+
+
+def check_and_increment_resource(account: object, resource: str) -> bool:
+    """ 
+    Adds 1 to the Account.usage.{resource} if 
+    {resource}_allowed has not been reached.
+
+    Expcets: {
+        'account'  : <object>,
+        'resource' : <str> 'scan', 'test', or 'testcase
+    }
+
+    Returns: Bool, True if resource was incremented.
+    """
+
+    # define defaults
+    success = False
+
+    # check allowance
+    if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+        
+        # increment and update success
+        account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
+        account.save()
+        success = True
+
+    # return response
+    return success
 
 
 
@@ -89,25 +118,28 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
                 user=site.user,
                 account=site.account,
             )
-            
-            # create initial scan
-            scan = Scan.objects.create(
-                site=site,
-                page=page, 
-                type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-                configs=configs
-            )
-            
-            # run each scan component in parallel
-            run_html_and_logs_bg.delay(scan_id=scan.id)
-            run_lighthouse_bg.delay(scan_id=scan.id)
-            run_yellowlab_bg.delay(scan_id=scan.id)
-            run_vrt_bg.delay(scan_id=scan.id)
-            
-            # update page info 
-            page.info["latest_scan"]["id"] = str(scan.id)
-            page.info["latest_scan"]["time_created"] = str(scan.time_created)
-            page.save()
+
+            # check resouce allowance
+            if check_and_increment_resource(site.account, 'scans'):
+
+                # create initial scan
+                scan = Scan.objects.create(
+                    site=site,
+                    page=page, 
+                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    configs=configs
+                )
+                
+                # run each scan component in parallel
+                run_html_and_logs_bg.delay(scan_id=scan.id)
+                run_lighthouse_bg.delay(scan_id=scan.id)
+                run_yellowlab_bg.delay(scan_id=scan.id)
+                run_vrt_bg.delay(scan_id=scan.id)
+                
+                # update page info 
+                page.info["latest_scan"]["id"] = str(scan.id)
+                page.info["latest_scan"]["time_created"] = str(scan.time_created)
+                page.save()
 
     # updating site status
     site.time_crawl_completed = timezone.now()
@@ -166,21 +198,25 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
                 user=site.user,
                 account=site.account,
             )
-            # create initial scan
-            scan = Scan.objects.create(
-                site=site,
-                page=page, 
-                type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
-                configs=configs
-            )
-            # run each scan component in parallel
-            run_html_and_logs_bg.delay(scan_id=scan.id)
-            run_lighthouse_bg.delay(scan_id=scan.id)
-            run_yellowlab_bg.delay(scan_id=scan.id)
-            run_vrt_bg.delay(scan_id=scan.id)
-            page.info["latest_scan"]["id"] = str(scan.id)
-            page.info["latest_scan"]["time_created"] = str(scan.time_created)
-            page.save()
+
+            # check resouce allowance
+            if check_and_increment_resource(site.account, 'scans'):
+
+                # create initial scan
+                scan = Scan.objects.create(
+                    site=site,
+                    page=page, 
+                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    configs=configs
+                )
+                # run each scan component in parallel
+                run_html_and_logs_bg.delay(scan_id=scan.id)
+                run_lighthouse_bg.delay(scan_id=scan.id)
+                run_yellowlab_bg.delay(scan_id=scan.id)
+                run_vrt_bg.delay(scan_id=scan.id)
+                page.info["latest_scan"]["id"] = str(scan.id)
+                page.info["latest_scan"]["time_created"] = str(scan.time_created)
+                page.save()
 
     # updating site status
     site.time_crawl_completed = timezone.now()
@@ -321,13 +357,16 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
     # creating scans for each page
     for page in pages:
-        create_scan.delay(
-            page_id=page.id,
-            type=type,
-            configs=configs,
-            tags=tags,
-            automation_id=automation_id
-        )
+
+        # check resource 
+        if check_and_increment_resource(page.account, 'scans'):
+            create_scan.delay(
+                page_id=page.id,
+                type=type,
+                configs=configs,
+                tags=tags,
+                automation_id=automation_id
+            )
     
     logger.info('created new Scans')
     return None
@@ -593,16 +632,21 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
         # create a test for each page
         for page in pages:
-            create_test.delay(
-                page_id=page.id,
-                type=type,
-                configs=configs,
-                tags=tags,
-                threshold=float(threshold),
-                pre_scan=pre_scan,
-                post_scan=post_scan,
-                automation_id=automation_id
-            )
+
+            # check resource 
+            if check_and_increment_resource(page.account, 'tests'):
+
+                # create test
+                create_test.delay(
+                    page_id=page.id,
+                    type=type,
+                    configs=configs,
+                    tags=tags,
+                    threshold=float(threshold),
+                    pre_scan=pre_scan,
+                    post_scan=post_scan,
+                    automation_id=automation_id
+                )
     
     # get test and run 
     if test_id is not None:
@@ -1052,7 +1096,7 @@ def create_testcase_bg(
 
 
 @shared_task
-def reset_account_usage_bg(account_id: str=None):
+def reset_account_usage(account_id: str=None) -> None:
     """ 
     Loops through each active `Account`, checks to see
     if timezone.today() is the start of the 
@@ -1064,9 +1108,77 @@ def reset_account_usage_bg(account_id: str=None):
 
     Returns: None
     """
-    # running method from billing.services
-    reset_account_usage(account_id)
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
+    # check for account_id
+    if account_id is not None:
+        accounts = [Account.objects.get(id=account_id)]
+    else:
+        # get all active accounts
+        accounts = Account.objects.filter(active=True)
+
+    # get current date
+    today = datetime.today()
+    today_str = today.strftime('%Y-%m-%d')
+    print(f'today -> {today_str}')
+
+    # reset account.ussage
+    def reset_usage(account):
+        account.usage['scans'] = 0
+        account.usage['tests'] = 0
+        account.usage['testcases'] = 0
+        account.save()
+
+    # loop through each
+    for account in accounts:
+
+        # check if account is active and not free
+        if account.active and account.type != 'free':
+                
+            # get stripe sub
+            sub = stripe.Subscription.retrieve(
+                account.sub_id
+            )
+
+            # get and formate sub.current_peroid_start
+            sub_date = datetime.fromtimestamp(
+                sub.current_peroid_start
+            ).strftime('%Y-%m-%d')
+            print(f'sub_date -> {sub_date}')
+
+            # reset accout usage if today is 
+            # begining of sub payment peroid
+            # OR if a specific account was requested
+            if today == sub_date or account_id is not None:
+                reset_usage(account)
+
+        # check if accout is free
+        if account.type == 'free':
+
+            # get last usage reset date from meta
+            last_usage_date_str = account.meta.get('last_usage_reset')
+            if last_usage_date_str is not None:
+
+                # format date str as datetime obj
+                f = '%Y-%m-%d %H:%M:%S'
+                last_usage_date = datetime.strptime(last_usage_date_str, f)
+
+                print(f'days since last reset -> {abs(today - last_usage_date)}')
+
+                # check if over 30 days
+                if abs(today - last_usage_date) >= 30:
+                    reset_usage(account)
+
+                # udpate account.meta.last_usage_reset
+                account.meta['last_usage_reset'] = today.strftime(f)
+                account.save()
+    
     return None
+
+
+
 
 
 

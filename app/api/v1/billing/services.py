@@ -3,7 +3,7 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from django.core import serializers
 from datetime import date, datetime
-from ...models import Account, Card, Site
+from ...models import Account, Card, Site, Issue
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from ..auth.serializers import AccountSerializer
@@ -159,6 +159,7 @@ def stripe_setup(request: object) -> object:
 
     # update `Account` with new Stripe info
     create_or_update_account(
+        user=user.id,
         id=account.id,
         type = name,
         cust_id = customer.id,
@@ -319,8 +320,9 @@ def get_billing_info(request: object) -> object:
             'max_pages': account.max_pages,
             'max_schedules': account.max_schedules,
             'retention_days': account.retention_days,
-            'testcases': account.testcases,
-            'meta': account.meta
+            'usage': account.usage,
+            'meta': account.meta,
+            'sub_url': account.sub_url
         },
     }
     
@@ -377,6 +379,7 @@ def account_activation(request: object) -> object:
 
 
 
+
 def cancel_subscription(request: object) -> object:
     """ 
     Cancels the Stripe Subscription associated with the
@@ -411,7 +414,11 @@ def cancel_subscription(request: object) -> object:
         account.retention_days = '3'
         account.interval = 'month'
         account.price_amount = 0
-        account.testcases = False
+        account.cust_id = None
+        account.sub_id = None
+        account.product_id = None
+        account.price_id = None
+        account.price_amount = None
         account.usage = {
             'scans': 0,
             'tests': 0,
@@ -423,11 +430,20 @@ def cancel_subscription(request: object) -> object:
 
         # save Account
         account.save()
+
+        # update user's card
+        card = Card.objects.get(account=account)
+        card.delete()
     
     # remove sites
     sites = Site.objects.filter(account=account)
     for site in sites:
         delete_site(request=request, id=site.id)
+    
+    # remove issues
+    issues = Issue.objects.filter(account=account)
+    for issue in issues:
+        issue.delete()
 
     # serialize and return
     serializer_context = {'request': request,}
@@ -485,63 +501,5 @@ def get_stripe_invoices(request: object) -> object:
     
     # return response
     return Response(data, status=status.HTTP_200_OK)
-
-
-
-
-def reset_account_usage(account_id: str=None) -> None:
-    """ 
-    Loops through each active `Account`, checks to see
-    if timezone.today() is the start of the 
-    next billing cycle, and resets `Account.usage`
-
-    Expcets: {
-        'account_id': <str> (OPTIONAL)
-    }
-
-    Returns: None
-    """
-
-    # check for account_id
-    if account_id is not None:
-        accounts = [Account.objects.get(id=account_id)]
-    else:
-        # get all active accounts
-        accounts = Account.objects.filter(active=True)
-
-    # loop through each
-    for account in accounts:
-
-        # check if account is active and not free
-        if account.active and account.type != 'free':
-                
-            # get current date
-            today = datetime.today().strftime('%Y-%m-%d')
-            print(f'today -> {today}')
-
-            # get stripe sub
-            sub = stripe.Subscription.retrieve(
-                account.sub_id
-            )
-
-            # get and formate sub.current_peroid_start
-            sub_date = datetime.fromtimestamp(
-                sub.current_peroid_start
-            ).strftime('%Y-%m-%d')
-            print(f'sub_date -> {today}')
-
-            # reset accout usage if today is 
-            # begining of sub payment peroid
-            if today == sub_date:
-                
-                # reset account.ussage
-                create_or_update_account(
-                    id=account.id,
-                    scans=0,
-                    tests=0,
-                    testcases=0
-                )
-
-    return None
 
 
