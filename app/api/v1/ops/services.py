@@ -177,13 +177,6 @@ def check_account_and_resource(
         
         # checking sites
         if resource == 'site':
-            if not site_id:
-                current_count = Site.objects.filter(account=account).count()
-                if current_count >= account.max_sites and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
-                    allowed = False
-                    error = 'max sites reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
             if site_id:
                 if not Site.objects.filter(id=site_id, account=account).exists():
                     allowed = False
@@ -191,33 +184,47 @@ def check_account_and_resource(
                     _status = status.HTTP_404_NOT_FOUND
                     code = '404'
             if site_url:
-                if not Site.objects.filter(site_url=site_url, account=account).exists():
+                current_count = Site.objects.filter(account=account).count()
+                if Site.objects.filter(site_url=site_url, account=account).exists():
                     allowed = False
                     error = 'site already exists'
                     _status = status.HTTP_409_CONFLICT
                     code = '409'
+                elif current_count >= account.max_sites and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
+                    allowed = False
+                    error = 'max sites reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
+                elif current_count >= account.max_sites  and action == 'add' and (account.type == 'enterprise' or account.type == 'custom'):
+                    # add to max_sites only for enterprise
+                    account.max_sites += 1
+                    account.max_schedules += 1
+                    account.save()
+                    # update price for sub
+                    update_sub_price.delay(account.id)
         
         # checking schedules
         if resource == 'schedule':
             if not schedule_id:
                 current_count = Schedule.objects.filter(account=account).count()
-                if current_count >= account.max_schedules and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
+                if current_count >= account.max_schedules and action == 'add':
                     allowed = False
                     error = 'max schedules reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
-                if page_id:
+                elif page_id:
                     if not Page.objects.filter(id=page_id, account=account).exists():
                         allowed = False
                         error = 'page not found'
                         _status = status.HTTP_404_NOT_FOUND
                         code = '404'
-                if site_id:
+                elif site_id:
                     if not Site.objects.filter(id=site_id, account=account).exists():
                         allowed = False
                         error = 'site not found'
                         _status = status.HTTP_404_NOT_FOUND
                         code = '404'
+                
             if schedule_id:
                 if not Schedule.objects.filter(id=schedule_id, account=account).exists():
                     allowed = False
@@ -460,7 +467,10 @@ def create_site(request: object, delay: bool=False) -> object:
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, resource='site', action='add')
+    check_data = check_account_and_resource(
+        request=request, resource='site', action='add',
+        site_url=site_url
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
@@ -471,7 +481,8 @@ def create_site(request: object, delay: bool=False) -> object:
         site_url=site_url,
         user=user,
         tags=tags,
-        account=account
+        account=account,
+        time_crawl_started=datetime.now()
     )
 
     # create process obj
@@ -681,28 +692,35 @@ def get_site(request: object, id: str) -> object:
 
 
 
-def delete_site(request: object, id: str) -> object:
+def delete_site(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Site` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
     
     # get site if checks passed
     site = Site.objects.get(id=id)
@@ -723,11 +741,22 @@ def delete_site(request: object, id: str) -> object:
     # remove site
     site.delete()
 
+    # update account if enterprise or custom
+    if account.type == 'enterprise' or account.type == 'custom':
+        account.max_sites -= 1
+        account.max_schedules -= 1
+        account.save()
+
+        # update billing
+        update_sub_price.delay(account_id=account.id)
+
     # returning response
     data = {'message': 'site deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -781,6 +810,16 @@ def delete_many_sites(request: object) -> object:
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
+
+        
+        # update account if enterprise or custom
+        if account.type == 'enterprise' or account.type == 'custom':
+            account.max_sites -= num_succeeded
+            account.max_schedules -= num_succeeded
+            account.save()
+
+            # update billing
+            update_sub_price.delay(account_id=account.id)
 
         # format response
         data = {

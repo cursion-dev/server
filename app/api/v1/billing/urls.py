@@ -7,11 +7,13 @@ from . import views as views
 
 
 urlpatterns = [
-    path('setup-subscription', views.SetupSubscription.as_view(), name='setup_subscription'),
-    path('complete-subscription', views.CompleteSubscription.as_view(), name='complete_subscription'),
-    path('cancel-subscription', views.CancelSubscription.as_view(), name='cancel_subscription'),
-    path('stripe-key', views.StripeKey.as_view(), name='stripe_key'),
-    path('get-info', views.GetBillingInfo.as_view(), name='get_billing_info'),
-    path('get-invoices', views.StripeInvoice.as_view(), name='stripe_invoices'),
-    path('account-activation', views.AccountActivation.as_view(), name='account_activation')
+    path('stripe/key', views.StripeKey.as_view(), name='stripe_key'),
+    path('invoices', views.StripeInvoice.as_view(), name='stripe_invoices'),
+    path('info', views.BillingInfo.as_view(), name='billing_info'),
+    path('subscription/setup', views.SubscriptionSetup.as_view(), name='subscription_setup'),
+    path('subscription/complete', views.SubscriptionComplete.as_view(), name='subscription_complete'),
+    path('subscription/cancel', views.SubscriptionCancel.as_view(), name='subscription_cancel'),
+    path('subscription/update', views.SubscriptionUpdate.as_view(), name='subscription_update'),
+    path('subscription/url', views.SubscriptionUrl.as_view(), name='subscription_url'),
+    path('account/activation', views.AccountActivation.as_view(), name='account_activation')
 ]

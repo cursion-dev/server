@@ -57,7 +57,6 @@ def stripe_setup(request: object) -> object:
     max_pages = int(request.data.get('max_pages'))
     max_schedules = int(request.data.get('max_schedules'))
     retention_days = int(request.data.get('retention_days'))
-    testcases = str(request.data.get('testcases', 'False'))
     scans_allowed = int(request.data.get('scans_allowed'))
     tests_allowed = int(request.data.get('tests_allowed'))
     testcases_allowed = int(request.data.get('testcases_allowed'))
@@ -73,12 +72,6 @@ def stripe_setup(request: object) -> object:
     # build Stripe Product name
     product_name = f'{user.email}_{user.id}_{name}'
 
-    # format testcase data
-    if str(testcases).lower() == 'true':
-        testcases = True
-    if str(testcases).lower() == 'false':
-        testcases = False
-
     # create new `Account` if none exists
     if not Account.objects.filter(user=user).exists():
         create_or_update_account(
@@ -88,16 +81,10 @@ def stripe_setup(request: object) -> object:
             max_sites=max_sites,
             max_pages=max_pages,
             max_schedules=max_schedules,
-            retention_days=retention_days,
-            testcases=testcases, 
-            usage={
-                'scans': 0,
-                'tests': 0,
-                'testcases': 0,
-                'scans_allowed': scans_allowed if scans_allowed is not None else 30, 
-                'tests_allowed': tests_allowed if tests_allowed is not None else 30, 
-                'testcases_allowed': testcases_allowed if testcases_allowed is not None else 15,
-            },
+            retention_days=retention_days, 
+            scans_allowed=scans_allowed if scans_allowed is not None else 30, 
+            tests_allowed=tests_allowed if tests_allowed is not None else 30, 
+            testcases_allowed=testcases_allowed if testcases_allowed is not None else 15,
             meta=meta
         )
 
@@ -172,7 +159,6 @@ def stripe_setup(request: object) -> object:
         price_amount = price_amount,
         max_schedules = max_schedules,
         retention_days = retention_days,
-        testcases = testcases,
         scans_allowed = scans_allowed,
         tests_allowed = tests_allowed,
         testcases_allowed = testcases_allowed,
@@ -280,6 +266,213 @@ def stripe_complete(request: object) -> object:
 
 
 
+def calc_price(account: object=None) -> int:
+    """ 
+    Calculates a `price` based on `Account.max_sites` 
+    and any `Account.meta.coupon` data.
+
+    Expects: {
+        'account': <object> (REQUIRED)
+    } 
+    
+    Returns: 'price_amount' <int>
+    """
+    
+    # get max_sites
+    max_sites = account.max_sites
+
+    # get account coupon
+    discount = 1
+    if account.meta.get('coupon'):
+        discount = account.meta['coupon']['discount']
+    
+    # calculate 
+    price = (
+        (
+            (-0.0003 * (max_sites ** 2)) + 
+            (1.5142 * max_sites) + 325.2
+        ) * 100
+    )
+
+    # apply discount
+    price = price - (price * discount)
+
+    # return price
+    return int(price)
+
+
+
+
+def get_stripe_hosted_url(request: object=None) -> object:
+    """ 
+    Creates either a new 'Stripe Checkout Session' 
+    (allows customer to subscribe), or a 'Stripe Customer 
+    Portal Session' (allows customer to manage existing subscription).
+    Either session type with return a Stripe redirect url
+
+    Expects: {
+        'request' : <object> (REQUIRED)
+    }
+    
+    Returns -> data: {
+        'stripe_url': <str>
+    }
+    """
+
+    # get account
+    user = request.user
+    account = Account.objects.get(user=user)
+
+    # set default url
+    stripe_url = None
+    
+    # create Product, Price, & Checkout Session
+    if account.cust_id is None:
+
+        # build product
+        product_name = f'{user.email}_{user.id}_enterprise'
+        product = stripe.Product.create(name=product_name)
+
+        # calc price_amount
+        price_amount = calc_price(account=account)
+        
+        # create new Stripe Price 
+        price = stripe.Price.create(
+            product=product.id,
+            unit_amount=price_amount,
+            currency='usd',
+            recurring={'interval': account.interval,},
+        )
+
+        # create Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            line_items=[
+                {
+                    'price': price.id,
+                    'quantity': 1,
+                },
+            ],
+            mode='subscription',
+            success_url=f'{settings.CLIENT_URL_ROOT}/billing/update' +
+            '?success=true&session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=f'{settings.CLIENT_URL_ROOT}/billing',
+        )
+
+        # setting stripe_url 
+        stripe_url = checkout_session.url
+    
+    # create Portal Session
+    if account.cust_id:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=account.cust_id,
+            return_url=f'{settings.CLIENT_URL_ROOT}/billing/update',
+        )
+
+        # setting stripe_url 
+        stripe_url = portal_session.url
+
+    # return response
+    data = {'stripe_url': stripe_url}
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def update_account_with_stripe_redirect(request: object=None) -> object:
+    """ 
+    Updates `Account` with new sub data from stripe redirect
+
+    Expects: {
+        'request' : <object> (REQUIRED)
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get account
+    account = Account.objects.get(user=request.user)
+    cust_id = account.cust_id
+    sub_id = account.sub_id
+
+    # try to get session_id
+    session_id = request.query_params.get('session_id')
+
+    # if session_id - get customer, subscription
+    if session_id:
+        session = stripe.checkout.Session.retrieve(
+            session_id
+        )
+        cust_id = session.customer
+        sub_id = session.subscription
+
+    # get current stripe sub object
+    sub = stripe.Subscription.retrieve(
+        sub_id
+    )
+
+    # get stripe product & price info
+    plan = sub['items']['data'][0]['plan']
+    product_id = plan['product']
+    price_id = plan['id']
+    price_amount = plan['amount']
+    interval = plan['interval']
+
+    # setting Account.active
+    active = False if (sub['canceled_at'] or sub['pause_collection']) else True
+    
+    # get billing method info
+    pay_method_id = sub.default_payment_method
+    pay_method = stripe.PaymentMethod.retrieve(
+        pay_method_id
+    )
+
+    # create or update Account card
+    if not Card.objects.filter(account=account).exists():
+        Card.objects.create(
+            user            = request.user,
+            account         = account,
+            pay_method_id   = pay_method.id,
+            brand           = pay_method.card.brand,
+            exp_year        = pay_method.card.exp_year,
+            exp_month       = pay_method.card.exp_month,
+            last_four       = pay_method.card.last4
+        )
+    else:
+        Card.objects.filter(account=account).update(
+            user            = request.user,
+            account         = account,
+            pay_method_id   = pay_method.id,
+            brand           = pay_method.card.brand,
+            exp_year        = pay_method.card.exp_year,
+            exp_month       = pay_method.card.exp_month,
+            last_four       = pay_method.card.last4
+        )
+
+    # update `Account` with new Stripe info
+    create_or_update_account(
+        user         = request.user.id,
+        id           = account.id,
+        cust_id      = cust_id,
+        sub_id       = sub_id,
+        product_id   = product_id,
+        price_id     = price_id,
+        price_amount = price_amount,
+        interval     = interval,
+    )
+    
+    # equeting account data deletion
+    if not active:
+        cancel_subscription(account=account)
+
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = AccountSerializer(account, context=serializer_context)
+    data = serialized.data
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
 def get_billing_info(request: object) -> object: 
     """ 
     Gets the `Card`, `Account`, and slack info associated
@@ -287,6 +480,7 @@ def get_billing_info(request: object) -> object:
 
     Expects: {
         'request' : <object> (REQUIRED)
+    }
     
     Returns -> HTTP Response object
     """
@@ -322,7 +516,6 @@ def get_billing_info(request: object) -> object:
             'retention_days': account.retention_days,
             'usage': account.usage,
             'meta': account.meta,
-            'sub_url': account.sub_url
         },
     }
     
@@ -380,31 +573,33 @@ def account_activation(request: object) -> object:
 
 
 
-def cancel_subscription(request: object) -> object:
+def cancel_subscription(request: object=None, account: object=None) -> object:
     """ 
     Cancels the Stripe Subscription associated with the
     passed "user" and reverts the `Account` to a "free" plan
     
     Expects: {
-        'request': object
+        'request': object (OPTIONAL)
+        'account': object (OPTIONAL)
     }
 
-    Returns -> `Account` HTTP Response object
+    Returns -> `Account` HTTP Response object or Bool `true`
     """
 
     # get user's account
-    account = Account.objects.get(user=request.user)
+    if request is not None:
+        account = Account.objects.get(user=request.user)
 
     # update billing if accout is active
     if account.active == True:
 
-        # pause Stripe Subscription billing
-        stripe.Subscription.modify(
-            account.sub_id,
-            pause_collection={
-                'behavior': 'mark_uncollectible',
-            },
-        )
+        # canceling Stripe Subscription billing
+        try:
+            stripe.Subscription.cancel(
+                account.sub_id,
+            )
+        except Exception as e:
+            print(e)
 
         # update Account plan
         account.type = 'free'
@@ -438,7 +633,7 @@ def cancel_subscription(request: object) -> object:
     # remove sites
     sites = Site.objects.filter(account=account)
     for site in sites:
-        delete_site(request=request, id=site.id)
+        delete_site(id=site.id, account=account)
     
     # remove issues
     issues = Issue.objects.filter(account=account)
@@ -446,10 +641,14 @@ def cancel_subscription(request: object) -> object:
         issue.delete()
 
     # serialize and return
-    serializer_context = {'request': request,}
-    serialized = AccountSerializer(account, context=serializer_context)
-    data = serialized.data
-    return Response(data, status=status.HTTP_200_OK)
+    if request is not None:
+        serializer_context = {'request': request,}
+        serialized = AccountSerializer(account, context=serializer_context)
+        data = serialized.data
+        return Response(data, status=status.HTTP_200_OK)
+    else:
+        return True
+
 
 
 

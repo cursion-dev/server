@@ -288,7 +288,6 @@ class Account(models.Model):
     retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    sub_url = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)

@@ -626,6 +626,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
+        price_amount = request.data.get('price_amount')
+        interval = request.data.get('interval')
         scans_allowed = request.data.get('scans_allowed')
         tests_allowed = request.data.get('tests_allowed')
         testcases_allowed = request.data.get('testcases_allowed')
@@ -653,6 +655,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
+        price_amount = kwargs.get('price_amount')
+        interval = kwargs.get('interval')
         scans_allowed = kwargs.get('scans_allowed')
         tests_allowed = kwargs.get('tests_allowed')
         testcases_allowed = kwargs.get('testcases_allowed')
@@ -700,6 +704,10 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.product_id = product_id
         if price_id is not None:
             account.price_id = price_id
+        if price_amount is not None:
+            account.price_amount = price_amount
+        if interval is not None:
+            account.interval = interval
         if scans_allowed is not None:
             account.usage['scans_allowed'] = scans_allowed
         if tests_allowed is not None:

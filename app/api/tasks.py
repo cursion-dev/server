@@ -1180,6 +1180,91 @@ def reset_account_usage(account_id: str=None) -> None:
 
 
 
+@shared_task
+def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
+    """ 
+    Update price for existing stripe Subscription 
+    based on new `Account.max_sites`
+
+    Expects: {
+        'account_id'   : <str> (REQUIRED)   
+        'max_sites' : <int> (OPTIONAL)   
+    }
+
+    Returns: None
+    """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
+    # get account
+    account = Account.objects.get(id=account_id)
+
+    # set new max_sites
+    if max_sites is not None:
+        account.max_sites = max_sites
+        account.save()
+    
+    # get max_sites
+    if max_sites is None:
+        max_sites = account.max_sites
+
+    # get account coupon
+    discount = 1
+    if account.meta.get('coupon'):
+        discount = account.meta['coupon']['discount']
+        if discount != 1:
+            discount = 1-discount
+
+    # calculate 
+    price_amount = (
+        (
+            (-0.0003 * (max_sites ** 2)) + 
+            (1.5142 * max_sites) + 325.2
+        ) * 100
+    )
+
+    # apply discount
+    price = round(price - (price * discount))
+
+    # create new Stripe Price 
+    price = stripe.Price.create(
+        product=account.product_id,
+        unit_amount=price_amount,
+        currency='usd',
+        recurring={'interval': account.interval,},
+    )
+
+    # update Stripe Subscription
+    sub = stripe.Subscription.retrieve(account.sub_id)
+    stripe.Subscription.modify(
+        account.sub_id,
+        cancel_at_period_end=False,
+        pause_collection='',
+        proration_behavior='create_prorations',
+        items=[{
+            'id': sub['items']['data'][0].id,
+            'price': price.id,
+        }],
+        expand=['latest_invoice.payment_intent'],
+    )
+
+    # updating price defaults and archiving old price
+    stripe.Product.modify(account.product_id, default_price=price,)
+    stripe.Price.modify(account.price_id, active=False)
+
+    # update account with new info
+    account.price_id = price.id
+    account.price_amount = 0
+    account.save()
+    account.price_amount = price_amount
+    account.save()
+
+    print(f'new price -> {price_amount}')
+    
+    # return 
+    return None
+
 
 
 
