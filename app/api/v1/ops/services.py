@@ -732,11 +732,7 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
     delete_tasks(site=site)
 
     # remove any associated Issues
-    issues = Issue.objects.filter(
-        affected__icontains=id
-    )
-    for issue in issues:
-        issue.delete()
+    issues = Issue.objects.filter(affected__icontains=id).delete()
     
     # remove site
     site.delete()
@@ -799,12 +795,16 @@ def delete_many_sites(request: object) -> object:
             try:
                 site = Site.objects.get(id=id)
                 if site.account == account:
+
+                    # delete site and associated resources
                     delete_site_s3_bg.delay(site_id=id)
                     delete_tasks(site=site)
-                    site.delete()
+                    Issue.objects.filter(affected__icontains=id).delete()
+
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
+
             except:
                 # add to failed attempts
                 num_failed += 1
