@@ -1646,10 +1646,13 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                print(e)
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # scoped for pages
     if page_ids:
@@ -1671,10 +1674,13 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                print(e)
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # format and return
     data = {
@@ -2335,9 +2341,10 @@ def create_many_tests(request: object) -> object:
                     print(res['message'])
             except Exception as e:
                 print(e)
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # scoped for pages
     if page_ids:
@@ -2363,9 +2370,10 @@ def create_many_tests(request: object) -> object:
                     print(res['message'])
             except Exception as e:
                 print(e)
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # format and return
     data = {
