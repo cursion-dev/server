@@ -1142,9 +1142,11 @@ def reset_account_usage(account_id: str=None) -> None:
                 account.sub_id
             )
 
-            # get and formate sub.current_peroid_start
+            print(sub)
+
+            # get and formate sub.current_period_end
             sub_date = datetime.fromtimestamp(
-                sub.current_peroid_start
+                sub.current_period_end
             ).strftime('%Y-%m-%d')
             print(f'sub_date -> {sub_date}')
 
@@ -1256,8 +1258,10 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
     # update account with new info
     account.price_id = price.id
     account.price_amount = 0
-    account.save()
     account.price_amount = price_amount
+    account.usage['scans_allowed'] = (max_sites * 200)
+    account.usage['tests_allowed'] = (max_sites * 200)
+    account.usage['testcases_allowed'] = (max_sites * 100)
     account.save()
 
     print(f'new price -> {price_amount}')

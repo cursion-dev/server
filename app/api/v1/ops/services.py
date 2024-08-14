@@ -553,34 +553,40 @@ def create_site(request: object, delay: bool=False) -> object:
 
 
 
-def crawl_site(request: object, id: str) -> object:
+def crawl_site(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Initiates a new Crawl for the passed `Site`.id
 
     Expects: {
         'request' : object, 
-        'id'      : str
+        'id'      : str,
+        'account' ; object
     }
     
     Returns -> HTTP Response object
     """
 
     # get user and account
-    user = request.user
-    account = Member.objects.get(user=user).account
-
-    # setting configs
-    configs = request.data.get('configs', None)
+    if request:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        configs = request.data.get('configs', None)
+    
+    if not request:
+        user = account.user
+        configs = account.configs
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # update site info
     site = Site.objects.get(id=id)
@@ -591,12 +597,14 @@ def crawl_site(request: object, id: str) -> object:
     crawl_site_bg.delay(site_id=site.id, configs=configs)
 
     # serializing and returning
-    serializer_context = {'request': request,}
-    serialized = SiteSerializer(site, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
+    if request:
+        serializer_context = {'request': request,}
+        serialized = SiteSerializer(site, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '201')
+        response = Response(data, status=status.HTTP_201_CREATED)
+        return response
+    return None
 
 
 
@@ -1230,7 +1238,7 @@ def get_page(request: object, id: str) -> object:
 
 
 
-def delete_page(request: object, id: str) -> object:
+def delete_page(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Page` associated with the passed "id" 
 
@@ -1243,15 +1251,21 @@ def delete_page(request: object, id: str) -> object:
     """
     
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, page_id=id, resource='page')
+    check_data = check_account_and_resource(user=user, page_id=id, resource='page')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get page by id
     page = Page.objects.get(id=id)
@@ -1274,9 +1288,11 @@ def delete_page(request: object, id: str) -> object:
 
     # format and return
     data = {'message': 'Page has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -1545,8 +1561,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         p.info['latest_scan']['id'] = str(created_scan.id)
         p.info['latest_scan']['time_created'] = str(timezone.now())
         p.info['latest_scan']['time_completed'] = None
-        p.info['latest_scan']['status']['score'] = None
-        p.info['latest_scan']['status']['score'] = None
+        p.info['latest_scan']['score'] = None
+        p.info['latest_scan']['score'] = None
         p.save()
 
         # updating latest_scan info for site
@@ -1827,28 +1843,35 @@ def get_scan_lean(request: object, id: str) -> object:
 
 
 
-def delete_scan(request: object, id: str) -> object:
+def delete_scan(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Scan` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, scan_id=id, resource='scan')
+    check_data = check_account_and_resource(user=user, scan_id=id, resource='scan')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
     
     # get scan if checks passes
     scan = Scan.objects.get(id=id)
@@ -1861,9 +1884,11 @@ def delete_scan(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Scan has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -2516,28 +2541,35 @@ def get_test_lean(request: object, id: str) -> object:
 
 
 
-def delete_test(request: object, id: str) -> object:
+def delete_test(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Test` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, test_id=id, resource='test')
+    check_data = check_account_and_resource(user=user, test_id=id, resource='test')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get test if checks passed
     test = Test.objects.get(id=id)
@@ -2550,9 +2582,11 @@ def delete_test(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Test has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -4458,31 +4492,38 @@ def copy_case(request: object) -> object:
 
 
 
-def delete_case(request: object, id: str) -> object:
+def delete_case(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Case` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # checking account and resource 
     check_data = check_account_and_resource(
-        request=request, resource='case', 
+        user=user, resource='case', 
         case_id=id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get case if checks passed
     case = Case.objects.get(id=id)
@@ -4495,9 +4536,11 @@ def delete_case(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Case has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -4762,31 +4805,38 @@ def get_testcase(request: object, id: str) -> object:
 
 
 
-def delete_testcase(request: object, id: str) -> object:
+def delete_testcase(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Testcase` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # checking account and resource 
     check_data = check_account_and_resource(
-        request=request, resource='testcase', 
+        user=user, resource='testcase', 
         testcase_id=id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get testcase if checks passed
     testcase = Testcase.objects.get(id=id)
@@ -4799,9 +4849,11 @@ def delete_testcase(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Testcase has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 

@@ -642,7 +642,7 @@ class Tester():
                 ).order_by('-time_completed')
                 if len(_test) > 0:
                     if _test[0].score is not None:
-                        tests.append(_test.score)
+                        tests.append(_test[0].score)
         
         if len(tests) > 0:
             
