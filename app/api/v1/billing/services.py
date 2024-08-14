@@ -2,7 +2,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth.models import User
 from django.core import serializers
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from ...models import Account, Card, Site, Issue
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
@@ -687,9 +687,17 @@ def get_stripe_invoices(request: object) -> object:
         # build list of Stripe Invice objects
         for invoice in invoice_body.data:
 
-            # clean product name
+            print(invoice)
+
+            # clean product name & get interval
             product_name = invoice['lines']['data'][0]['description']
             product_name = product_name.split('1 × ')[1].split(' (')[0]
+            interval = invoice['lines']['data'][0]['plan']['interval']
+
+            # get end_date
+            period_start = datetime.fromtimestamp(invoice.period_start)
+            new = period_start + timedelta(days=30 if interval == 'month' else 365)
+            period_end = int(new.timestamp())
 
             i_list.append({
                 'id': invoice.id,
@@ -703,7 +711,7 @@ def get_stripe_invoices(request: object) -> object:
                 'invoice_pdf': invoice.invoice_pdf,
                 'number': invoice.number,
                 'period_start': invoice.period_start,
-                'period_end': invoice.period_end
+                'period_end': period_end
             })
         
         # format response
