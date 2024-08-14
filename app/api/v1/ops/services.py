@@ -5289,7 +5289,7 @@ def get_home_metrics(request: object) -> object:
     # calculate usages
     sites = sites.count()
     sites_usage = round((sites/account.max_sites)*100, 2) if sites > 0 else 0
-    schedule_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
     tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
     testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
@@ -5303,7 +5303,7 @@ def get_home_metrics(request: object) -> object:
         "scans": scans,
         "scans_usage": scans_usage,
         "schedules": schedules,
-        "schedules_usage": schedule_usage,
+        "schedules_usage": schedules_usage,
         "testcases": testcases,
         "testcases_usage": testcases_usage,
         "open_issues": issues,
@@ -5357,7 +5357,7 @@ def get_site_metrics(request: object) -> object:
     # tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
     # testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
     # schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
-    schedule_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
     tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
     testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
