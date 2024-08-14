@@ -93,7 +93,6 @@ services:
     ports:
       - 8383:8383
     depends_on:
-      - rabbitmq
       - redis
       - celery 
       - app
