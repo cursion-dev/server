@@ -1142,8 +1142,6 @@ def reset_account_usage(account_id: str=None) -> None:
                 account.sub_id
             )
 
-            print(sub)
-
             # get and formate sub.current_period_end
             sub_date = datetime.fromtimestamp(
                 sub.current_period_end
