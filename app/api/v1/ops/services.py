@@ -1545,8 +1545,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         p.info['latest_scan']['id'] = str(created_scan.id)
         p.info['latest_scan']['time_created'] = str(timezone.now())
         p.info['latest_scan']['time_completed'] = None
-        p.info['status']['score'] = None
-        p.info['status']['score'] = None
+        p.info['latest_scan']['status']['score'] = None
+        p.info['latest_scan']['status']['score'] = None
         p.save()
 
         # updating latest_scan info for site
