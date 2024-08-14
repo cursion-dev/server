@@ -687,8 +687,6 @@ def get_stripe_invoices(request: object) -> object:
         # build list of Stripe Invice objects
         for invoice in invoice_body.data:
 
-            print(invoice)
-
             # clean product name & get interval
             product_name = invoice['lines']['data'][0]['description']
             product_name = product_name.split('1 × ')[1].split(' (')[0]
