@@ -5338,9 +5338,12 @@ def get_site_metrics(request: object) -> object:
     pages = Page.objects.filter(site=site)
 
     # setting detaults
-    testcases = round(account.usage['testcases'] / max_sites) if account.usage['testcases'] > 0 else 0
-    tests = round(account.usage['tests'] / max_sites) if account.usage['tests'] > 0 else 0
-    scans = round(account.usage['scans'] / max_sites) if account.usage['scans'] > 0 else 0
+    # testcases = round(account.usage['testcases'] / max_sites) if account.usage['testcases'] > 0 else 0
+    # tests = round(account.usage['tests'] / max_sites) if account.usage['tests'] > 0 else 0
+    # scans = round(account.usage['scans'] / max_sites) if account.usage['scans'] > 0 else 0
+    tests = account.usage['tests']
+    scans = account.usage['scans']
+    testcases = account.usage['testcases']
     schedules = Schedule.objects.filter(site=site).count()
 
     # calculating page scoped schedules
@@ -5350,10 +5353,14 @@ def get_site_metrics(request: object) -> object:
     # calculate usage
     pages = pages.count()
     pages_usage = round((pages/account.max_pages)*100, 2) if pages > 0 else 0
-    scans_usage = round((scans/round(account.usage['scans_allowed']/max_sites))* 100, 2) if scans > 0 else 0
-    tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
-    testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
-    schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
+    # scans_usage = round((scans/round(account.usage['scans_allowed']/max_sites))* 100, 2) if scans > 0 else 0
+    # tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
+    # testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
+    # schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
+    schedule_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
+    tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
+    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
 
 
     # format data
