@@ -349,14 +349,14 @@ class Tester():
             pre_accessibility = int(self.test.pre_scan.lighthouse["scores"]['accessibility'])
             pre_performance = int(self.test.pre_scan.lighthouse["scores"]['performance'])
             pre_best_practices = int(self.test.pre_scan.lighthouse["scores"]['best_practices'])
-            pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
+            # pre_pwa = int(self.test.pre_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
             
             # get post scores
             post_seo = int(self.test.post_scan.lighthouse["scores"]['seo'])
             post_accessibility = int(self.test.post_scan.lighthouse["scores"]['accessibility'])
             post_performance = int(self.test.post_scan.lighthouse["scores"]['performance'])
             post_best_practices = int(self.test.post_scan.lighthouse["scores"]['best_practices'])
-            post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
+            # post_pwa = int(self.test.post_scan.lighthouse["scores"]['pwa']) if self.test.pre_scan.lighthouse["scores"]['pwa'] is not None else 0
 
             # try to get pre and post crux scores
             try:
@@ -373,27 +373,27 @@ class Tester():
             accessibility_delta = post_accessibility - pre_accessibility 
             performance_delta = post_performance - pre_performance
             best_practices_delta = post_best_practices - pre_best_practices
-            pwa_delta = post_pwa - pre_pwa
+            # pwa_delta = post_pwa - pre_pwa
             
             # calculate averages 
             if post_crux is None:
                 current_average = (
                     post_seo + post_accessibility + post_best_practices + 
-                    post_performance + post_pwa 
-                )/5
+                    post_performance # + post_pwa 
+                )/4
                 old_average = (
                     pre_seo + pre_accessibility + pre_best_practices + 
-                    pre_performance + pre_pwa 
-                )/5
+                    pre_performance # + pre_pwa 
+                )/4
             else:
                 current_average = (
                     post_seo + post_accessibility + post_best_practices + 
-                    post_performance + post_pwa + post_crux
-                )/6
+                    post_performance + post_crux # + post_pwa
+                )/5
                 old_average = (
                     pre_seo + pre_accessibility + pre_best_practices + 
-                    pre_performance + pre_pwa + pre_crux
-                )/6
+                    pre_performance  + pre_crux # + pre_pwa
+                )/5
 
             # calculate difference in averages
             average_delta = current_average - old_average 
@@ -403,7 +403,7 @@ class Tester():
             accessibility_delta = None 
             performance_delta = None
             best_practices_delta = None
-            pwa_delta = None
+            # pwa_delta = None
             crux_delta = None
             current_average = None
             average_delta = None
@@ -415,7 +415,7 @@ class Tester():
                 "accessibility_delta": accessibility_delta,
                 "performance_delta": performance_delta,
                 "best_practices_delta": best_practices_delta,
-                "pwa_delta": pwa_delta,
+                # "pwa_delta": pwa_delta,
                 "crux_delta": crux_delta,
                 "current_average": current_average,
                 "average_delta": average_delta,
@@ -560,8 +560,6 @@ class Tester():
         # save data at .json in s3
         lh_audit_file_uri = self.save_data_to_s3(_data=audits)
 
-        print(f'LH audit deltas -> {lh_audit_file_uri}')
-
         # return uri
         return lh_audit_file_uri
 
@@ -639,13 +637,18 @@ class Tester():
         tests = []
         for page in pages:
             if Test.objects.filter(page=page).exists():
-                _test = Test.objects.filter(page=page).order_by('-time_completed')[0]
-                if _test.score is not None:
-                    tests.append(_test.score)
+                _test = Test.objects.filter(page=page).exclude(
+                    time_completed=None
+                ).order_by('-time_completed')
+                if len(_test) > 0:
+                    if _test[0].score is not None:
+                        tests.append(_test[0].score)
         
         if len(tests) > 0:
+            
             # calc site average of latest
             site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
+            print(f'updating site with new test score -> {site_avg_test_score}')
             
             # update site info
             site.info['latest_test']['id'] = str(test.id)
@@ -786,6 +789,9 @@ class Tester():
                 print(f'html_delta => {html_delta_uri}')
 
             except Exception as e:
+                micro_diff_w = 0
+                num_html_w = 0
+                micro_diff_w = 0
                 print(e)
         
         # testing logs
@@ -806,31 +812,33 @@ class Tester():
                     "post_logs_delta": delta_logs_data['delta_logs_post'],
                 }
             except Exception as e:
+                logs_score_w = 0
                 print(e)
 
         # testing LH
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
-            # try:
+            try:
             # scores & data
-            lighthouse_data = self.delta_lighthouse()
-            lh_audits_uri = self.get_lh_audits_deltas(scores=lighthouse_data['scores'])
-            lighthouse_data['audits'] = lh_audits_uri
-            lighthouse_avg = lighthouse_data['scores']['average_delta']
-            if lighthouse_avg != None and lighthouse_avg > -100:
-                lighthouse_score = (100 + lighthouse_avg)/100
-            if lighthouse_avg != None and lighthouse_avg <= -100:
-                lighthouse_score = 0
+                lighthouse_data = self.delta_lighthouse()
+                lh_audits_uri = self.get_lh_audits_deltas(scores=lighthouse_data['scores'])
+                lighthouse_data['audits'] = lh_audits_uri
+                lighthouse_avg = lighthouse_data['scores']['average_delta']
+                if lighthouse_avg != None and lighthouse_avg > -100:
+                    lighthouse_score = (100 + lighthouse_avg)/100
+                if lighthouse_avg != None and lighthouse_avg <= -100:
+                    lighthouse_score = 0
 
-            # weights
-            if lighthouse_score == None:
+                # weights
+                if lighthouse_score == None:
+                    delta_lh_w = 0
+                elif lighthouse_score > 1:
+                    delta_lh_w = 1
+                    lighthouse_score = 1
+                else:
+                    delta_lh_w = 1
+            except Exception as e:
                 delta_lh_w = 0
-            elif lighthouse_score > 1:
-                delta_lh_w = 1
-                lighthouse_score = 1
-            else:
-                delta_lh_w = 1
-            # except Exception as e:
-            #     print(e)
+                print(e)
 
         # testing YL
         if 'yellowlab' in self.test.type or 'full' in self.test.type:
@@ -854,6 +862,7 @@ class Tester():
                 else:
                     delta_yl_w = 1
             except Exception as e:
+                delta_yl_w = 0
                 print(e)
 
         # testing images
@@ -867,7 +876,8 @@ class Tester():
                 # weights
                 images_w = 4
             except Exception as e:
-                    print(e)
+                images_w = 0
+                print(e)
         
         # calculating total weight
         total_w = (

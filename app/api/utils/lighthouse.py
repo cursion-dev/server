@@ -30,7 +30,7 @@ class Lighthouse():
             "accessibility": None,
             "performance": None,
             "best_practices": None,
-            "pwa": None,
+            # "pwa": None,
             "crux": None,
             "average": None
         }
@@ -41,7 +41,7 @@ class Lighthouse():
             "accessibility": [],
             "performance": [],
             "best_practices": [],
-            "pwa": [],
+            # "pwa": [],
             "crux": []
         }
 

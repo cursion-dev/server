@@ -21,7 +21,7 @@ class StripeKey(APIView):
 
 
 
-class SetupSubscription(APIView):
+class SubscriptionSetup(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
@@ -32,7 +32,7 @@ class SetupSubscription(APIView):
 
 
 
-class CompleteSubscription(APIView):
+class SubscriptionComplete(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
@@ -43,7 +43,29 @@ class CompleteSubscription(APIView):
 
 
 
-class GetBillingInfo(APIView):
+class SubscriptionUrl(APIView):
+    permission_classes = (IsAuthenticated,)
+    https_method_names = ['get',]
+
+    def get(self, request):
+        response = get_stripe_hosted_url(request)
+        return response
+
+
+
+
+class SubscriptionUpdate(APIView):
+    permission_classes = (IsAuthenticated,)
+    https_method_names = ['get',]
+
+    def get(self, request):
+        response = update_account_with_stripe_redirect(request)
+        return response
+
+
+
+
+class BillingInfo(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post',]
 
@@ -65,7 +87,7 @@ class AccountActivation(APIView):
 
 
 
-class CancelSubscription(APIView):
+class SubscriptionCancel(APIView):
     permission_classes = (IsAuthenticated,)
     https_method_names = ['post',]
 
@@ -83,6 +105,7 @@ class StripeInvoice(APIView):
     def get(self, request):
         response = get_stripe_invoices(request)
         return response
+
 
 
 

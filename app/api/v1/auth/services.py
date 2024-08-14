@@ -622,13 +622,21 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         max_pages = request.data.get('max_pages')
         max_schedules = request.data.get('max_schedules')
         retention_days = request.data.get('retention_days')
-        testcases = request.data.get('testcases')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
+        price_amount = request.data.get('price_amount')
+        interval = request.data.get('interval')
+        scans_allowed = request.data.get('scans_allowed')
+        tests_allowed = request.data.get('tests_allowed')
+        testcases_allowed = request.data.get('testcases_allowed')
+        scans = request.data.get('scans')
+        tests = request.data.get('tests')
+        testcases = request.data.get('testcases')
         slack = request.data.get('slack')
         configs = request.data.get('configs')
+        meta = request.data.get('meta')
         user = request.user
 
     # get kwargs data
@@ -643,13 +651,21 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         max_pages = kwargs.get('max_pages')
         max_schedules = kwargs.get('max_schedules')
         retention_days = kwargs.get('retention_days')
-        testcases = kwargs.get('testcases')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
+        price_amount = kwargs.get('price_amount')
+        interval = kwargs.get('interval')
+        scans_allowed = kwargs.get('scans_allowed')
+        tests_allowed = kwargs.get('tests_allowed')
+        testcases_allowed = kwargs.get('testcases_allowed')
+        scans = kwargs.get('scans')
+        tests = kwargs.get('tests')
+        testcases = kwargs.get('testcases')
         slack = kwargs.get('slack')
         configs = kwargs.get('configs')
+        meta = kwargs.get('meta')
         user_id = kwargs.get('user')
         user = User.objects.get(id=user_id)
 
@@ -680,8 +696,6 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.max_schedules = max_schedules
         if retention_days is not None:
             account.retention_days = retention_days
-        if testcases is not None:
-            account.testcases = testcases
         if cust_id is not None:
             account.cust_id = cust_id
         if sub_id is not None:
@@ -690,10 +704,28 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.product_id = product_id
         if price_id is not None:
             account.price_id = price_id
+        if price_amount is not None:
+            account.price_amount = price_amount
+        if interval is not None:
+            account.interval = interval
+        if scans_allowed is not None:
+            account.usage['scans_allowed'] = scans_allowed
+        if tests_allowed is not None:
+            account.usage['tests_allowed'] = tests_allowed
+        if testcases_allowed is not None:
+            account.usage['testcases_allowed'] = testcases_allowed
+        if scans is not None:
+            account.usage['scans'] = scans
+        if tests is not None:
+            account.usage['tests'] = tests
+        if testcases is not None:
+            account.usage['testcases'] = testcases
         if slack is not None:
             account.slack = slack
         if configs is not None:
             account.configs = configs
+        if meta is not None:
+            account.meta = meta
         
         # saving updated info
         account.save()
@@ -717,11 +749,19 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             max_pages=max_pages,
             max_schedules=max_schedules if max_schedules is not None else 0,
             retention_days=retention_days if retention_days is not None else 14,
-            testcases=testcases if testcases is not None else False,
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
-            price_id=price_id
+            price_id=price_id,
+            meta=meta,
+            usage={
+                'scans': 0,
+                'tests': 0,
+                'testcases': 0,
+                'scans_allowed': scans_allowed if scans_allowed is not None else 30, 
+                'tests_allowed': tests_allowed if tests_allowed is not None else 30, 
+                'testcases_allowed': testcases_allowed if testcases_allowed is not None else 15,
+            },
         )
     
     # serialize and return

@@ -5,7 +5,7 @@ module.exports = {
   settings: {
     cruxToken: process.env.GOOGLE_CRUX_KEY,
     skipAudits: [
-      "full-page-screenshot",
+      // "full-page-screenshot",
     ],
   },
 }

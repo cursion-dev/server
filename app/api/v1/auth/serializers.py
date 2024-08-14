@@ -82,8 +82,8 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'active', 'time_created', 'type', 'phone', 
         'cust_id', 'sub_id', 'product_id', 'price_id', 'slack',
         'user', 'code', 'name', 'price_amount', 'max_sites', 
-        'max_pages', 'max_schedules', 'testcases', 'retention_days',
-        'configs', 'meta'
+        'max_pages', 'max_schedules', 'retention_days',
+        'configs', 'meta', 'usage',
         ]
 
 

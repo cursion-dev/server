@@ -5,12 +5,13 @@ services:
     container_name: scanerr-app
     hostname: scanerr-app
     restart: always
+    platform: linux/amd64
     privileged: true
     init: true
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/remote-entrypoint.sh", "app"]
+    entrypoint: ["/entrypoint.sh", "app", "remote"]
     expose:
       - 8000
     env_file:
@@ -42,14 +43,6 @@ services:
       - "6379"
 
 
-  rabbitmq:
-    container_name: scanerr-rabbitmq
-    hostname: scanerr-rabbitmq
-    image: rabbitmq:alpine
-    ports:
-      - "5672"
-
-
   celery:
     container_name: scanerr-celery
     hostname: scanerr-celery
@@ -58,7 +51,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/remote-entrypoint.sh", "celery"]
+    entrypoint: ["/entrypoint.sh", "celery"]
     env_file:
       - ./env/.env.prod
     volumes:
@@ -77,17 +70,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/remote-entrypoint.sh", "beat"]
+    entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
       - ./app:/scanerr
     env_file:
       - ./env/.env.prod
     depends_on:
-      - celery
-      - rabbitmq
-      - db
       - redis
+      - celery
       - app
+      - db
 
 
   yellowlab:

@@ -18,17 +18,18 @@ def get_info_default():
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
+                'score': None,
             },
             'latest_test': {
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
-                'score': None
+                'score': None,
+                'status': None
             },
             'lighthouse': {
                 'average': None,
                 'seo': None,
-                'pwa': None, 
                 'crux': None, 
                 'performance': None, 
                 'accessibility': None, 
@@ -46,12 +47,7 @@ def get_info_default():
                 'badCSS': None,
                 'fonts': None,
                 'serverConfig': None, 
-            },
-            'status': {
-                'health': None,
-                'badge': 'neutral',
-                'score': None,
-            },
+            }
         }
     return info_default
 
@@ -64,18 +60,15 @@ def get_small_info_default():
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
+                'score': None,
             },
             'latest_test': {
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
-                'score': None
-            },
-            'status': {
-                'health': None,
-                'badge': 'neutral',
                 'score': None,
-            },
+                'status': None
+            }
         }
     return info_default
 
@@ -89,7 +82,6 @@ def get_lh_delta_default():
             "performance_delta": None, 
             "accessibility_delta": None, 
             "best-practices_delta": None,
-            "pwa_delta": None, 
             "crux_delta": None,
             "average_delta" : None,
             "current_average": None, 
@@ -130,7 +122,6 @@ def get_lh_default():
             "performance": None, 
             "accessibility": None, 
             "best_practices": None,
-            "pwa": None, 
             "crux": None, 
             "average": None
        },
@@ -259,6 +250,20 @@ def get_default_configs():
 
 
 
+def get_usage_default():
+    usage = {
+        'scans': 0,
+        'tests': 0,
+        'testcases': 0,
+        'scans_allowed': 30, 
+        'tests_allowed': 30, 
+        'testcases_allowed': 15,
+    }
+    return usage
+
+
+
+
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -272,13 +277,13 @@ class Account(models.Model):
     max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3)
     max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3)
-    testcases = models.BooleanField(default=False, serialize=False)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     price_amount = models.IntegerField(serialize=True, null=True, blank=True, default=0)
     interval = models.CharField(max_length=50, serialize=True, null=True, blank=True, default='month')
+    usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
     meta = models.JSONField(serialize=True, null=True, blank=True)

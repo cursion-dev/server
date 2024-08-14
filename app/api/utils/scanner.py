@@ -137,8 +137,6 @@ def update_site_info(scan: object) -> object:
     """
     
     # setting defaults
-    health = 'No Data'
-    badge = 'neutral'
     score = 0
     site = scan.site
     pages = Page.objects.filter(site=site)
@@ -155,32 +153,15 @@ def update_site_info(scan: object) -> object:
     
     # calc average score
     if len(scans) > 0:
-        score = sum(scans)/len(scans)  
-    if score != 0:
-        if score >= 75:
-            health = 'Good'
-            badge = 'success'
-        elif 75 > score >= 60:
-            health = 'Okay'
-            badge = 'warning'
-        elif 60 > score:
-            health = 'Poor'
-            badge = 'danger'
+        score = sum(scans)/len(scans)
     else:
-        if site.info['status']['score'] is not None:
-            score = float(site.info['status']['score'])
-            health = site.info['status']['health']
-            badge = site.info['status']['badge']
-        else:
-            score = None
-
+        score = None
+        
     # saving new info to site
     site.info['latest_scan']['id'] = str(scan.id)
     site.info['latest_scan']['time_created'] = str(scan.time_created)
     site.info['latest_scan']['time_completed'] = str(scan.time_completed)
-    site.info['status']['health'] = str(health)
-    site.info['status']['badge'] = str(badge)
-    site.info['status']['score'] = score
+    site.info['latest_scan']['score'] = score
     site.save()
 
     # returning site
@@ -201,8 +182,6 @@ def update_page_info(scan: object) -> object:
     """
     
     # setting defaults
-    health = 'No Data'
-    badge = 'neutral'
     d = 0
     score = 0
     page = scan.page
@@ -218,32 +197,16 @@ def update_page_info(scan: object) -> object:
     # calc average health score
     if score != 0:
         score = score / d
-        if score >= 75:
-            health = 'Good'
-            badge = 'success'
-        elif 75 > score >= 60:
-            health = 'Okay'
-            badge = 'warning'
-        elif 60 > score:
-            health = 'Poor'
-            badge = 'danger'
     else:
-        if scan.page.info['status']['score'] is not None:
-            score = float(page.info['status']['score'])
-            health = page.info['status']['health']
-            badge = page.info['status']['badge']
-        else:
-            score = None
+        score = None
 
     # saving new info to page
     page.info['latest_scan']['id'] = str(scan.id)
     page.info['latest_scan']['time_created'] = str(scan.time_created)
     page.info['latest_scan']['time_completed'] = str(scan.time_completed)
+    page.info['latest_scan']['score'] = score
     page.info['lighthouse'] = scan.lighthouse.get('scores')
     page.info['yellowlab'] = scan.yellowlab.get('scores')
-    page.info['status']['health'] = str(health)
-    page.info['status']['badge'] = str(badge)
-    page.info['status']['score'] = score
     page.save()
 
     # returning page

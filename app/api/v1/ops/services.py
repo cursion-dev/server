@@ -72,12 +72,13 @@ def check_account_and_resource(
         request: object=None, 
         user: object=None, 
         resource: str=None, 
-        action: str=None,
+        action: str='get',
         **kwargs
     ) -> dict:
     """ 
     Based on the passed "resource" & kwargs, checks to see 
-    if account is allowed to add/get a "resource".
+    if account is allowed to add/get a "resource". 
+    Also increments the `Account.usage` for the specified resource.
 
     Expects: {
         'request'   : object, 
@@ -158,7 +159,7 @@ def check_account_and_resource(
                         current_count = Page.objects.filter(account=account, site__id=site_id).count()
                         if current_count >= account.max_pages and action == 'add':
                             allowed = False
-                            error = 'max pages reached, please upgrade'
+                            error = 'max pages reached'
                             _status = status.HTTP_402_PAYMENT_REQUIRED
                             code = '402'
             if page_id:
@@ -176,13 +177,6 @@ def check_account_and_resource(
         
         # checking sites
         if resource == 'site':
-            if not site_id:
-                current_count = Site.objects.filter(account=account).count()
-                if current_count >= account.max_sites and action == 'add':
-                    allowed = False
-                    error = 'max sites reached, please upgrade'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
             if site_id:
                 if not Site.objects.filter(id=site_id, account=account).exists():
                     allowed = False
@@ -190,11 +184,24 @@ def check_account_and_resource(
                     _status = status.HTTP_404_NOT_FOUND
                     code = '404'
             if site_url:
-                if not Site.objects.filter(site_url=site_url, account=account).exists():
+                current_count = Site.objects.filter(account=account).count()
+                if Site.objects.filter(site_url=site_url, account=account).exists():
                     allowed = False
                     error = 'site already exists'
                     _status = status.HTTP_409_CONFLICT
                     code = '409'
+                elif current_count >= account.max_sites and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
+                    allowed = False
+                    error = 'max sites reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
+                elif current_count >= account.max_sites  and action == 'add' and (account.type == 'enterprise' or account.type == 'custom'):
+                    # add to max_sites only for enterprise
+                    account.max_sites += 1
+                    account.max_schedules += 1
+                    account.save()
+                    # update price for sub
+                    update_sub_price.delay(account.id)
         
         # checking schedules
         if resource == 'schedule':
@@ -202,21 +209,22 @@ def check_account_and_resource(
                 current_count = Schedule.objects.filter(account=account).count()
                 if current_count >= account.max_schedules and action == 'add':
                     allowed = False
-                    error = 'max schedules reached, please upgrade'
+                    error = 'max schedules reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
-                if page_id:
+                elif page_id:
                     if not Page.objects.filter(id=page_id, account=account).exists():
                         allowed = False
                         error = 'page not found'
                         _status = status.HTTP_404_NOT_FOUND
                         code = '404'
-                if site_id:
+                elif site_id:
                     if not Site.objects.filter(id=site_id, account=account).exists():
                         allowed = False
                         error = 'site not found'
                         _status = status.HTTP_404_NOT_FOUND
                         code = '404'
+                
             if schedule_id:
                 if not Schedule.objects.filter(id=schedule_id, account=account).exists():
                     allowed = False
@@ -247,10 +255,10 @@ def check_account_and_resource(
         
         # checking testcases
         if resource == 'testcase':
-            if not testcase_id:
-                if not account.testcases:
+            if not testcase_id and action == 'add':
+                if not check_resource(account, 'testcases'):
                     allowed = False
-                    error = 'testcases not allowed, please upgrade'
+                    error = 'max testcases reached'
                     _status = status.HTTP_402_PAYMENT_REQUIRED
                     code = '402'
             if testcase_id:
@@ -310,6 +318,12 @@ def check_account_and_resource(
         
         # checking scans
         if resource == 'scan':
+            if not scan_id and action == 'add':
+                if not check_resource(account, 'scans'):
+                    allowed = False
+                    error = 'max scans reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
             if scan_id:
                 if not Scan.objects.filter(id=scan_id, page__account=account).exists():
                     allowed = False
@@ -319,6 +333,12 @@ def check_account_and_resource(
         
         # checking tests
         if resource == 'test':
+            if not test_id and action == 'add':
+                if not check_resource(account, 'tests'):
+                    allowed = False
+                    error = 'max tests reached'
+                    _status = status.HTTP_402_PAYMENT_REQUIRED
+                    code = '402'
             if test_id:
                 if not Test.objects.filter(id=test_id, page__account=account).exists():
                     allowed = False
@@ -367,6 +387,32 @@ def check_account_and_resource(
         'code': code
     }
     return data
+
+
+
+
+def check_resource(account: object, resource: str) -> bool:
+    """ 
+    Validates if account can add a new {resource} 
+
+    Expcets: {
+        'account'  : <object>,
+        'resource' : <str> 'scan', 'test', or 'testcase
+    }
+
+    Returns: Bool, True if resource was incremented.
+    """
+
+    # define defaults
+    success = False
+
+    # check allowance
+    if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+        # update success
+        success = True
+
+    # return response
+    return success
 
 
 
@@ -421,7 +467,10 @@ def create_site(request: object, delay: bool=False) -> object:
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, resource='site', action='add')
+    check_data = check_account_and_resource(
+        request=request, resource='site', action='add',
+        site_url=site_url
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
@@ -432,7 +481,8 @@ def create_site(request: object, delay: bool=False) -> object:
         site_url=site_url,
         user=user,
         tags=tags,
-        account=account
+        account=account,
+        time_crawl_started=datetime.now()
     )
 
     # create process obj
@@ -503,34 +553,40 @@ def create_site(request: object, delay: bool=False) -> object:
 
 
 
-def crawl_site(request: object, id: str) -> object:
+def crawl_site(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Initiates a new Crawl for the passed `Site`.id
 
     Expects: {
         'request' : object, 
-        'id'      : str
+        'id'      : str,
+        'account' ; object
     }
     
     Returns -> HTTP Response object
     """
 
     # get user and account
-    user = request.user
-    account = Member.objects.get(user=user).account
-
-    # setting configs
-    configs = request.data.get('configs', None)
+    if request:
+        user = request.user
+        account = Member.objects.get(user=user).account
+        configs = request.data.get('configs', None)
+    
+    if not request:
+        user = account.user
+        configs = account.configs
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # update site info
     site = Site.objects.get(id=id)
@@ -541,12 +597,14 @@ def crawl_site(request: object, id: str) -> object:
     crawl_site_bg.delay(site_id=site.id, configs=configs)
 
     # serializing and returning
-    serializer_context = {'request': request,}
-    serialized = SiteSerializer(site, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response
+    if request:
+        serializer_context = {'request': request,}
+        serialized = SiteSerializer(site, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '201')
+        response = Response(data, status=status.HTTP_201_CREATED)
+        return response
+    return None
 
 
 
@@ -642,28 +700,35 @@ def get_site(request: object, id: str) -> object:
 
 
 
-def delete_site(request: object, id: str) -> object:
+def delete_site(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Site` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, site_id=id, resource='site')
+    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
     
     # get site if checks passed
     site = Site.objects.get(id=id)
@@ -673,15 +738,29 @@ def delete_site(request: object, id: str) -> object:
     
     # remove any associated tasks 
     delete_tasks(site=site)
+
+    # remove any associated Issues
+    issues = Issue.objects.filter(affected__icontains=id).delete()
     
     # remove site
     site.delete()
 
+    # update account if enterprise or custom
+    if account.type == 'enterprise' or account.type == 'custom':
+        account.max_sites -= 1
+        account.max_schedules -= 1
+        account.save()
+
+        # update billing
+        update_sub_price.delay(account_id=account.id)
+
     # returning response
     data = {'message': 'site deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -724,17 +803,31 @@ def delete_many_sites(request: object) -> object:
             try:
                 site = Site.objects.get(id=id)
                 if site.account == account:
+
+                    # delete site and associated resources
                     delete_site_s3_bg.delay(site_id=id)
                     delete_tasks(site=site)
-                    site.delete()
+                    Issue.objects.filter(affected__icontains=id).delete()
+
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
+
             except:
                 # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
+
+        
+        # update account if enterprise or custom
+        if account.type == 'enterprise' or account.type == 'custom':
+            account.max_sites -= num_succeeded
+            account.max_schedules -= num_succeeded
+            account.save()
+
+            # update billing
+            update_sub_price.delay(account_id=account.id)
 
         # format response
         data = {
@@ -1145,7 +1238,7 @@ def get_page(request: object, id: str) -> object:
 
 
 
-def delete_page(request: object, id: str) -> object:
+def delete_page(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Page` associated with the passed "id" 
 
@@ -1158,15 +1251,21 @@ def delete_page(request: object, id: str) -> object:
     """
     
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, page_id=id, resource='page')
+    check_data = check_account_and_resource(user=user, page_id=id, resource='page')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get page by id
     page = Page.objects.get(id=id)
@@ -1176,15 +1275,24 @@ def delete_page(request: object, id: str) -> object:
 
     # remove any schedules and associated tasks
     delete_tasks(page=page)
+
+    # remove any associated Issues
+    issues = Issue.objects.filter(
+        affected__icontains=id
+    )
+    for issue in issues:
+        issue.delete()
     
     # remove page
     page.delete()
 
     # format and return
     data = {'message': 'Page has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -1382,7 +1490,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     # deciding on scope
     resource = 'site' if site_id else 'page'
 
-    # check account and resource 
+    # check account and resource for site or page
     check_data = check_account_and_resource(
         user=user, resource=resource, page_id=page_id, site_id=site_id
     )
@@ -1416,6 +1524,26 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     # looping through each page
     for p in pages:
 
+        # check for account usage
+        check_data = check_account_and_resource(
+            user=user, action='add', resource='scan'
+        )
+        if not check_data['allowed']:
+            data = {
+                'reason': check_data['error'], 
+                'success': False, 
+                'code': check_data['code'], 
+                'status': check_data['status']
+            }
+            if request is not None:
+                record_api_call(request, data, check_data['code'])
+                return Response(data, status=check_data['status'])
+            return data
+
+        # increment account.usage.scans
+        account.usage['scans'] += 1
+        account.save() 
+
         # creating scan obj
         created_scan = Scan.objects.create(
             site=p.site,
@@ -1429,9 +1557,19 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         created_scans.append(str(created_scan.id))
         message = 'Scans are being created in the background'
 
-        # add scan_id to page.info.latest_scan.id
+        # updating latest_scan info for page
         p.info['latest_scan']['id'] = str(created_scan.id)
+        p.info['latest_scan']['time_created'] = str(timezone.now())
+        p.info['latest_scan']['time_completed'] = None
+        p.info['latest_scan']['score'] = None
+        p.info['latest_scan']['score'] = None
         p.save()
+
+        # updating latest_scan info for site
+        p.site.info['latest_scan']['id'] = str(created_scan.id)
+        p.site.info['latest_scan']['time_created'] = str(timezone.now())
+        p.site.info['latest_scan']['time_completed'] = None
+        p.site.save()
 
         # running scans components in parallel 
         if 'html' in types or 'logs' in types or 'full' in types:
@@ -1443,7 +1581,6 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         if 'vrt' in types or 'full' in types:
             run_vrt_bg.delay(scan_id=created_scan.id)
     
-
     # returning dynaminc response
     data = {
         'success': True,
@@ -1509,10 +1646,13 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                print(e)
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # scoped for pages
     if page_ids:
@@ -1534,10 +1674,13 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
+                    print(res['message'])
             except Exception as e:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                print(e)
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # format and return
     data = {
@@ -1706,28 +1849,35 @@ def get_scan_lean(request: object, id: str) -> object:
 
 
 
-def delete_scan(request: object, id: str) -> object:
+def delete_scan(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Scan` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, scan_id=id, resource='scan')
+    check_data = check_account_and_resource(user=user, scan_id=id, resource='scan')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
     
     # get scan if checks passes
     scan = Scan.objects.get(id=id)
@@ -1740,9 +1890,11 @@ def delete_scan(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Scan has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -1971,7 +2123,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     # deciding on scope
     resource = 'site' if site_id else 'page'
 
-    # check account and resource 
+    # check account and resource for page or site
     check_data = check_account_and_resource(
         user=user, resource=resource, page_id=page_id, site_id=site_id
     )
@@ -2004,6 +2156,22 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
     # looping through pages
     for p in pages:
+
+        # check for account usage
+        check_data = check_account_and_resource(
+            user=user, action='add', resource='test'
+        )
+        if not check_data['allowed']:
+            data = {
+                'reason': check_data['error'], 
+                'success': False, 
+                'code': check_data['code'], 
+                'status': check_data['status']
+            }
+            if request is not None:
+                record_api_call(request, data, check_data['code'])
+                return Response(data, status=check_data['status'])
+            return data
 
         # checking for scan completion
         if not Scan.objects.filter(page=p).exists():
@@ -2066,8 +2234,28 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
             status='working',
         )
 
+        # updating latest_test info for page
+        p.info['latest_test']['id'] = str(test.id)
+        p.info['latest_test']['time_created'] = str(timezone.now())
+        p.info['latest_test']['time_completed'] = None
+        p.info['latest_test']['score'] = None
+        p.info['latest_test']['status'] = 'working'
+        p.save()
+
+        # updating latest_test info for site
+        p.site.info['latest_test']['id'] = str(test.id)
+        p.site.info['latest_test']['time_created'] = str(timezone.now())
+        p.site.info['latest_test']['time_completed'] = None
+        p.site.info['latest_test']['score'] = None
+        p.site.info['latest_test']['status'] = 'working'
+        p.site.save()
+
         # add test.id to list
         created_tests.append(str(test.id))
+
+        # update account.usage.tests
+        account.usage['tests'] += 1
+        account.save()
 
         # running test in background
         create_test_bg.delay(
@@ -2153,9 +2341,10 @@ def create_many_tests(request: object) -> object:
                     print(res['message'])
             except Exception as e:
                 print(e)
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # scoped for pages
     if page_ids:
@@ -2181,9 +2370,10 @@ def create_many_tests(request: object) -> object:
                     print(res['message'])
             except Exception as e:
                 print(e)
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+                if str(id) not in failed:
+                    num_failed += 1
+                    this_status = False
+                    failed.append(str(id))
 
     # format and return
     data = {
@@ -2359,28 +2549,35 @@ def get_test_lean(request: object, id: str) -> object:
 
 
 
-def delete_test(request: object, id: str) -> object:
+def delete_test(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Test` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, test_id=id, resource='test')
+    check_data = check_account_and_resource(user=user, test_id=id, resource='test')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get test if checks passed
     test = Test.objects.get(id=id)
@@ -2393,9 +2590,11 @@ def delete_test(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Test has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -2787,7 +2986,7 @@ def search_issues(request: object) -> object:
     issues = Issue.objects.filter(
         Q(account=account, title__icontains=query) |
         Q(account=account, details__icontains=query) |
-        Q(account=account, affected__icontains={'str':query})
+        Q(account=account, affected__icontains=query)
     ).order_by('-status', '-time_created')
     
     # serialize and rerturn
@@ -3315,10 +3514,20 @@ def delete_tasks(page: object=None, site: object=None) -> None:
     """ 
 
     # get any schedules
+    schedules = []
+    
+    # get all page scopped Schedules
     if page:
-        schedules = Schedule.objects.filter(page=page)
+        schedules += Schedule.objects.filter(page=page)
+    
+    # get all site & page scopped Schedules
     if site:
-        schedules = Schedule.objects.filter(site=site)
+        # get site scopped
+        schedules += Schedule.objects.filter(site=site)
+        # iterate over each site associated page and to schedules[]
+        pages = Page.objects.filter(site=site)
+        for p in pages:
+            schedules += Schedule.objects.filter(page=p)
 
     # remove any associated tasks
     for schedule in schedules:
@@ -4291,31 +4500,38 @@ def copy_case(request: object) -> object:
 
 
 
-def delete_case(request: object, id: str) -> object:
+def delete_case(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Case` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object,
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # checking account and resource 
     check_data = check_account_and_resource(
-        request=request, resource='case', 
+        user=user, resource='case', 
         case_id=id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get case if checks passed
     case = Case.objects.get(id=id)
@@ -4328,9 +4544,11 @@ def delete_case(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Case has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -4432,7 +4650,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
     # checking account and resource 
     check_data = check_account_and_resource(
         request=request, resource='testcase', 
-        case_id=case_id, site_id=site_id
+        case_id=case_id, site_id=site_id, action='add',
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4595,31 +4813,38 @@ def get_testcase(request: object, id: str) -> object:
 
 
 
-def delete_testcase(request: object, id: str) -> object:
+def delete_testcase(request: object=None, id: str=None, account: object=None) -> object:
     """ 
     Deletes the `Testcase` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'account' : object
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        account = Member.objects.get(user=request.user).account
+        user = request.user
+    
+    if not request:
+        user = account.user
 
     # checking account and resource 
     check_data = check_account_and_resource(
-        request=request, resource='testcase', 
+        user=user, resource='testcase', 
         testcase_id=id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get testcase if checks passed
     testcase = Testcase.objects.get(id=id)
@@ -4632,9 +4857,11 @@ def delete_testcase(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Testcase has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -4927,6 +5154,7 @@ def search_resources(request: object) -> object:
                 'name': <str>,
                 'type': <str>,
                 'path': <str>,
+                'id'  : <str>,
             }
             ...
         ]
@@ -4940,8 +5168,9 @@ def search_resources(request: object) -> object:
     cases = []
     pages = []
     sites = []
+    issues = []
 
-    # check for object specification i.e 'site: or case:'
+    # check for object specification i.e 'site:', 'case:', 'issue:'
     resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
     query = query.replace('https://', '').replace('http://', '').split(':')[-1]
 
@@ -4963,9 +5192,16 @@ def search_resources(request: object) -> object:
             name__icontains=query
         )
 
-    # adding first 5 sites if present
+    # search for issues
+    if resource_type == 'issue' or resource_type == query:
+        issues = Issue.objects.filter(account=account).filter(
+            title__icontains=query
+        )
+
+    # adding first several sites if present
     i = 0
-    while i <= 3 and i <= (len(sites)-1):
+    max_sites = 10 if resource_type == 'site' else 3
+    while i <= max_sites and i <= (len(sites)-1):
         data.append({
             'name': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
@@ -4974,9 +5210,10 @@ def search_resources(request: object) -> object:
         })
         i+=1
     
-    # adding first 5 pages if present
+    # adding first several pages if present
     i = 0
-    while i <= 4 and i <= (len(pages)-1):
+    max_pages = 10 if resource_type == 'page' else 3
+    while i <= max_pages and i <= (len(pages)-1):
         data.append({
             'name': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
@@ -4985,14 +5222,27 @@ def search_resources(request: object) -> object:
         })
         i+=1
     
-    # adding first 5 cases if present
+    # adding first several cases if present
     i = 0
-    while i <= 4 and i <= (len(cases)-1):
+    max_cases = 10 if resource_type == 'case' else 3
+    while i <= max_cases and i <= (len(cases)-1):
         data.append({
             'name': str(cases[i].name),
             'path': f'/case/{cases[i].id}',
             'id'  : str(cases[i].id),
             'type': 'case',
+        })
+        i+=1
+    
+    # adding first several issues if present
+    i = 0
+    max_issues = 10 if resource_type == 'issue' else 3
+    while i <= max_issues and i <= (len(issues)-1):
+        data.append({
+            'name': str(issues[i].title),
+            'path': f'/issue/{issues[i].id}',
+            'id'  : str(issues[i].id),
+            'type': 'issue',
         })
         i+=1
     
@@ -5027,36 +5277,44 @@ def get_home_metrics(request: object) -> object:
     issues = Issue.objects.filter(account=account, status='open')
     
     # setting defaults
-    site_count = sites.count()
-    issues_count = issues.count()
-    test_count = 0
-    scan_count = 0
-    schedule_count = 0
-    
+    issues = issues.count()
+    tests = account.usage['tests']
+    scans = account.usage['scans']
+    testcases = account.usage['testcases']
+    schedules = 0
+
     # calculating metrics
     for site in sites:
-        tests = Test.objects.filter(site=site)
-        scans = Scan.objects.filter(site=site)
-        schedules = Schedule.objects.filter(site=site)
-        test_count = test_count + tests.count()
-        scan_count = scan_count + scans.count()
-        schedule_count = schedule_count + schedules.count()
+        schedules += Schedule.objects.filter(site=site).count()
 
         # getting associated pages
         pages = Page.objects.filter(site=site)
 
         # adding page scoped schedules 
         for page in pages:
-            schedules = Schedule.objects.filter(page=page)
-            schedule_count = schedule_count + schedules.count()
+            schedules += Schedule.objects.filter(page=page).count()
 
+    # calculate usages
+    sites = sites.count()
+    sites_usage = round((sites/account.max_sites)*100, 2) if sites > 0 else 0
+    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
+    tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
+    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
+    
     # format data
     data = {
-        "sites": site_count, 
-        "tests": test_count,
-        "scans": scan_count,
-        "schedules": schedule_count,
-        "open_issues": issues_count,
+        "sites": sites, 
+        "sites_usage": sites_usage,
+        "tests": tests,
+        "tests_usage": tests_usage,
+        "scans": scans,
+        "scans_usage": scans_usage,
+        "schedules": schedules,
+        "schedules_usage": schedules_usage,
+        "testcases": testcases,
+        "testcases_usage": testcases_usage,
+        "open_issues": issues,
     }
     
     # return response
@@ -5084,29 +5342,47 @@ def get_site_metrics(request: object) -> object:
     account = Member.objects.get(user=user).account
     site_id = request.query_params.get('site_id')
     site = Site.objects.get(id=site_id)
+    max_sites = account.max_sites
     pages = Page.objects.filter(site=site)
 
     # setting detaults
-    page_count = pages.count()
-    test_count = 0
-    scan_count = 0
-    schedule_count = Schedule.objects.filter(site=site).count()
+    # testcases = round(account.usage['testcases'] / max_sites) if account.usage['testcases'] > 0 else 0
+    # tests = round(account.usage['tests'] / max_sites) if account.usage['tests'] > 0 else 0
+    # scans = round(account.usage['scans'] / max_sites) if account.usage['scans'] > 0 else 0
+    tests = account.usage['tests']
+    scans = account.usage['scans']
+    testcases = account.usage['testcases']
+    schedules = Schedule.objects.filter(site=site).count()
 
-    # calculating metrics
+    # calculating page scoped schedules
     for page in pages:
-        tests = Test.objects.filter(page=page)
-        scans = Scan.objects.filter(page=page)
-        schedules = Schedule.objects.filter(page=page)
-        test_count = test_count + tests.count()
-        scan_count = scan_count + scans.count()
-        schedule_count = schedule_count + schedules.count()
+        schedules += Schedule.objects.filter(page=page).count()
+    
+    # calculate usage
+    pages = pages.count()
+    pages_usage = round((pages/account.max_pages)*100, 2) if pages > 0 else 0
+    # scans_usage = round((scans/round(account.usage['scans_allowed']/max_sites))* 100, 2) if scans > 0 else 0
+    # tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
+    # testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
+    # schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
+    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
+    tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
+    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
+
 
     # format data
     data = {
-        "pages": page_count, 
-        "tests": test_count,
-        "scans": scan_count,
-        "schedules": schedule_count,
+        "pages": pages, 
+        "pages_usage": pages_usage, 
+        "tests": tests,
+        "tests_usage": tests_usage,
+        "scans": scans,
+        "scans_usage": scans_usage,
+        "schedules": schedules,
+        "schedules_usage": schedules_usage,
+        "testcases": testcases,
+        "testcases_usage": testcases_usage,
     }
 
     # return response

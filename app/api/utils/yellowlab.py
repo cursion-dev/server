@@ -231,16 +231,9 @@ class Yellowlab():
         while not scan_complete and attempts < 2:
 
             try:
-                # CLI on first attempt
-                if attempts < 1:
-                    raw_data = self.yellowlab_cli()
-                    self.process_data(stdout_json=raw_data)
-                
-                # API after first attempt
-                if attempts >= 1:
-                    raw_data = self.yellowlab_api()
-                    self.process_data(stdout_json=raw_data)
-
+                # API method only
+                raw_data = self.yellowlab_api()
+                self.process_data(stdout_json=raw_data)
                 scan_complete = True
                 failed = False
 

@@ -3,7 +3,6 @@
   - [Environment](#environment)
   - [Local](#local)
   - [Remote](#remote)
-  - [Deploy Yellowlabs](#deploy-yellowlabs)
   - [Scripts](#scripts)
     - [Install and run Docker in Containers](#install-and-run-docker-in-containers)
     - [Get \& Set Node Memory:](#get--set-node-memory)
@@ -48,11 +47,11 @@ $ git clone https://github.com/Scanerr-io/server.git
 ```
 *Spin-up the application*
 ```shell
-$ docker compose up --build
+$ docker compose -f docker-compose.local.yml up --build
 ```
 *Spin-down the application*
 ```shell
-$ docker compose up down
+$ docker compose -f docker-compose.local.yml down
 ```
 
 &nbsp;
@@ -121,11 +120,6 @@ $ docker compose -f docker-compose.prod.yml down
 ```shell
 $ docker-compose -f docker-compose.prod.yml down -v
 ```
-
-
-## Deploy Yellowlabs
-1. Run same server set-up untill the .git portion.
-2. ```docker run -d --privileged -p 8383:8383 ousamabenyounes/yellowlabtools```
 
 
 
