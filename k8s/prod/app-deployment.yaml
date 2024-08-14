@@ -18,11 +18,11 @@ spec:
         - name: regcred
       containers:
         - name: scanerr-server
-          image: <IMAGE> # scanerr/server:9dbc3d9 # 
+          image:  <IMAGE> # scanerr/server:49709ea #
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
-          command: ["/remote-entrypoint.sh", "app"]
+          command: ["/entrypoint.sh", "app", "remote"]
           envFrom:
             - configMapRef:
                 name: app-configs
