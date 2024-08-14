@@ -18,17 +18,18 @@ def get_info_default():
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
+                'score': None,
             },
             'latest_test': {
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
-                'score': None
+                'score': None,
+                'status': None
             },
             'lighthouse': {
                 'average': None,
                 'seo': None,
-                # 'pwa': None, 
                 'crux': None, 
                 'performance': None, 
                 'accessibility': None, 
@@ -46,12 +47,7 @@ def get_info_default():
                 'badCSS': None,
                 'fonts': None,
                 'serverConfig': None, 
-            },
-            'status': {
-                'health': None,
-                'badge': 'neutral',
-                'score': None,
-            },
+            }
         }
     return info_default
 
@@ -64,18 +60,15 @@ def get_small_info_default():
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
+                'score': None,
             },
             'latest_test': {
                 'id': None,
                 'time_created': None,
                 'time_completed': None,
-                'score': None
-            },
-            'status': {
-                'health': None,
-                'badge': 'neutral',
                 'score': None,
-            },
+                'status': None
+            }
         }
     return info_default
 
@@ -89,7 +82,6 @@ def get_lh_delta_default():
             "performance_delta": None, 
             "accessibility_delta": None, 
             "best-practices_delta": None,
-            # "pwa_delta": None, 
             "crux_delta": None,
             "average_delta" : None,
             "current_average": None, 
@@ -130,7 +122,6 @@ def get_lh_default():
             "performance": None, 
             "accessibility": None, 
             "best_practices": None,
-            # "pwa": None, 
             "crux": None, 
             "average": None
        },

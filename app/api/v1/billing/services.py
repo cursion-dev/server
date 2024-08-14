@@ -70,7 +70,7 @@ def stripe_setup(request: object) -> object:
     client_secret = None
 
     # build Stripe Product name
-    product_name = f'{user.email}_{user.id}_{name}'
+    product_name = f'{name.capitalize()}'
 
     # create new `Account` if none exists
     if not Account.objects.filter(user=user).exists():
@@ -330,7 +330,7 @@ def get_stripe_hosted_url(request: object=None) -> object:
     if account.cust_id is None:
 
         # build product
-        product_name = f'{user.email}_{user.id}_enterprise'
+        product_name = f'Enterprise'
         product = stripe.Product.create(name=product_name)
 
         # calc price_amount
@@ -685,11 +685,24 @@ def get_stripe_invoices(request: object) -> object:
         
         # build list of Stripe Invice objects
         for invoice in invoice_body.data:
+
+            # clean product name
+            product_name = invoice['lines']['data'][0]['description']
+            product_name = product_name.split('1 × ')[1].split(' (')[0]
+
             i_list.append({
                 'id': invoice.id,
                 'status': invoice.status,
                 'price_amount': invoice.amount_paid,
-                'created': invoice.created
+                'created': invoice.created,
+                'due_date': invoice.due_date,
+                'customer_email': invoice.customer_email,
+                'customer_name': invoice.customer_name,
+                'product_name': product_name,
+                'invoice_pdf': invoice.invoice_pdf,
+                'number': invoice.number,
+                'period_start': invoice.period_start,
+                'period_end': invoice.period_end
             })
         
         # format response

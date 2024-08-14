@@ -637,13 +637,18 @@ class Tester():
         tests = []
         for page in pages:
             if Test.objects.filter(page=page).exists():
-                _test = Test.objects.filter(page=page).order_by('-time_completed')[0]
-                if _test.score is not None:
-                    tests.append(_test.score)
+                _test = Test.objects.filter(page=page).exclude(
+                    time_completed=None
+                ).order_by('-time_completed')
+                if len(_test) > 0:
+                    if _test[0].score is not None:
+                        tests.append(_test.score)
         
         if len(tests) > 0:
+            
             # calc site average of latest
             site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
+            print(f'updating site with new test score -> {site_avg_test_score}')
             
             # update site info
             site.info['latest_test']['id'] = str(test.id)

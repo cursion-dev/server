@@ -1541,9 +1541,19 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         created_scans.append(str(created_scan.id))
         message = 'Scans are being created in the background'
 
-        # add scan_id to page.info.latest_scan.id
+        # updating latest_scan info for page
         p.info['latest_scan']['id'] = str(created_scan.id)
+        p.info['latest_scan']['time_created'] = str(timezone.now())
+        p.info['latest_scan']['time_completed'] = None
+        p.info['status']['score'] = None
+        p.info['status']['score'] = None
         p.save()
+
+        # updating latest_scan info for site
+        p.site.info['latest_scan']['id'] = str(created_scan.id)
+        p.site.info['latest_scan']['time_created'] = str(timezone.now())
+        p.site.info['latest_scan']['time_completed'] = None
+        p.site.save()
 
         # running scans components in parallel 
         if 'html' in types or 'logs' in types or 'full' in types:
@@ -2192,6 +2202,22 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
             threshold=float(threshold),
             status='working',
         )
+
+        # updating latest_test info for page
+        p.info['latest_test']['id'] = str(test.id)
+        p.info['latest_test']['time_created'] = str(timezone.now())
+        p.info['latest_test']['time_completed'] = None
+        p.info['latest_test']['score'] = None
+        p.info['latest_test']['status'] = 'working'
+        p.save()
+
+        # updating latest_test info for site
+        p.site.info['latest_test']['id'] = str(test.id)
+        p.site.info['latest_test']['time_created'] = str(timezone.now())
+        p.site.info['latest_test']['time_completed'] = None
+        p.site.info['latest_test']['score'] = None
+        p.site.info['latest_test']['status'] = 'working'
+        p.site.save()
 
         # add test.id to list
         created_tests.append(str(test.id))
@@ -5068,6 +5094,7 @@ def search_resources(request: object) -> object:
                 'name': <str>,
                 'type': <str>,
                 'path': <str>,
+                'id'  : <str>,
             }
             ...
         ]

@@ -36,12 +36,13 @@ def driver_init(
     """
 
     # deciding on browser
+    # UserAgents: https://www.whatismybrowser.com/guides/the-latest-user-agent/
     if browser == 'chrome':
         options = webdriver.ChromeOptions()
         options.binary_location = os.environ.get('CHROME_BROWSER')
         mobile_user_agent = (
-            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36" + 
-            " (KHTML, like Gecko) Chrome/127.0.6533.84 Mobile Safari/537.36"
+            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " + 
+            "(KHTML, like Gecko) Chrome/127.0.6533.84 Mobile Safari/537.36"
         )
     if browser == 'firefox':
         options = webdriver.FirefoxOptions()
@@ -49,6 +50,15 @@ def driver_init(
         mobile_user_agent = (
             "Mozilla/5.0 (Android 14; Mobile; rv:68.0) Gecko/68.0 Firefox/128.0"
         )
+    if browser == 'edge':
+        options = webdriver.EdgeOptions()
+        options.binary_location = os.environ.get('EDGE_BROWSER')
+        mobile_user_agent = (
+            "Mozilla/5.0 (Linux; Android 10; HD1913) AppleWebKit/537.36" +
+            "(KHTML, like Gecko) Chrome/127.0.6533.103 Mobile " +
+            "Safari/537.36 EdgA/127.0.2651.90"
+        )
+
 
     # setting up browser configs
     sizes = window_size.split(',')
@@ -82,7 +92,7 @@ def driver_init(
         # init driver
         driver = webdriver.Chrome(options=options)
     
-    # setting broswer options & profile for firefox
+    # setting broswer options for firefox
     if browser == 'firefox':
         options.add_argument("-headless")
         options.page_load_strategy = 'none'
@@ -97,6 +107,25 @@ def driver_init(
         
         # init driver
         driver = webdriver.Firefox(options=options)
+
+    # setting broswer options for edge
+    if browser == 'edge':
+        options.add_argument("--no-sandbox")
+        options.add_argument("disable-blink-features=AutomationControlled")
+        options.add_argument("--headless")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("ignore-certificate-errors")
+        options.add_argument("--hide-scrollbars")
+        options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
+        options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
+        options.page_load_strategy = 'none'
+        
+        # setting to mobile if reqeusted
+        if device == 'mobile':
+            options.add_experimental_option("mobileEmulation", mobile_emulation)
+        
+        # init driver
+        driver = webdriver.Edge(options=options)
     
 
     # resizing window
@@ -267,8 +296,8 @@ def get_data(
     except Exception as e:
         print(e)
     
-    # get console logs if chrome
-    if browser == 'chrome':
+    # get console logs if notn firefox
+    if browser != 'firefox' :
         try:
             logs = driver.get_log('browser')
         except Exception as e:

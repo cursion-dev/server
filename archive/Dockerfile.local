@@ -23,19 +23,26 @@ RUN apt-get update && apt-get install -y python3.10 python3-pip
 
 # installing system deps
 RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
-    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig firefox
-    
-# extra packages
-RUN apt-get install -y libglib2.0-0 libsm6 libxrender1 libxext6 libgl1
-
-# installing node and npm
-RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
-    && npm install -g n && n lts
+    gfortran openssl libpq-dev curl libjpeg-dev libfontconfig firefox \ 
+    apt-transport-https software-properties-common libglib2.0-0 libsm6 \ 
+    libxrender1 libxext6 libgl1
 
 # installing google-chrome-stable
 RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 RUN apt-get install -y ./google-chrome-stable_current_amd64.deb
 RUN rm google-chrome-stable_current_amd64.deb
+
+# install microsoft-edge-stable
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
+    install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/ && \
+    sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/edge stable main" > \
+    /etc/apt/sources.list.d/microsoft-edge.list' && \
+    apt-get update && apt-get install -y microsoft-edge-stable && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* microsoft.gpg
+
+# installing node and npm
+RUN apt-get update && apt-get install nodejs npm -y --no-install-recommends \
+    && npm install -g n && n lts
 
 # begin npm portion
 RUN npm cache clean --force
@@ -59,6 +66,8 @@ WORKDIR /app
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/google-chrome-stable
+RUN chown -R app:app /usr/bin/firefox
+RUN chown -R app:app /usr/bin/microsoft-edge-stable
 
 # staring up services
 COPY ./setup/scripts/local-entrypoint.sh "/local-entrypoint.sh"
