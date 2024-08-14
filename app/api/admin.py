@@ -15,6 +15,38 @@ from .tasks import reset_account_usage
 
 
 
+@admin.register(Account)
+class AccountAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'time_created', 'type')
+    search_fields = ('__str__',)
+    actions = ['reset_usage',]
+
+    def reset_usage(self, request, queryset):
+        for account in queryset:
+            reset_account_usage.delay(
+                account_id=account.id
+            )
+
+
+
+
+@admin.register(Member)
+class MemberAdmin(admin.ModelAdmin):
+    list_display = ('user', 'account', 'time_created', 'type', 'status')
+    search_fields = ('user__username', 'account__name')
+
+
+
+
+@admin.register(Card)
+class CardAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'brand', 'last_four')
+    search_fields = ('last_four',)
+
+
+
+
+
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_url', 'account', 'time_created')
@@ -112,37 +144,6 @@ class ScanAdmin(admin.ModelAdmin):
 
     def mark_as_completed(self, request, queryset):
         queryset.update(time_completed=datetime.now())
-
-
-
-
-@admin.register(Account)
-class AccountAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'time_created', 'type')
-    search_fields = ('__str__',)
-    actions = ['reset_usage',]
-
-    def reset_usage(self, request, queryset):
-        for account in queryset:
-            reset_account_usage(
-                account_id=account.id
-            )
-
-
-
-
-@admin.register(Member)
-class MemberAdmin(admin.ModelAdmin):
-    list_display = ('user', 'account', 'time_created', 'type', 'status')
-    search_fields = ('user__username', 'account__name')
-
-
-
-
-@admin.register(Card)
-class CardAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'brand', 'last_four')
-    search_fields = ('last_four',)
 
 
 

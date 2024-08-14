@@ -622,6 +622,7 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
             'tests_allowed': 30, 
             'testcases_allowed': 15,
         }
+        account.meta['last_usage_reset'] = datetime.today().strftime('%Y-%m-%d %H:%M:%S.%f')
 
         # save Account
         account.save()

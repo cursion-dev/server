@@ -1160,15 +1160,18 @@ def reset_account_usage(account_id: str=None) -> None:
             # get last usage reset date from meta
             last_usage_date_str = account.meta.get('last_usage_reset')
             if last_usage_date_str is not None:
+                
+                # clean date_str
+                last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
 
                 # format date str as datetime obj
-                f = '%Y-%m-%d %H:%M:%S'
+                f = '%Y-%m-%d %H:%M:%S.%f'
                 last_usage_date = datetime.strptime(last_usage_date_str, f)
 
-                print(f'days since last reset -> {abs(today - last_usage_date)}')
+                print(f'days since last reset -> {abs((today - last_usage_date).days)}')
 
                 # check if over 30 days
-                if abs(today - last_usage_date) >= 30:
+                if abs((today - last_usage_date).days) >= 30:
                     reset_usage(account)
 
                 # udpate account.meta.last_usage_reset
