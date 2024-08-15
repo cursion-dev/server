@@ -1,22 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    service: rabbitmq
   name: rabbitmq
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      name: rabbitmq
+      service: rabbitmq
+  strategy: {}
   template:
     metadata:
       labels:
-        name: rabbitmq
+        service: rabbitmq
     spec:
+      restartPolicy: Always
       containers:
-        - name: rabbitmq
-          image: rabbitmq:alpine
+        - image: rabbitmq:alpine
+          name: rabbitmq
           ports:
-          - containerPort: 5672
+            - containerPort: 5672
           resources: 
             limits:
               cpu: "250m"
@@ -24,17 +28,22 @@ spec:
             requests:
               cpu: "100m"
               memory: "100Mi"
+status: {}
+
+
 
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: rabbitmq
   labels:
-    app: rabbitmq
+    service: rabbitmq
+  name: rabbitmq
 spec:
-  type: ClusterIP
   ports:
-  - port: 5672
+    - name: "5672"
+      port: 5672
+      targetPort: 5672
   selector:
-    name: rabbitmq
+    service: rabbitmq
