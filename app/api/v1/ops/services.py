@@ -5420,22 +5420,19 @@ def get_celery_metrics(request: object) -> object:
 
     # Inspect all nodes.
     i = celery.app.control.inspect()
+    
     # Tasks received, but are still waiting to be executed.
     reserved = i.reserved()
-    # Active tasks
+    #
+    #  Active tasks
     active = i.active()
-
-    print('\n\n-reserved-\n\n')
-    print(reserved)
-
-    print('\n\n-active-\n\n')
-    print(active)
 
     # init task & replica counters
     # & ratio 
     num_tasks = 0
     num_replicas = 0
     ratio = 0
+    working_len = 0
 
     # loop through all reserved & active tasks and
     # add length of array (tasks) to total
@@ -5449,12 +5446,16 @@ def get_celery_metrics(request: object) -> object:
     if num_replicas > 0:
         ratio = num_tasks / num_replicas
 
+    # get working length 
+    working_len = redis_queue_len + num_tasks
+
     # format data
     data = {
         "num_tasks": num_tasks,
         "num_replicas": num_replicas,
         "ratio": ratio,
-        "redis_queue": redis_queue_len
+        "redis_queue": redis_queue_len,
+        "working_len": working_len
     }
 
     # return response
