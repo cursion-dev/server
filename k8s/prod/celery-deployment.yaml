@@ -14,12 +14,12 @@ spec:
       labels:
         app: celery-deployment
     spec:
-      terminationGracePeriodSeconds: 4000
+      terminationGracePeriodSeconds: 30
       imagePullSecrets:
         - name: regcred
       containers:
         - name: celery
-          image:  <IMAGE> # scanerr/server:49709ea # 
+          image:  <IMAGE> # scanerr/server:20d9159 # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "celery"]
           envFrom:

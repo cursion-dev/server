@@ -6,7 +6,9 @@ from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
 from scanerr import celery
+from redis import Redis
 from scanerr import settings
+from celery import app
 from .serializers import *
 from ...tasks import *
 from rest_framework.pagination import LimitOffsetPagination
@@ -5406,6 +5408,16 @@ def get_celery_metrics(request: object) -> object:
     Returns -> HTTP Response object
     """
 
+    
+    # get redis queue len
+    redis_client = Redis.from_url(
+        settings.CELERY_BROKER_URL, 
+        socket_connect_timeout=3
+    )
+    redis_queue_len = redis_client.llen(
+        app.default_app.conf.task_default_queue
+    )
+
     # Inspect all nodes.
     i = celery.app.control.inspect()
     # Tasks received, but are still waiting to be executed.
@@ -5419,7 +5431,6 @@ def get_celery_metrics(request: object) -> object:
     print('\n\n-active-\n\n')
     print(active)
 
-    
     # init task & replica counters
     # & ratio 
     num_tasks = 0
@@ -5442,7 +5453,8 @@ def get_celery_metrics(request: object) -> object:
     data = {
         "num_tasks": num_tasks,
         "num_replicas": num_replicas,
-        "ratio": ratio
+        "ratio": ratio,
+        "redis_queue": redis_queue_len
     }
 
     # return response

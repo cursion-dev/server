@@ -5,7 +5,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: ylt-deployment
-  cooldownPeriod:  4000
+  cooldownPeriod:  300
   pollingInterval: 15
   minReplicaCount: 2
   maxReplicaCount: 15
