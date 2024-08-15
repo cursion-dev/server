@@ -178,20 +178,21 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
         old_urls.append(p.page_url)
 
     # crawl site 
-    new_pages = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
-    add_pages = []
+    new_urls = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
+    add_urls = []
 
-    # checking if allowed to add new page
-    for page in new_pages:
-        if not page in old_urls and (len(add_pages) + len(old_urls) <= site.account.max_pages):
-            add_pages.append(page)
+    # checking for duplicates
+    for url in new_urls:
+        if not url in old_urls:
+            add_urls.append(url)
 
     # loop thorugh crawled pages 
     # and add if not present  
-    for url in add_pages:
+    current_count = len(old_urls)
+    for url in add_urls:
 
-        # add new page
-        if not Page.objects.filter(site=site, page_url=url).exists():
+        # add new page if room exists
+        if current_count < site.account.max_pages:
             page = Page.objects.create(
                 site=site,
                 page_url=url,
@@ -217,6 +218,9 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
                 page.info["latest_scan"]["id"] = str(scan.id)
                 page.info["latest_scan"]["time_created"] = str(scan.time_created)
                 page.save()
+
+            # increment
+            current_count += 1
 
     # updating site status
     site.time_crawl_completed = timezone.now()
