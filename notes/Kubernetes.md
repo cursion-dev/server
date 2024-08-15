@@ -162,6 +162,8 @@ kubectl port-forward service/app-service 8000:8000
    - `kubectl delete secret <sec-name>` ... may have to do this in the k8s dashboard
  - Restart celery, beat, &b app deployments for a config-map change:
    - `kubectl rollout restart deployment app-deployment celery-deployment`
+ - Check status of deployment rollout
+   - `kubectl rollout status deployment/app-deployment`
  - Get Current IPs for pods:
    - `kubectl exec <container-id> -- curl -s http://checkip.dyndns.org/ | sed 's/[a-zA-Z<>/ :]//g'`
  - Force delete pods that are stuck in `Terminating`:
