@@ -398,14 +398,14 @@ class Caser():
                 exception = None
                 passed = True
                 self.update_testcase(
-                    index=i, type='action', 
+                    index=i, type='assertion', 
                     start_time=datetime.now()
                 )
 
                 try:
                     print(f'asserting that element value -> {step["assertion"]["element"]} matches {step["assertion"]["value"]}')
                     # using selenium, find elememt and assert if element.text == assertion.text
-                    selector = self.format_element(step["action"]["element"])
+                    selector = self.format_element(step["assertion"]["element"])
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
 
                     # scrolling to element and back down a bit
@@ -415,13 +415,17 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
-                    elementText = self.driver.execute_script(f'return document.querySelector("{selector}").textContent')
+                    elementText = self.driver.execute_script(f'return document.querySelector("{selector}").innerText')
+                    elementText = element.text if len(elementText) == 0 else elementText
                     elementText = elementText.strip()
                     print(f'elementText => {elementText}')
                     print(f'value => {step["assertion"]["value"]}')
 
                     # assert text
-                    assert elementText == step["assertion"]["value"]
+                    if elementText != step["assertion"]["value"]:
+                        raise AssertionError(f'innerText of element "{selector}" does match "{step['assertion']['value']}"')
+                    
+                    # save screenshot
                     image = self.save_screenshot()
 
                 except Exception as e:
@@ -430,7 +434,7 @@ class Caser():
                     passed = False
 
                 self.update_testcase(
-                    index=i, type='action', 
+                    index=i, type='assertion', 
                     end_time=datetime.now(), 
                     passed=passed, 
                     exception=exception,

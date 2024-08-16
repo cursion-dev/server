@@ -80,10 +80,16 @@ class Issuer():
             # get first step that failed in testcase
             failed_step = None
             step_index = 0
+            step_type = 'action'
             for step in self.testcase.steps:
                 step_index += 1
-                if not step['action']['passed']:
+                if step['action']['passed'] == False:
                     failed_step = step
+                    step_type = 'action'
+                    break
+                if step['assertion']['passed'] == False:
+                    failed_step = step
+                    step_type = 'assertion'
                     break
 
             # build title
@@ -92,15 +98,15 @@ class Issuer():
             # build intro
             intro = str(
                 f'Testcase [{self.testcase.case_name}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
-                f' failed on **Step {step_index}**, `{failed_step["action"]["type"]}`.\n\n\n' +
+                f' failed on **Step {step_index}**, `{failed_step[step_type]["type"]}`.\n\n\n' +
                 f' **Affected Site:** [{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]})\n\n\n'
             )
             
             # build main_issue
             main_issue = str(
                 f'### Main Issue or Exception:\n' + 
-                f' ```shell\n{failed_step["action"]["exception"]}\n``` \n\n' +
-                f' [View Image]({failed_step["action"]["image"]})\n\n'
+                f' ```shell\n{failed_step[step_type]["exception"]}\n``` \n\n' +
+                f' [View Image]({failed_step[step_type]["image"]})\n\n'
             )
 
             # build recommendation
