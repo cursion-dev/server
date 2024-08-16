@@ -811,7 +811,9 @@ def delete_many_sites(request: object) -> object:
                 if site.account == account:
 
                     # delete site and associated resources
-                    delete_site(id=id, account=site.account)
+                    data = delete_site(id=id, account=site.account)
+                    if data.get('reason'):
+                        raise Exception
 
                 # add to success attempts
                 num_succeeded += 1
@@ -1339,7 +1341,9 @@ def delete_many_pages(request: object) -> object:
                 if page.account == account:
 
                     # delete page and all assocaited resourses
-                    delete_page(id=id, account=page.account)
+                    data = delete_page(id=id, account=page.account)
+                    if data.get('reason'):
+                        raise Exception
 
                 # add to success attempts
                 num_succeeded += 1
