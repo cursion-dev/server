@@ -1217,22 +1217,30 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
         max_sites = account.max_sites
 
     # get account coupon
-    discount = 1
+    discount = 0
     if account.meta.get('coupon'):
         discount = account.meta['coupon']['discount']
-        if discount != 1:
-            discount = 1-discount
 
     # calculate 
-    price_amount = (
-        (
-            (-0.0003 * (max_sites ** 2)) + 
-            (1.5142 * max_sites) + 325.2
-        ) * 100
-    )
+    if max_sites <= 5:
+        price = 8900
+    elif max_sites > 5 and max_sites <= 10:
+        price = 17900
+    elif max_sites > 10 and max_sites <= 25:
+        price = 34900
+    elif max_sites > 25:
+        price = (
+            ( 
+                (-0.0003 * (max_sites ** 2)) + 
+                (1.5142 * max_sites) + 325.2
+            ) * 100
+        )
 
     # apply discount
-    price = round(price - (price * discount))
+    price = price - (price * discount)
+
+    # update for interval 
+    price_amount = round(price if account.interval == 'month' else (price * 10))
 
     # create new Stripe Price 
     price = stripe.Price.create(
