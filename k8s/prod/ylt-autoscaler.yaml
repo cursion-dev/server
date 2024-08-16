@@ -14,4 +14,4 @@ spec:
       metadata:
         targetValue: "5"
         url: "https://api.scanerr.io/v1/ops/metrics/celery"
-        valueLocation: "num_tasks"
+        valueLocation: "working_len"
