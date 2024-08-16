@@ -144,7 +144,7 @@ class Issuer():
 
             # build intro
             intro = str(
-                f'[Test](/{trigger["type"]}/{trigger["id"]}) failed for the page ' + 
+                f'[Test]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]}) failed for the page ' + 
                 f'[{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]}) ' + 
                 f'based on the set threshold of **{round(self.test.threshold, 2)}%**.\n\n\n'
             )

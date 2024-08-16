@@ -741,8 +741,12 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
     # remove any associated tasks 
     delete_tasks(site=site)
 
-    # remove any associated Issues
-    issues = Issue.objects.filter(affected__icontains=id).delete()
+    # remove any site associated Issues
+    Issue.objects.filter(affected__icontains=str(id)).delete()
+
+    # remove any page associated Issues
+    for page in Page.objects.filter(site=site):
+        Issue.objects.filter(affected__icontains=str(page.id)).delete()
     
     # remove site
     site.delete()
@@ -807,15 +811,14 @@ def delete_many_sites(request: object) -> object:
                 if site.account == account:
 
                     # delete site and associated resources
-                    delete_site_s3_bg.delay(site_id=id)
-                    delete_tasks(site=site)
-                    Issue.objects.filter(affected__icontains=id).delete()
+                    delete_site(id=id, account=site.account)
 
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
 
             except:
+                print(e)
                 # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
@@ -1264,6 +1267,7 @@ def delete_page(request: object=None, id: str=None, account: object=None) -> obj
     check_data = check_account_and_resource(user=user, page_id=id, resource='page')
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
+        print(data)
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -1279,12 +1283,8 @@ def delete_page(request: object=None, id: str=None, account: object=None) -> obj
     delete_tasks(page=page)
 
     # remove any associated Issues
-    issues = Issue.objects.filter(
-        affected__icontains=id
-    )
-    for issue in issues:
-        issue.delete()
-    
+    Issue.objects.filter(affected__icontains=str(id)).delete()
+
     # remove page
     page.delete()
 
@@ -1333,18 +1333,20 @@ def delete_many_pages(request: object) -> object:
         # loop through passed ids
         for id in ids:
 
-            # trying to delete site
+            # trying to delete page
             try:
                 page = Page.objects.get(id=id)
                 if page.account == account:
-                    delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
-                    delete_tasks(page=page)
-                    page.delete()
+
+                    # delete page and all assocaited resourses
+                    delete_page(id=id, account=page.account)
+
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
-            except:
+            except Exception as e:
                 # add to failed attempts
+                print(e)
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
