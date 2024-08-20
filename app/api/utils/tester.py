@@ -806,10 +806,14 @@ class Tester():
                 logs_score_w = .5
                 num_logs_w = 2
 
+                # combined score
+                combined_logs_score = ((logs_score*logs_score_w) + (num_logs_ratio*num_logs_w))/2.5
+
                 # data
                 logs_delta_context = {
                     "pre_logs_delta": delta_logs_data['delta_logs_pre'],
                     "post_logs_delta": delta_logs_data['delta_logs_post'],
+                    "combined_logs_score": combined_logs_score
                 }
             except Exception as e:
                 logs_score_w = 0
@@ -916,7 +920,7 @@ class Tester():
         self.test.score = score
         self.test.status = 'passed' if score >= self.test.threshold else 'failed'
         self.test.component_scores['html'] = (micro_diff_score * 100) if micro_diff_w != 0 else None
-        self.test.component_scores['logs'] = (num_logs_ratio * 100) if num_logs_w != 0 else None
+        self.test.component_scores['logs'] = (logs_delta_context['combined_logs_score'] * 100) if num_logs_w != 0 else None
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100) if delta_lh_w != 0 else None
         self.test.component_scores['yellowlab'] = (yellowlab_score * 100) if delta_yl_w != 0 else None
         self.test.component_scores['vrt'] = (images_score * 100) if images_w != 0 else None

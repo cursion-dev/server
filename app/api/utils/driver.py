@@ -217,7 +217,7 @@ def driver_wait(
     wait_time = 0
 
     # min_wait_time before checking page status
-    time.sleep(min_wait_time)
+    time.sleep(int(min_wait_time))
 
     while int(wait_time) < int(max_wait_time) and page_state != 'complete':
 
@@ -225,7 +225,7 @@ def driver_wait(
         pre_check_time = datetime.now()
         
         # wait 1 sec or <interval:int> sec 
-        time.sleep(interval)
+        time.sleep(int(interval))
 
         try:
             page_state = driver.execute_script('return document.readyState')

@@ -3,6 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
 
+LABEL Author="Scanerr" Support="hello@scanerr.io"
+
 # create the app user
 RUN addgroup --system app && adduser --system app 
 
@@ -15,9 +17,9 @@ RUN apt-get update && apt-get install -y postgresql postgresql-client gcc \
     libfontconfig firefox-esr apt-transport-https software-properties-common
 
 # installing google-chrome-stable
-RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-RUN apt-get install -y ./google-chrome-stable_current_amd64.deb
-RUN rm google-chrome-stable_current_amd64.deb
+RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+    apt-get install -y ./google-chrome-stable_current_amd64.deb && \
+    rm google-chrome-stable_current_amd64.deb
 
 # installing microsoft-edge-stable
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
