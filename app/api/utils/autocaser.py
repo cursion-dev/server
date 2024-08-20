@@ -83,6 +83,26 @@ class AutoCaser():
             """
         )
 
+        # setting xpath script
+        self.xpath_script = (
+            """ 
+            const getXPath = (elm) => {
+                const idx = (sib, name) => sib 
+                    ? idx(sib.previousElementSibling, name||sib.localName) + (sib.localName == name)
+                    : 1;
+                const segs = elm => !elm || elm.nodeType !== 1 
+                    ? ['']
+                    : elm.id && document.getElementById(elm.id) === elm
+                        ? [`id("${elm.id}")`]
+                        : [...segs(elm.parentNode), `${elm.localName.toLowerCase()}[${idx(elm)}]`];
+                return segs(elm).join('/');
+            }
+
+            return getXPath(arguments[0])
+
+            """
+        )
+
         # setting selector script
         self.visible_script = (
             """
@@ -229,7 +249,7 @@ class AutoCaser():
             'add to basket', 'add to shopping basket', 'add to shopping cart', 
             'add to the cart', 'billing', 'address', 'payment', 'purchase now',
             'order now', 'order', 'shop now', 'continue to payment', 'contact', 
-            'apply', 'submit', 
+            'apply', 'submit', 'contact sales', 'contact us'
         ]
 
         priority_elements = []
@@ -359,6 +379,10 @@ class AutoCaser():
             if elem.tag_name == 'a':
                 # check if action will reload page or site root
                 elem_link = elem.get_attribute('href')
+                # check it elem_link is blank
+                if elem_link is None:
+                    print('elem_link not present')
+                    continue
                 if current_url == elem_link or elem_link == self.site.site_url or elem_link == '/':
                     print('elem reloads page')
                     continue
@@ -743,6 +767,13 @@ class AutoCaser():
             # ensuring link is local to site
             if choosen.tag_name == 'a':
                 link_text = choosen.get_attribute('href')
+                
+                # check it elem_link is blank
+                if link_text is None:
+                    print('link_text not present')
+                    iterations += 1
+                    continue
+
                 if link_text is not None:
                     if link_text.startswith(self.get_url_root(start_page)):
                         self.final_start_elements.append(selector)
