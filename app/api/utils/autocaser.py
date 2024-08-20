@@ -743,8 +743,9 @@ class AutoCaser():
             # ensuring link is local to site
             if choosen.tag_name == 'a':
                 link_text = choosen.get_attribute('href')
-                if link_text.startswith(self.get_url_root(start_page)):
-                    self.final_start_elements.append(selector)
+                if link_text is not None:
+                    if link_text.startswith(self.get_url_root(start_page)):
+                        self.final_start_elements.append(selector)
                     
             # adding if button
             if choosen.tag_name == 'button':
