@@ -1128,6 +1128,9 @@ def reset_account_usage(account_id: str=None) -> None:
     today_str = today.strftime('%Y-%m-%d')
     print(f'today -> {today_str}')
 
+    # setting format for today
+    f = '%Y-%m-%d %H:%M:%S.%f'
+
     # reset account.ussage
     def reset_usage(account):
         account.usage['scans'] = 0
@@ -1162,14 +1165,13 @@ def reset_account_usage(account_id: str=None) -> None:
         if account.type == 'free':
 
             # get last usage reset date from meta
-            last_usage_date_str = account.meta.get('last_usage_reset')
+            last_usage_date_str = account.meta.get('last_usage_reset') if account.meta else None
             if last_usage_date_str is not None:
                 
                 # clean date_str
                 last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
 
                 # format date str as datetime obj
-                f = '%Y-%m-%d %H:%M:%S.%f'
                 last_usage_date = datetime.strptime(last_usage_date_str, f)
 
                 print(f'days since last reset -> {abs((today - last_usage_date).days)}')
@@ -1178,9 +1180,9 @@ def reset_account_usage(account_id: str=None) -> None:
                 if abs((today - last_usage_date).days) >= 30:
                     reset_usage(account)
 
-                # udpate account.meta.last_usage_reset
-                account.meta['last_usage_reset'] = today.strftime(f)
-                account.save()
+            # udpate account.meta.last_usage_reset
+            account.meta['last_usage_reset'] = today.strftime(f)
+            account.save()
     
     return None
 
