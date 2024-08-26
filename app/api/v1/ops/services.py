@@ -145,6 +145,16 @@ def check_account_and_resource(
         }
         return data
 
+    # checking if user is 'admin'
+    if user.username == 'admin':
+        data = {
+            'allowed': allowed,
+            'error': error, 
+            'status': _status,
+            'code': code
+        }
+        return data
+
     # checking resource limit
     if resource is not None:
         
