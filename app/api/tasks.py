@@ -126,7 +126,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
                 scan = Scan.objects.create(
                     site=site,
                     page=page, 
-                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    type=settings.TYPES,
                     configs=configs
                 )
                 
@@ -207,7 +207,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
                 scan = Scan.objects.create(
                     site=site,
                     page=page, 
-                    type=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+                    type=settings.TYPES,
                     configs=configs
                 )
                 # run each scan component in parallel
@@ -278,7 +278,7 @@ def create_scan(
         self,
         scan_id: str=None,
         page_id: str=None, 
-        type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+        type: list=settings.TYPES,
         automation_id: str=None, 
         configs: str=None,
         tags: str=None,
@@ -505,7 +505,7 @@ def create_test(
         page_id: str=None, 
         automation_id: str=None, 
         configs: dict=settings.CONFIGS, 
-        type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab'],
+        type: list=settings.TYPES,
         index: int=None,
         pre_scan: str=None,
         post_scan: str=None,
@@ -532,6 +532,16 @@ def create_test(
     Returns -> None
     """
 
+    # setting defaults
+    created_test = None
+
+    # get or create a Test
+    if test_id is not None:
+        created_test = Test.objects.get(id=test_id)
+        page = created_test.page
+    elif page_id is not None:
+        page = Page.objects.get(id=page_id)
+
     # get pre_ & post_ scans
     if pre_scan is not None:
         pre_scan = Scan.objects.get(id=pre_scan)
@@ -540,11 +550,15 @@ def create_test(
     if post_scan is None or pre_scan is None:
         if pre_scan is None:
             # check for pre_scan existance 
-            if not Scan.objects.filter(page=page).exists():
+            if not Scan.objects.filter(page=page).exclude(time_completed=None).exists():
                 logger.info('no pre_scan available to create Test with')
                 return None
             # get pre_scan if exists
-            pre_scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
+            pre_scan = Scan.objects.filter(
+                page=page
+            ).exclude(
+                time_completed=None
+            ).order_by('-time_completed')[0]
         
         # create new post_scan
         post_scan = Scan.objects.create(
@@ -560,13 +574,9 @@ def create_test(
             automation_id=automation_id,
             configs=configs,
         )
-
-    # get or create a Test
-    if test_id is not None:
-        created_test = Test.objects.get(id=test_id)
-        page = created_test.page
-    elif page_id is not None:
-        page = Page.objects.get(id=page_id)
+    
+    # create test if none
+    if created_test is None:
         created_test = Test.objects.create(
             site=page.site,
             page=page,
@@ -575,6 +585,7 @@ def create_test(
             threshold=float(threshold),
             status='working'
         )
+        
         
     # updating parired scans
     pre_scan.paired_scan = post_scan
