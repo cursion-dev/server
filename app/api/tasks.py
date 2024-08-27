@@ -532,6 +532,35 @@ def create_test(
     Returns -> None
     """
 
+    # get pre_ & post_ scans
+    if pre_scan is not None:
+        pre_scan = Scan.objects.get(id=pre_scan)
+    if post_scan is not None:
+        post_scan = Scan.objects.get(id=post_scan)
+    if post_scan is None or pre_scan is None:
+        if pre_scan is None:
+            # check for pre_scan existance 
+            if not Scan.objects.filter(page=page).exists():
+                logger.info('no pre_scan available to create Test with')
+                return None
+            # get pre_scan if exists
+            pre_scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
+        
+        # create new post_scan
+        post_scan = Scan.objects.create(
+            site=page.site,
+            page=page,
+            tags=tags, 
+            type=type,
+            configs=configs,
+        )
+        scan_page_bg.delay(
+            scan_id=post_scan.id, 
+            test_id=created_test.id,
+            automation_id=automation_id,
+            configs=configs,
+        )
+
     # get or create a Test
     if test_id is not None:
         created_test = Test.objects.get(id=test_id)
@@ -545,28 +574,6 @@ def create_test(
             tags=tags,
             threshold=float(threshold),
             status='working'
-        )
-
-    # get pre_ & post_ scans
-    if pre_scan is not None:
-        pre_scan = Scan.objects.get(id=pre_scan)
-    if post_scan is not None:
-        post_scan = Scan.objects.get(id=post_scan)
-    if post_scan is None or pre_scan is None:
-        if pre_scan is None:
-            pre_scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
-        post_scan = Scan.objects.create(
-            site=page.site,
-            page=page,
-            tags=tags, 
-            type=type,
-            configs=configs,
-        )
-        scan_page_bg.delay(
-            scan_id=post_scan.id, 
-            test_id=created_test.id,
-            automation_id=automation_id,
-            configs=configs,
         )
         
     # updating parired scans
