@@ -787,12 +787,12 @@ class Tester():
                 # save and get s3 object uri
                 html_delta_uri = self.save_data_to_s3(_data=html_delta_context)
                 print(f'html_delta => {html_delta_uri}')
-
             except Exception as e:
+                print(e)
+            else:
                 micro_diff_w = 0
                 num_html_w = 0
                 micro_diff_w = 0
-                print(e)
         
         # testing logs
         if 'logs' in self.test.type or 'full' in self.test.type:
@@ -816,8 +816,9 @@ class Tester():
                     "combined_logs_score": combined_logs_score
                 }
             except Exception as e:
-                logs_score_w = 0
                 print(e)
+            else:
+                logs_score_w = 0
 
         # testing LH
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
@@ -841,8 +842,9 @@ class Tester():
                 else:
                     delta_lh_w = 1
             except Exception as e:
-                delta_lh_w = 0
                 print(e)
+            else:
+                delta_lh_w = 0
 
         # testing YL
         if 'yellowlab' in self.test.type or 'full' in self.test.type:
@@ -866,8 +868,9 @@ class Tester():
                 else:
                     delta_yl_w = 1
             except Exception as e:
-                delta_yl_w = 0
                 print(e)
+            else:
+                delta_yl_w = 0
 
         # testing images
         if 'vrt' in self.test.type or 'full' in self.test.type:
@@ -880,8 +883,9 @@ class Tester():
                 # weights
                 images_w = 4
             except Exception as e:
-                images_w = 0
                 print(e)
+            else:
+                images_w = 0
         
         # calculating total weight
         total_w = (
