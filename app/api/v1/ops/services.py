@@ -3418,20 +3418,21 @@ def get_schedules(request: object) -> object:
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
+
+    # get all page scoped schedules
+    if not site_id and not page_id:
+        schedules = Schedule.objects.filter(account=account).order_by('-time_created')
     
     # get all site scoped schedules
-    if site_id:
+    if site_id and not schedules:
         site = Site.objects.get(id=site_id)
         schedules = Schedule.objects.filter(site=site).order_by('-time_created')
     
     # get all page scoped schedules
-    if page_id:
+    if page_id and not schedules:
+        print('getting Schedules by page_id')
         page = Page.objects.get(id=page_id)
         schedules = Schedule.objects.filter(page=page).order_by('-time_created')
-
-    # get all page scoped schedules
-    if not schedules:
-        schedules = Schedule.objects.filter(account=account).order_by('-time_created')
     
     # serialize and return
     paginator = LimitOffsetPagination()

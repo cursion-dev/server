@@ -189,6 +189,8 @@ kubectl apply -f ./k8s/prod/kubeip-daemon.yaml
    - `kubectl exec <container-id> -- curl -s http://checkip.dyndns.org/ | sed 's/[a-zA-Z<>/ :]//g'`
  - Force delete pods that are stuck in `Terminating`:
    - `for p in $(kubectl get pods | grep Terminating | awk '{print $1}'); do kubectl delete pod $p --grace-period=0 --force;done`
+ - Stream Logs for all celery-deployments:
+   - ` kubectl logs -f --all-containers deployment/celery-deployment`
 
 
 
