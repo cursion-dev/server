@@ -586,7 +586,7 @@ def create_test(
         )
         scan_page_bg.delay(
             scan_id=post_scan.id, 
-            test_id=created_test.id,
+            test_id=test_id,
             automation_id=automation_id,
             configs=configs,
         )
