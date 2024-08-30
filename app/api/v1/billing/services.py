@@ -663,7 +663,6 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
 
 
 
-
 def get_stripe_invoices(request: object) -> object:
     """ 
     Gets a list of Stripe Invoice objects associated with the 
