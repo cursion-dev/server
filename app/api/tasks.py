@@ -541,6 +541,14 @@ def create_test(
         page = created_test.page
     elif page_id is not None:
         page = Page.objects.get(id=page_id)
+        created_test = Test.objects.create(
+            site=page.site,
+            page=page,
+            type=type,
+            tags=tags,
+            threshold=float(threshold),
+            status='working'
+        )
 
     # get pre_ & post_ scans
     if pre_scan is not None:
@@ -565,6 +573,9 @@ def create_test(
                     configs=configs,
                 )
 
+                # remove created_test
+                created_test.delete()
+
                 # return None
                 logger.info('no pre_scan available to create Test with')
                 return None
@@ -586,22 +597,10 @@ def create_test(
         )
         scan_page_bg.delay(
             scan_id=post_scan.id, 
-            test_id=test_id,
+            test_id=created_test.id,
             automation_id=automation_id,
             configs=configs,
         )
-    
-    # create test if none
-    if created_test is None:
-        created_test = Test.objects.create(
-            site=page.site,
-            page=page,
-            type=type,
-            tags=tags,
-            threshold=float(threshold),
-            status='working'
-        )
-        
         
     # updating parired scans
     pre_scan.paired_scan = post_scan
