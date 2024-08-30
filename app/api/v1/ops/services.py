@@ -3393,6 +3393,9 @@ def get_schedules(request: object) -> object:
     user = request.user
     account = Member.objects.get(user=user).account
 
+    # setting default
+    schedules = None
+
     # check account and resource 
     check_data = check_account_and_resource(
         user=user, resource='schedule', page_id=page_id, site_id=site_id, 
@@ -3425,6 +3428,10 @@ def get_schedules(request: object) -> object:
     if page_id:
         page = Page.objects.get(id=page_id)
         schedules = Schedule.objects.filter(page=page).order_by('-time_created')
+
+    # get all page scoped schedules
+    if not schedules:
+        schedules = Schedule.objects.filter(account=account).order_by('-time_created')
     
     # serialize and return
     paginator = LimitOffsetPagination()

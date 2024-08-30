@@ -92,7 +92,7 @@ $ eval "$(ssh-agent -s)"
 $ ssh-add ~/.ssh/id_ed25519
 $ cat ~/.ssh/id_ed25519.pub
 ```
-- copy key to clipboard and paste in GutHub
+- copy key to clipboard and paste in GitHub
 
 
 *Add ssh_key.pub to {user} authorized_keys*
