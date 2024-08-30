@@ -551,8 +551,24 @@ def create_test(
         if pre_scan is None:
             # check for pre_scan existance 
             if not Scan.objects.filter(page=page).exclude(time_completed=None).exists():
+                
+                # create new scan if none exists
+                new_scan = Scan.objects.create(
+                    site=page.site,
+                    page=page,
+                    tags=tags, 
+                    type=type,
+                    configs=configs,
+                )
+                scan_page_bg.delay(
+                    scan_id=new_scan.id, 
+                    configs=configs,
+                )
+
+                # return None
                 logger.info('no pre_scan available to create Test with')
                 return None
+                
             # get pre_scan if exists
             pre_scan = Scan.objects.filter(
                 page=page
@@ -570,7 +586,7 @@ def create_test(
         )
         scan_page_bg.delay(
             scan_id=post_scan.id, 
-            test_id=created_test.id,
+            test_id=test_id,
             automation_id=automation_id,
             configs=configs,
         )
