@@ -190,7 +190,7 @@ kubectl apply -f ./k8s/prod/kubeip-daemon.yaml
  - Force delete pods that are stuck in `Terminating`:
    - `for p in $(kubectl get pods | grep Terminating | awk '{print $1}'); do kubectl delete pod $p --grace-period=0 --force;done`
  - Stream Logs for all celery-deployments:
-   - ` kubectl logs -f --all-containers deployment/celery-deployment`
+   - `kubectl logs -f --all-containers deployment/celery-deployment`
 
 
 
