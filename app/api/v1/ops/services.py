@@ -19,7 +19,7 @@ from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
-import json, boto3, asyncio, os, requests
+import json, boto3, asyncio, os, requests, uuid
 
 
 
@@ -4119,6 +4119,7 @@ def create_or_update_case(request: object) -> object:
     case_id = request.data.get('case_id')
     steps = request.data.get('steps')
     site_url = request.data.get('site_url')
+    site_id = request.data.get('site_id')
     name = request.data.get('name')
     tags = request.data.get('tags')
     _type = request.data.get('type')
@@ -4145,6 +4146,12 @@ def create_or_update_case(request: object) -> object:
     if site_url:
         if Site.objects.filter(account=account, site_url=site_url).exists():
             site = Site.objects.filter(account=account, site_url=site_url)[0]
+    
+    # get site if site_id passed
+    if site_id:
+        if Site.objects.filter(account=account, id=site_id).exists():
+            site = Site.objects.get(id=site_id)
+            site_url = site.site_url
 
     # get case if checks passed
     if case_id:
@@ -4159,6 +4166,10 @@ def create_or_update_case(request: object) -> object:
             case.name = name
         if tags is not None:
             case.tags = tags
+        if site is not None:
+            case.site = site
+        if site_url is not None:
+            case.site_url = site_url
         # save updates
         case.save()
     
@@ -4193,14 +4204,14 @@ def create_or_update_case(request: object) -> object:
 
 
 
-def save_case_steps(steps: dict, steps_id: str) -> dict:
+def save_case_steps(steps: dict, case_id: str) -> dict:
     """ 
     Helper function that uploads the "steps" data to 
     s3 bucket
 
     Expects: {
         'steps'   : dict, 
-        'step_id' : str
+        'case_id' : str
     }
 
     Returns -> data: {
@@ -4218,19 +4229,24 @@ def save_case_steps(steps: dict, steps_id: str) -> dict:
     )
 
     # saving as json file temporarily
+    steps_id = uuid.uuid4()
     with open(f'{steps_id}.json', 'w') as fp:
         json.dump(steps, fp)
     
     # seting up paths
     steps_file = os.path.join(settings.BASE_DIR, f'{steps_id}.json')
-    remote_path = f'static/cases/steps/{steps_id}.json'
+    remote_path = f'static/cases/{case_id}/{steps_id}.json'
     root_path = settings.AWS_S3_URL_PATH
     steps_url = f'{root_path}/{remote_path}'
 
     # upload to s3
     with open(steps_file, 'rb') as data:
         s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-            remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+            remote_path, ExtraArgs={
+                'ACL': 'public-read', 
+                'ContentType': 'application/json',
+                'CacheControl': 'max-age=0'
+            }
         )
 
     # remove local copy

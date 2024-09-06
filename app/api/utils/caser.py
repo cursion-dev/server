@@ -149,6 +149,52 @@ class Caser():
         # returning image url
         return image_url
 
+
+
+    
+    def get_element(self, selector: str=None, xpath: str=None) -> object:
+        """ 
+        Tries to get element by selector first and 
+        then by xpath. If both fail, then return
+        None for "element" and True for "failed".
+
+        Expects: {
+            "selector": str, 
+            "xpath": str, 
+        }
+
+        Returns -> data: {
+            'element': object | None,
+            'failed': bool
+        }
+        """
+
+        # defaults
+        failed = True
+        element = None
+
+        # try selector first
+        if selector:
+            try:
+                element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                failed = False
+            except:
+                pass
+        # try xpath as backup
+        if xpath:
+            try:
+                element = self.driver.find_element(By.XPATH, xpath)
+                failed = False
+            except:
+                pass
+
+        # return data
+        data = {
+            'element': element,
+            'failed': failed
+        }
+        return data
+
     
 
 
@@ -220,7 +266,7 @@ class Caser():
                         max_wait_time=int(self.configs.get('max_wait_time', 30)),
                     )
                     self.driver.get(f'{self.site_url}{step["action"]["path"]}')
-                    time.sleep(int(self.configs['min_wait_time']))
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot()
 
                 except Exception as e:
@@ -280,8 +326,14 @@ class Caser():
                 try:
                     print(f'clicking element -> {step["action"]["element"]}')
                     # using selenium, find and click on the 'element' 
-                    selector = self.format_element(step["action"]["element"])
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
                                     
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
@@ -291,7 +343,7 @@ class Caser():
 
                     # clicking element
                     element.click()
-                    time.sleep(int(self.configs['min_wait_time']))
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot()
                 
                 except Exception as e:
@@ -318,8 +370,14 @@ class Caser():
                 try:
                     print(f'changing element to value -> {step["action"]["value"]}') 
                     # using selenium, find and change the 'element'.value
-                    selector = self.format_element(step["action"]["element"])
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
 
                     # scrolling to element and back down a bit
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
@@ -330,7 +388,7 @@ class Caser():
                     # changing value of element
                     value = step["action"]["value"]
                     element.send_keys(value)
-                    time.sleep(int(self.configs['min_wait_time']))
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot()
                 
                 except Exception as e:
@@ -360,15 +418,21 @@ class Caser():
                     n = (i - 1)
                     elm = None
                     while True:
-                        elm = self.steps[n]['action']['element']
+                        elm = self.steps[n]['action']['element']['selector']
                         if elm != None and len(elm) != 0:
                             break
                         n -= 1
                     selector = self.format_element(elm)
                                 
                     # using selenium, find elemenmtn and send 'Key' event
-                    selector = self.format_element(step["action"]["element"])
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
 
                     # scrolling to element and back down a bit
                     self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
@@ -378,7 +442,7 @@ class Caser():
 
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
-                    time.sleep(int(self.configs['min_wait_time']))
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot()
                 
                 except Exception as e:
@@ -403,23 +467,28 @@ class Caser():
                 )
 
                 try:
+                    # using selenium, find elememt and assert if element.text == assertion.value
                     print(f'asserting that element value -> {step["assertion"]["element"]} matches {step["assertion"]["value"]}')
-                    # using selenium, find elememt and assert if element.text == assertion.text
-                    selector = self.format_element(step["assertion"]["element"])
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    selector = self.format_element(step["assertion"]["element"]["selector"])
+                    xpath = self.format_element(step["assertion"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
 
                     # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
-                    elementText = self.driver.execute_script(f'return document.querySelector("{selector}").innerText')
+                    elementText = element.get_attribute('innerText')
                     elementText = element.text if len(elementText) == 0 else elementText
                     elementText = elementText.strip()
-                    print(f'elementText => {elementText}')
-                    print(f'value => {step["assertion"]["value"]}')
+                    print(f'elementText -> {elementText}')
+                    print(f'value -> {step["assertion"]["value"]}')
 
                     # assert text
                     if elementText != step["assertion"]["value"]:
@@ -451,18 +520,22 @@ class Caser():
 
                 try:
                     print(f'asserting that element -> {step["assertion"]["element"]} exists')
-                    # using puppeteer, find elememt and assert it exists
-                    selector = self.format_element(step["action"]["element"])
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    # find elememt and assert it exists
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
 
                     # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     self.driver.execute_script("window.scrollBy(0, -100);")
                     
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
                     image = self.save_screenshot()
 
                 except Exception as e:

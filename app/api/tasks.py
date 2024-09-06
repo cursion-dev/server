@@ -972,7 +972,7 @@ def delete_case_s3_bg(case_id: str) -> None:
     # deleting s3 objects
     try:
         bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-        bucket.objects.filter(Prefix=str(f'static/cases/{case_id}.json')).delete()
+        bucket.objects.filter(Prefix=str(f'static/cases/{case_id}/')).delete()
     except:
         pass
 
