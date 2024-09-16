@@ -25,6 +25,7 @@ jobs:
         host: ${{ secrets.DEV_HOST }}
         username: ${{ secrets.DEV_USER }}
         key: ${{ secrets.DEV_KEY }}
+        command_timeout: 30m
         script: | 
           cd ~/app
           git pull origin dev
