@@ -55,7 +55,6 @@ COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3.12 -m pip install -r /requirements.txt
 
 # setting working dir
-RUN mkdir /app
 COPY ./app /app
 WORKDIR /app
 
