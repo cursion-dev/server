@@ -21,3 +21,9 @@ app/api/migrations/*_*.py
 k8s/*/*-configs.yaml
 k8s/prod/old_configs/*
 
+app/chromedriver*
+
+app/.cache*
+app/.config*
+app/.local*
+app/.pki*
