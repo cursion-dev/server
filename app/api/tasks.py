@@ -330,40 +330,91 @@ def create_scan(
 def create_scan_bg(self, *args, **kwargs) -> None:
     """ 
     Creates 1 or more `Scans` depending on 
-    the scope (page or site). Used with `Schedules`
+    the scope (page, site or account). Used with `Schedules`
 
     Expects: {
-        'site_id'       : str,
-        'page_id'       : str,
+        'scope'         : str
+        'resources'     : list
+        'account_id'    : str
         'type'          : list,
         'configs'       : dict,
         'tags'          : list,
-        'automation_id' : str
+        'automation_id' : str,
+        'task_id'       : str
     }
 
     Returns -> None
     """
 
     # get data from kwargs
-    site_id = kwargs.get('site_id')
-    page_id = kwargs.get('page_id')
+    scope = kwargs.get('scope')
+    resources = kwargs.get('resources')
+    account_id = kwargs.get('account_id')
     type = kwargs.get('type')
     configs = kwargs.get('configs')
     tags = kwargs.get('tags')
     automation_id = kwargs.get('automation_id')
+    task_id = kwargs.get('task_id')
 
-    # building list of pages
-    if site_id is not None:
-        site = Site.objects.get(id=site_id)
-        pages = Page.objects.filter(site=site)
-    if page_id is not None:
-        pages = [Page.objects.get(id=page_id)]
+    # setting defaults
+    pages = []
+    sites = []
+
+    # get account if account_id exists
+    if account_id:
+        account = Account.objects.get(id=account_id)
+        
+    # iterating through resources 
+    # and adding to sites or pages
+    if len(resources) > 0:
+        for item in resources:
+            
+            # adding to pages
+            if item['type'] == 'page':
+                try:
+                    pages.append(
+                        Page.objects.get(id=item['id'])
+                    ) 
+                except Exception as e:
+                    print(e)
+            
+            # adding to sites
+            if item['type'] == 'site':
+                try:
+                    sites.append(
+                        Site.objects.get(id=item['id'])
+                    ) 
+                except Exception as e:
+                    print(e)
+    
+    # grabbing all sites because no 
+    # resources were specified and scope is "account"
+    if len(resources) == 0 and scope == 'account':
+        sites = Site.objects.filter(account=account)
+
+    # get all pages from existing sites
+    for site in sites:
+        pages += Page.objects.filter(site=site)
 
     # creating scans for each page
     for page in pages:
-
         # check resource 
         if check_and_increment_resource(page.account, 'scans'):
+
+            # updating latest_scan info for page
+            page.info['latest_scan']['id'] = 'placeholder'
+            page.info['latest_scan']['time_created'] = str(timezone.now())
+            page.info['latest_scan']['time_completed'] = None
+            page.info['latest_scan']['score'] = None
+            page.info['latest_scan']['score'] = None
+            page.save()
+
+            # updating latest_scan info for site
+            page.site.info['latest_scan']['id'] = 'placeholder'
+            page.site.info['latest_scan']['time_created'] = str(timezone.now())
+            page.site.info['latest_scan']['time_completed'] = None
+            page.site.save()
+
             create_scan.delay(
                 page_id=page.id,
                 type=type,
@@ -371,6 +422,16 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                 tags=tags,
                 automation_id=automation_id
             )
+    
+    # update schedule if task_id is not None
+    if task_id:
+        try:
+            last_run = timezone.now()
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
     
     logger.info('created new Scans')
     return None
@@ -490,7 +551,7 @@ def run_test(self, test_id: str, automation_id: str=None) -> None:
     test = T(test=test).run_test()
     if automation_id:
         print('running automation from `task.run_test`')
-        automater(automation_id, test.id)
+        Automater(automation_id, test.id).run_automation()
 
     logger.info('Test completed')
     return None
@@ -586,6 +647,16 @@ def create_test(
             ).exclude(
                 time_completed=None
             ).order_by('-time_completed')[0]
+
+        # check and increment resources
+        if not check_and_increment_resource(page.account, 'scans'):
+            
+            # remove created_test
+            created_test.delete()
+
+            # return None
+            logger.info('no more scans usage available')
+            return None
         
         # create new post_scan
         post_scan = Scan.objects.create(
@@ -595,6 +666,8 @@ def create_test(
             type=type,
             configs=configs,
         )
+
+        # run Scan & Test tasks 
         scan_page_bg.delay(
             scan_id=post_scan.id, 
             test_id=created_test.id,
@@ -631,8 +704,9 @@ def create_test_bg(self, *args, **kwargs) -> None:
     all requested pages.
 
     Expects: {
-        site_id       : str
-        page_id       : str
+        scope         : str
+        resources     : list
+        account_id    : str
         test_id       : str
         type          : list
         configs       : dict
@@ -641,14 +715,16 @@ def create_test_bg(self, *args, **kwargs) -> None:
         pre_scan      : str
         post_scan     : str
         threshold     : float
+        task_id       : str
     }
     
     Returns -> None
     """
     
     # get data
-    site_id = kwargs.get('site_id')
-    page_id = kwargs.get('page_id')
+    scope = kwargs.get('scope')
+    resources = kwargs.get('resources', [])
+    account_id = kwargs.get('account_id')
     test_id = kwargs.get('test_id')
     type = kwargs.get('type')
     configs = kwargs.get('configs')
@@ -657,21 +733,71 @@ def create_test_bg(self, *args, **kwargs) -> None:
     automation_id = kwargs.get('automation_id')
     pre_scan = kwargs.get('pre_scan')
     post_scan = kwargs.get('post_scan')
+    task_id = kwargs.get('task_id')
 
     # create test if none was passed
     if test_id is None:
-        if site_id is not None:
-            site = Site.objects.get(id=site_id)
-            pages = Page.objects.filter(site=site)
-        if page_id is not None:
-            p = Page.objects.get(id=page_id)
-            pages = [p]
+        
+        # setting defaults
+        pages = []
+        sites = []
 
+        # get account if account_id exists
+        if account_id:
+            account = Account.objects.get(id=account_id)
+            
+        # iterating through resources 
+        # and adding to sites or pages
+        if len(resources) > 0:
+            for item in resources:
+                
+                # adding to pages
+                if item['type'] == 'page':
+                    try:
+                        pages.append(
+                            Page.objects.get(id=item['id'])
+                        ) 
+                    except Exception as e:
+                        print(e)
+                
+                # adding to sites
+                if item['type'] == 'site':
+                    try:
+                        sites.append(
+                            Site.objects.get(id=item['id'])
+                        ) 
+                    except Exception as e:
+                        print(e)
+        
+        # grabbing all sites because no 
+        # resources were specified and scope is "account"
+        if len(resources) == 0 and scope == 'account':
+            sites = Site.objects.filter(account=account)
+
+        # get all pages from existing sites
+        for site in sites:
+            pages += Page.objects.filter(site=site)
+        
         # create a test for each page
         for page in pages:
-
             # check resource 
             if check_and_increment_resource(page.account, 'tests'):
+
+                # updating latest_test info for page
+                page.info['latest_test']['id'] = 'placeholder'
+                page.info['latest_test']['time_created'] = str(timezone.now())
+                page.info['latest_test']['time_completed'] = None
+                page.info['latest_test']['score'] = None
+                page.info['latest_test']['status'] = 'working'
+                page.save()
+
+                # updating latest_test info for site
+                page.site.info['latest_test']['id'] = 'placeholder'
+                page.site.info['latest_test']['time_created'] = str(timezone.now())
+                page.site.info['latest_test']['time_completed'] = None
+                page.site.info['latest_test']['score'] = None
+                page.site.info['latest_test']['status'] = 'working'
+                page.site.save()
 
                 # create test
                 create_test.delay(
@@ -686,7 +812,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                 )
     
     # get test and run 
-    if test_id is not None:
+    if test_id:
         test = Test.objects.get(id=test_id)
         create_test.delay(
             test_id=test_id,
@@ -699,6 +825,16 @@ def create_test_bg(self, *args, **kwargs) -> None:
             post_scan=post_scan,
             automation_id=automation_id
         )
+
+    # update schedule if task_id is not None
+    if task_id:
+        try:
+            last_run = timezone.now()
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
 
     logger.info('Created new Tests')
     return None
@@ -725,7 +861,7 @@ def create_report(page_id: str=None, automation_id: str=None) -> None:
     
     # check if report exists
     if Report.objects.filter(page=page).exists():
-        report = Report.objects.filter(site=site).order_by('-time_created')[0]
+        report = Report.objects.filter(page=page).order_by('-time_created')[0]
     
     # create new report obj
     else:
@@ -735,17 +871,18 @@ def create_report(page_id: str=None, automation_id: str=None) -> None:
             "highlight_color": '#ffffff',
         }
         report = Report.objects.create(
-            user=site.user,
+            user=page.user,
             site=page.site,
+            account=page.account,
             page=page,
             info=info,
             type=['lighthouse', 'yellowlab']
         )
     
     # generate report PDF
-    report = R(report=report).generate_report()
+    R(report=report).generate_report()
     if automation_id:
-        automater(automation_id, report.id)
+        Automater(automation_id, str(report.id)).run_automation()
     
     logger.info('Created new report of page')
     return None
@@ -759,25 +896,62 @@ def create_report_bg(*args, **kwargs) -> None:
     Creates new `Reports` for the requested `Pages`
 
     Expects: {
-        'site_id'       : str,
-        'page_id'       : str
+        'scope'         : str,
+        'resources'     : str
+        'account_id'    : str
         'automation_id' : str
+        'task_id'       : str
     }
      
     Returns -> None
     """
 
     # get data
-    site_id = kwargs.get('site_id')
-    page_id = kwargs.get('page_id')
+    scope = kwargs.get('scope')
+    resources = kwargs.get('resources', [])
+    account_id = kwargs.get('account_id')
     automation_id = kwargs.get('automation_id')
+    task_id = kwargs.get('task_id')
 
-    # deciding scope
-    if site_id is not None:
-        site = Site.objects.get(id=site_id)
-        pages = Page.objects.filter(site=site)
-    if page_id is not None:
-        pages = [Page.objects.get(id=page_id)]
+    # setting defaults
+    pages = []
+    sites = []
+
+    # get account if account_id exists
+    if account_id:
+        account = Account.objects.get(id=account_id)
+        
+    # iterating through resources 
+    # and adding to sites or pages
+    if len(resources) > 0:
+        for item in resources:
+            
+            # adding to pages
+            if item['type'] == 'page':
+                try:
+                    pages.append(
+                        Page.objects.get(id=item['id'])
+                    ) 
+                except Exception as e:
+                    print(e)
+            
+            # adding to sites
+            if item['type'] == 'site':
+                try:
+                    sites.append(
+                        Site.objects.get(id=item['id'])
+                    ) 
+                except Exception as e:
+                    print(e)
+    
+    # grabbing all sites because no 
+    # resources were specified and scope is "account"
+    if len(resources) == 0 and scope == 'account':
+        sites = Site.objects.filter(account=account)
+
+    # get all pages from existing sites
+    for site in sites:
+        pages += Page.objects.filter(site=site)
 
     # create reports for each page
     for page in pages:
@@ -785,6 +959,16 @@ def create_report_bg(*args, **kwargs) -> None:
             page_id=page.id,
             automation_id=automation_id
         )
+    
+    # update schedule if task_id is not None
+    if task_id:
+        try:
+            last_run = timezone.now()
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
     
     logger.info('Created new Reports')
     return None
@@ -1056,39 +1240,117 @@ def create_auto_cases_bg(
 
 
 
-@shared_task
-def create_testcase_bg(
-        testcase_id: str=None, 
-        site_id: str=None, 
-        case_id: str=None, 
-        updates: dict=None, 
-        automation_id: str=None,
-        configs: dict=settings.CONFIGS
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def case_pre_run_bg(
+        self, 
+        case_id: str=None,
+        process_id: str=None,
     ) -> None:
     """ 
-    Creates and or runs a Testcase.
+    Runs
 
     Expects: {
-        testcase_id   : str, 
-        site_id       : str, 
-        case_id       : str, 
-        updates       : dict, 
-        automation_id : str,
-        configs       : dict
+        case_id    : str,
+        process_id : str,
     }
     
     Returns -> None
     """
 
-    # getting testcase
-    if testcase_id != None:
-        testcase = Testcase.objects.get(id=testcase_id)
-        configs = testcase.configs
+    # get objects
+    case = Case.objects.get(id=case_id)
+    process = Process.objects.get(id=process_id)
+
+    # init Caser
+    C = Caser(
+        case=case,
+        process=process,
+    )
+
+    # build cases
+    C.pre_run()
+
+    logger.info('Completed Case pre_run')
+    return None
+
+
+
+
+@shared_task
+def run_testcase(
+        testcase_id: str=None, 
+        automation_id: str=None,
+    ) -> None:
+    """
+    Runs a Testcase.
+
+    Expects: {
+        testcase_id   : str, 
+        automation_id : str,
+    }
     
-    # creating testcase from case
-    else:
+    Returns -> None
+    """
+    
+    # get testcase
+    testcase = Testcase.objects.get(id=testcase_id)
+
+    # running testcase
+    testresult = Caser(testcase=testcase).run()
+
+    # run automation if requested
+    if automation_id:
+        Automater(automation_id, str(testcase.id)).run_automation()
+
+    logger.info('Ran Testcase')
+    return None
+
+
+
+
+@shared_task
+def create_testcase_bg(*args, **kwargs) -> None:
+    """ 
+    Creates and or runs a Testcase.
+
+    Expects: {
+        testcase_id   : str, 
+        resources     : list, 
+        scope         : str, 
+        account_id    : str, 
+        case_id       : str, 
+        updates       : list, 
+        automation_id : str,
+        configs       : dict,
+        task_id       : str
+    }
+    
+    Returns -> None
+    """
+
+    # get data
+    testcase_id = kwargs.get('testcase_id')
+    case_id = kwargs.get('case_id')
+    account_id = kwargs.get('account_id')
+    resources = kwargs.get('resources', [])
+    scope = kwargs.get('scope')
+    updates = kwargs.get('updates')
+    automation_id = kwargs.get('automation_id')
+    task_id = kwargs.get('task_id')
+    configs = kwargs.get('configs', settings.CONFIGS)
+
+    # settign defaults 
+    case = None
+    steps = None
+    testcases = []
+    sites = []
+
+    # get case
+    if case_id:
         case = Case.objects.get(id=case_id)
-        site = Site.objects.get(id=site_id)
+
+    # update steps
+    if case:
         steps = requests.get(case.steps['url']).json()
         for step in steps:
             if step['action']['type'] != None:
@@ -1103,30 +1365,69 @@ def create_testcase_bg(
                 step['assertion']['exception'] = None
                 step['assertion']['passed'] = None
 
-        # adding updates
-        if updates != None:
-            for update in updates:
-                steps[int(update['index'])]['action']['value'] = update['value']
+    # adding updates
+    if steps:
+        for update in updates:
+            steps[int(update['index'])]['action']['value'] = update['value']
 
-        # create new testcase
-        testcase = Testcase.objects.create(
-            case = case,
-            case_name = case.name,
-            site = site,
-            user = site.user,
-            account = site.account,
-            configs = configs,
-            steps = steps
+    # getting testcase
+    if testcase_id:
+        testcases = [Testcase.objects.get(id=testcase_id),]
+    
+    # creating testcase from case
+    if testcase_id is None:
+        
+        # getting all sites in resources
+        for item in resources:
+            if item['type'] == 'site':
+                try:
+                    sites.append(
+                        Site.objects.get(id=item['id'])
+                    )
+                except Exception as e:
+                    print(e)
+        
+        # add all sites in account if scope == 'account'
+        if scope == 'account' and len(resources) == 0:
+            sites = Site.objects.filter(account__id=account_id)
+
+        # iterate through sites
+        for site in sites:
+    
+            # create new testcase
+            _testcase = Testcase.objects.create(
+                case = case,
+                case_name = case.name,
+                site = site,
+                user = site.user,
+                account = site.account,
+                configs = configs,
+                steps = steps
+            )
+
+            # add to list
+            testcases.append(
+                _testcase
+            )
+
+    # iterate through testcases and run
+    for testcase in testcases:
+        run_testcase.delay(
+            testcase_id=str(testcase.id),
+            automation_id=automation_id
         )
+    
+    # update schedule if task_id is not None
+    if task_id:
+        try:
+            last_run = timezone.now()
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
 
-    # running testcase
-    testresult = Caser(testcase=testcase).run()
-
-    # run automation if requested
-    if automation_id:
-        automater(automation_id, testcase.id)
-
-    logger.info('Ran full testcase')
+    logger.info('Created Testcases')
     return None
 
 

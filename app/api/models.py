@@ -403,7 +403,7 @@ class Test(models.Model):
     post_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.id}__test'
+        return f'{self.id}_test'
 
 
 
@@ -418,6 +418,7 @@ class Case(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     steps = models.JSONField(serialize=True, null=True, blank=True, default=get_steps_default)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    processed = models.BooleanField(default=False, serialize=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
@@ -440,7 +441,7 @@ class Testcase(models.Model):
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.case.name}__testcase'
+        return f'{self.case.name}_testcase'
 
 
 
@@ -457,7 +458,7 @@ class Report(models.Model):
     info = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.page.page_url}__report'
+        return f'{self.page.page_url}_report'
 
 
 
@@ -475,39 +476,33 @@ class Issue(models.Model):
     read = models.BooleanField(default=False, serialize=True)
 
     def __str__(self):
-        return f'{self.title if self.title is not None else self.id}__issue'
+        return f'{self.title if self.title is not None else self.id}_issue'
 
 
 
 
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
-    time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
-    task_type = models.CharField(max_length=100, default='test', serialize=True) # report, scan, test, testcase
+    scope = models.CharField(max_length=100, default='account', serialize=True)
+    resources = models.JSONField(serialize=True, null=True, blank=True)
+    automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
+    time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
+    time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
+    task_type = models.CharField(max_length=100, default='test', serialize=True)
     timezone = models.CharField(max_length=100, null=True, blank=True, serialize=True)
     begin_date = models.DateTimeField(default=datetime.now, serialize=True)
     time = models.CharField(max_length=100, null=True, blank=True, serialize=True)
-    frequency = models.CharField(default="monthly", max_length=100, serialize=True) # daily, weekly, monthly,
-    task = models.CharField(max_length=500, null=True, blank=True, serialize=True) # assigning shared task
+    frequency = models.CharField(default="monthly", max_length=100, serialize=True)
+    task = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     crontab_id = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     periodic_task_id = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     status = models.CharField(max_length=100, default='Active', null=True, blank=True, serialize=True)
     extras = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        if self.site is not None:
-            url = self.site.site_url
-            level = 'site'
-        if self.page is not None:
-            url = self.page.site.site_url
-            level = 'page'
-
-        return f'{url}_{self.task_type}_{level}'
+        return f'{self.account.name}_{self.task_type}_{self.scope}'
 
 
 
@@ -535,7 +530,7 @@ class Mask(models.Model):
     mask_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.id}__mask'
+        return f'{self.id}_mask'
 
 
 
@@ -544,7 +539,8 @@ class Process(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # Test, Testcase, Case, Flow, Scan, Crawl
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    object_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
     success = models.BooleanField(serialize=True, default=False)
@@ -554,7 +550,7 @@ class Process(models.Model):
     progress = models.FloatField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.id}__process'
+        return f'{self.id}_process'
 
 
 
@@ -570,7 +566,7 @@ class Log(models.Model):
     response_payload = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.status}__{self.request_type}__{self.path}'
+        return f'{self.status}_{self.request_type}_{self.path}'
 
 
 

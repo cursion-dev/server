@@ -202,126 +202,187 @@ def create_exp(item: object=None, automation: object=None) -> dict:
     }
     """
 
-    # init exp_list
+    # seting defaults
     exp_list = []
+    exp_str = ''
     
     # loop through automation expressions
     for e in automation.expressions:
 
         # top-level scores and data
         if 'test_score' in e['data_type']:
-            data_type = 'Test Score:\t'+str(round(item.score, 2))+'\n\t'
+            title = 'Test Score'
+            data = str(round(item.score, 2))
+        if 'test_status' in e['data_type']:
+            status = '❌ FAILED'
+            if item.status == 'passed':
+                status = '✅ PASSED'
+            title = 'Test Status'
+            data = status
         elif 'current_health' in e['data_type']:
-            data_type = 'Health:\t'+str((float(item.lighthouse_delta["scores"]["current_average"]) + float(item.yellowlab_delta["scores"]["current_average"])/2))+'\n\t'
+            title = 'Health'
+            data = str(
+                (float(item.lighthouse_delta["scores"]["current_average"]) + 
+                float(item.yellowlab_delta["scores"]["current_average"])) /2
+            )
         elif 'health' in e['data_type']:
-            data_type = 'Health:\t'+str(((float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"]))/2))+'\n\t'
+            title = 'Health:'
+            data = str(
+                (float(item.lighthouse["scores"]["average"]) + 
+                float(item.yellowlab["scores"]["globalScore"])) /2
+            )
         
         # LH test data
         elif 'current_lighthouse_average' in e['data_type']:
-            data_type = 'Lighthouse Average:\t'+str(item.lighthouse_delta["scores"]["current_average"])+'\n\t'
+            title = 'Lighthouse Average'
+            data = str(item.lighthouse_delta["scores"]["current_average"])
         elif 'seo_delta' in e['data_type']:
-            data_type = 'SEO Delta:\t'+str(item.lighthouse_delta["scores"]["seo_delta"])+'\n\t'
+            title = 'SEO Delta'
+            data = str(item.lighthouse_delta["scores"]["seo_delta"])
         elif 'pwa_delta' in e['data_type']:
-            data_type = 'PWA Delta:\t'+str(item.lighthouse_delta["scores"]["pwa_delta"])+'\n\t'
+            title = 'PWA Delta'
+            data = str(item.lighthouse_delta["scores"]["pwa_delta"])
         elif 'crux_delta' in e['data_type']:
-            data_type = 'CRUX Delta:\t'+str(item.lighthouse_delta["scores"]["crux_delta"])+'\n\t'
+            title = 'CRUX Delta'
+            data = str(item.lighthouse_delta["scores"]["crux_delta"])
         elif 'best_practices_delta' in e['data_type']:
-            data_type = 'Best Practices Delta:\t'+str(item.lighthouse_delta["scores"]["best_practices_delta"])+'\n\t'
+            title = 'Best Practices Delta'
+            data = str(item.lighthouse_delta["scores"]["best_practices_delta"])
         elif 'performance_delta' in e['data_type']:
-            data_type = 'Performance Delta:\t'+str(item.lighthouse_delta["scores"]["performance_delta"])+'\n\t'
+            title = 'Performance Delta'
+            data = str(item.lighthouse_delta["scores"]["performance_delta"])
         elif 'accessibility_delta' in e['data_type']:
-            data_type = 'Accessibility Delta:\t'+str(item.lighthouse_delta["scores"]["accessibility_delta"])+'\n\t'
-        
+            title = 'Accessibility Delta'
+            data = str(item.lighthouse_delta["scores"]["accessibility_delta"])
+
         # LH scan data
         elif 'lighthouse_average' in e['data_type']:
-            data_type = 'Lighthouse Average:\t'+str(item.lighthouse["scores"]["average"])+'\n\t'
+            title = 'Lighthouse Average'
+            data = str(item.lighthouse["scores"]["average"])
         elif 'seo' in e['data_type']:
-            data_type = 'SEO:\t'+str(item.lighthouse["scores"]["seo"])+'\n\t'
+            title = 'SEO'
+            data = str(item.lighthouse["scores"]["seo"])
         elif 'pwa' in e['data_type']:
-            data_type = 'PWA:\t'+str(item.lighthouse["scores"]["pwa"])+'\n\t'
+            title = 'PWA'
+            data = str(item.lighthouse["scores"]["pwa"])
         elif 'crux' in e['data_type']:
-            data_type = 'CRUX:\t'+str(item.lighthouse["scores"]["crux"])+'\n\t'
+            title = 'CRUX'
+            data = str(item.lighthouse["scores"]["crux"])
         elif 'best_practices' in e['data_type']:
-            data_type = 'Best Practices:\t'+str(item.lighthouse["scores"]["best_practices"])+'\n\t'
+            title = 'Best Practices'
+            data = str(item.lighthouse["scores"]["best_practices"])
         elif 'performance' in e['data_type']:
-            data_type = 'Performance:\t'+str(item.lighthouse["scores"]["performance"])+'\n\t'
+            title = 'Performance'
+            data = str(item.lighthouse["scores"]["performance"])
         elif 'accessibility' in e['data_type']:
-            data_type = 'Accessibility:\t'+str(item.lighthouse["scores"]["accessibility"])+'\n\t'
+            title = 'Accessibility'
+            data = str(item.lighthouse["scores"]["accessibility"])
         
         # yellowlab test data
         elif 'current_yellowlab_average' in e['data_type']:
-            data_type = 'Yellow Lab Avg:\t'+str(item.yellowlab_delta["scores"]["current_average"])+'\n\t'
+            title = 'Yellow Lab Avg'
+            data = str(item.yellowlab_delta["scores"]["current_average"])
         elif 'pageWeight_delta' in e['data_type']:
-            data_type = 'Page Weight Delta:\t'+str(item.yellowlab_delta["scores"]["pageWeight_delta"])+'\n\t'
+            title = 'Page Weight Delta'
+            data = str(item.yellowlab_delta["scores"]["pageWeight_delta"])
         elif 'images_delta' in e['data_type']:
-            data_type = 'Requests Delta:\t'+str(item.yellowlab_delta["scores"]["images_delta"])+'\n\t'
+            title = 'Images Delta'
+            data = str(item.yellowlab_delta["scores"]["images_delta"])
         elif 'domComplexity_delta' in e['data_type']:
-            data_type = 'DOM Complex. Delta:\t'+str(item.yellowlab_delta["scores"]["domComplexity_delta"])+'\n\t'
+            title = 'DOM Complex. Delta'
+            data = str(item.yellowlab_delta["scores"]["domComplexity_delta"])
         elif 'javascriptComplexity_delta' in e['data_type']:
-            data_type = 'JS Complex. Delta:\t'+str(item.yellowlab_delta["scores"]["javascriptComplexity_delta"])+'\n\t'
+            title = 'JS Complex. Delta'
+            data = str(item.yellowlab_delta["scores"]["javascriptComplexity_delta"])
         elif 'badJavascript_delta' in e['data_type']:
-            data_type = 'Bad JS Delta:\t'+str(item.yellowlab_delta["scores"]["badJavascript_delta"])+'\n\t'
+            title = 'Bad JS Delta'
+            data = str(item.yellowlab_delta["scores"]["badJavascript_delta"])
         elif 'jQuery_delta' in e['data_type']:
-            data_type = 'jQuery Delta:\t'+str(item.yellowlab_delta["scores"]["jQuery_delta"])+'\n\t'
+            title = 'jQuery Delta'
+            data = str(item.yellowlab_delta["scores"]["jQuery_delta"])
         elif 'cssComplexity_delta' in e['data_type']:
-            data_type = 'CSS Complex. Delta:\t'+str(item.yellowlab_delta["scores"]["cssComplexity_delta"])+'\n\t'
+            title = 'CSS Complex. Delta'
+            data = str(item.yellowlab_delta["scores"]["cssComplexity_delta"])
         elif 'badCSS_delta' in e['data_type']:
-            data_type = 'Bad CSS Delta:\t'+str(item.yellowlab_delta["scores"]["badCSS_delta"])+'\n\t'
+            title = 'Bad CSS Delta'
+            data = str(item.yellowlab_delta["scores"]["badCSS_delta"])
         elif 'fonts_delta' in e['data_type']:
-            data_type = 'Fonts Delta:\t'+str(item.yellowlab_delta["scores"]["fonts_delta"])+'\n\t'
+            title = 'Fonts Delta'
+            data = str(item.yellowlab_delta["scores"]["fonts_delta"])
         elif 'serverConfig_delta' in e['data_type']:
-            data_type = 'Server Config Delta:\t'+str(item.yellowlab_delta["scores"]["serverConfig_delta"])+'\n\t'
+            title = 'Server Config Delta'
+            data = str(item.yellowlab_delta["scores"]["serverConfig_delta"])
 
         # yellowlab scan data
         elif 'yellowlab_average' in e['data_type']:
-            data_type = 'Yellow Lab Avg:\t'+str(item.yellowlab["scores"]["globalScore"])+'\n\t'
+            title = 'Yellow Lab Avg'
+            data = str(item.yellowlab["scores"]["globalScore"])
         elif 'pageWeight' in e['data_type']:
-            data_type = 'Page Weight:\t'+str(item.yellowlab["scores"]["pageWeight"])+'\n\t'
+            title = 'Page Weight'
+            data = str(item.yellowlab["scores"]["pageWeight"])
         elif 'images' in e['data_type']:
-            data_type = 'Requests:\t'+str(item.yellowlab["scores"]["images"])+'\n\t'
+            title = 'Images'
+            data = str(item.yellowlab["scores"]["images"])
         elif 'domComplexity' in e['data_type']:
-            data_type = 'DOM Complex.:\t'+str(item.yellowlab["scores"]["domComplexity"])+'\n\t'
+            title = 'DOM Complex.'
+            data = str(item.yellowlab["scores"]["domComplexity"])
         elif 'javascriptComplexity' in e['data_type']:
-            data_type = 'JS Complex.:\t'+str(item.yellowlab["scores"]["javascriptComplexity"])+'\n\t'
+            title = 'JS Complex.'
+            data = str(item.yellowlab["scores"]["javascriptComplexity"])  
         elif 'badJavascript' in e['data_type']:
-            data_type = 'Bad JS:\t'+str(item.yellowlab["scores"]["badJavascript"])+'\n\t'
+            title = 'Bad JS.'
+            data = str(item.yellowlab["scores"]["badJavascript"])
         elif 'jQuery' in e['data_type']:
-            data_type = 'jQuery:\t'+str(item.yellowlab["scores"]["jQuery"])+'\n\t'
+            title = 'jQuery'
+            data = str(item.yellowlab["scores"]["jQuery"])
         elif 'cssComplexity' in e['data_type']:
-            data_type = 'CSS Complex.:\t'+str(item.yellowlab["scores"]["cssComplexity"])+'\n\t'
+            title = 'CSS Complex'
+            data = str(item.yellowlab["scores"]["cssComplexity"])
         elif 'badCSS' in e['data_type']:
-            data_type = 'Bad CSS:\t'+str(item.yellowlab["scores"]["badCSS"])+'\n\t'
+            title = 'Bad CSS.'
+            data = str(item.yellowlab["scores"]["badCSS"])
         elif 'fonts' in e['data_type']:
-            data_type = 'Fonts:\t'+str(item.yellowlab["scores"]["fonts"])+'\n\t'
+            title = 'Fonts'
+            data = str(item.yellowlab["scores"]["fonts"])
         elif 'serverConfig' in e['data_type']:
-            data_type = 'Server Config:\t'+str(item.yellowlab["scores"]["serverConfig"])+'\n\t'
+            title = 'Server Config.'
+            data = str(item.yellowlab["scores"]["serverConfig"])
         
         # image data
         elif 'avg_image_score' in e['data_type']:
-            data_type = ' Avg Image Score:\t'+str(item.images_delta["average_score"])+'\n\t'
+            title = 'Avg Image Score'
+            data = str(item.images_delta["average_score"])
         elif 'image_scores' in e['data_type']:
-            data_type = 'List of Image Scores:\t'+str([i["score"] for i in item.images_delta["images"]])+'\n\t' 
+            title = 'List of Image Scores'
+            data = str([i["score"] for i in item.images_delta["images"]])
         
         # logs data
         elif 'logs' in e['data_type']:
-            data_type = 'Error Logs:\t'+str(len(item.logs))+'\n\t'
+            title = 'Error Logs'
+            data = str(len(item.logs))
 
         # testcase data
         elif 'testcase' in e['data_type']:
-            status = 'Failed'
+            status = '❌ FAILED'
             if e['value'] == 'True':
-                status = 'Passed'
-            data_type = 'Testcase "'+str(item.case.name)+'" --> '+str(status)
+                status = '✅ PASSED'
+            title = f'"{item.case.name}"'
+            data = status
         
+        # create data string
+        data_str = f' {title}:   {data}\n'
+        exp_str += data_str
         
         # add to exp_list
-        exp_list.append(data_type)
-
+        exp_list.append({
+            'title': title,
+            'data': data
+        })
 
     # formating return data
     data = {
         'exp_list': exp_list,
-        'exp_str': ('\t'+''.join(exp_list))
+        'exp_str': exp_str,
     }
 
     return data
@@ -523,16 +584,10 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
         # retrieving user
         user = User.objects.get(email=email)
 
-        # get automation and deciding if "page" or "site" scope
+        # get automation 
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        if schedule.site is not None:
-            url_end = '/site/'+str(schedule.site.id)
-            url = schedule.site.site_url
-        else:
-            url_end = '/page/'+str(schedule.page.id)
-            url = schedule.page.page_url
-
+    
         # getting object
         data = get_item(object_id=object_id)
         if not data['success']:
@@ -542,6 +597,14 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
         item = data['item']
         item_type = data['item_type']
 
+        # deciding if "page" or "site" scope
+        if item_type == 'Testcase':
+            url = item.site.site_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        else:
+            url = item.page.page_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+
         # generating expressions from automation
         exp_list = create_exp(
             item=item, 
@@ -549,17 +612,18 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
         )['exp_list']
 
         # build email data
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
+        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type.lower()}/{str(item.id)}'
         subject = f'Alert for {url}'
         title = f'Alert for {url}'
         pre_header = f'Alert for {url}'
         pre_content = (
             f'Scanerr just finished running a {item_type} for {url}. ' 
-            f'Below are the current stats:\n'
+            f'Below are the current stats:'
         )
         content = (
             f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your site\'s dashboard. '
+            f'You can change the automation and schedule in your '
+            f'<a href="{dash_link}">dashboard</a>.'
         )
 
         context = {
@@ -570,7 +634,7 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
             'exp_list': exp_list,
             'object_url' : object_url,
             'home_page' : os.environ.get('CLIENT_URL_ROOT'),
-            'button_text' : 'View Site Dashboard',
+            'button_text' : f'View {item_type}',
             'content' : content,
             'email': email,
             'signature' : '- Cheers!',
@@ -618,33 +682,29 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
         # get automation and deciding if "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        if schedule.site is not None:
-            url_end = '/site/'+str(schedule.site.id)
-            url = schedule.site.site_url
-        else:
-            url_end = '/page/'+str(schedule.page.id)
-            url = schedule.page.page_url
         
         # get `Report` if exists
         try:
-            item = Report.objects.get(id=uuid.UUID(object_id))
+            report = Report.objects.get(id=uuid.UUID(object_id))
             item_type = 'Report'
+            url = report.page.page_url
         except:
             return {'success': False}
 
         # build email data
-        exp_list = ''
-        object_url = str(item.path)
+        object_url = str(report.path)
         subject = f'Report for {url}'
         title = f'Report for {url}'
         pre_header = f'Report for {url}'
         pre_content = (
-            f'Scanerr just finished creating a {item_type} for {url}. ' 
-            f'Please click the link below to access and download the report.\n'
+            f'Scanerr just finished creating a ' 
+            f'<a href="{settings.CLIENT_URL_ROOT}/page/{str(report.page.id)}/report">Report</a> for {url}. '
+            f'Please click the link below to access and download the PDF.'
         )
         content = (
-            f'This message was triggered by an automation created with Scanerr. ' 
-            f'You can change the automation and schedule in your site\'s dashboard. '
+            f'\nThis message was triggered by an automation created with Scanerr. ' 
+            f'You can change the automation and schedule in your ' 
+            f'<a href="{settings.CLIENT_URL_ROOT}/page/{str(report.page.id)}">dashboard</a>.'
         )
 
         context = {
@@ -652,9 +712,8 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
             'subject': subject,
             'pre_header' : pre_header,
             'pre_content' : pre_content,
-            'exp_list': exp_list,
             'object_url' : object_url,
-            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'home_page' : settings.CLIENT_URL_ROOT,
             'button_text' : 'View Report',
             'content' : content,
             'email': email,
@@ -663,7 +722,6 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
 
         # send email
         sendgrid_email(message_obj=context)
-
         data = {
             'success': True
         }
@@ -708,12 +766,6 @@ def automation_webhook(
         # deciding if "page" or "site" scope
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        if schedule.site is not None:
-            url_end = '/site/'+str(schedule.site.id)
-            url = schedule.site.site_url
-        else:
-            url_end = '/page/'+str(schedule.page.id)
-            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -723,6 +775,12 @@ def automation_webhook(
         # get object and type
         item = data['item']
         item_type = data['item_type']
+
+        # deciding if "page" or "site" scope
+        if item_type == 'Testcase':
+            url = item.site.site_url
+        else:
+            url = item.page.page_url
         
         # building json
         pre_json_data = json.loads(request_data)
@@ -770,15 +828,9 @@ def automation_phone(phone_number: str=None, automation_id: str=None, object_id:
     # checking if data is present
     if phone_number and automation_id and object_id:
 
-        # deciding on "page" or "site" scope
+        # getting schedule and automation
         automation = Automation.objects.get(id=automation_id)
         schedule = automation.schedule
-        if schedule.site is not None:
-            url_end = '/site/'+str(schedule.site.id)
-            url = schedule.site.site_url
-        else:
-            url_end = '/page/'+str(schedule.page.id)
-            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -789,20 +841,29 @@ def automation_phone(phone_number: str=None, automation_id: str=None, object_id:
         item = data['item']
         item_type = data['item_type']
 
+        # deciding if "page" or "site" scope
+        if item_type == 'Testcase':
+            url = item.site.site_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        else:
+            url = item.page.page_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+
         # build the exp_str
         exp_str = create_exp(item=item, automation=automation)['exp_str']
 
         # build message data
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
+        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type.lower()}/{item.id}'
         pre_content = (
             f'Scanerr just finished running a {item_type} for {url}. ' 
-            f'Below are the current stats:\n\n\t{exp_str}\n'
+            f'Below are the current stats:\n\n{exp_str}\n'
+            f'View {item_type}: {object_url}\n\n'
         )
         content = (
             f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your site\'s dashboard. '
+            f'You can change the automation and schedule in your dashboard: {dash_link}'
         )
-        body = f'Hi there,\n\n{pre_content}{content}\n{object_url}'
+        body = f'Hi there,\n\n{pre_content}{content}'
         account_sid = os.environ.get("TWILIO_SID")
         auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
         client = Client(account_sid, auth_token)
@@ -845,16 +906,10 @@ def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
     # check if data is present
     if automation_id and object_id:
         
-        # getting account and deciding on "page" or "site" scope
+        # getting schedule, account and automation
         automation = Automation.objects.get(id=automation_id)
         account = Account.objects.get(user=automation.user)
         schedule = automation.schedule
-        if schedule.site is not None:
-            url_end = '/site/'+str(schedule.site.id)
-            url = schedule.site.site_url
-        else:
-            url_end = '/page/'+str(schedule.page.id)
-            url = schedule.page.page_url
 
         # getting object
         data = get_item(object_id=object_id)
@@ -865,20 +920,30 @@ def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
         item = data['item']
         item_type = data['item_type']
 
+        # deciding if "page" or "site" scope
+        if item_type == 'Testcase':
+            url = item.site.site_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        else:
+            url = item.page.page_url
+            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+
         # build exp_str
         exp_str = create_exp(item=item, automation=automation)['exp_str']
 
         # build message data
-        object_url = str(os.environ.get('CLIENT_URL_ROOT') + url_end)
+        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type}/{item.id}'
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {url}. ' 
-            f'Below are the current stats:\n\n\t{exp_str}\n'
+            f'Scanerr just finished running a `{item_type}` for {url}. ' 
+            f'Below are the current stats:\n\n```{exp_str}```\n'
+            f'<{object_url}|*View {item_type}*>\n\n'
         )
         content = (
             f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your site\'s dashboard. '
+            f'You can change the automation and schedule in your '
+            f'<{dash_link}|dashboard>.'
         )
-        body = f'Hi there,\n\n{pre_content}{content}\n{object_url}'
+        body = f'Hi there,\n\n{pre_content}{content}'
         token = account.slack['bot_access_token']
         channel = account.slack['slack_channel_id']
         client = WebClient(token=token) 

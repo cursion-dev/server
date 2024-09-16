@@ -97,13 +97,16 @@ class Automater():
             if self.object:
                 
                 # get comparison value
-                value = str(float(re.search(r'\d+', str(expression['value'])).group()))
+                if self.automation.schedule.task_type != 'testcase' and expression['data_type'] != 'test_status':
+                    value = str(float(re.search(r'\d+', str(expression['value'])).group()))
 
                 # get operator
                 if '>=' in expression['operator']:
                     operator = ' >= '
-                else:
+                elif '<=' in expression['operator']:
                     operator = ' <= '
+                else:
+                    operator = ' == '
                 
                 # get joiner
                 if 'and' in expression['joiner']:
@@ -124,6 +127,8 @@ class Automater():
             elif 'image_scores' in expression['data_type']:
                 data_type = '[i["score"] for i in self.object.images_delta["images"]]' 
                 exp = f'{joiner}any(i{operator}{value} for i in {data_type})'
+            elif 'test_status' in expression['data_type']:
+                data_type = 'self.object.status' 
 
             # high-level scan data
             elif 'health' in expression['data_type']:
@@ -235,34 +240,43 @@ class Automater():
         for action in self.automation.actions:
 
             if 'slack' in action['action_type']:
-                action_type = f"\n  print('sending slack alert')\
-                    \n  automation_slack(automation_id='{str(self.automation.id)}', \
-                    object_id='{str(self.object_id)}')"
+                action_type = str(
+                    f"\n  print('sending slack alert')" +
+                    f"\n  automation_slack(automation_id='{str(self.automation.id)}'," +
+                    f" object_id='{str(self.object_id)}')"
+                )
             
             if 'webhook' in action['action_type']:
-                action_type = f"\n  print('sending webhook alert')\
-                    \n  automation_webhook(request_type='{action['request']}', \
-                    request_url='{action['url']}', request_data='{action['json']}', \
-                    automation_id='{str(self.automation.id)}', \
-                    object_id='{str(self.object_id)}')"
-            
+                action_type = str(
+                    f"\n  print('sending webhook alert')" +
+                    f"\n  automation_webhook(request_type='{action['request']}'," +
+                    f" request_url='{action['url']}', request_data='{action['json']}'," +
+                    f" automation_id='{str(self.automation.id)}'," +
+                    f" object_id='{str(self.object_id)}')"
+                )
+
             if 'email' in action['action_type']:
-                action_type = f"\n  print('sending email alert')\
-                    \n  automation_email(email='{action['email']}',\
-                    automation_id='{str(self.automation.id)}', \
-                    object_id='{str(self.object_id)}')"
-                
+                action_type = str(
+                    f"\n  print('sending email alert')" +
+                    f"\n  automation_email(email='{action['email']}'," +
+                    f" automation_id='{str(self.automation.id)}'," +
+                    f" object_id='{str(self.object_id)}')"
+                )
                 if type(self.object).__name__ == 'Report':
-                    action_type = f"\n  print('sending report email')\
-                        \n  automation_report_email(email='{action['email']}',\
-                        automation_id='{str(self.automation.id)}', \
-                        object_id='{str(self.object_id)}')"
+                    action_type = str(
+                        f"\n  print('sending report email')" +
+                        f"\n  automation_report_email(email='{action['email']}'," +
+                        f" automation_id='{str(self.automation.id)}'," +
+                        f" object_id='{str(self.object_id)}')"
+                    )
             
             if 'phone' in action['action_type']:
-                action_type = f"\n  print('sending phone alert')\
-                    \n  automation_phone(phone_number='{action['phone']}', \
-                    automation_id='{str(self.automation.id)}', \
-                    object_id='{str(self.object_id)}')"
+                action_type = str(
+                    f"\n  print('sending phone alert')" +
+                    f"\n  automation_phone(phone_number='{action['phone']}'," +
+                    f" automation_id='{str(self.automation.id)}'," +
+                    f" object_id='{str(self.object_id)}')"
+                )
 
             # adding action to act_list
             self.act_list.append(action_type)

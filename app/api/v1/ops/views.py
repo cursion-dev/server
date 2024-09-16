@@ -343,6 +343,39 @@ class ScheduleDetail(APIView):
 
 
 
+class ScheduleRun(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post']
+
+    def post(self, request):
+        response = run_schedule(request)        
+        return response
+
+
+
+
+class SchedulesUpdate(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = update_many_schedules(request)
+        return response
+
+
+
+
+class SchedulesDelete(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_schedules(request)
+        return response
+
+
+
+
 ### ------ Begin Automation Views ------ ###
 
 
@@ -590,6 +623,28 @@ class IssueDetail(APIView):
 
     def delete(self, request, id):
         response = delete_issue(request, id)        
+        return response
+
+
+
+
+class IssuesUpdate(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = update_many_issues(request)
+        return response
+
+
+
+
+class IssuesDelete(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_issues(request)
         return response
 
 

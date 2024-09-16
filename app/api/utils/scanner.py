@@ -452,12 +452,15 @@ def _lighthouse(scan_id: str, test_id: str=None, automation_id: str=None) -> obj
     try:
         # running lighthouse
         lh_data = Lighthouse(scan=scan).get_data() 
+        print(f'LIGHTHOUSE failure_status -> {lh_data.get('failed')}')
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
         scan.lighthouse = lh_data
         scan.save()
     except Exception as e:
+        scan.yellowlab['failed'] = True
+        scan.save()
         print(e)
 
     # checking if scan is done
@@ -489,12 +492,15 @@ def _yellowlab(scan_id: str, test_id: str=None, automation_id: str=None) -> obje
     try:
         # running yellowlab
         yl_data = Yellowlab(scan=scan).get_data()
+        print(f'YELLOWLAB failure_status -> {yl_data.get('failed')}')
         
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
         scan.yellowlab = yl_data
         scan.save()
     except Exception as e:
+        scan.yellowlab['failed'] = True
+        scan.save()
         print(e)
 
     # checking if scan is done

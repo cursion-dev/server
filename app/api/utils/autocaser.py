@@ -30,12 +30,12 @@ class AutoCaser():
 
     def __init__(
             self, 
-            site: object,
-            process: object,
-            start_url: str=None,
-            configs: dict=settings.CONFIGS,
-            max_cases: int=4, 
-            max_layers: int=5,
+            site        : object,
+            process     : object,
+            start_url   : str=None,
+            configs     : dict=settings.CONFIGS,
+            max_cases   : int=4, 
+            max_layers  : int=5,
         ):
          
         # main objects & configs
@@ -171,7 +171,7 @@ class AutoCaser():
             total: int, 
             complete: bool=False, 
             exception: str=None
-        ) -> object:
+        ) -> None:
         # calculate the current progress of the
         # task based on current iteration and total 
         # iterations expected
