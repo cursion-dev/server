@@ -46,9 +46,14 @@ RUN npm install -g lighthouse lighthouse-plugin-crux
 # installing lodash & yellowlabtools
 RUN npm install -g lodash yellowlabtools
 
+# virtual env 
+ENV VIRTUAL_ENV /opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH "$VIRTUAL_ENV/bin:$PATH"
+
 # installing requirements
 COPY ./setup/requirements/requirements.txt /requirements.txt
-RUN python3.12 -m pip install --user -r /requirements.txt
+RUN python3.12 -m pip install -r /requirements.txt
 
 # setting working dir
 RUN mkdir /app
@@ -63,7 +68,7 @@ RUN chown -R app:app /usr/bin/microsoft-edge-stable
 RUN chown -R app:app /usr/local/bin/yellowlabtools
 RUN chown -R app:app /usr/local/bin/lighthouse
 
-# setting user
+# setting userc
 USER app
 
 # staring up services
