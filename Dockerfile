@@ -1,15 +1,19 @@
 # pull main python image
 FROM python:3.12-slim
 
+# adding labels
+LABEL Author="Scanerr" Support="hello@scanerr.io"
+
 # setting ENVs and Configs
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND noninteractive
 ENV DOCKERIZED yes
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome-stable
-
-# adding labels
-LABEL Author="Scanerr" Support="hello@scanerr.io"
+ENV MOZ_DISABLE_AUTO_SAFE_MODE 1
+ENV MOZ_NO_REMOTE 1
+ENV HOME /app
+ENV XDG_CACHE_HOME $HOME/.cache
 
 # create the app user
 RUN addgroup --system app && adduser --system app
@@ -46,11 +50,6 @@ RUN npm install -g lighthouse lighthouse-plugin-crux
 # installing lodash & yellowlabtools
 RUN npm install -g lodash yellowlabtools
 
-# virtual env 
-ENV VIRTUAL_ENV /opt/venv
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH "$VIRTUAL_ENV/bin:$PATH"
-
 # installing requirements
 COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3.12 -m pip install -r /requirements.txt
@@ -60,6 +59,10 @@ RUN mkdir /app
 COPY ./app /app
 WORKDIR /app
 
+# setting extra dirs
+RUN mkdir -p /app/.mozilla \
+    && mkdir -p /app/.cache
+
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/bin/firefox
@@ -67,8 +70,12 @@ RUN chown -R app:app /usr/bin/google-chrome-stable
 RUN chown -R app:app /usr/bin/microsoft-edge-stable
 RUN chown -R app:app /usr/local/bin/yellowlabtools
 RUN chown -R app:app /usr/local/bin/lighthouse
+RUN chown -R app:app /tmp
 
-# setting userc
+# cleaning up
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# setting user
 USER app
 
 # staring up services
