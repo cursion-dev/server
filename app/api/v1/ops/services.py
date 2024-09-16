@@ -5755,10 +5755,31 @@ def get_site_metrics(request: object) -> object:
     max_sites = account.max_sites
     pages = Page.objects.filter(site=site)
 
-    # setting detaults
-    tests = account.usage['tests']
-    scans = account.usage['scans']
-    testcases = account.usage['testcases']
+    # get last reset day 
+    f = '%Y-%m-%d %H:%M:%S.%f'
+    last_usage_date_str = account.meta.get('last_usage_reset')
+    last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
+    last_usage_date = datetime.strptime(last_usage_date_str, f)
+    
+    # get scans
+    scans = Scan.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get tests
+    tests = Test.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get testcases
+    testcases = Testcase.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get site scoped schedules
     schedules = Schedule.objects.filter(
         resources__icontains=str(site.id), scope='site',
         account=account

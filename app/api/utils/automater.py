@@ -121,9 +121,9 @@ class Automater():
             if 'test_score' in expression['data_type']:
                 data_type = 'float(self.object.score)'
             elif 'current_health' in expression['data_type']:
-                data_type = '((float(self.object.lighthouse_delta["scores"]["current_average"]) + float(self.object.yellowlab_delta["scores"]["current_average"]))/2)'
+                data_type = '((float(self.object.lighthouse_delta["scores"].get("current_average",0)) + float(self.object.yellowlab_delta["scores"].get("current_average",0)))/2)'
             elif 'avg_image_score' in expression['data_type']:
-                data_type = 'float(self.object.images_delta["average_score"])'
+                data_type = 'float(self.object.images_delta.get("average_score",0))'
             elif 'image_scores' in expression['data_type']:
                 data_type = '[i["score"] for i in self.object.images_delta["images"]]' 
                 exp = f'{joiner}any(i{operator}{value} for i in {data_type})'
@@ -132,89 +132,89 @@ class Automater():
 
             # high-level scan data
             elif 'health' in expression['data_type']:
-                data_type = '((float(self.object.lighthouse["scores"]["average"]) + float(self.object.yellowlab["scores"]["globalScore"]))/2)'
+                data_type = '((float(self.object.lighthouse["scores"].get("average"]) + float(self.object.yellowlab["scores"].get("globalScore"]))/2)'
             elif 'logs' in expression['data_type']:
                 data_type = 'len(self.object.logs)'
             
             # LH test data
             elif 'current_lighthouse_average' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["current_average"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("current_average",0))'
             elif 'seo_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["seo_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("seo_delta",0))'
             elif 'pwa_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["pwa_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("pwa_delta",0))'
             elif 'crux_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["crux_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("crux_delta",0))'
             elif 'best_practices_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["best_practices_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("best_practices_delta", 0))'
             elif 'performance_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["performance_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("performance_delta",0))'
             elif 'accessibility_delta' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse_delta["scores"]["accessibility_delta"])'
+                data_type = 'float(self.object.lighthouse_delta["scores"].get("accessibility_delta",0))'
             
             # LH scan data
             elif 'lighthouse_average' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["average"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("average",0))'
             elif 'seo' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["seo"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("seo",0))'
             elif 'pwa' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["pwa"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("pwa",0))'
             elif 'crux' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["crux"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("crux",0))'
             elif 'best_practices' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["best_practices"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("best_practices",0))'
             elif 'performance' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["performance"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("performance",0))'
             elif 'accessibility' in expression['data_type']:
-                data_type = 'float(self.object.lighthouse["scores"]["accessibility"])'
+                data_type = 'float(self.object.lighthouse["scores"].get("accessibility",0))'
 
             # YL test data
             elif 'current_yellowlab_average' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["current_average"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("current_average",0))'
             elif 'pageWeight_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["pageWeight_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("pageWeight_delta",0))'
             elif 'images_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["images_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("images_delta",0))'
             elif 'domComplexity_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["domComplexity_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("domComplexity_delta",0))'
             elif 'javascriptComplexity_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["javascriptComplexity_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("javascriptComplexity_delta",0))'
             elif 'badJavascript_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["badJavascript_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("badJavascript_delta",0))'
             elif 'jQuery_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["jQuery_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("jQuery_delta",0))'
             elif 'cssComplexity_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["cssComplexity_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("cssComplexity_delta",0))'
             elif 'badCSS_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["badCSS_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("badCSS_delta",0))'
             elif 'fonts_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["fonts_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("fonts_delta",0))'
             elif 'serverConfig_delta' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab_delta["scores"]["serverConfig_delta"])'
+                data_type = 'float(self.object.yellowlab_delta["scores"].get("serverConfig_delta",0))'
             
             # LH scan data
             elif 'yellowlab_average' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["globalScore"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("globalScore",0))'
             elif 'pageWeight' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["pageWeight"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("pageWeight",0))'
             elif 'images' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["images"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("images",0))'
             elif 'domComplexity' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["domComplexity"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("domComplexity",0))'
             elif 'javascriptComplexity' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["javascriptComplexity"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("javascriptComplexity",0))'
             elif 'badJavascript' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["badJavascript"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("badJavascript",0))'
             elif 'jQuery' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["jQuery"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("jQuery",0))'
             elif 'cssComplexity' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["cssComplexity"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("cssComplexity",0))'
             elif 'badCSS' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["badCSS"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("badCSS",0))'
             elif 'fonts' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["fonts"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("fonts",0))'
             elif 'serverConfig' in expression['data_type']:
-                data_type = 'float(self.object.yellowlab["scores"]["serverConfig"])'
+                data_type = 'float(self.object.yellowlab["scores"].get("serverConfig",0))'
             
             # building exp if not defiined
             if exp is None:
