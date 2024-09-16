@@ -56,7 +56,7 @@ COPY ./app /app
 WORKDIR /app
 
 # setting ownership
-RUN chown -R app:app /app
+RUN chown -R app:app .
 RUN chown -R app:app /usr/bin/firefox
 RUN chown -R app:app /usr/bin/google-chrome-stable
 RUN chown -R app:app /usr/bin/microsoft-edge-stable
