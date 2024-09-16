@@ -70,6 +70,8 @@ RUN chown -R app:app /usr/bin/microsoft-edge-stable
 RUN chown -R app:app /usr/local/bin/yellowlabtools
 RUN chown -R app:app /usr/local/bin/lighthouse
 RUN chown -R app:app /tmp
+RUN chown -R app:app /app/api/migrations
+RUN chmod -R 755 /app/api/migrations
 
 # cleaning up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
