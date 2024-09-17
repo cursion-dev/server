@@ -5,15 +5,15 @@ FROM python:3.12-slim
 LABEL Author="Scanerr" Support="hello@scanerr.io"
 
 # setting ENVs and Configs
-ENV HOME =                              /app
-ENV XDG_CACHE_HOME =                    $HOME/.cache
-ENV DOCKERIZED =                        yes
-ENV DEBIAN_FRONTEND =                   noninteractive
-ENV PYTHONUNBUFFERED =                  1
-ENV MOZ_NO_REMOTE =                     1
-ENV MOZ_DISABLE_AUTO_SAFE_MODE =        1
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD =  true 
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE =     /usr/bin/google-chrome-stable
+ENV HOME=/app
+ENV XDG_CACHE_HOME=$HOME/.cache
+ENV DOCKERIZED=yes
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV MOZ_NO_REMOTE=1
+ENV MOZ_DISABLE_AUTO_SAFE_MODE=1
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 
 
 # create the app user
