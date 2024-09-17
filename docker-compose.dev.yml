@@ -17,8 +17,8 @@ services:
     env_file:
       - ./env/.env.dev
     volumes:
-      - ./app:/app
-      - static_volume:/app/static
+      - ./app:/app:rw
+      - static_volume:/app/static:rw
     depends_on:
       - db
 
@@ -56,7 +56,7 @@ services:
     env_file:
       - ./env/.env.dev
     volumes:
-      - ./app:/scanerr
+      - ./app:/scanerr:rw
     depends_on:
       - redis
       - app
@@ -74,7 +74,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
-      - ./app:/scanerr
+      - ./app:/scanerr:rw
     env_file:
       - ./env/.env.dev
     depends_on:

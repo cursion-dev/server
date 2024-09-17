@@ -5,6 +5,9 @@ if [[ $1 == *"app"* ]]
 then 
   if [[ $2 == *"local"* ]]
   then
+    chown -R app:app /app/api/migrations/ && 
+    chmod -R 755 /app/api/migrations/ &&
+    ls -la /app/api/migrations/ &&
     python3 manage.py wait_for_db && 
     python3 manage.py makemigrations --no-input &&
     python3 manage.py migrate --no-input &&
@@ -15,6 +18,9 @@ then
   fi
   if [[ $2 == *"remote"* ]]
     then
+      chown -R app:app /app/api/migrations/ && 
+      chmod -R 755 /app/api/migrations/ &&
+      ls -la /app/api/migrations/ &&
       python3 manage.py wait_for_db && 
       python3 manage.py makemigrations --no-input &&
       python3 manage.py migrate --no-input &&
