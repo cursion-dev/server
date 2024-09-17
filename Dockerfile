@@ -15,6 +15,7 @@ ENV MOZ_DISABLE_AUTO_SAFE_MODE=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 ENV PYTHONPATH="$HOME:$PYTHONPATH"
+ENV NODE_OPTIONS="--max-old-space-size=4080"
 
 # create the app user
 RUN addgroup --system app && adduser --system app
@@ -62,10 +63,9 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > mic
 
 # installing node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
-    apt-get install -y nodejs \
-    build-essential && \
-    node --version && \ 
-    npm --version
+    apt-get install -y --no-install-recommends nodejs && \
+    npm install -g --no-cache n && \
+    n lts
 
 # installing lighthouse & lighthouse-plugin-crux
 RUN npm install -g lighthouse lighthouse-plugin-crux
@@ -76,6 +76,9 @@ RUN npm install -g lodash yellowlabtools
 # copying & installing requirements
 COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3.12 -m pip install -r /requirements.txt
+
+# setting user ownership for migrations
+RUN chown -R app:app ./app
 
 # setting working dir
 COPY ./app /app
@@ -88,22 +91,12 @@ RUN mkdir -p .mozilla .cache
 RUN chown -R app:app /app
 RUN chown -R app:app /tmp
 
-# make migration files
-RUN python3.12 manage.py makemigrations --no-input 
-
-# collect static files 
-RUN python3.12 manage.py collectstatic --no-input
-
-# increase RAM usage for node
-RUN export NODE_OPTIONS="--max-old-space-size=4080"
-
 # cleaning up
 RUN apt-get clean && rm -rf \
     /var/lib/apt/lists/* \
     /tmp/* \
     /var/tmp/* \
-    microsoft.gpg && \
-    autoremove
+    microsoft.gpg
 
 # setting final user
 USER app
