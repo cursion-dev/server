@@ -6,7 +6,6 @@ then
   if [[ $2 == *"local"* ]]
   then
     python3 manage.py wait_for_db && 
-    python3 manage.py makemigrations  --no-input &&
     python3 manage.py migrate --no-input &&
     python3 manage.py collectstatic --no-input &&
     python3 manage.py create_admin &&
@@ -16,7 +15,6 @@ then
   if [[ $2 == *"remote"* ]]
     then
       python3 manage.py wait_for_db && 
-      python3 manage.py makemigrations  --no-input &&
       python3 manage.py migrate --no-input &&
       python3 manage.py collectstatic --no-input &&
       python3 manage.py create_admin &&
