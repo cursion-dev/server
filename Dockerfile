@@ -85,9 +85,19 @@ WORKDIR /app
 RUN mkdir -p .mozilla .cache
 
 # setting ownership
-RUN chown -R app:app /app/*
-RUN chown -R app:app /app/api/migrations/*
-RUN chmod -R 755 /app/api/migrations/*
+RUN chown -R app:app /app
+RUN chown -R app:app /usr/local/bin/lighthouse
+RUN chown -R app:app /usr/local/bin/yellowlabtools
+
+# django specific temp ENVs 
+ENV DJANGO_ALLOWED_HOSTS="*"
+ENV SECRET_KEY="abcdefghijklmno123456789"
+
+# make migrations file
+RUN python3.12 manage.py makemigrations --no-input
+
+# collect static assets
+RUN python3.12 manage.py collectstatic --no-input
 
 # cleaning up
 RUN apt-get clean && rm -rf \
