@@ -164,7 +164,7 @@ class LogAdmin(admin.ModelAdmin):
 
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'time_created', 'status', 'user')
+    list_display = ('__str__', 'time_last_run', 'status', 'user', 'time_created')
 
 
 
@@ -215,7 +215,7 @@ class TestcaseAdmin(admin.ModelAdmin):
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'account', 'time_created', 'read',)
+    list_display = ('__str__', 'account', 'time_created', 'status',)
 
 
 

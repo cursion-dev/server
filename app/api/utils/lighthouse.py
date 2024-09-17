@@ -222,7 +222,7 @@ class Lighthouse():
     def get_data(self):
 
         scan_complete = False
-        failed = None
+        failed = True
         attempts = 0
 
         # trying lighthouse scan untill success or 2 attempts

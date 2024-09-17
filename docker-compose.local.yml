@@ -6,8 +6,8 @@ services:
     hostname: scanerr-app
     platform: linux/amd64
     privileged: true
-    init: true
     restart: always
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
@@ -17,7 +17,7 @@ services:
     env_file:
       - ./env/.env.local
     volumes:
-      - ./app:/app
+      - app:/app
     depends_on:
       - db
 
@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "celery"]
     volumes:
-      - ./app:/scanerr
+      - celery:/app
     env_file:
       - ./env/.env.local
     depends_on:
@@ -71,7 +71,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
-      - ./app:/scanerr
+      - beat:/app
     env_file:
       - ./env/.env.local
     depends_on:
@@ -98,3 +98,6 @@ services:
 
 volumes:
   pgdata:
+  app:
+  celery:
+  beat:

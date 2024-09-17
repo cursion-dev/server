@@ -1,7 +1,9 @@
 from selenium import webdriver
 from selenium.webdriver.common.actions.action_builder import ActionBuilder
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from datetime import datetime
-import time, os, sys
+import time, os, sys, tempfile
 
 
 
@@ -94,10 +96,15 @@ def driver_init(
     
     # setting broswer options for firefox
     if browser == 'firefox':
+        # setting profile 
+        temp_profile_dir = tempfile.mkdtemp()
+        ff_profile = FirefoxProfile(temp_profile_dir)
+        # adding arguments
         options.add_argument("-headless")
         options.page_load_strategy = 'none'
         options.set_preference("accept_insecure_certs", True)
         options.set_preference('layout.css.devPixelsPerPx', str(scale_factor))
+        options.profile = ff_profile
 
         # setting to mobile if reqeusted
         if device == 'mobile':

@@ -16,10 +16,6 @@ import stripe
 
 
 
-# init Stripe client
-stripe.api_key = settings.STRIPE_PRIVATE
-
-
 
 
 def stripe_setup(request: object) -> object: 
@@ -48,6 +44,9 @@ def stripe_setup(request: object) -> object:
         'client_secret' : Stripe subscription client_secret,
     }
     """ 
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
     name = request.data.get('name')
@@ -191,6 +190,9 @@ def stripe_complete(request: object) -> object:
     
     Returns -> `Account` HTTP Response object
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
     account = Account.objects.get(user=request.user)
@@ -277,6 +279,9 @@ def calc_price(account: object=None) -> int:
     
     Returns: 'price_amount' <int>
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get max_sites
     max_sites = account.max_sites
@@ -328,6 +333,9 @@ def get_stripe_hosted_url(request: object=None) -> object:
         'stripe_url': <str>
     }
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get account
     user = request.user
@@ -398,6 +406,9 @@ def update_account_with_stripe_redirect(request: object=None) -> object:
     
     Returns -> HTTP Response object
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get account
     account = Account.objects.get(user=request.user)
@@ -495,6 +506,9 @@ def get_billing_info(request: object) -> object:
     Returns -> HTTP Response object
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user and account
     user = request.user
     account = Account.objects.get(user=user)
@@ -546,6 +560,9 @@ def account_activation(request: object) -> object:
     Returns -> `Account` HTTP Response object
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user's Account
     account = Account.objects.get(user=request.user)
     
@@ -596,6 +613,9 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
     Returns -> `Account` HTTP Response object or Bool `true`
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user's account
     if request is not None:
         account = Account.objects.get(user=request.user)
@@ -614,9 +634,9 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
         # update Account plan
         account.type = 'free'
         account.max_sites = 1
-        account.max_schedules = 0
-        account.max_pages = 1
-        account.retention_days = '3'
+        account.max_schedules = 1
+        account.max_pages = 3
+        account.retention_days = '15'
         account.interval = 'month'
         account.price_amount = 0
         account.cust_id = None
@@ -633,6 +653,7 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
             'testcases_allowed': 15,
         }
         account.meta['last_usage_reset'] = datetime.today().strftime('%Y-%m-%d %H:%M:%S.%f')
+        account.meta['coupon'] = {"code": "", "discount": 0}
 
         # save Account
         account.save()
@@ -678,6 +699,9 @@ def get_stripe_invoices(request: object) -> object:
     }
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user's account
     account = Account.objects.get(user=request.user)
 
@@ -696,11 +720,41 @@ def get_stripe_invoices(request: object) -> object:
         # build list of Stripe Invice objects
         for invoice in invoice_body.data:
 
-            # clean product name & get interval
-            product_name = invoice['lines']['data'][0]['description']
-            product_name = product_name.split('1 × ')[1].split(' (')[0]
-            interval = invoice['lines']['data'][0]['plan']['interval']
+            # setting defaults
+            items = []
+            product_name = None
+            interval = None
 
+            # create line items
+            for item in invoice['lines']['data']:
+
+                # add item data
+                items.append({
+                    'amount': item['amount'],
+                    'description': item['description'],
+                    'period_start': item['period']['start'],
+                    'period_end': item['period']['end'],
+                    'quantity': item['quantity'],
+                    'proration': item['proration']
+                })
+
+                # getting product name and interval if item 
+                # is not proration
+                if not item['proration']:
+                    # get product_name
+                    if 'basic' in item['description'].lower():
+                        product_name = 'Basic'
+                    if 'pro' in item['description'].lower():
+                        product_name = 'Pro'
+                    if 'plus' in item['description'].lower():
+                        product_name = 'Plus'
+                    if 'custom' in item['description'].lower():
+                        product_name = 'Custom'
+                    if 'enterprise' in item['description'].lower():
+                        product_name = 'Enterprise'
+                    # get interval
+                    interval = item['plan']['interval']
+            
             # get end_date
             period_start = datetime.fromtimestamp(invoice.period_start)
             new = period_start + timedelta(days=30 if interval == 'month' else 365)
@@ -709,6 +763,8 @@ def get_stripe_invoices(request: object) -> object:
             i_list.append({
                 'id': invoice.id,
                 'status': invoice.status,
+                'subtotal': invoice.subtotal,
+                'subtotal_excluding_tax': invoice.subtotal_excluding_tax,
                 'price_amount': invoice.amount_paid,
                 'created': invoice.created,
                 'due_date': invoice.due_date,
@@ -718,7 +774,8 @@ def get_stripe_invoices(request: object) -> object:
                 'invoice_pdf': invoice.invoice_pdf,
                 'number': invoice.number,
                 'period_start': invoice.period_start,
-                'period_end': period_end
+                'period_end': period_end,
+                'items': items
             })
         
         # format response

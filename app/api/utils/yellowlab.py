@@ -224,16 +224,23 @@ class Yellowlab():
     def get_data(self):
 
         scan_complete = False
-        failed = None
+        failed = True
         attempts = 0
         
-        # trying yellowlab scan untill success or 2 attempts
+        # trying yellowlab scan until success or 2 attempts
         while not scan_complete and attempts < 2:
 
             try:
-                # API method only
-                raw_data = self.yellowlab_api()
-                self.process_data(stdout_json=raw_data)
+                # CLI on first attempt
+                if attempts < 1:
+                    raw_data = self.yellowlab_cli()
+                    self.process_data(stdout_json=raw_data)
+                
+                # API after first attempt
+                if attempts >= 1:
+                    raw_data = self.yellowlab_api()
+                    self.process_data(stdout_json=raw_data)
+
                 scan_complete = True
                 failed = False
 

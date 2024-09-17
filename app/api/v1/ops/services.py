@@ -19,7 +19,7 @@ from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
-import json, boto3, asyncio, os, requests
+import json, boto3, asyncio, os, requests, uuid, secrets
 
 
 
@@ -749,7 +749,7 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
     delete_site_s3_bg.delay(site_id=id)
     
     # remove any associated tasks 
-    delete_tasks(site=site)
+    delete_tasks_and_schedules(resource_id=str(site.id), scope='site', account=account)
 
     # remove any site associated Issues
     Issue.objects.filter(affected__icontains=str(id)).delete()
@@ -1292,7 +1292,7 @@ def delete_page(request: object=None, id: str=None, account: object=None) -> obj
     delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
 
     # remove any schedules and associated tasks
-    delete_tasks(page=page)
+    delete_tasks_and_schedules(resource_id=str(page.id), scope='page', account=account)
 
     # remove any associated Issues
     Issue.objects.filter(affected__icontains=str(id)).delete()
@@ -2277,7 +2277,6 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
         # running test in background
         create_test_bg.delay(
-            page_id=p.id,
             test_id=test.id,
             configs=configs,
             type=test_type,
@@ -2823,6 +2822,22 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         account_id = kwargs.get('account_id')
         account = Account.objects.get(id=account_id)
 
+    # check account and resource
+    check_data = check_account_and_resource(user=account.user, 
+        issue_id=id, resource='issue'
+    )
+    if not check_data['allowed']:
+        data = {
+            'reason': check_data['error'], 
+            'success': False, 
+            'code': check_data['code'], 
+            'status': check_data['status']
+        }
+        if request is not None:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
     # get Issue if id is present
     if id is not None:
         issue = Issue.objects.get(id=id)
@@ -2865,7 +2880,75 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         return Response(data, status=status.HTTP_200_OK)
     
     # return object response
-    return issue
+    data = {
+        'success': True, 
+        'issue': issue,
+    }
+    return data
+
+
+
+
+def update_many_issues(request: object=None) -> object:
+    """ 
+    Updates many `Issues` passed in a list
+
+    Expects: {
+        'ids'     : list
+        'updates' : dict
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    updates = request.data.get('updates')
+    member = Member.objects.get(user=request.user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and update
+    for id in ids:
+        # reformat update data
+        data = updates
+        data['id'] = str(id)
+        data['account_id'] = str(account.id)
+
+        # send update
+        try:
+            res = create_or_update_issue(**data)
+            if res['success']:
+                num_succeeded += 1
+                succeeded.append(str(id))
+            else:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+                print(res['message'])
+        except Exception as e:
+            print(e)
+            if str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
 
 
 
@@ -3057,6 +3140,62 @@ def delete_issue(request: object, id: str) -> object:
 
 
 
+def delete_many_issues(request: object=None) -> object:
+    """ 
+    Deletes many `Issues` passed in a list
+
+    Expects: {
+        'ids': list
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    member = Member.objects.get(user=request.user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and delete
+    for id in ids:
+
+        # delete issue
+        try:
+            issue = Issue.objects.get(id=id)
+            if issue.account == account:
+                issue.delete()
+            elif str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+        except Exception as e:
+            print(e)
+            if str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
 def get_issues_zapier(request: object) -> object:
     """ 
     Get all `Issues` associated with user's Account.
@@ -3134,7 +3273,7 @@ def get_issues_zapier(request: object) -> object:
 
 
 
-def create_or_update_schedule(request: object) -> object:
+def create_or_update_schedule(request: object=None, **kwargs) -> object:
     """ 
     Creates or Updates a `Schedule` 
 
@@ -3146,24 +3285,45 @@ def create_or_update_schedule(request: object) -> object:
     """
 
     # get request data
-    schedule_status = request.data.get('status')
-    begin_date_raw = request.data.get('begin_date')
-    time = request.data.get('time')
-    timezone = request.data.get('timezone')
-    freq = request.data.get('frequency')
-    task_type = request.data.get('task_type')
-    test_type = request.data.get('test_type', settings.TYPES)
-    scan_type = request.data.get('scan_type', settings.TYPES)
-    configs = request.data.get('configs', None)
-    threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
-    schedule_id = request.data.get('schedule_id')
-    site_id = request.data.get('site_id')
-    page_id = request.data.get('page_id')
-    case_id = request.data.get('case_id')
-    updates = request.data.get('updates')
+    if request:
+        schedule_status = request.data.get('status')
+        begin_date_raw = request.data.get('begin_date')
+        time = request.data.get('time')
+        timezone = request.data.get('timezone')
+        freq = request.data.get('frequency')
+        task_type = request.data.get('task_type')
+        test_type = request.data.get('test_type', settings.TYPES)
+        scan_type = request.data.get('scan_type', settings.TYPES)
+        configs = request.data.get('configs', None)
+        threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
+        schedule_id = request.data.get('schedule_id')
+        resources = request.data.get('resources')
+        scope = request.data.get('scope')
+        case_id = request.data.get('case_id')
+        updates = request.data.get('updates')
+        user = request.user
+    
+    if not request:
+        schedule_status = kwargs.get('status')
+        begin_date_raw = kwargs.get('begin_date')
+        time = kwargs.get('time')
+        timezone = kwargs.get('timezone')
+        freq = kwargs.get('frequency')
+        task_type = kwargs.get('task_type')
+        test_type = kwargs.get('test_type', settings.TYPES)
+        scan_type = kwargs.get('scan_type', settings.TYPES)
+        configs = kwargs.get('configs', None)
+        threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
+        schedule_id = kwargs.get('schedule_id')
+        resources = kwargs.get('resources')
+        scope = kwargs.get('scope')
+        case_id = kwargs.get('case_id')
+        updates = kwargs.get('updates')
+        user_id = kwargs.get('user_id')
+        user = User.objects.get(id=user_id)
+        
 
-    # get user and account
-    user = request.user
+    # get account
     account = Member.objects.get(user=user).account
 
     # updating configs if None:
@@ -3171,43 +3331,36 @@ def create_or_update_schedule(request: object) -> object:
 
     # setting defaults
     schedule = None
-    site = None
-    page = None
     
     # deciding on action type
     action = 'add' if not schedule_id else None
 
     # checking account and resource 
     check_data = check_account_and_resource(
-        request=request, resource='schedule', page_id=page_id, 
-        site_id=site_id, schedule_id=schedule_id, action=action
+        user=user, resource='schedule', 
+        schedule_id=schedule_id, action=action
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get schedule if checks passed and id is present
     if schedule_id:
         schedule = Schedule.objects.get(id=schedule_id)
-    
-    # converting to str for **kwargs
-    if site_id is not None:
-        site_id = str(site_id)
-        site = Site.objects.get(id=site_id)
-    if page_id is not None:
-        page_id = str(page_id)
-        page = Page.objects.get(id=page_id)
 
     # toggling schedule status
     if schedule_status != None and schedule != None:
+        # update task
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-        if task.enabled == True:
+        if schedule_status == 'Paused':
             task.enabled = False
-            schedule.status = 'Paused'
-        else:
+        if schedule_status == 'Active':
             task.enabled = True
-            schedule.status = 'Active'
+        # update schedule
+        schedule.status = schedule_status
         task.save() 
         schedule.save()
     
@@ -3226,14 +3379,15 @@ def create_or_update_schedule(request: object) -> object:
 
         # build args
         arguments = {
-            'site_id': site_id,
-            'page_id': page_id,
+            'scope': scope,
+            'resources': resources,
+            'account_id': str(account.id),
             'updates': updates,
             'configs': configs,
             'case_id': case_id,
             'type': scan_type if task_type == 'scan' else test_type,
             'threshold': threshold,
-            'automation_id': auto_id
+            'automation_id': auto_id,
         }
 
         # setting start date default
@@ -3261,16 +3415,11 @@ def create_or_update_schedule(request: object) -> object:
             day_of_week = '*'
             day_of_month = day
 
-        # deciding on scope
-        if site is not None:
-            url = site.site_url
-            level = 'site'
-        if page is not None:
-            url = page.page_url
-            level = 'page'
+        # create unique str for 
+        rand_str = secrets.token_urlsafe(6)
 
         # building unique task name
-        task_name = f'{task_type}_{level}_{url}_{freq}_@{time}_{account.user.id}'
+        task_name = f'{task_type}_{scope}_{rand_str}_{freq}_@{time}_{account.user.id}'
 
         # building or updating crontab 
         crontab, _ = CrontabSchedule.objects.get_or_create(
@@ -3287,6 +3436,11 @@ def create_or_update_schedule(request: object) -> object:
             if PeriodicTask.objects.filter(id=schedule.periodic_task_id).exists():
                 # update existing task
                 periodic_task = PeriodicTask.objects.filter(id=schedule.periodic_task_id)
+                
+                # grabbing task_id
+                arguments['task_id'] = str(periodic_task[0].id)
+               
+                # updating task with args
                 periodic_task.update(
                     crontab=crontab,
                     name=task_name, 
@@ -3301,17 +3455,25 @@ def create_or_update_schedule(request: object) -> object:
 
             # check if task exists
             if PeriodicTask.objects.filter(name=task_name).exists():
-                data = {'reason': 'Schedule already exists',}
-                record_api_call(request, data, '401')
-                return Response(data, status=status.HTTP_401_UNAUTHORIZED)
+                data = {'reason': 'Schedule already exists', 'code': '401'}
+                if request:
+                    record_api_call(request, data, '401')
+                    return Response(data, status=status.HTTP_401_UNAUTHORIZED)
+                return data
 
             # create new periodic task 
             periodic_task = PeriodicTask.objects.create(
                 crontab=crontab, 
                 name=task_name, 
-                task=task,
-                kwargs=json.dumps(arguments),
+                task=task,   
             )
+            
+            # inserting task_id
+            arguments['task_id'] = str(periodic_task.id)
+            
+            # updating args
+            periodic_task.kwargs = json.dumps(arguments)
+            periodic_task.save()
 
         # building extras for scheduls
         extras = {
@@ -3325,7 +3487,7 @@ def create_or_update_schedule(request: object) -> object:
         
         # update existing schedule
         if schedule:
-            
+
             # update each param if passed
             if timezone:
                 schedule.timezone = timezone
@@ -3343,6 +3505,8 @@ def create_or_update_schedule(request: object) -> object:
                 schedule.task_type = task_type
             if extras:
                 schedule.extras = extras 
+            if resources is not None:
+                schedule.resources = resources
             
             # save udpdates
             schedule.save()
@@ -3351,8 +3515,8 @@ def create_or_update_schedule(request: object) -> object:
         if not schedule:
             schedule = Schedule.objects.create(
                 user=request.user, 
-                site=site,
-                page=page, 
+                scope=scope,
+                resources=resources, 
                 task_type=task_type, 
                 timezone=timezone,
                 begin_date=begin_date, 
@@ -3364,6 +3528,147 @@ def create_or_update_schedule(request: object) -> object:
                 extras=extras,
                 account=account
             )
+
+    # deciding on response type
+    if request:
+        # serialize and return
+        serializer_context = {'request': request,}
+        data = ScheduleSerializer(schedule, context=serializer_context).data
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    
+    # return object response
+    data = {
+        'success': True, 
+        'schedule': schedule,
+    }
+    return data
+
+
+
+
+def update_many_schedules(request: object=None) -> object:
+    """ 
+    Updates many `Schedules` passed in a list
+
+    Expects: {
+        'ids'     : list
+        'updates' : dict
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    updates = request.data.get('updates')
+    member = Member.objects.get(user=request.user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and update
+    for id in ids:
+        # reformat update data
+        data = updates
+        data['schedule_id'] = str(id)
+        data['user_id'] = str(request.user.id)
+
+        # send update
+        try:
+            res = create_or_update_schedule(**data)
+            if res['success']:
+                num_succeeded += 1
+                succeeded.append(str(id))
+            else:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+                print(res['message'])
+        except Exception as e:
+            print(e)
+            if str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def run_schedule(request: object) -> object:
+    """
+    Grabs all the args from the asociated perodic_task
+    and executes the task manually without interupting
+    the perodic_task's normal cycle.
+
+    Expects: {
+        requests: object
+    } 
+
+    Return -> HTTP Response object
+    """
+
+    # get request data
+    schedule_id = request.data.get('schedule_id')
+
+    # get user and account
+    user = request.user
+    account = Member.objects.get(user=user).account
+
+    # checking account and resource 
+    check_data = check_account_and_resource(
+        request=request, resource='schedule', 
+        schedule_id=schedule_id,
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get schedule and assocated task if checks passed
+    schedule = Schedule.objects.get(id=schedule_id)
+    task = schedule.task_type
+    perodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
+    task_kwargs = json.loads(perodic_task.kwargs)
+
+    # decidign on which task 
+    if task == 'scan':
+        # run create_scan_bg
+        create_scan_bg.delay(
+            **task_kwargs
+        )
+    if task == 'test':
+        # run create_test_bg
+        create_test_bg.delay(
+            **task_kwargs
+        )
+    if task == 'testcase':
+        # run create_testcase_bg
+        create_testcase_bg.delay(
+            **task_kwargs
+        )
+    if task == 'report':
+        # run create_report_bg
+        create_report_bg.delay(
+            **task_kwargs
+        )
 
     # serialize and return
     serializer_context = {'request': request,}
@@ -3388,8 +3693,8 @@ def get_schedules(request: object) -> object:
 
     # get request data
     schedule_id = request.query_params.get('schedule_id')
-    site_id = request.query_params.get('site_id')
-    page_id = request.query_params.get('page_id')
+    scope = request.query_params.get('scope')
+    resource_id = request.query_params.get('resource_id')
     user = request.user
     account = Member.objects.get(user=user).account
 
@@ -3398,7 +3703,7 @@ def get_schedules(request: object) -> object:
 
     # check account and resource 
     check_data = check_account_and_resource(
-        user=user, resource='schedule', page_id=page_id, site_id=site_id, 
+        user=user, resource='schedule',
         schedule_id=schedule_id
     )
     if not check_data['allowed']:
@@ -3419,21 +3724,28 @@ def get_schedules(request: object) -> object:
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    # get all page scoped schedules
-    if not site_id and not page_id:
-        schedules = Schedule.objects.filter(account=account).order_by('-time_created')
+    # get all account scoped schedules
+    if scope == 'account':
+        schedules = Schedule.objects.filter(
+            account=account,
+            scope='account'
+        ).order_by('-time_created')
+
+    # get all non account scoped
+    if scope != 'account' and resource_id is None:
+        schedules = Schedule.objects.filter(
+            account=account,
+            scope=scope
+        ).order_by('-time_created')
     
-    # get all site scoped schedules
-    if site_id and not schedules:
-        site = Site.objects.get(id=site_id)
-        schedules = Schedule.objects.filter(site=site).order_by('-time_created')
-    
-    # get all page scoped schedules
-    if page_id and not schedules:
-        print('getting Schedules by page_id')
-        page = Page.objects.get(id=page_id)
-        schedules = Schedule.objects.filter(page=page).order_by('-time_created')
-    
+    # get all non account scoped schedules with resource_id
+    if scope != 'account' and resource_id:
+        schedules = Schedule.objects.filter(
+            account=account,
+            resources__icontains=resource_id,
+            scope=scope
+        ).order_by('-time_created')
+
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(schedules, request)
@@ -3526,39 +3838,99 @@ def delete_schedule(request: object, id: str) -> object:
 
 
 
-def delete_tasks(page: object=None, site: object=None) -> None:
+def delete_many_schedules(request: object=None) -> object:
     """ 
-    Helper function to delete any `Schedules` & `PerodicTasks`
-    associated with the passed "site" or "page"
+    Deletes many `Schedules` passed in a list
 
     Expects: {
-        'page': object, 
-        'site': object
+        'ids': list
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    member = Member.objects.get(user=request.user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and delete
+    for id in ids:
+
+        # delete schedule
+        try:
+            schedule = Schedule.objects.get(id=id)
+            task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
+            if schedule.account == account:
+                schedule.delete()
+                task.delete()
+            elif str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+        except Exception as e:
+            print(e)
+            if str(id) not in failed:
+                num_failed += 1
+                this_status = False
+                failed.append(str(id))
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_tasks_and_schedules(
+        resource_id : str=None, 
+        scope       : object=None, 
+        account     : object=None
+    ) -> None:
+    """ 
+    Helper function to delete any `Schedules` & `PerodicTasks`
+    associated with the passed "resource_id", "scope", and 
+    "account"
+
+    Expects: {
+        'resource_id'   : str, 
+        'scope'         : str
+        'account'       : object
     }
 
     Returns -> None
     """ 
-
-    # get any schedules
-    schedules = []
-    
-    # get all page scopped Schedules
-    if page:
-        schedules += Schedule.objects.filter(page=page)
-    
-    # get all site & page scopped Schedules
-    if site:
-        # get site scopped
-        schedules += Schedule.objects.filter(site=site)
-        # iterate over each site associated page and to schedules[]
-        pages = Page.objects.filter(site=site)
-        for p in pages:
-            schedules += Schedule.objects.filter(page=p)
+    # get all scopped Schedules
+    schedules = Schedule.objects.filter(
+        resources__icontains=resource_id,
+        account=account,
+        scope=scope 
+    )
 
     # remove any associated tasks
     for schedule in schedules:
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-        task.delete()
+        try:
+            task.delete()
+        except Exception as e:
+            print(e)
+    
+    # delete Schedules
+    schedules.delete()
     
     return None
 
@@ -3583,8 +3955,6 @@ def create_or_update_automation(request: object) -> object:
     
     # get request data
     actions = request.data.get('actions')
-    site_id = request.data.get('site_id')
-    page_id = request.data.get('page_id')
     schedule_id = request.data.get('schedule_id')
     automation_id = request.data.get('automation_id')
     name = request.data.get('name')
@@ -3604,8 +3974,7 @@ def create_or_update_automation(request: object) -> object:
     # checking account and resource 
     check_data = check_account_and_resource(
         request=request, resource=resource, 
-        automation_id=automation_id, schedule_id=schedule_id, 
-        site_id=site_id, page_id=page_id
+        automation_id=automation_id, schedule_id=schedule_id,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3652,25 +4021,19 @@ def create_or_update_automation(request: object) -> object:
 
         # update associated periodicTask
         task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-        
-        # get associated page or site id
-        site_id = None
-        if schedule.site is not None:
-            site_id = str(schedule.site.id)
-        page_id = None
-        if schedule.page is not None:
-            page_id = str(schedule.page.id)
 
         # update periodic task
         arguments = {
-            'site_id': site_id,
-            'page_id': page_id,
+            'scope': json.loads(task.kwargs).get('scope'),
+            'resources': json.loads(task.kwargs).get('resources'),
+            'account_id': json.loads(task.kwargs).get('account_id'),
             'automation_id': str(automation.id),
             'configs': json.loads(task.kwargs).get('configs'), 
             'type': json.loads(task.kwargs).get('type'),
             'threshold': json.loads(task.kwargs).get('threshold'),
             'case_id': json.loads(task.kwargs).get('case_id'),
-            'updates': json.loads(task.kwargs).get('updates')
+            'updates': json.loads(task.kwargs).get('updates'),
+            'task_id': json.loads(task.kwargs).get('task_id'),
         }
         task.kwargs=json.dumps(arguments)
         task.save()
@@ -4119,6 +4482,7 @@ def create_or_update_case(request: object) -> object:
     case_id = request.data.get('case_id')
     steps = request.data.get('steps')
     site_url = request.data.get('site_url')
+    site_id = request.data.get('site_id')
     name = request.data.get('name')
     tags = request.data.get('tags')
     _type = request.data.get('type')
@@ -4145,12 +4509,18 @@ def create_or_update_case(request: object) -> object:
     if site_url:
         if Site.objects.filter(account=account, site_url=site_url).exists():
             site = Site.objects.filter(account=account, site_url=site_url)[0]
+    
+    # get site if site_id passed
+    if site_id:
+        if Site.objects.filter(account=account, id=site_id).exists():
+            site = Site.objects.get(id=site_id)
+            site_url = site.site_url
 
     # get case if checks passed
     if case_id:
         case = Case.objects.get(id=case_id)
 
-    # udpate case   
+    # update Case   
     if case:
         if steps is not None:
             steps_data = save_case_steps(steps, case_id)
@@ -4159,10 +4529,14 @@ def create_or_update_case(request: object) -> object:
             case.name = name
         if tags is not None:
             case.tags = tags
+        if site is not None:
+            case.site = site
+        if site_url is not None:
+            case.site_url = site_url
         # save updates
         case.save()
     
-    # create case
+    # create Case
     if not case:
 
         # generate new uuid
@@ -4171,7 +4545,7 @@ def create_or_update_case(request: object) -> object:
         # save step data in s3
         steps_data = save_case_steps(steps, case_id)
         
-        # create new case
+        # create new Case
         case = Case.objects.create(
             id = case_id,
             user = request.user,
@@ -4181,6 +4555,21 @@ def create_or_update_case(request: object) -> object:
             site_url = site_url,
             steps = steps_data,
             account = account
+        )
+
+        # create process obj
+        process = Process.objects.create(
+            site=site,
+            type='case.pre_run',
+            object_id=str(case.id),
+            account=account,
+            progress=1
+        )
+
+        # start pre_run for new Case
+        case_pre_run_bg.delay(
+            case_id=str(case.id),
+            process_id=str(process.id)
         )
 
     # serialize and return
@@ -4193,14 +4582,14 @@ def create_or_update_case(request: object) -> object:
 
 
 
-def save_case_steps(steps: dict, steps_id: str) -> dict:
+def save_case_steps(steps: dict, case_id: str) -> dict:
     """ 
     Helper function that uploads the "steps" data to 
     s3 bucket
 
     Expects: {
         'steps'   : dict, 
-        'step_id' : str
+        'case_id' : str
     }
 
     Returns -> data: {
@@ -4218,19 +4607,24 @@ def save_case_steps(steps: dict, steps_id: str) -> dict:
     )
 
     # saving as json file temporarily
+    steps_id = uuid.uuid4()
     with open(f'{steps_id}.json', 'w') as fp:
         json.dump(steps, fp)
     
     # seting up paths
     steps_file = os.path.join(settings.BASE_DIR, f'{steps_id}.json')
-    remote_path = f'static/cases/steps/{steps_id}.json'
+    remote_path = f'static/cases/{case_id}/{steps_id}.json'
     root_path = settings.AWS_S3_URL_PATH
     steps_url = f'{root_path}/{remote_path}'
 
     # upload to s3
     with open(steps_file, 'rb') as data:
         s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-            remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+            remote_path, ExtraArgs={
+                'ACL': 'public-read', 
+                'ContentType': 'application/json',
+                'CacheControl': 'max-age=0'
+            }
         )
 
     # remove local copy
@@ -4438,7 +4832,7 @@ def create_auto_cases(request: object) -> object:
     # create process obj
     process = Process.objects.create(
         site=site,
-        type='case',
+        type='case.generate',
         account=account,
         progress=1
     )
@@ -4723,7 +5117,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
     )
 
     # pass the newly created Testcase to the backgroud task to run
-    create_testcase_bg.delay(testcase_id=testcase.id)
+    run_testcase.delay(testcase_id=testcase.id)
 
     # serialize and return
     serializer_context = {'request': request,}
@@ -4974,6 +5368,7 @@ def get_processes(request: object) -> object:
     site_id = request.query_params.get('site_id')
     process_id = request.query_params.get('process_id')
     _type = request.query_params.get('type')
+    object_id = request.query_params.get('object_id')
 
     # get user and account
     user = request.user
@@ -5009,10 +5404,12 @@ def get_processes(request: object) -> object:
 
     # get processes scoped to accout and/or type
     if site_id is None and process_id is None:
-        if _type is None:
+        if _type is None and object_id is None:
             processes = Process.objects.filter(account=account).order_by('-time_created')
         if _type is not None:
             processes = Process.objects.filter(account=account, type=_type).order_by('-time_created')
+        if object_id is not None:
+            processes = Process.objects.filter(account=account, object_id=object_id).order_by('-time_created')
 
     # serialize and return
     paginator = LimitOffsetPagination()
@@ -5177,7 +5574,7 @@ def search_resources(request: object) -> object:
     Returns:
         data -> [
             {
-                'name': <str>,
+                'str' : <str>,
                 'type': <str>,
                 'path': <str>,
                 'id'  : <str>,
@@ -5229,7 +5626,7 @@ def search_resources(request: object) -> object:
     max_sites = 10 if resource_type == 'site' else 3
     while i <= max_sites and i <= (len(sites)-1):
         data.append({
-            'name': str(sites[i].site_url),
+            'str': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
             'id'  : str(sites[i].id),
             'type': 'site',
@@ -5241,7 +5638,7 @@ def search_resources(request: object) -> object:
     max_pages = 10 if resource_type == 'page' else 3
     while i <= max_pages and i <= (len(pages)-1):
         data.append({
-            'name': str(pages[i].page_url),
+            'str': str(pages[i].page_url),
             'path': f'/page/{pages[i].id}',
             'id'  : str(pages[i].id),
             'type': 'page',
@@ -5253,7 +5650,7 @@ def search_resources(request: object) -> object:
     max_cases = 10 if resource_type == 'case' else 3
     while i <= max_cases and i <= (len(cases)-1):
         data.append({
-            'name': str(cases[i].name),
+            'str': str(cases[i].name),
             'path': f'/case/{cases[i].id}',
             'id'  : str(cases[i].id),
             'type': 'case',
@@ -5265,7 +5662,7 @@ def search_resources(request: object) -> object:
     max_issues = 10 if resource_type == 'issue' else 3
     while i <= max_issues and i <= (len(issues)-1):
         data.append({
-            'name': str(issues[i].title),
+            'str': str(issues[i].title),
             'path': f'/issue/{issues[i].id}',
             'id'  : str(issues[i].id),
             'type': 'issue',
@@ -5299,29 +5696,16 @@ def get_home_metrics(request: object) -> object:
     # get user, account, sites, & issues
     user = request.user
     account = Member.objects.get(user=user).account
-    sites = Site.objects.filter(account=account)
-    issues = Issue.objects.filter(account=account, status='open')
+    sites = Site.objects.filter(account=account).count()
+    issues = Issue.objects.filter(account=account, status='open').count()
+    schedules = Schedule.objects.filter(account=account).count()
     
-    # setting defaults
-    issues = issues.count()
+    # setting resource defaults
     tests = account.usage['tests']
     scans = account.usage['scans']
     testcases = account.usage['testcases']
-    schedules = 0
-
-    # calculating metrics
-    for site in sites:
-        schedules += Schedule.objects.filter(site=site).count()
-
-        # getting associated pages
-        pages = Page.objects.filter(site=site)
-
-        # adding page scoped schedules 
-        for page in pages:
-            schedules += Schedule.objects.filter(page=page).count()
 
     # calculate usages
-    sites = sites.count()
     sites_usage = round((sites/account.max_sites)*100, 2) if sites > 0 else 0
     schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
@@ -5371,31 +5755,50 @@ def get_site_metrics(request: object) -> object:
     max_sites = account.max_sites
     pages = Page.objects.filter(site=site)
 
-    # setting detaults
-    # testcases = round(account.usage['testcases'] / max_sites) if account.usage['testcases'] > 0 else 0
-    # tests = round(account.usage['tests'] / max_sites) if account.usage['tests'] > 0 else 0
-    # scans = round(account.usage['scans'] / max_sites) if account.usage['scans'] > 0 else 0
-    tests = account.usage['tests']
-    scans = account.usage['scans']
-    testcases = account.usage['testcases']
-    schedules = Schedule.objects.filter(site=site).count()
+    # get last reset day 
+    f = '%Y-%m-%d %H:%M:%S.%f'
+    last_usage_date_str = account.meta.get('last_usage_reset')
+    last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
+    last_usage_date = datetime.strptime(last_usage_date_str, f)
+    
+    # get scans
+    scans = Scan.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get tests
+    tests = Test.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get testcases
+    testcases = Testcase.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get site scoped schedules
+    schedules = Schedule.objects.filter(
+        resources__icontains=str(site.id), scope='site',
+        account=account
+    ).count()
 
     # calculating page scoped schedules
     for page in pages:
-        schedules += Schedule.objects.filter(page=page).count()
-    
+        schedules += Schedule.objects.filter(
+            resources__icontains=str(page.id), scope='page',
+            account=account
+        ).count()
+        
     # calculate usage
     pages = pages.count()
     pages_usage = round((pages/account.max_pages)*100, 2) if pages > 0 else 0
-    # scans_usage = round((scans/round(account.usage['scans_allowed']/max_sites))* 100, 2) if scans > 0 else 0
-    # tests_usage = round((tests/round(account.usage['tests_allowed']/max_sites))* 100, 2) if tests > 0 else 0
-    # testcases_usage = round((testcases/round(account.usage['testcases_allowed']/max_sites))* 100, 2) if testcases > 0 else 0
-    # schedules_usage = round((schedules/round(account.max_schedules/max_sites))*100, 2) if schedules > 0 else 0
     schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
     tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
     testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
-
 
     # format data
     data = {

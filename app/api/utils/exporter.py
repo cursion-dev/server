@@ -8,16 +8,6 @@ import time, boto3, os
 
 
 
-
-# setting up s3 client
-s3 = boto3.client(
-    's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-    aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-    region_name=str(settings.AWS_S3_REGION_NAME), 
-    endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-)
-
-
 def create_and_send_report_export(report_id: id, email: str, first_name: str) -> dict:
     """
     Takes a screenshot of the `landing.report`, 
@@ -34,6 +24,14 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
         'error'   : str any error msg from Scanerr server
     }
     """
+
+    # setting up s3 client
+    s3 = boto3.client(
+        's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
 
     # init driver
     driver = driver_init(scale_factor=1)

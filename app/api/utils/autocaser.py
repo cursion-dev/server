@@ -30,12 +30,12 @@ class AutoCaser():
 
     def __init__(
             self, 
-            site: object,
-            process: object,
-            start_url: str=None,
-            configs: dict=settings.CONFIGS,
-            max_cases: int=4, 
-            max_layers: int=5,
+            site        : object,
+            process     : object,
+            start_url   : str=None,
+            configs     : dict=settings.CONFIGS,
+            max_cases   : int=4, 
+            max_layers  : int=5,
         ):
          
         # main objects & configs
@@ -171,7 +171,7 @@ class AutoCaser():
             total: int, 
             complete: bool=False, 
             exception: str=None
-        ) -> object:
+        ) -> None:
         # calculate the current progress of the
         # task based on current iteration and total 
         # iterations expected
@@ -423,6 +423,7 @@ class AutoCaser():
 
         # get sub element info
         elem_selector = self.driver.execute_script(self.selector_script, elem)
+        elem_xpath = self.driver.execute_script(self.xpath_script, elem)
         elem_img = self.get_element_image(element=elem)
         relative_url = self.get_relative_url(self.driver.current_url)
         
@@ -432,6 +433,7 @@ class AutoCaser():
             # record element
             sub_elements.append({
                 'selector': elem_selector,
+                'xpath': elem_xpath,
                 'elem_type': elem.tag_name,
                 'placeholder': None,
                 'value': None,
@@ -467,6 +469,7 @@ class AutoCaser():
             # record element
             sub_elements.append({
                 'selector': elem_selector,
+                'xpath': elem_xpath,
                 'elem_type': elem.tag_name,
                 'placeholder': elem.get_attribute('placeholder'),
                 'value': value,
@@ -528,8 +531,9 @@ class AutoCaser():
         # begin iteration of <form> gathering
         for form in forms:
             
-            # get form selector
+            # get form selector & xpath
             form_selector = self.driver.execute_script(self.selector_script, form)
+            form_xpath = self.driver.execute_script(self.xpath_script, form)
 
             print(f'recording form -> {form_selector}')
 
@@ -550,6 +554,7 @@ class AutoCaser():
                 if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
                     # get input data
                     input_selector = self.driver.execute_script(self.selector_script, i)
+                    input_xpath = self.driver.execute_script(self.xpath_script, i)
                     placeholder = i.get_attribute('placeholder')
                     value = i.get_attribute('value')
                     type = str(i.get_attribute('type'))
@@ -558,6 +563,7 @@ class AutoCaser():
 
                     sub_elements.append({
                         'selector': input_selector,
+                        'xpath': input_xpath,
                         'elem_type': i.tag_name,
                         'placeholder': placeholder,
                         'value': value,
@@ -578,6 +584,7 @@ class AutoCaser():
                 if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
                     # get input data
                     input_selector = self.driver.execute_script(self.selector_script, i)
+                    input_xpath = self.driver.execute_script(self.xpath_script, i)
                     placeholder = i.get_attribute('placeholder')
                     type = str(i.get_attribute('type'))
                     img = self.get_element_image(element=i)
@@ -585,6 +592,7 @@ class AutoCaser():
 
                     sub_elements.append({
                         'selector': input_selector,
+                        'xpath': input_xpath,
                         'elem_type': i.tag_name,
                         'placeholder': placeholder,
                         'value': None,
@@ -604,6 +612,7 @@ class AutoCaser():
                 
                 # get iframe data
                 iframe_selector = self.driver.execute_script(self.selector_script, iframe)
+                iframe_xpath = self.driver.execute_script(self.xpath_script, iframe)
                 iframe_img = self.get_element_image(element=iframe)
                 relative_url = self.get_relative_url(self.driver.current_url)
                 
@@ -617,6 +626,7 @@ class AutoCaser():
                     if i.get_attribute('type') not in self.blacklist and self.is_element_visible(i):
                         # get input data
                         input_selector = self.driver.execute_script(self.selector_script, i)
+                        input_xpath = self.driver.execute_script(self.selector_script, i)
                         placeholder = i.get_attribute('placeholder')
                         value = i.get_attribute('value')
                         type = str(i.get_attribute('type'))
@@ -626,6 +636,7 @@ class AutoCaser():
                         # save internal iframe data
                         iframe_elements.append({
                             'selector': input_selector,
+                            'xpath': input_xpath,
                             'elem_type': i.tag_name,
                             'placeholder': placeholder,
                             'value': value,
@@ -640,6 +651,7 @@ class AutoCaser():
                 # save sub elem data
                 sub_elements.append({
                     'selector': iframe_selector,
+                    'xpath': iframe_xpath,
                     'elem_type': iframe.tag_name,
                     'placeholder': None,
                     'value': None,
@@ -660,12 +672,14 @@ class AutoCaser():
                 if self.is_element_visible(btn):
                     # get button data
                     btn_selector = self.driver.execute_script(self.selector_script, btn)
+                    btn_xpath = self.driver.execute_script(self.xpath_script, btn)
                     type = str(btn.get_attribute('type'))
                     btn_img = self.get_element_image(element=btn)
                     relative_url = self.get_relative_url(self.driver.current_url)
 
                     sub_elements.append({
                         'selector': btn_selector,
+                        'xpath': btn_xpath,
                         'elem_type': 'button',
                         'placeholder': None,
                         'value': None,
@@ -681,6 +695,7 @@ class AutoCaser():
             # save elem data
             elements.append({
                 'selector': form_selector,
+                'xpath': form_xpath,
                 'elem_type': 'form',
                 'elem_text': elem_text,
                 'value': None,
@@ -814,6 +829,7 @@ class AutoCaser():
             element_type = element.tag_name
             elem_relative_url = self.get_relative_url(self.driver.current_url)
             elem_text = self.get_elem_text(selector=selector)
+            xpath = self.driver.execute_script(self.xpath_script, element)
 
             print(f'working on this start element -> {selector}')
 
@@ -939,6 +955,7 @@ class AutoCaser():
             # adding final info to elememt list
             self.elements.append({
                 'selector': selector,
+                'xpath': xpath,
                 'elem_type': element_type,
                 'elem_text': elem_text,
                 'placeholder': None,
@@ -1005,7 +1022,10 @@ class AutoCaser():
                 "assertion":{
                     "type": "",
                     "value": "",
-                    "element": ""
+                    "element": {
+                        "selector": "",
+                        "xpath": "",
+                    },
                 }
             })
 
@@ -1018,13 +1038,19 @@ class AutoCaser():
                         "path": element['path'],
                         "type": element['action'],
                         "value": get_elem_value(element),
-                        "element": element['selector'],
+                        "element": {
+                            "selector": element['selector'],
+                            "xpath": element['xpath'],
+                        },
                         "img": element['img']
                     },
                     "assertion":{
                         "type": "",
                         "value": "",
-                        "element": ""
+                        "element": {
+                            "selector": "",
+                            "xpath": "",
+                        },
                     }
                 })
 
@@ -1041,13 +1067,19 @@ class AutoCaser():
                                     "path": elem['path'],
                                     "type": elem['action'],
                                     "value": get_elem_value(elem),
-                                    "element": elem['selector'],
+                                    "element": {
+                                        "selector": elem['selector'],
+                                        "xpath": elem['xpath'],
+                                    },
                                     "img": elem['img']
                                 },
                                 "assertion":{
                                     "type": "",
                                     "value": "",
-                                    "element": ""
+                                    "element": {
+                                        "selector": "",
+                                        "xpath": "",
+                                    },
                                 }
                             })
 

@@ -36,7 +36,7 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Process
         fields = ['id', 'site', 'type', 'time_created', 'time_completed',
-        'success', 'info_url', 'progress', 'info', 'exception'
+        'success', 'info_url', 'progress', 'info', 'exception', 'object_id'
         ]
 
 
@@ -146,7 +146,6 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
-    site = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     automation = serializers.PrimaryKeyRelatedField(**kwargs)
@@ -154,9 +153,10 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Schedule
-        fields = ['id', 'site', 'time_created', 'user', 'task_type',
+        fields = ['id', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
-        'periodic_task_id', 'status', 'automation', 'extras', 'account',
+        'periodic_task_id', 'status', 'automation', 'extras', 'account', 
+        'scope', 'resources', 'time_last_run',
         ]
 
 
@@ -202,7 +202,8 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Case
         fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags', 'account', 'site', 'type', 'site_url',
+        'tags', 'account', 'site', 'type', 'site_url', 
+        'processed'
         ]
 
 
