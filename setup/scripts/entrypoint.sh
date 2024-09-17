@@ -19,6 +19,12 @@ if [[ $1 == *"app"* ]]
         python3 manage.py driver_test &&
         gunicorn --timeout 1000 --graceful-timeout 1000 --keep-alive 3 --log-level debug scanerr.wsgi:application --bind 0.0.0.0:8000
     fi
+    if [[ $2 == *"stage"* ]]
+    then
+      python3 manage.py wait_for_db && 
+      python3 manage.py makemigrations --no-input &&
+      python3 manage.py migrate --no-input
+    fi
 fi
 
 # spin up celery
