@@ -13,7 +13,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    entrypoint: ["/entrypoint.sh", "app", "local"]
+    entrypoint: ["/entrypoint.sh", "app", "stage"]
     env_file:
       - ./env/.env.stage
     volumes:
