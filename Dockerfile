@@ -15,7 +15,6 @@ ENV MOZ_DISABLE_AUTO_SAFE_MODE=1
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 
-
 # create the app user
 RUN addgroup --system app && adduser --system app
 
@@ -45,7 +44,6 @@ RUN apt-get update && apt-get install -y \
     apt-transport-https \
     software-properties-common
      
-
 # installing firefox-esr
 RUN apt-get update && apt-get install -y firefox-esr
 
