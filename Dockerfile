@@ -85,9 +85,9 @@ WORKDIR /app
 RUN mkdir -p .mozilla .cache
 
 # setting ownership
-RUN chown -R app:app /app
-RUN chown -R app:app /app/api/migrations*
-RUN chmod -R 755 /app/api/migrations*
+RUN chown -R app:app /app/*
+RUN chown -R app:app /app/api/migrations/*
+RUN chmod -R 755 /app/api/migrations/*
 
 # cleaning up
 RUN apt-get clean && rm -rf \
