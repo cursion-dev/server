@@ -5,24 +5,46 @@ FROM python:3.12-slim
 LABEL Author="Scanerr" Support="hello@scanerr.io"
 
 # setting ENVs and Configs
-ENV PYTHONUNBUFFERED 1
-ENV DEBIAN_FRONTEND noninteractive
-ENV DOCKERIZED yes
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD true 
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE /usr/bin/google-chrome-stable
-ENV MOZ_DISABLE_AUTO_SAFE_MODE 1
-ENV MOZ_NO_REMOTE 1
-ENV HOME /app
-ENV XDG_CACHE_HOME $HOME/.cache
+ENV HOME =                              /app
+ENV XDG_CACHE_HOME =                    $HOME/.cache
+ENV DOCKERIZED =                        yes
+ENV DEBIAN_FRONTEND =                   noninteractive
+ENV PYTHONUNBUFFERED =                  1
+ENV MOZ_NO_REMOTE =                     1
+ENV MOZ_DISABLE_AUTO_SAFE_MODE =        1
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD =  true 
+ENV PHANTOMAS_CHROMIUM_EXECUTABLE =     /usr/bin/google-chrome-stable
+
 
 # create the app user
 RUN addgroup --system app && adduser --system app
 
 # installing system deps
-RUN apt-get update && apt-get install -y postgresql postgresql-client gcc make \
-    gfortran openssl libpq-dev curl libjpeg-dev libglib2.0-0 libsm6 libxrender1 \ 
-    libxext6 libgl1 libfontconfig apt-transport-https software-properties-common \
-    nasm autoconf libtool automake ca-certificates libfreetype6 
+RUN apt-get update && apt-get install -y \
+    postgresql \
+    postgresql-client \
+    gcc \
+    make \
+    gfortran \
+    openssl \
+    libpq-dev \
+    curl \
+    libsm6 \
+    libxrender1 \ 
+    libxext6 \
+    libgl1 \
+    nasm \
+    autoconf \
+    libtool \
+    automake \
+    libjpeg-dev \
+    libglib2.0-0 \
+    libfreetype6 \
+    ca-certificates \
+    libfontconfig \
+    apt-transport-https \
+    software-properties-common
+     
 
 # installing firefox-esr
 RUN apt-get update && apt-get install -y firefox-esr
@@ -69,9 +91,8 @@ RUN chown -R app:app /usr/bin/google-chrome-stable
 RUN chown -R app:app /usr/bin/microsoft-edge-stable
 RUN chown -R app:app /usr/local/bin/yellowlabtools
 RUN chown -R app:app /usr/local/bin/lighthouse
-RUN chown -R app:app /tmp
 RUN chown -R app:app /app/api/migrations
-RUN chmod -R 755 /app/api/migrations
+RUN chown -R app:app /tmp
 
 # cleaning up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*

@@ -5,6 +5,7 @@ if [[ $1 == *"app"* ]]
 then 
   if [[ $2 == *"local"* ]]
   then
+    chown -R app:app /app/api/migrations &&
     python3 manage.py wait_for_db && 
     python3 manage.py makemigrations  --no-input &&
     python3 manage.py migrate --no-input &&
@@ -14,7 +15,8 @@ then
     python3 manage.py runserver 0.0.0.0:8000
   fi
   if [[ $2 == *"remote"* ]]
-    then 
+    then
+      chown -R app:app /app/api/migrations &&
       python3 manage.py wait_for_db && 
       python3 manage.py makemigrations  --no-input &&
       python3 manage.py migrate --no-input &&
@@ -28,6 +30,7 @@ fi
 # spin up celery
 if [[ $1 == *"celery"* ]]
 then
+  chown -R app:app /app/api/migrations &&
   python3 manage.py wait_for_db && 
   echo "pausing for migrations to complete..." && sleep 7s &&
   celery -A scanerr worker -E --loglevel=info -O fair
@@ -36,6 +39,7 @@ fi
 # spin up celery beat
 if [[ $1 == *"beat"* ]]
 then
+  chown -R app:app /app/api/migrations &&
   python3 manage.py wait_for_db &&
   echo "pausing for migrations to complete..." && sleep 7s &&
   celery -A scanerr beat --scheduler django --loglevel=info
