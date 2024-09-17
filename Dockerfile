@@ -78,7 +78,7 @@ COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3.12 -m pip install -r /requirements.txt
 
 # setting user ownership for migrations
-RUN chown -R app:app ./app
+# RUN chown -R app:app ./app
 
 # setting working dir
 COPY ./app /app
@@ -89,7 +89,7 @@ RUN mkdir -p .mozilla .cache
 
 # setting ownership
 RUN chown -R app:app /app
-RUN chown -R app:app /tmp
+# RUN chown -R app:app /tmp
 
 # cleaning up
 RUN apt-get clean && rm -rf \

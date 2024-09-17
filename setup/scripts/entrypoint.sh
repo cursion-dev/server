@@ -28,7 +28,6 @@ fi
 # spin up celery
 if [[ $1 == *"celery"* ]]
 then
-  node -e 'console.log(`Node RAM space: ${v8.getHeapStatistics().heap_size_limit/(1024*1024)}`)' &&
   python3 manage.py wait_for_db && 
   echo "pausing for migrations to complete..." && sleep 7s &&
   celery -A scanerr worker -E --loglevel=info -O fair

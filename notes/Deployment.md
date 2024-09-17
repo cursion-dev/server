@@ -149,7 +149,7 @@ docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
 ### Get & Set Node Memory:
 Get Current Memory
 ```shell
-node -e 'console.log(v8.getHeapStatistics().heap_size_limit/(1024*1024))'
+node -e 'console.log(`Node RAM space: ${v8.getHeapStatistics().heap_size_limit/(1024*1024)}`)'
 ```
 Set New Memory
 ```shell
