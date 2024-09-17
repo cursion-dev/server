@@ -44,12 +44,14 @@ logger = get_task_logger(__name__)
 
 
 # setting s3 instance
-s3 = boto3.resource('s3', 
-    aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
-    aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
-    region_name=str(settings.AWS_S3_REGION_NAME), 
-    endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
-)
+def s3():
+    s3 = boto3.resource('s3', 
+        aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
+        aws_secret_access_key=str(settings.AWS_SECRET_ACCESS_KEY),
+        region_name=str(settings.AWS_S3_REGION_NAME), 
+        endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
+    )
+    return s3
 
 
 
@@ -991,7 +993,7 @@ def delete_site_s3_bg(site_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/')).delete()
     except:
         pass
@@ -1018,7 +1020,7 @@ def delete_page_s3_bg(page_id: str, site_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/')).delete()
     except:
         pass
@@ -1046,7 +1048,7 @@ def delete_scan_s3_bg(scan_id: str, site_id: str, page_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/{scan_id}/')).delete()
     except:
         pass
@@ -1074,7 +1076,7 @@ def delete_test_s3_bg(test_id: str, site_id: str, page_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site_id}/{page_id}/{test_id}/')).delete()
     except:
         pass
@@ -1100,7 +1102,7 @@ def delete_testcase_s3_bg(testcase_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/testcase/{testcase_id}/')).delete()
     except:
         pass
@@ -1129,7 +1131,7 @@ def delete_report_s3_bg(report_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/sites/{site.id}/{report_id}.pdf')).delete()
     except:
         pass
@@ -1155,7 +1157,7 @@ def delete_case_s3_bg(case_id: str) -> None:
 
     # deleting s3 objects
     try:
-        bucket = s3.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
         bucket.objects.filter(Prefix=str(f'static/cases/{case_id}/')).delete()
     except:
         pass

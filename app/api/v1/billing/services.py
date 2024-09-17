@@ -16,10 +16,6 @@ import stripe
 
 
 
-# init Stripe client
-stripe.api_key = settings.STRIPE_PRIVATE
-
-
 
 
 def stripe_setup(request: object) -> object: 
@@ -48,6 +44,9 @@ def stripe_setup(request: object) -> object:
         'client_secret' : Stripe subscription client_secret,
     }
     """ 
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
     name = request.data.get('name')
@@ -191,6 +190,9 @@ def stripe_complete(request: object) -> object:
     
     Returns -> `Account` HTTP Response object
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
     account = Account.objects.get(user=request.user)
@@ -277,6 +279,9 @@ def calc_price(account: object=None) -> int:
     
     Returns: 'price_amount' <int>
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
     
     # get max_sites
     max_sites = account.max_sites
@@ -328,6 +333,9 @@ def get_stripe_hosted_url(request: object=None) -> object:
         'stripe_url': <str>
     }
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get account
     user = request.user
@@ -398,6 +406,9 @@ def update_account_with_stripe_redirect(request: object=None) -> object:
     
     Returns -> HTTP Response object
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get account
     account = Account.objects.get(user=request.user)
@@ -495,6 +506,9 @@ def get_billing_info(request: object) -> object:
     Returns -> HTTP Response object
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user and account
     user = request.user
     account = Account.objects.get(user=user)
@@ -546,6 +560,9 @@ def account_activation(request: object) -> object:
     Returns -> `Account` HTTP Response object
     """
 
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
     # get user's Account
     account = Account.objects.get(user=request.user)
     
@@ -595,6 +612,9 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
 
     Returns -> `Account` HTTP Response object or Bool `true`
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get user's account
     if request is not None:
@@ -678,6 +698,9 @@ def get_stripe_invoices(request: object) -> object:
         'data': <list> of invoice objects
     }
     """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
 
     # get user's account
     account = Account.objects.get(user=request.user)
