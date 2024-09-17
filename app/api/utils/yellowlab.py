@@ -74,6 +74,8 @@ class Yellowlab():
         # retrieving data from process
         stdout_value = proc.communicate()[0]
 
+        print(stdout_value)
+
         # converting stdout str into Dict
         stdout_json = json.loads(stdout_value)
         return stdout_json
