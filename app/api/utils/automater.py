@@ -129,10 +129,9 @@ class Automater():
                 exp = f'{joiner}any(i{operator}{value} for i in {data_type})'
             elif 'test_status' in expression['data_type']:
                 data_type = 'self.object.status' 
-
             # high-level scan data
             elif 'health' in expression['data_type']:
-                data_type = '((float(self.object.lighthouse["scores"].get("average"]) + float(self.object.yellowlab["scores"].get("globalScore"]))/2)'
+                data_type = '((float(self.object.lighthouse["scores"].get("average",0)) + float(self.object.yellowlab["scores"].get("globalScore",0)))/2)'
             elif 'logs' in expression['data_type']:
                 data_type = 'len(self.object.logs)'
             
