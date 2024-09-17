@@ -4,9 +4,9 @@ services:
   app:
     container_name: scanerr-app
     hostname: scanerr-app
-    restart: always
     platform: linux/amd64
     privileged: true
+    restart: always
     init: true
     build:
       context: .

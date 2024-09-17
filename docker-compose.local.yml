@@ -6,8 +6,8 @@ services:
     hostname: scanerr-app
     platform: linux/amd64
     privileged: true
-    init: true
     restart: always
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
