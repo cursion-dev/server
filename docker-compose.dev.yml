@@ -74,9 +74,9 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
-      - ./app:/scanerr-celery
-    env_file:
       - beat:/app
+    env_file:
+      - ./env/.env.dev
     depends_on:
       - redis
       - celery

@@ -83,7 +83,7 @@ RUN python3.12 -m pip install -r /requirements.txt
 COPY ./app /app
 WORKDIR /app
 
-# setting extra dirs
+# setting browser cache dirs 
 RUN mkdir -p .mozilla .cache
 
 # setting ownership

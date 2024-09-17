@@ -5,7 +5,6 @@ if [[ $1 == *"app"* ]]
   then 
     if [[ $2 == *"local"* ]]
       then
-        # sleep 500s
         python3 manage.py wait_for_db && 
         python3 manage.py migrate --no-input &&
         python3 manage.py create_admin &&
