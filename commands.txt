@@ -1,3 +1,6 @@
+### easy local script ###
+source ./setup/scripts/local.sh
+
 ### spins up container on localhost ###
 docker compose -f docker-compose.local.yml up --build
 

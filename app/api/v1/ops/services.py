@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
@@ -5758,9 +5758,13 @@ def get_site_metrics(request: object) -> object:
     # get last reset day 
     f = '%Y-%m-%d %H:%M:%S.%f'
     last_usage_date_str = account.meta.get('last_usage_reset')
-    last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
-    last_usage_date = datetime.strptime(last_usage_date_str, f)
-    
+    last_usage_date = None
+    if last_usage_date_str:  
+        last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
+        last_usage_date = datetime.strptime(last_usage_date_str, f)
+    else:
+        last_usage_date = datetime.now() - datetime.timedelta(30)
+
     # get scans
     scans = Scan.objects.filter(
         site=site,

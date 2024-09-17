@@ -1517,7 +1517,7 @@ def reset_account_usage(account_id: str=None) -> None:
                     reset_usage(account)
 
             # udpate account.meta.last_usage_reset
-            account.meta['last_usage_reset'] = today.strftime(f)
+            account.meta = {'last_usage_reset': today.strftime(f)}
             account.save()
     
     return None
