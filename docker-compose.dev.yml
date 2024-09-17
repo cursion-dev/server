@@ -17,8 +17,8 @@ services:
     env_file:
       - ./env/.env.dev
     volumes:
-      - ./app:/app:rw
-      - static_volume:/app/static:rw
+      - app:/app
+      - static_volume:/app/static
     depends_on:
       - db
 
@@ -56,7 +56,7 @@ services:
     env_file:
       - ./env/.env.dev
     volumes:
-      - ./app:/scanerr:rw
+      - celery:/app
     depends_on:
       - redis
       - app
@@ -74,9 +74,9 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
-      - ./app:/scanerr:rw
+      - ./app:/scanerr-celery
     env_file:
-      - ./env/.env.dev
+      - beat:/app
     depends_on:
       - redis
       - celery
@@ -135,6 +135,9 @@ services:
 
 
 volumes:
+  app:
+  celery:
+  beat:
   static_volume:
   letsencrypt-acme:
   pgdata:

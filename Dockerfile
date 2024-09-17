@@ -16,6 +16,8 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 ENV PYTHONPATH="$HOME:$PYTHONPATH"
 ENV NODE_OPTIONS="--max-old-space-size=4080"
+ENV DJANGO_ALLOWED_HOSTS="*"
+ENV SECRET_KEY="abcdefghijklmno123456789"
 
 # create the app user
 RUN addgroup --system app && adduser --system app
@@ -88,10 +90,6 @@ RUN mkdir -p .mozilla .cache
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/local/bin/lighthouse
 RUN chown -R app:app /usr/local/bin/yellowlabtools
-
-# django specific temp ENVs 
-ENV DJANGO_ALLOWED_HOSTS="*"
-ENV SECRET_KEY="abcdefghijklmno123456789"
 
 # make migrations file
 RUN python3.12 manage.py makemigrations --no-input
