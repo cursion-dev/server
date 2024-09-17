@@ -95,7 +95,7 @@ RUN chown -R app:app /tmp
 # cleaning up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# setting user
+# setting final user
 USER app
 
 # staring up services
