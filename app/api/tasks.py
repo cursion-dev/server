@@ -1399,7 +1399,7 @@ def create_testcase_bg(*args, **kwargs) -> None:
         for site in sites:
 
             # check and increment resource
-            if check_and_increment_resource(site.account, 'testcase'):
+            if check_and_increment_resource(site.account, 'testcases'):
     
                 # create new testcase
                 _testcase = Testcase.objects.create(
