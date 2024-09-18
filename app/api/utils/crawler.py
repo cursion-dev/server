@@ -129,11 +129,9 @@ class Crawler():
                             continue
                         
                         # clean and decide to record url
-                        print(f'{self.driver.current_url} == {url}')
-                        if self.driver.current_url == url:
+                        if str(self.driver.current_url) == str(url):
                             if url.endswith('/'):
                                 url = url.rstrip('/')
-                                print(f'stripped url -> {url}')
                             if not (url in follow_urls):
                                 follow_urls.append(url)
                                 depth += 1
