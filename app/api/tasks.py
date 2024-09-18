@@ -1483,7 +1483,7 @@ def reset_account_usage(account_id: str=None) -> None:
     for account in accounts:
 
         # check if account is active and not free
-        if account.active and account.type != 'free':
+        if account.active and account.type != 'free' and account.sub_id != None:
                 
             # get stripe sub
             sub = stripe.Subscription.retrieve(
