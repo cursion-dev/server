@@ -125,12 +125,15 @@ class Crawler():
 
                         # skipping url if not responding
                         if not resolved:
+                            print('not resolved')
                             continue
                         
                         # clean and decide to record url
+                        print(f'{self.driver.current_url} == {url}')
                         if self.driver.current_url == url:
                             if url.endswith('/'):
                                 url = url.rstrip('/')
+                                print(f'stripped url -> {url}')
                             if not (url in follow_urls):
                                 follow_urls.append(url)
                                 depth += 1
