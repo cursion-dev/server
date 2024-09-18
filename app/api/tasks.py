@@ -301,6 +301,8 @@ def create_scan(
     Returns -> None
     """
 
+    print(f'page_id for scanning -> {page_id}')
+
     # get scan if scan_id present
     if scan_id is not None:
         created_scan = Scan.objects.get(id=scan_id)
@@ -428,7 +430,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
 
             create_scan.delay(
-                page_id=page.id,
+                page_id=str(page.id),
                 type=type,
                 configs=configs,
                 tags=tags,
@@ -606,6 +608,8 @@ def create_test(
     
     Returns -> None
     """
+
+    print(f'page_id for testing -> {page_id}')
 
     # setting defaults
     created_test = None
@@ -815,7 +819,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
                 # create test
                 create_test.delay(
-                    page_id=page.id,
+                    page_id=str(page.id),
                     type=type,
                     configs=configs,
                     tags=tags,
@@ -829,15 +833,15 @@ def create_test_bg(self, *args, **kwargs) -> None:
     if test_id:
         test = Test.objects.get(id=test_id)
         create_test.delay(
-            test_id=test_id,
-            page_id=test.page.id,
+            test_id=str(test_id),
+            page_id=str(test.page.id),
             type=type,
             configs=configs,
             tags=tags,
             threshold=float(threshold),
             pre_scan=pre_scan,
             post_scan=post_scan,
-            automation_id=automation_id
+            automation_id=str(automation_id)
         )
 
     # update schedule if task_id is not None
