@@ -9,6 +9,3 @@ cd $HOME/documents/coding/scanerr/server &&
     docker compose -f docker-compose.local.yml up --build
 }
 
-
-
-https://stachespaces.com/blog == https://stachespaces.com/blog
