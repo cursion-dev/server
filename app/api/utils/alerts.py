@@ -226,7 +226,7 @@ def create_exp(item: object=None, automation: object=None) -> dict:
                 float(item.yellowlab_delta["scores"]["current_average"])) /2
             )
         elif 'health' in e['data_type']:
-            title = 'Health:'
+            title = 'Health'
             data = str(
                 (float(item.lighthouse["scores"]["average"]) + 
                 float(item.yellowlab["scores"]["globalScore"])) /2
@@ -289,10 +289,10 @@ def create_exp(item: object=None, automation: object=None) -> dict:
             title = 'Images Delta'
             data = str(item.yellowlab_delta["scores"]["images_delta"])
         elif 'domComplexity_delta' in e['data_type']:
-            title = 'DOM Complex. Delta'
+            title = 'DOM Complexity Delta'
             data = str(item.yellowlab_delta["scores"]["domComplexity_delta"])
         elif 'javascriptComplexity_delta' in e['data_type']:
-            title = 'JS Complex. Delta'
+            title = 'JS Complexity Delta'
             data = str(item.yellowlab_delta["scores"]["javascriptComplexity_delta"])
         elif 'badJavascript_delta' in e['data_type']:
             title = 'Bad JS Delta'
@@ -301,7 +301,7 @@ def create_exp(item: object=None, automation: object=None) -> dict:
             title = 'jQuery Delta'
             data = str(item.yellowlab_delta["scores"]["jQuery_delta"])
         elif 'cssComplexity_delta' in e['data_type']:
-            title = 'CSS Complex. Delta'
+            title = 'CSS Complexity Delta'
             data = str(item.yellowlab_delta["scores"]["cssComplexity_delta"])
         elif 'badCSS_delta' in e['data_type']:
             title = 'Bad CSS Delta'
@@ -310,7 +310,7 @@ def create_exp(item: object=None, automation: object=None) -> dict:
             title = 'Fonts Delta'
             data = str(item.yellowlab_delta["scores"]["fonts_delta"])
         elif 'serverConfig_delta' in e['data_type']:
-            title = 'Server Config Delta'
+            title = 'Server Configs Delta'
             data = str(item.yellowlab_delta["scores"]["serverConfig_delta"])
 
         # yellowlab scan data
@@ -324,28 +324,28 @@ def create_exp(item: object=None, automation: object=None) -> dict:
             title = 'Images'
             data = str(item.yellowlab["scores"]["images"])
         elif 'domComplexity' in e['data_type']:
-            title = 'DOM Complex.'
+            title = 'DOM Complexity'
             data = str(item.yellowlab["scores"]["domComplexity"])
         elif 'javascriptComplexity' in e['data_type']:
-            title = 'JS Complex.'
+            title = 'JS Complexity'
             data = str(item.yellowlab["scores"]["javascriptComplexity"])  
         elif 'badJavascript' in e['data_type']:
-            title = 'Bad JS.'
+            title = 'Bad JS'
             data = str(item.yellowlab["scores"]["badJavascript"])
         elif 'jQuery' in e['data_type']:
             title = 'jQuery'
             data = str(item.yellowlab["scores"]["jQuery"])
         elif 'cssComplexity' in e['data_type']:
-            title = 'CSS Complex'
+            title = 'CSS Complexity'
             data = str(item.yellowlab["scores"]["cssComplexity"])
         elif 'badCSS' in e['data_type']:
-            title = 'Bad CSS.'
+            title = 'Bad CSS'
             data = str(item.yellowlab["scores"]["badCSS"])
         elif 'fonts' in e['data_type']:
             title = 'Fonts'
             data = str(item.yellowlab["scores"]["fonts"])
         elif 'serverConfig' in e['data_type']:
-            title = 'Server Config.'
+            title = 'Server Configs'
             data = str(item.yellowlab["scores"]["serverConfig"])
         
         # image data
