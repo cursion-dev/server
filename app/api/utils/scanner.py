@@ -318,7 +318,7 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
             print('\n\n---------------\nScan Complete\nStarting Test...\n---------------\n\n')
             test = Test.objects.get(id=test_id)
             Tester(test=test).run_test()
-            if automation_id:
+            if automation_id is not None and automation_id != 'None':
                 print('running automation from `scanerr.check_scan_completion`')
                 Automater(automation_id, test.id).run_automation()
 
