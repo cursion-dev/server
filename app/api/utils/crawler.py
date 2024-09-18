@@ -75,6 +75,8 @@ class Crawler():
 
         def crawl_url(start_url: str=None, max_depth: int=5):
 
+            print(f'starting crawl on -> {start_url}')
+
             # adding url to list of crawled_urls
             crawled_urls.append(start_url)
             
@@ -111,6 +113,9 @@ class Crawler():
                         
                         # check status of page
                         self.driver.get(url)
+
+                        print(f'looped to this url -> {url}')
+
                         # wait for page to load
                         resolved = driver_wait(
                             driver=self.driver,
@@ -120,10 +125,11 @@ class Crawler():
 
                         # skipping url if not responding
                         if not resolved:
+                            print('not resolved')
                             continue
                         
                         # clean and decide to record url
-                        if self.driver.current_url == url:
+                        if str(self.driver.current_url) == str(url):
                             if url.endswith('/'):
                                 url = url.rstrip('/')
                             if not (url in follow_urls):
