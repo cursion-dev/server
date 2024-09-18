@@ -91,7 +91,7 @@ class Automater():
             operator = ' == '
             joiner = ''
             data_type = 'self.object.passed'
-            value = str(expression['value'])
+            value = f"str({str(expression['value'])})"
 
             # getting data
             if self.object:
