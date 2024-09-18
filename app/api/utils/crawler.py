@@ -75,6 +75,8 @@ class Crawler():
 
         def crawl_url(start_url: str=None, max_depth: int=5):
 
+            print(f'starting crawl on -> {start_url}')
+
             # adding url to list of crawled_urls
             crawled_urls.append(start_url)
             
@@ -111,6 +113,7 @@ class Crawler():
                         
                         # check status of page
                         self.driver.get(url)
+
                         # wait for page to load
                         resolved = driver_wait(
                             driver=self.driver,
