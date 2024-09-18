@@ -114,6 +114,8 @@ class Crawler():
                         # check status of page
                         self.driver.get(url)
 
+                        print(f'looped to this url -> {url}')
+
                         # wait for page to load
                         resolved = driver_wait(
                             driver=self.driver,
