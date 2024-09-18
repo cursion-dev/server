@@ -376,7 +376,8 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                 try:
                     pages.append(
                         Page.objects.get(id=item['id'])
-                    ) 
+                    )
+                    print(f'pages added -> {pages}')
                 except Exception as e:
                     print(e)
             
@@ -386,6 +387,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                     sites.append(
                         Site.objects.get(id=item['id'])
                     ) 
+                    print(f'sites added -> {sites}')
                 except Exception as e:
                     print(e)
     
@@ -400,8 +402,11 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
     # creating scans for each page
     for page in pages:
+        print(f'trying to scan page -> {page.page_url}')
         # check resource 
         if check_and_increment_resource(page.account, 'scans'):
+
+            print(f'allowed to create new Scan')
 
             # updating latest_scan info for page
             page.info['latest_scan']['id'] = 'placeholder'
@@ -411,11 +416,16 @@ def create_scan_bg(self, *args, **kwargs) -> None:
             page.info['latest_scan']['score'] = None
             page.save()
 
+            print('updated page info')
+
             # updating latest_scan info for site
             page.site.info['latest_scan']['id'] = 'placeholder'
             page.site.info['latest_scan']['time_created'] = str(timezone.now())
             page.site.info['latest_scan']['time_completed'] = None
             page.site.save()
+
+            print('updated site info')
+
 
             create_scan.delay(
                 page_id=page.id,
@@ -424,6 +434,8 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                 tags=tags,
                 automation_id=automation_id
             )
+
+            print('init new bg scan')
     
     # update schedule if task_id is not None
     if task_id:
