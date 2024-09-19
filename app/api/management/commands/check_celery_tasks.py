@@ -20,6 +20,7 @@ class Command(BaseCommand):
             active = i.active()[this_pod]
             print(f'Active tasks -> {str(reserved)}')
             tasks = len(active) + len(reserved)
+            return int(tasks)
         
         # get length of active and reserved task lists
         tasks = get_task_list()

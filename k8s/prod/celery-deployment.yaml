@@ -19,7 +19,7 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image:  <IMAGE> # scanerr/server:20d9159 # 
+          image: <IMAGE> # scanerr/server:facff34 # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "celery"]
           envFrom:
@@ -33,10 +33,10 @@ spec:
           resources:
             limits:
               cpu: "1"
-              memory: "4Gi"
+              memory: "5Gi"
             requests:
-              cpu: ".5"
-              memory: "1Gi"
+              cpu: "1"
+              memory: "2Gi"
           lifecycle:
             preStop:
               exec:

@@ -140,7 +140,7 @@ kubectl apply -f ./k8s/prod/beat-deployment.yaml
 #### 4.a  Spin up YLT deploymemt, service, and autoscaler
 ``` shell
 kubectl apply -f ./k8s/prod/ylt-deployment.yaml
-kubectl apply -f ./k8s/prod/ylt-autoscaler.yaml
+kubectl apply -f ./k8s/prod/ylt-autoscaler.yaml # DEPRECIATE
 ```
 
 
