@@ -8,17 +8,25 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        this_pod = f"celery@{str(os.environ.get('THIS_POD_NAME'))}"
+        # get celery worker
+        this_worker = f"celery@{str(os.environ.get('THIS_POD_NAME'))}"
+        
+        # sending initial SIGTERM to celery worker for warm-shutdown
+        celery.app.control.broadcast('shutdown', destination=[this_worker])
 
         def get_task_list():
             # Inspect all nodes.
             i = celery.app.control.inspect()
+            
             # Tasks received, but are still waiting to be executed.
-            reserved = i.reserved()[this_pod]
+            reserved = i.reserved()[this_worker]
             print(f'Reserved tasks -> {str(reserved)}')
+            
             # Active tasks
-            active = i.active()[this_pod]
+            active = i.active()[this_worker]
             print(f'Active tasks -> {str(reserved)}')
+            
+            # Sum all tasks
             tasks = len(active) + len(reserved)
             return int(tasks)
         

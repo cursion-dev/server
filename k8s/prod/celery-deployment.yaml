@@ -14,12 +14,12 @@ spec:
       labels:
         app: celery-deployment
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 300
       imagePullSecrets:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # scanerr/server:facff34 # 
+          image: <IMAGE> # scanerr/server:99e2252 # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "celery"]
           envFrom:
@@ -33,11 +33,11 @@ spec:
           resources:
             limits:
               cpu: "1"
-              memory: "5Gi"
+              memory: "3.5Gi"
             requests:
               cpu: "1"
               memory: "2Gi"
           lifecycle:
             preStop:
               exec:
-                command: ["python3", "manage.py", "check_celery_tasks"]
+                command: ["python3", "manage.py", "terminate_worker"]
