@@ -91,10 +91,10 @@ RUN chown -R app:app /app
 RUN chown -R app:app /usr/local/bin/lighthouse
 RUN chown -R app:app /usr/local/bin/yellowlabtools
 
-# make migrations file
+# writing migrations file
 RUN python3.12 manage.py makemigrations --no-input
 
-# collect static assets
+# collecting static assets
 RUN python3.12 manage.py collectstatic --no-input
 
 # cleaning up

@@ -8,7 +8,10 @@ from .v1.ops.services import (
     delete_case, delete_testcase,
     crawl_site
 )
-from .tasks import reset_account_usage
+from .tasks import (
+    reset_account_usage, 
+    update_scan_score
+)
 
 
 
@@ -50,7 +53,7 @@ class CardAdmin(admin.ModelAdmin):
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_url', 'account', 'time_created')
-    search_fields = ('site_url',)
+    search_fields = ('site_url', 'account')
     actions = ['scan_sites', 'test_sites', 'delete_sites', 'crawl_sites']
 
     def crawl_sites(self, request, queryset):
@@ -87,7 +90,7 @@ class SiteAdmin(admin.ModelAdmin):
 @admin.register(Page)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('page_url', 'account', 'time_created')
-    search_fields = ('page_url',)
+    search_fields = ('page_url', 'account')
     actions = ['scan_pages', 'test_pages', 'delete_pages',]
 
     def scan_pages(self, request, queryset):
@@ -133,13 +136,19 @@ class TestAdmin(admin.ModelAdmin):
 class ScanAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed')
     search_fields = ('page',)
-    actions = ['delete_scans', 'mark_as_completed',]
+    actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ] # NEW!!!
 
     def delete_scans(self, request, queryset):
         for scan in queryset:
             delete_scan(
                 id=scan.id,
                 account=scan.page.account
+            )
+    
+    def add_scan_score(self, request, queryset): # NEW!!!
+        for scan in queryset:
+            update_scan_score.delay(
+                scan_id=scan.id
             )
 
     def mark_as_completed(self, request, queryset):

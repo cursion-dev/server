@@ -500,7 +500,7 @@ def create_site(request: object, delay: bool=False) -> object:
     # create process obj
     process = Process.objects.create(
         site=site,
-        type='case',
+        type='case.generate',
         account=account,
         progress=1
     )
@@ -1903,6 +1903,12 @@ def delete_scan(request: object=None, id: str=None, account: object=None) -> obj
     # remove s3 objects
     delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
 
+    # update page and site
+    update_site_and_page_info.delay(
+        resource='scan',
+        page_id=str(scan.page.id)
+    )
+
     # delete scan
     scan.delete()
 
@@ -1956,6 +1962,10 @@ def delete_many_scans(request: object) -> object:
                 scan = Scan.objects.get(id=id)
                 if scan.site.account == account:
                     delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
+                    update_site_and_page_info.delay(
+                        resource='scan', 
+                        page_id=str(scan.page.id)
+                    )
                     scan.delete()
                 # add to success attempts
                 num_succeeded += 1
@@ -2602,9 +2612,15 @@ def delete_test(request: object=None, id: str=None, account: object=None) -> obj
     # remove s3 objects
     delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
 
+    # update site and page with most recent data
+    update_site_and_page_info.delay(
+        resource='test',
+        page_id=str(test.page.id)
+    )
+
     # delete test
     test.delete()
-
+    
     # return response
     data = {'message': 'Test has been deleted',}
     if request:
@@ -2655,6 +2671,10 @@ def delete_many_tests(request: object) -> object:
                 test = Test.objects.get(id=id)
                 if test.site.account == account:
                     delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
+                    update_site_and_page_info.delay(
+                        resource='test', 
+                        page_id=str(test.page.id)
+                    )
                     test.delete()
                 # add to success attempts
                 num_succeeded += 1
@@ -5091,14 +5111,14 @@ def create_testcase(request: object, delay: bool=False) -> object:
             step['action']['time_created'] = None
             step['action']['time_completed'] = None
             step['action']['exception'] = None
-            step['action']['passed'] = None
+            step['action']['status'] = None
             step['action']['img'] = None
         # expanding assertion
         if step['assertion']['type'] != None:
             step['assertion']['time_created'] = None
             step['assertion']['time_completed'] = None
             step['assertion']['exception'] = None
-            step['assertion']['passed'] = None
+            step['assertion']['status'] = None
 
     # updating values if requested
     if updates != None:
@@ -5763,7 +5783,7 @@ def get_site_metrics(request: object) -> object:
         last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
         last_usage_date = datetime.strptime(last_usage_date_str, f)
     else:
-        last_usage_date = datetime.now() - datetime.timedelta(30)
+        last_usage_date = datetime.now() - timedelta(30)
 
     # get scans
     scans = Scan.objects.filter(

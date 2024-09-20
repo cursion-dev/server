@@ -115,12 +115,51 @@ class Scanner():
         self.scan.time_completed = datetime.now()
         self.scan.save()
 
+        # update Scan.score
+        update_scan_score(self.scan)
+
         # updating Site and Page objects
         update_page_info(self.scan)
         update_site_info(self.scan)
 
         # return updated scan obj
         return self.scan
+
+
+
+
+def update_scan_score(scan: object) -> object:
+    """ 
+    Method to calculate the average health score and update 
+    for the passed scan
+
+    Expects: {
+        'scan': object
+    }
+
+    Returns -> `Scan` <obj>
+    """
+    
+    # setting defaults
+    score = None
+    scores = []
+
+    # get latest scan scores
+    if scan.lighthouse['scores']['average'] is not None:
+        scores.append(scan.lighthouse['scores']['average'])
+    if scan.yellowlab['scores']['globalScore'] is not None:
+        scores.append(scan.yellowlab['scores']['globalScore'])
+    
+    # calc average score
+    if len(scores) > 0:
+        score = sum(scores)/len(scores)
+
+    # save to scan
+    scan.score = score
+    scan.save()
+        
+    # returning scan
+    return scan
 
 
 
@@ -137,7 +176,8 @@ def update_site_info(scan: object) -> object:
     """
     
     # setting defaults
-    score = 0
+    score = None
+    scores = []
     site = scan.site
     pages = Page.objects.filter(site=site)
 
@@ -145,17 +185,13 @@ def update_site_info(scan: object) -> object:
     scans = []
     for page in pages:
         if Scan.objects.filter(page=page).exists():
-            _scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
-            if _scan.lighthouse['scores']['average'] is not None:
-                scans.append(_scan.lighthouse['scores']['average'])
-            if _scan.yellowlab['scores']['globalScore'] is not None:
-                scans.append(_scan.yellowlab['scores']['globalScore'])
+            scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
+            if scan.score:
+                scores.append(scan.score)
     
     # calc average score
-    if len(scans) > 0:
-        score = sum(scans)/len(scans)
-    else:
-        score = None
+    if len(scores) > 0:
+        score = sum(scores)/len(scores)
         
     # saving new info to site
     site.info['latest_scan']['id'] = str(scan.id)
@@ -180,37 +216,18 @@ def update_page_info(scan: object) -> object:
 
     Returns -> `Page` <obj>
     """
-    
-    # setting defaults
-    d = 0
-    score = 0
-    page = scan.page
-
-    # selecting LH & YL scores if present
-    if scan.lighthouse['scores']['average'] is not None:
-        score += float(scan.lighthouse['scores']['average'])
-        d += 1
-    if scan.yellowlab['scores']['globalScore'] is not None:
-        score += float(scan.yellowlab['scores']['globalScore'])
-        d += 1
-    
-    # calc average health score
-    if score != 0:
-        score = score / d
-    else:
-        score = None
 
     # saving new info to page
-    page.info['latest_scan']['id'] = str(scan.id)
-    page.info['latest_scan']['time_created'] = str(scan.time_created)
-    page.info['latest_scan']['time_completed'] = str(scan.time_completed)
-    page.info['latest_scan']['score'] = score
-    page.info['lighthouse'] = scan.lighthouse.get('scores')
-    page.info['yellowlab'] = scan.yellowlab.get('scores')
-    page.save()
+    scan.page.info['latest_scan']['id'] = str(scan.id)
+    scan.page.info['latest_scan']['time_created'] = str(scan.time_created)
+    scan.page.info['latest_scan']['time_completed'] = str(scan.time_completed)
+    scan.page.info['latest_scan']['score'] = scan.score
+    scan.page.info['lighthouse'] = scan.lighthouse.get('scores')
+    scan.page.info['yellowlab'] = scan.yellowlab.get('scores')
+    scan.page.save()
 
     # returning page
-    return page
+    return scan.page
 
 
 
@@ -310,12 +327,13 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
         time_completed = datetime.now()
         scan.time_completed = time_completed
         scan.save()
+        update_scan_score(scan)
         update_page_info(scan)
         update_site_info(scan)
 
         # start Test if test_id present
         if test_id is not None:
-            print('\n\n---------------\nScan Complete\nStarting Test...\n---------------\n\n')
+            print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
             test = Test.objects.get(id=test_id)
             Tester(test=test).run_test()
             if automation_id is not None and automation_id != 'None':

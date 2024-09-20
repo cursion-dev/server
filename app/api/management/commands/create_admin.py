@@ -5,6 +5,12 @@ from ...models import Account
 from ...utils.verify import verify
 import os
 
+
+
+
+
+
+# creates a new Admin user if None exists
 class Command(BaseCommand):
 
     def handle(self, *args, **options):

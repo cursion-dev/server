@@ -83,11 +83,11 @@ class Issuer():
             step_type = 'action'
             for step in self.testcase.steps:
                 step_index += 1
-                if step['action']['passed'] == False:
+                if step['action']['status'] == 'failed':
                     failed_step = step
                     step_type = 'action'
                     break
-                if step['assertion']['passed'] == False:
+                if step['assertion']['status'] == 'failed':
                     failed_step = step
                     step_type = 'assertion'
                     break

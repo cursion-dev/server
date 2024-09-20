@@ -90,14 +90,14 @@ class Automater():
             data_type = None
             operator = ' == '
             joiner = ''
-            data_type = 'self.object.passed'
-            value = f"str({str(expression['value'])})"
+            data_type = 'self.object.status'
+            value = f"str('{str(expression['value'])}')"
 
             # getting data
             if self.object:
                 
                 # get comparison value
-                if self.automation.schedule.task_type != 'testcase' and expression['data_type'] != 'test_status':
+                if expression['data_type'] != 'testcase_status' and expression['data_type'] != 'test_status':
                     value = str(float(re.search(r'\d+', str(expression['value'])).group()))
 
                 # get operator

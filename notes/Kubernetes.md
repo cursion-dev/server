@@ -202,12 +202,12 @@ kubectl apply -f ./k8s/prod/kubeip-daemon.yaml
 # Migration Notes for DB:
 1. Go to `models.py` and comment out all new additions
 2. Spinup staging env locally to create `00001_initial.py` migration as baseline
-   - `docker compose -f docker-compose.stage.yml up -d --build`
+   - `docker compose -f docker-compose.stage.yml up --build`
 3. Spin down staging env
    - `docker compose -f docker-compose.stage.yml down`
 4. Un-comment all new additions in `models.py`
 5. Spinup staging env locally again and ensure a new migration file is created in `/migrations`
-   - `docker compose -f docker-compose.stage.yml up -d --build`
+   - `docker compose -f docker-compose.stage.yml up --build`
 6. Spin down staging env
    - `docker compose -f docker-compose.stage.yml down`
 7. Merge `dev` branch on github using a pull request

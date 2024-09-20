@@ -180,10 +180,45 @@ class Imager():
         # defining browser demesions
         sizes = self.scan.configs.get('window_size', '1920,1080').split(',')
 
-        # getting full_page_height
+        # calculating and suto setting page height
         if self.scan.configs.get('auto_height', True):
-            full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
-            driver.set_window_size(int(sizes[0]), int(full_page_height))
+
+            # get scroll_height, client_height & set window_size
+            scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+            client_height = driver.execute_script("return document.documentElement.clientHeight;")
+
+            # trying to match "document.body.clientHeight" 
+            # and "document.body.scrollHeight"
+            # iterate 3 times or untill height_diff is less than 20
+            i = 0
+            success = False
+            while not success and i < 4:
+
+                # set window_size
+                driver.set_window_size(int(sizes[0]), (int(scroll_height)))
+                
+                # scroll down and up
+                driver.execute_script(f"window.scrollBy(0, {scroll_height});")
+                time.sleep(1)
+                driver.execute_script(f"window.scrollBy(0, -{scroll_height});")
+                
+                # get client & new scroll height
+                client_height = driver.execute_script("return document.documentElement.clientHeight;")
+                new_scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+
+                # get difference between full page height and new scrolled position
+                height_diff = int(new_scroll_height) - int(client_height)
+
+                # re-set window size
+                print(f'adding {height_diff} to full_page_height')
+                scroll_height += height_diff if height_diff > 0 else 0
+
+                # checking difference
+                if height_diff < 20:
+                    success = True
+
+                # increment
+                i += 1
 
 
         if self.scan.configs.get('disable_animations') == True:
@@ -231,8 +266,8 @@ class Imager():
             if self.check_timeout(self.scan.configs.get('timeout', 300), start_time):
                 break
 
-            # scroll single frame
-            if index != 0:
+            # scroll single frame if not first frame and not auto_height
+            if index != 0 and not self.scan.configs.get('auto_height', True):
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
                 time.sleep(int(self.scan.configs.get('min_wait_time', 10)))
 

@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 from celery import Celery
 from celery.signals import worker_shutdown
 from django.conf import settings
-import scanerr, os
+import scanerr, os, time
 
 
 
@@ -38,7 +38,8 @@ def debug_task(self):
 # notify of SIGTERM
 @worker_shutdown.connect
 def on_worker_shutdown(**kwargs):
-    print(f'- WORKER SHUTTING DOWN - \n\n{kwargs}')
+    print(f'- WORKER SHUTTING DOWN - \n{kwargs}')
+
     
 
 
