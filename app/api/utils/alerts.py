@@ -213,11 +213,17 @@ def create_exp(item: object=None, automation: object=None) -> dict:
         if 'test_score' in e['data_type']:
             title = 'Test Score'
             data = str(round(item.score, 2))
-        if 'test_status' in e['data_type']:
+        elif 'test_status' in e['data_type']:
             status = '❌ FAILED'
             if item.status == 'passed':
                 status = '✅ PASSED'
             title = 'Test Status'
+            data = status
+        elif 'testcase_status' in e['data_type']:
+            status = '❌ FAILED'
+            if e['value'] == 'passed':
+                status = '✅ PASSED'
+            title = f'"{item.case.name}"'
             data = status
         elif 'current_health' in e['data_type']:
             title = 'Health'
@@ -360,14 +366,6 @@ def create_exp(item: object=None, automation: object=None) -> dict:
         elif 'logs' in e['data_type']:
             title = 'Error Logs'
             data = str(len(item.logs))
-
-        # testcase data
-        elif 'testcase' in e['data_type']:
-            status = '❌ FAILED'
-            if e['value'] == 'True':
-                status = '✅ PASSED'
-            title = f'"{item.case.name}"'
-            data = status
         
         # create data string
         data_str = f' {title}:   {data}\n'
@@ -580,9 +578,6 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
 
     # check if data is present
     if email and automation_id:
-        
-        # retrieving user
-        user = User.objects.get(email=email)
 
         # get automation 
         automation = Automation.objects.get(id=automation_id)

@@ -81,7 +81,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
         model = Scan
         fields = ['id', 'site', 'page', 'paired_scan', 'time_created',
         'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
-        'images', 'configs', 'tags', 'type',
+        'images', 'configs', 'tags', 'type', 'score',
         ]
 
 
@@ -104,7 +104,7 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'page', 'paired_scan', 'time_created', 'logs', 
-        'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags',
+        'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags', 'score',
         ]
 
 
@@ -219,7 +219,9 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'steps', 'case', 'case_name', 'passed', 'configs', 'account',
+        'steps', 'case', 'case_name', 'configs', 'account',
+        # 'passed', # REMOVE
+        'status', # NEW
         ]
 
 
@@ -235,7 +237,9 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Testcase
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'case', 'case_name', 'passed', 'configs', 'account',
+        'case', 'case_name', 'configs', 'account',
+        # 'passed', # REMOVE
+        'status', # NEW
         ]
 
 

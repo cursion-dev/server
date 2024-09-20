@@ -4,7 +4,7 @@ import time, uuid, json, boto3, os, requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from ..models import * 
-from datetime import datetime
+from datetime import datetime, timezone
 from asgiref.sync import sync_to_async
 from scanerr import settings
 
@@ -97,28 +97,28 @@ class Caser():
 
     def update_testcase(
             self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
-            passed: bool=None, exception: str=None, time_completed: str=None, image: str=None,
+            status: str=None, exception: str=None, time_completed: str=None, image: str=None,
         ) -> None:
         # updates Tescase for a selenium run (async) 
         if start_time != None:
             self.testcase.steps[index][type]['time_created'] = str(start_time)
         if end_time != None:
             self.testcase.steps[index][type]['time_completed'] = str(end_time)
-        if passed != None:
-            self.testcase.steps[index][type]['passed'] = passed
+        if status != None:
+            self.testcase.steps[index][type]['status'] = status
         if exception != None:
             self.testcase.steps[index][type]['exception'] = str(exception)
         if image != None:
             self.testcase.steps[index][type]['image'] = str(image)
         if time_completed != None:
             self.testcase.time_completed = time_completed
-            test_status = True
+            test_status = 'passed'
             for step in self.testcase.steps:
-                if step['action']['passed'] == False:
-                    test_status = False
-                if step['assertion']['passed'] == False:
-                    test_status = False
-            self.testcase.passed = test_status
+                if step['action']['status'] == 'failed':
+                    test_status = 'failed'
+                if step['assertion']['status'] == 'failed':
+                    test_status = 'failed'
+            self.testcase.status = test_status
         
         self.testcase.save()
         return
@@ -397,10 +397,10 @@ class Caser():
 
             if step['action']['type'] == 'navigate':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='action', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
 
                 try:
@@ -419,12 +419,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='action', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -432,10 +432,10 @@ class Caser():
 
             if step['action']['type'] == 'scroll':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='action', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
 
                 try:
@@ -451,12 +451,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='action', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -464,10 +464,10 @@ class Caser():
 
             if step['action']['type'] == 'click':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='action', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
 
                 try:
@@ -496,12 +496,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='action', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -509,10 +509,10 @@ class Caser():
 
             if step['action']['type'] == 'change':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='action', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
                 
                 try:
@@ -542,12 +542,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='action', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -555,10 +555,10 @@ class Caser():
 
             if step['action']['type'] == 'keyDown':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='action', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
                 
                 try:
@@ -597,12 +597,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='action', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -610,10 +610,10 @@ class Caser():
 
             if step['assertion']['type'] == 'match':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='assertion', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
 
                 try:
@@ -650,12 +650,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='assertion', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -663,10 +663,10 @@ class Caser():
 
             if step['assertion']['type'] == 'exists':
                 exception = None
-                passed = True
+                status = 'passed'
                 self.update_testcase(
                     index=i, type='assertion', 
-                    start_time=datetime.now()
+                    start_time=datetime.now(timezone.utc)
                 )
 
                 try:
@@ -692,12 +692,12 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
-                    passed = False
+                    status = 'failed'
 
                 self.update_testcase(
                     index=i, type='assertion', 
-                    end_time=datetime.now(), 
-                    passed=passed, 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
                     exception=exception,
                     image=image
                 )
@@ -705,12 +705,12 @@ class Caser():
             i += 1  
 
         self.update_testcase(
-            time_completed=datetime.now()
+            time_completed=datetime.now(timezone.utc)
         )
         quit_driver(driver=self.driver)
         print('-- testcase run complete --')
         
-        if not self.testcase.passed and self.testcase.configs.get('create_issue'):
+        if self.testcase.status == 'failed' and self.testcase.configs.get('create_issue'):
             print('generating new Issue...')
             Issuer(testcase=self.testcase).build_issue()
         
