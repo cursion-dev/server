@@ -315,14 +315,13 @@ def update_site_and_page_info(
                     page.info['latest_scan']['score'] = latest_scan.score
                     page.info['lighthouse'] = latest_scan.lighthouse.get('scores')
                     page.info['yellowlab'] = latest_scan.yellowlab.get('scores')
-                else:
+                if latest_scan is None and (resource == 'scan' or resource == 'all'):
                     page.info['latest_scan']['id'] = None
                     page.info['latest_scan']['time_created'] = None
                     page.info['latest_scan']['time_completed'] = None
                     page.info['latest_scan']['score'] = None
                     page.info['lighthouse'] = None
                     page.info['yellowlab'] = None
-
 
                 # latest_test info
                 if latest_test:
@@ -331,7 +330,7 @@ def update_site_and_page_info(
                     page.info['latest_test']['time_completed'] = str(latest_test.time_completed)
                     page.info['latest_test']['score'] = (round(latest_test.score * 100) / 100)
                     page.info['latest_test']['status'] = latest_test.status
-                else:
+                if latest_test is None and (resource == 'test' or resource == 'all'):
                     page.info['latest_test']['id'] = None
                     page.info['latest_test']['time_created'] = None
                     page.info['latest_test']['time_completed'] = None
@@ -355,7 +354,7 @@ def update_site_and_page_info(
         site.info['latest_scan']['score'] = latest_scan.score
         site.info['lighthouse'] = latest_scan.lighthouse.get('scores')
         site.info['yellowlab'] = latest_scan.yellowlab.get('scores')
-    else:
+    if latest_scan is None and (resource == 'scan' or resource == 'all'):
         site.info['latest_scan']['id'] = None
         site.info['latest_scan']['time_created'] = None
         site.info['latest_scan']['time_completed'] = None
@@ -365,7 +364,6 @@ def update_site_and_page_info(
 
     # update site with new test info
     if len(tests) > 0:
-        
         # calc site average of latest_test.score
         site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
         print(f'updating site with new test score -> {site_avg_test_score}')
@@ -377,7 +375,7 @@ def update_site_and_page_info(
         site.info['latest_test']['time_completed'] = str(latest_test.time_completed)
         site.info['latest_test']['score'] = site_avg_test_score
         site.info['latest_test']['status'] = latest_test.status
-    else:
+    if latest_test is None and (resource == 'test' or resource == 'all'):
         site.info['latest_test']['id'] = None
         site.info['latest_test']['time_created'] = None
         site.info['latest_test']['time_completed'] = None

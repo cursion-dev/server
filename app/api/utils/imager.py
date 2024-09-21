@@ -198,9 +198,9 @@ class Imager():
                 driver.set_window_size(int(sizes[0]), (int(scroll_height)))
                 
                 # scroll down and up
-                driver.execute_script(f"window.scrollBy(0, {scroll_height});")
+                driver.execute_script(f"window.scrollBy(0, {client_height});")
                 time.sleep(1)
-                driver.execute_script(f"window.scrollBy(0, -{scroll_height});")
+                driver.execute_script(f"window.scrollBy(0, -{client_height});")
                 
                 # get client & new scroll height
                 client_height = driver.execute_script("return document.documentElement.clientHeight;")
