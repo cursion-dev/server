@@ -267,7 +267,7 @@ class Imager():
                 break
 
             # scroll single frame if not first frame and not auto_height
-            if index != 0 and not self.scan.configs.get('auto_height', True):
+            if index != 0:
                 driver.execute_script("window.scrollBy(0, document.documentElement.clientHeight);")
                 time.sleep(int(self.scan.configs.get('min_wait_time', 10)))
 

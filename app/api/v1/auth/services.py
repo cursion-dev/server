@@ -288,7 +288,7 @@ def jwt_login(*, user: object) -> str:
 
     # get JWTs for user
     refresh = RefreshToken.for_user(user)
-    access = str(refresh.access_token)
+    token = str(refresh.access_token)
     refresh = str(refresh)
     
     # create API token if none exists
@@ -307,7 +307,7 @@ def jwt_login(*, user: object) -> str:
 
     # building params for redirect
     param_string = str(
-        '?access='+str(access)+'&refresh='+str(refresh)+
+        '?token='+str(token)+'&refresh='+str(refresh)+
         '&username='+str(user.username)+'&id='+str(user.id)+
         '&email='+str(user.email)+'&is_active='+str(is_active)+
         '&created='+str(user.date_joined)+'&updated='+str(timezone.now())+
