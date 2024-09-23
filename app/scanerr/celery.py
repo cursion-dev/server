@@ -20,11 +20,12 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # celery and beat configs
 app.conf.update(
-    task_acks_late=False,
+    task_acks_late=True,
     worker_prefetch_multiplier=1,
     worker_hijack_root_logger=False,
     task_always_eager=False,
     worker_cancel_long_running_tasks_on_connection_loss=True,
+    worker_max_tasks_per_child=100
 )
 
 # setting tasks to auto-discover
