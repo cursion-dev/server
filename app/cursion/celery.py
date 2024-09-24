@@ -2,18 +2,18 @@ from __future__ import absolute_import, unicode_literals
 from celery import Celery
 from celery.signals import worker_shutdown
 from django.conf import settings
-import scanerr, os, time
+import cursion, os, time
 
 
 
 
 
 
-# setting DJANGO_SETTINGS_MODULE to scanerr.settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'scanerr.settings')
+# setting DJANGO_SETTINGS_MODULE to cursion.settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cursion.settings')
 
 # init celery
-app = Celery('scanerr')
+app = Celery('cursion')
 
 # configure namespace
 app.config_from_object('django.conf:settings', namespace='CELERY')

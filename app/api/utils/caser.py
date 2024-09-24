@@ -6,7 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from ..models import * 
 from datetime import datetime, timezone
 from asgiref.sync import sync_to_async
-from scanerr import settings
+from cursion import settings
 
 
 

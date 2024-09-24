@@ -18,7 +18,7 @@ from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta
-from scanerr import settings
+from cursion import settings
 import asyncio, boto3, time, requests, json, stripe
 
 
@@ -1942,7 +1942,7 @@ def delete_admin_sites(days_to_live: int=1) -> None:
 @shared_task
 def create_prospect(user_email: str=None) -> None:
     """ 
-    Sends an API request to Scanerr Landing which 
+    Sends an API request to Cursion Landing which 
     creates a new `Prospect`
 
     Expects: {
@@ -2003,7 +2003,7 @@ def create_prospect(user_email: str=None) -> None:
 @shared_task
 def create_report_export_bg(report_id: str=None, email: str=None, first_name: str=None) -> None:
     """ 
-    Creates and exports a Scanerr landing report
+    Creates and exports a Cursion landing report
 
     Expects: {
         report_id   : str, 

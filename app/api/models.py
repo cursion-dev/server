@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from datetime import datetime
 from django.contrib.postgres.fields import JSONField
-from scanerr import settings
+from cursion import settings
 import uuid
 
 

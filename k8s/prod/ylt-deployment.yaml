@@ -17,7 +17,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: yellowlab
-        image: scanerr/ylt
+        image: cursion/ylt
         env:
         - name: POD_IP
           valueFrom:

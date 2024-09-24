@@ -7,7 +7,7 @@ from ...models import Account, Card, Site, Issue
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from ..auth.serializers import AccountSerializer
-from scanerr import settings
+from cursion import settings
 import stripe
 
 
@@ -182,7 +182,7 @@ def stripe_setup(request: object) -> object:
 def stripe_complete(request: object) -> object: 
     """ 
     Confirms the Stripe Payment intent after user 
-    enters CC details on Scanerr.client - Also updates 
+    enters CC details on Cursion.client - Also updates 
     `Account` payment method.
 
     Expects: {

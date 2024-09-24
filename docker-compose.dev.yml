@@ -2,8 +2,8 @@ services:
 
 
   app:
-    container_name: scanerr-app
-    hostname: scanerr-app
+    container_name: cursion-app
+    hostname: cursion-app
     platform: linux/amd64
     privileged: true
     restart: always
@@ -24,8 +24,8 @@ services:
 
   
   db:
-    container_name: scanerr-db
-    hostname: scanerr-db
+    container_name: cursion-db
+    hostname: cursion-db
     image: postgres:14-alpine
     ports:
       - "5432"
@@ -36,16 +36,16 @@ services:
 
 
   redis:
-    container_name: scanerr-redis
-    hostname: scanerr-redis
+    container_name: cursion-redis
+    hostname: cursion-redis
     image: redis:alpine
     ports:
       - "6379"
 
 
   celery:
-    container_name: scanerr-celery
-    hostname: scanerr-celery
+    container_name: cursion-celery
+    hostname: cursion-celery
     platform: linux/amd64
     privileged: true
     restart: always
@@ -64,8 +64,8 @@ services:
 
 
   beat:
-    container_name: scanerr-beat
-    hostname: scanerr-beat
+    container_name: cursion-beat
+    hostname: cursion-beat
     platform: linux/amd64
     privileged: true
     restart: always
@@ -89,7 +89,7 @@ services:
     hostname: yellowlab
     privileged: true
     restart: always
-    image: scanerr/ylt
+    image: cursion/ylt
     ports:
       - 8383:8383
     depends_on:

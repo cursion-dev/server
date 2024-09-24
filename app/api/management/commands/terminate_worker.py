@@ -1,4 +1,4 @@
-from scanerr import celery
+from cursion import celery
 from django.core.management.base import BaseCommand
 import time, os
 
@@ -13,7 +13,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         # get worker / pod name
-        default_worker = 'scanerr-celery'
+        default_worker = 'cursion-celery'
         if os.environ.get('THIS_POD_NAME'):
             default_worker = str(os.environ.get('THIS_POD_NAME'))
 
@@ -30,7 +30,7 @@ class Command(BaseCommand):
 def wait_for_tasks_to_complete():
 
     # get worker / pod name
-    default_worker = 'scanerr-celery'
+    default_worker = 'cursion-celery'
     if os.environ.get('THIS_POD_NAME'):
         default_worker = str(os.environ.get('THIS_POD_NAME'))
 

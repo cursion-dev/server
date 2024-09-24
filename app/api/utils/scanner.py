@@ -9,7 +9,7 @@ from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .imager import Imager
 from datetime import datetime
-from scanerr import settings
+from cursion import settings
 import os, asyncio, uuid, boto3
 
 
@@ -337,7 +337,7 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
             test = Test.objects.get(id=test_id)
             Tester(test=test).run_test()
             if automation_id is not None and automation_id != 'None':
-                print('running automation from `scanerr.check_scan_completion`')
+                print('running automation from `cursion.check_scan_completion`')
                 Automater(automation_id, test.id).run_automation()
 
     # returning scan

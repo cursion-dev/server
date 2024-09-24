@@ -17,8 +17,8 @@ spec:
       imagePullSecrets:
         - name: regcred
       containers:
-        - name: scanerr-server
-          image:  <IMAGE> # scanerr/server:49709ea #
+        - name: cursion-server
+          image:  <IMAGE> # cursion/server:49709ea #
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

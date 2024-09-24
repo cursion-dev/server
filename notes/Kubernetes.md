@@ -105,8 +105,8 @@ kubectl create secret docker-registry regcred --docker-server=https://index.dock
 
 ### 1. Build Dockerfile into image
 ``` shell
-docker build . -t scanerr/server:latest
-docker image push scanerr/server:latest
+docker build . -t cursion/server:latest
+docker image push cursion/server:latest
 ```
 
 
@@ -121,11 +121,11 @@ kubectl apply -f ./k8s/prod/app-loadbalancer.yaml
 ### 3. Update ingress-nginx-controler "Service file" with domain - if not already updated.
 - add the below annotation 
 ``` shell
-service.beta.kubernetes.io/do-loadbalancer-hostname: "api.scanerr.io"
+service.beta.kubernetes.io/do-loadbalancer-hostname: "api.cursion.dev"
 ```
 
 
-### 4. Spin up Scanerr deployments and services
+### 4. Spin up Cursion deployments and services
 ``` shell
 kubectl apply -f ./k8s/prod/app-configs.yaml
 kubectl apply -f ./k8s/prod/redis-deployment.yaml

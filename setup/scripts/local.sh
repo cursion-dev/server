@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ensure you create $SCANERR_ROOT first:
-#  echo 'export SCANERR_ROOT=<your/path/to/scanerr/root>' >> ~/.zshrc   (or ~/.bash_profile)
+# ensure you create $CURSION_ROOT first:
+#  echo 'export CURSION_ROOT=<your/path/to/cursion/>' >> ~/.zshrc   (or ~/.bash_profile)
 
-cd $SCANERR_ROOT/server &&
+cd $CURSION_ROOT/server &&
 {   
     docker compose -f docker-compose.local.yml down &&
     docker volume rm server_app server_beat server_celery &&

@@ -20,7 +20,7 @@ from ..ops.services import record_api_call
 from .serializers import *
 from ...utils.alerts import send_reset_link
 from ...tasks import send_invite_link_bg, send_remove_alert_bg
-from scanerr import settings
+from cursion import settings
 import requests, os, subprocess, secrets
 
 
@@ -277,7 +277,7 @@ def jwt_login(*, user: object) -> str:
     """
     Gets JWTs for passed "user" and builds a 
     redirect url for returning user params back to 
-    Scanerr.client
+    Cursion.client
     
     Expect: {
         'user': object

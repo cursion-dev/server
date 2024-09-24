@@ -1,5 +1,5 @@
 # from pyppeteer import launch
-# from scanerr import settings
+# from cursion import settings
 # import time, os, sys, datetime
 
 

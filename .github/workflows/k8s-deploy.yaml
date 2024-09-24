@@ -2,7 +2,7 @@
 # deploy the application on a DigitalOcean Kubernetes cluster. For description to the entire worklow, 
 # see www.digitalocean.com/docs/kubernetes/how-to/deploy-using-github-actions.
 
-name: Deploy to scanerr-k8s
+name: Deploy to cursion-k8s
 
 # Controls when the action will run.
 on:

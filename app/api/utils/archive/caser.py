@@ -8,7 +8,7 @@
 # from ..models import * 
 # from datetime import datetime
 # from asgiref.sync import sync_to_async
-# from scanerr import settings
+# from cursion import settings
 
 
 
