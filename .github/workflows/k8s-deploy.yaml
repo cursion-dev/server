@@ -1,76 +1,76 @@
-# This workfow shows how to build a Docker image, tag and push it to Docker Hub Container Registry, and
-# deploy the application on a DigitalOcean Kubernetes cluster. For description to the entire worklow, 
-# see www.digitalocean.com/docs/kubernetes/how-to/deploy-using-github-actions.
+# # This workfow shows how to build a Docker image, tag and push it to Docker Hub Container Registry, and
+# # deploy the application on a DigitalOcean Kubernetes cluster. For description to the entire worklow, 
+# # see www.digitalocean.com/docs/kubernetes/how-to/deploy-using-github-actions.
 
-name: Deploy to cursion-k8s
+# name: Deploy to cursion-k8s
 
-# Controls when the action will run.
-on:
-  # Triggers the workflow on push request on the main branch for changes in the specified paths.
-  push:
-    branches:
-      - main
-    paths:
-      - 'app/**'
-      - 'k8s/prod/**'
-      - 'Dockerfile'
-      - '.github/workflows/**'
+# # Controls when the action will run.
+# on:
+#   # Triggers the workflow on push request on the main branch for changes in the specified paths.
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - 'app/**'
+#       - 'k8s/prod/**'
+#       - 'Dockerfile'
+#       - '.github/workflows/**'
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
-jobs:
-  # This workflow contains a single job called "build".
-  build:
-    # The type of runner that the job will run on.
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+# # A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+# jobs:
+#   # This workflow contains a single job called "build".
+#   build:
+#     # The type of runner that the job will run on.
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 30
     
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
+#     # Steps represent a sequence of tasks that will be executed as part of the job
+#     steps:
 
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it.
-    - name: Checkout main
-      uses: actions/checkout@main
+#     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it.
+#     - name: Checkout main
+#       uses: actions/checkout@main
 
-    # Install doctl.
-    - name: Install doctl
-      uses: digitalocean/action-doctl@v2
-      with:
-        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+#     # Install doctl.
+#     - name: Install doctl
+#       uses: digitalocean/action-doctl@v2
+#       with:
+#         token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
     
-    # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
-    - name: Build container image
-      run: docker build -t ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7) .
+#     # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
+#     - name: Build container image
+#       run: docker build -t ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7) .
 
-    - name: Log in to Docker Hub Container Registry with short-lived credentialse
-      run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
+#     - name: Log in to Docker Hub Container Registry with short-lived credentialse
+#       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
 
-    - name: Push image to Docker Hub Container Registry
-      run: docker image push ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7)
+#     - name: Push image to Docker Hub Container Registry
+#       run: docker image push ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7)
 
-    # Update deployment files to reflect new build.
-    - name: Update app deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
+#     # Update deployment files to reflect new build.
+#     - name: Update app deployment file
+#       run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
     
-    - name: Update celery deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
+#     - name: Update celery deployment file
+#       run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
 
-    - name: Update beat deployment file
-      run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/beat-deployment.yaml
+#     - name: Update beat deployment file
+#       run: TAG=$(echo $GITHUB_SHA | head -c7) && sed -i 's|<IMAGE>|${{ secrets.REGISTRY_NAME }}/server:'${TAG}'|' $GITHUB_WORKSPACE/k8s/prod/beat-deployment.yaml
 
-    - name: Save DigitalOcean kubeconfig with short-lived credentials
-      run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 ${{ secrets.CLUSTER_NAME }}
+#     - name: Save DigitalOcean kubeconfig with short-lived credentials
+#       run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 ${{ secrets.CLUSTER_NAME }}
     
-    # Re-deploy app, celery and beat
-    - name: Deploy app
-      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
-    - name: Deploy celery 
-      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
-    - name: Deploy beat 
-      run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/beat-deployment.yaml
+#     # Re-deploy app, celery and beat
+#     - name: Deploy app
+#       run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/app-deployment.yaml
+#     - name: Deploy celery 
+#       run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/celery-deployment.yaml
+#     - name: Deploy beat 
+#       run: kubectl apply -f $GITHUB_WORKSPACE/k8s/prod/beat-deployment.yaml
 
-    - name: Verify app
-      run: kubectl rollout status deployment/app-deployment
-    - name: Verify celery
-      run: kubectl rollout status deployment/celery-deployment
-    - name: Verify beat
-      run: kubectl rollout status deployment/beat-deployment
+#     - name: Verify app
+#       run: kubectl rollout status deployment/app-deployment
+#     - name: Verify celery
+#       run: kubectl rollout status deployment/celery-deployment
+#     - name: Verify beat
+#       run: kubectl rollout status deployment/beat-deployment
