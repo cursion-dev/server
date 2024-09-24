@@ -89,7 +89,7 @@ services:
     hostname: yellowlab
     privileged: true
     restart: always
-    image: cursion/ylt
+    image: cursiondev/ylt
     ports:
       - 8383:8383
     depends_on:
