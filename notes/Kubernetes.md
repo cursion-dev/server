@@ -97,6 +97,14 @@ kubectl port-forward service/app-service 8000:8000
 
 > Ensure you are in the `/server` root directory 
 
+
+
+### 0. Create K8s cluster and Configure context
+``` shell
+doctl kubernetes cluster kubeconfig save {{cluster-name}}
+```
+
+
 ### 1. Create docker secrets  
 ``` shell
 kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username='<username>' --docker-password='<password>' --docker-email='<email>'
@@ -105,8 +113,8 @@ kubectl create secret docker-registry regcred --docker-server=https://index.dock
 
 ### 1. Build Dockerfile into image
 ``` shell
-docker build . -t cursion/server:latest
-docker image push cursion/server:latest
+docker build . -t cursiondev/server:latest --platform linux/amd64
+docker image push cursiondev/server:latest
 ```
 
 
