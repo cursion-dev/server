@@ -5126,7 +5126,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
             steps[int(update['index'])]['action']['value'] = update['value']
 
     # increment account.usage.testcase
-    account.usage['testcase'] += 1
+    account.usage['testcases'] += 1
     account.save()
 
     # create new tescase 
