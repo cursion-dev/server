@@ -412,7 +412,7 @@ def check_resource(account: object, resource: str) -> bool:
         'resource' : <str> 'scan', 'test', or 'testcase
     }
 
-    Returns: Bool, True if resource was incremented.
+    Returns: Bool, True if resource can be added.
     """
 
     # define defaults
