@@ -2,7 +2,7 @@
 FROM python:3.12-slim
 
 # adding labels
-LABEL Author="Scanerr" Support="hello@scanerr.io"
+LABEL Author="Cursion" Support="hello@cursion.dev"
 
 # setting ENVs and Configs
 ENV HOME=/app

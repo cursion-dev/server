@@ -1,5 +1,6 @@
-# Scanerr Deployment (single Server)
-- [Scanerr Deployment (single Server)](#scanerr-deployment-single-server)
+# Cursion Deployment (single Server)
+
+- [Cursion Deployment (single Server)](#cursion-deployment-single-server)
   - [Environment](#environment)
   - [Local](#local)
   - [Remote](#remote)
@@ -43,7 +44,7 @@ $ pip3 install virtualenv
 $ virtualenv appenv
 $ source appenv/bin/activate
 $ mkdir app
-$ git clone https://github.com/Scanerr-io/server.git
+$ git clone https://github.com/Cursion/server.git
 ```
 *Spin-up the application*
 ```shell
@@ -106,7 +107,7 @@ $ {your_ssh_key.pub} >> ~/.ssh/authorized_keys
 $ cd ~
 $ mkdir app
 $ cd app
-$ git clone git@github.com:Scanerr-io/server.git
+$ git clone git@github.com:Cursion/server.git
 ```
 *Spin-up the application*
 ```shell
@@ -142,7 +143,7 @@ $ docker exec -it <container:id> /bin/sh
 sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker;
 service docker start &&
 sleep 10 &&
-docker run -d --privileged --restart unless-stopped -p 8383:8383 scanerr/ylt &&
+docker run -d --privileged --restart unless-stopped -p 8383:8383 cursion/ylt &&
 ```
 
 

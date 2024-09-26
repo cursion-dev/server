@@ -13,5 +13,5 @@ spec:
     - type: metrics-api
       metadata:
         targetValue: "10"
-        url: "https://api.scanerr.io/v1/ops/metrics/celery"
+        url: "https://api.cursion.dev/v1/ops/metrics/celery"
         valueLocation: "working_len"

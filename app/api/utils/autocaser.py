@@ -1,7 +1,7 @@
 from .driver import driver_init, driver_wait, quit_driver
 from selenium.webdriver.common.by import By
 from ..models import Site, Case
-from scanerr import settings
+from cursion import settings
 import time, os, json, uuid, random, boto3
 
 

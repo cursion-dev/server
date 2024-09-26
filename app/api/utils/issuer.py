@@ -1,5 +1,5 @@
 from ..models import *
-from scanerr import settings
+from cursion import settings
 from openai import OpenAI
 import time, os, json, uuid, random, boto3
 
@@ -171,7 +171,7 @@ class Issuer():
             )
         
         # clean recommendation
-        recommendation = recommendation.replace('localhost', 'app.scanerr.io')
+        recommendation = recommendation.replace('localhost', 'app.cursion.dev')
 
         # build details from components
         details = intro + main_issue + recommendation

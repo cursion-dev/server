@@ -97,6 +97,14 @@ kubectl port-forward service/app-service 8000:8000
 
 > Ensure you are in the `/server` root directory 
 
+
+
+### 0. Create K8s cluster and Configure context
+``` shell
+doctl kubernetes cluster kubeconfig save {{cluster-name}}
+```
+
+
 ### 1. Create docker secrets  
 ``` shell
 kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username='<username>' --docker-password='<password>' --docker-email='<email>'
@@ -105,8 +113,8 @@ kubectl create secret docker-registry regcred --docker-server=https://index.dock
 
 ### 1. Build Dockerfile into image
 ``` shell
-docker build . -t scanerr/server:latest
-docker image push scanerr/server:latest
+docker build . -t cursiondev/server:latest --platform linux/amd64
+docker image push cursiondev/server:latest
 ```
 
 
@@ -121,11 +129,11 @@ kubectl apply -f ./k8s/prod/app-loadbalancer.yaml
 ### 3. Update ingress-nginx-controler "Service file" with domain - if not already updated.
 - add the below annotation 
 ``` shell
-service.beta.kubernetes.io/do-loadbalancer-hostname: "api.scanerr.io"
+service.beta.kubernetes.io/do-loadbalancer-hostname: "api.cursion.dev"
 ```
 
 
-### 4. Spin up Scanerr deployments and services
+### 4. Spin up Cursion deployments and services
 ``` shell
 kubectl apply -f ./k8s/prod/app-configs.yaml
 kubectl apply -f ./k8s/prod/redis-deployment.yaml

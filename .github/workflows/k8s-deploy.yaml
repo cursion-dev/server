@@ -2,7 +2,7 @@
 # deploy the application on a DigitalOcean Kubernetes cluster. For description to the entire worklow, 
 # see www.digitalocean.com/docs/kubernetes/how-to/deploy-using-github-actions.
 
-name: Deploy to scanerr-k8s
+name: Deploy to cursion-k8s
 
 # Controls when the action will run.
 on:
@@ -39,13 +39,13 @@ jobs:
     
     # Build a Docker image of your application in your registry and tag the image with the $GITHUB_SHA.
     - name: Build container image
-      run: docker build -t ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7) .
+      run: docker build -t ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7) -t ${{ secrets.REGISTRY_NAME }}/server:latest .
 
     - name: Log in to Docker Hub Container Registry with short-lived credentialse
       run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASS }}
 
     - name: Push image to Docker Hub Container Registry
-      run: docker image push ${{ secrets.REGISTRY_NAME }}/server:$(echo $GITHUB_SHA | head -c7)
+      run: docker image push ${{ secrets.REGISTRY_NAME }}/server --all-tags
 
     # Update deployment files to reflect new build.
     - name: Update app deployment file

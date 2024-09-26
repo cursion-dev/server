@@ -1,6 +1,6 @@
 import subprocess, json, uuid, boto3, os, requests
 from ..models import Site, Scan
-from scanerr import settings
+from cursion import settings
 
 
 
@@ -134,7 +134,7 @@ class Lighthouse():
     def process_data(self, stdout_json: dict) -> dict:
         """ 
         Accepts JSON data from either CLI or API method 
-        and parses into usable Scanerr data.
+        and parses into usable Cursion data.
 
         Expects the following:
             stdout_json: <dict> or json from output

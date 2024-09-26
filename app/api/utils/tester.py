@@ -1,7 +1,7 @@
 from ..models import *
 from datetime import datetime
 from .imager import Imager
-from scanerr import settings
+from cursion import settings
 from difflib import SequenceMatcher
 from .issuer import Issuer
 import os, json, random, \

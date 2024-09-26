@@ -9,7 +9,7 @@ from django.shortcuts import redirect
 from django.contrib.auth.models import User
 from datetime import timedelta, datetime
 from ...models import Account, Member
-from scanerr import settings
+from cursion import settings
 from .services import *
 import os, stripe, json
 

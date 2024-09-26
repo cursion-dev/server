@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # scanerr/server:99e2252 # 
+          image: <IMAGE> # cursiondev/server:latest # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "celery"]
           envFrom:

@@ -10,10 +10,10 @@ spec:
   ## ensure below section is comented out on first creation ##
   # tls:
   #   - hosts:
-  #     - api.scanerr.io
+  #     - api.cursion.dev
   #     secretName: letsencrypt-nginx
   rules:
-  - host: api.scanerr.io
+  - host: api.cursion.dev
     http:
       paths:
       - backend:

@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework import status
 from .services import *
-from scanerr import settings 
+from cursion import settings 
 
 
 

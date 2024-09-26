@@ -16,7 +16,7 @@ spec:
         - name: regcred
       containers:
         - name: app
-          image: scanerr/server:latest
+          image: cursion/server:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

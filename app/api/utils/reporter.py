@@ -1,5 +1,5 @@
 from ..models import *
-from scanerr import settings
+from cursion import settings
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor

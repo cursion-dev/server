@@ -10,7 +10,7 @@ def verify():
     email = os.environ.get('ADMIN_EMAIL')
     password = os.environ.get('ADMIN_PASS')
     cred = os.environ.get('CRED')
-    url = 'https://scanerr.io/api/verify'
+    url = 'https://cursion.dev/api/verify'
 
     headers = {
         "Content-Type": "application/json",

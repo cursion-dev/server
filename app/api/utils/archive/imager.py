@@ -2,7 +2,7 @@
 # from .driver_p import driver_init as driver_init_p, wait_for_page
 # from ..models import Site, Scan, Test, Mask
 # from skimage.metrics import structural_similarity
-# from scanerr import settings
+# from cursion import settings
 # from PIL import Image as I, ImageChops, ImageStat
 # from datetime import datetime
 # from asgiref.sync import sync_to_async
@@ -318,7 +318,7 @@
 #             _page = self.scan.page
 #             return _page
         
-#         # getting Scanerr `page` object
+#         # getting Cursion `page` object
 #         _page = await get_page()
 
 #         # starting up puppeteer driver

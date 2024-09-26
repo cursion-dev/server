@@ -19,7 +19,7 @@ spec:
         - name: regcred
       containers:
         - name: beat
-          image: <IMAGE> # scanerr/server:49709ea # 
+          image: <IMAGE> # cursiondev/server:latest # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "beat"]
           envFrom:

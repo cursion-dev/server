@@ -5,9 +5,9 @@ from django.db.models import Q
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
-from scanerr import celery
+from cursion import celery
 from redis import Redis
-from scanerr import settings
+from cursion import settings
 from celery import app
 from .serializers import *
 from ...tasks import *
@@ -4447,7 +4447,7 @@ def delete_report(request: object, id: str) -> object:
 
 def export_report(request: object) -> object:
     """
-    Used to create and send a Scanerr.landing 
+    Used to create and send a Cursion.landing 
     `Report` to the passed "email"  
 
     Expects: {
@@ -5125,6 +5125,10 @@ def create_testcase(request: object, delay: bool=False) -> object:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
 
+    # increment account.usage.testcase
+    account.usage['testcase'] += 1
+    account.save()
+
     # create new tescase 
     testcase = Testcase.objects.create(
         case = case,
@@ -5704,7 +5708,7 @@ def search_resources(request: object) -> object:
 def get_home_metrics(request: object) -> object:
     """ 
     Builds metrics for account "Home" view 
-    on Scanerr.client
+    on Cursion.client
 
     Expects: {
         'request' : object
@@ -5758,7 +5762,7 @@ def get_home_metrics(request: object) -> object:
 def get_site_metrics(request: object) -> object:
     """ 
     Builds metrics for account "Site" view 
-    on Scanerr.client
+    on Cursion.client
 
     Expects: {
         'request' : object

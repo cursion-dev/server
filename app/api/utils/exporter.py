@@ -1,7 +1,7 @@
 from .driver import driver_init, driver_wait, quit_driver
 from PIL import Image as I
 from .alerts import sendgrid_email
-from scanerr import settings
+from cursion import settings
 import time, boto3, os
 
 
@@ -21,7 +21,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     
     Returns -> data {
         'success' : bool if process started successfully
-        'error'   : str any error msg from Scanerr server
+        'error'   : str any error msg from cursion server
     }
     """
 
@@ -84,16 +84,16 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     os.remove(pdf)
     
     # setting up email to prospect
-    pre_content = 'The Scanerr performance report you requested has finished processing. \
+    pre_content = 'The Cursion performance report you requested has finished processing. \
          Now, just click the link below to view and download the PDF.'
-    content = 'If you have any questions about the report or want deeper insights, feel free to book a short call with me here -> https://scanerr.io/booking'
-    subject = f'{first_name}, your Scanerr Report is Ready'
-    title = f'{first_name}, your Scanerr Report is Ready'
-    pre_header = f'{first_name}, your Scanerr Report is Ready'
+    content = 'If you have any questions about the report or want deeper insights, feel free to book a short call with me here -> https://cursion.dev/booking'
+    subject = f'{first_name}, your Cursion Report is Ready'
+    title = f'{first_name}, your Cursion Report is Ready'
+    pre_header = f'{first_name}, your Cursion Report is Ready'
     button_text = 'View Your Report'
     email = email
     object_url = report_url
-    signature = f'- Landon R | CEO <a href="https://scanerr.io">@Scanerr</a>'
+    signature = f'- Landon R | CEO <a href="https://cursion.dev">@Cursion</a>'
     greeting = f'Hi {first_name},'
 
     message_obj = {

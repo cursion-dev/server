@@ -2,8 +2,8 @@ services:
   
 
   app:
-    container_name: scanerr-app
-    hostname: scanerr-app
+    container_name: cursion-app
+    hostname: cursion-app
     platform: linux/amd64
     privileged: true
     init: true

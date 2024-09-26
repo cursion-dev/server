@@ -7,7 +7,7 @@ from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, From, To
-from scanerr import settings
+from cursion import settings
 import os, json, requests, uuid
 
 
@@ -92,10 +92,10 @@ def send_invite_link(member: object=None) -> dict:
 
         # build email data
         link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={member.account.id}&code={member.account.code}&member={member.id}&email={member.email}'
-        subject = 'Scanerr Invite'
-        title = 'Scanerr Invite'
-        pre_header = 'Scanerr Invite'
-        pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Scanerr. Now just click the link below to accept the invite!'
+        subject = 'Cursion Invite'
+        title = 'Cursion Invite'
+        pre_header = 'Cursion Invite'
+        pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Cursion. Now just click the link below to accept the invite!'
         greeting = 'Hi there,'
 
         context = {
@@ -150,7 +150,7 @@ def send_remove_alert(member: object=None) -> dict:
         subject = 'Removed From Account'
         title = 'Removed From Account'
         pre_header = 'Removed From Account'
-        pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Scanerr. Please let us know if there\'s been a mistake.'
+        pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Cursion. Please let us know if there\'s been a mistake.'
         greeting = 'Hi there,'
 
         context = {
@@ -612,7 +612,7 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
         title = f'Alert for {url}'
         pre_header = f'Alert for {url}'
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {url}. ' 
+            f'Cursion just finished running a {item_type} for {url}. ' 
             f'Below are the current stats:'
         )
         content = (
@@ -692,12 +692,12 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
         title = f'Report for {url}'
         pre_header = f'Report for {url}'
         pre_content = (
-            f'Scanerr just finished creating a ' 
+            f'Cursion just finished creating a ' 
             f'<a href="{settings.CLIENT_URL_ROOT}/page/{str(report.page.id)}/report">Report</a> for {url}. '
             f'Please click the link below to access and download the PDF.'
         )
         content = (
-            f'\nThis message was triggered by an automation created with Scanerr. ' 
+            f'\nThis message was triggered by an automation created with Cursion. ' 
             f'You can change the automation and schedule in your ' 
             f'<a href="{settings.CLIENT_URL_ROOT}/page/{str(report.page.id)}">dashboard</a>.'
         )
@@ -850,7 +850,7 @@ def automation_phone(phone_number: str=None, automation_id: str=None, object_id:
         # build message data
         object_url = f'{settings.CLIENT_URL_ROOT}/{item_type.lower()}/{item.id}'
         pre_content = (
-            f'Scanerr just finished running a {item_type} for {url}. ' 
+            f'Cursion just finished running a {item_type} for {url}. ' 
             f'Below are the current stats:\n\n{exp_str}\n'
             f'View {item_type}: {object_url}\n\n'
         )
@@ -929,7 +929,7 @@ def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
         # build message data
         object_url = f'{settings.CLIENT_URL_ROOT}/{item_type}/{item.id}'
         pre_content = (
-            f'Scanerr just finished running a `{item_type}` for {url}. ' 
+            f'Cursion just finished running a `{item_type}` for {url}. ' 
             f'Below are the current stats:\n\n```{exp_str}```\n'
             f'<{object_url}|*View {item_type}*>\n\n'
         )
@@ -1038,7 +1038,7 @@ def sendgrid_email(message_obj: dict=None) -> dict:
 
     # init SendGrid message
     message = Mail(
-        from_email=From('hello@scanerr.io', 'Scanerr'),  # prod -> settings.EMAIL_HOST_USER
+        from_email=From('hello@cursion.dev', 'Cursion'),  # prod -> settings.EMAIL_HOST_USER
         to_emails=email,  
     )
     

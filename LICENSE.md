@@ -1,10 +1,10 @@
-Copyright (c) 2024 Scanerr
+Copyright (c) 2024 Cursion
 
 
-Scanerr Commercial Software License Terms
+Cursion Commercial Software License Terms
 
 1.	Order. These terms, together with the order referencing them, make up a software license agreement. The software, the developer, and the customer are all identified on the order.
-(i)  Software: Scanerr 
+(i)  Software: Cursion 
 (ii) Developer: Grey Labs, LLC (https://greylabs.io)
 2.	Versions. This agreement covers the specific version of the software on the order, plus any new versions of the software that the vendor makes generally available, or specifically provides to the customer, while this agreement continues.
 3.	Modifications. The customer may make changes to the software’s source code, compile those changes, and run changed versions of the software.

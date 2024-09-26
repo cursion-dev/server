@@ -1,7 +1,7 @@
 from .driver import driver_init, driver_wait, quit_driver
 from ..models import Site, Scan, Test, Mask
 from skimage.metrics import structural_similarity
-from scanerr import settings
+from cursion import settings
 from PIL import Image as I, ImageChops, ImageStat
 from datetime import datetime
 from asgiref.sync import sync_to_async
