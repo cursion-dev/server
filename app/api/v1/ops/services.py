@@ -5322,7 +5322,7 @@ def get_testcases_zapier(request: object) -> object:
     """
 
     # get request data
-    passed = request.query_params.get('passed')
+    _status = request.query_params.get('status')
     account = Member.objects.get(user=request.user).account
     testcases = None
     
@@ -5346,9 +5346,9 @@ def get_testcases_zapier(request: object) -> object:
             time_completed=None,
         ).order_by('-time_created')
 
-    # filter by passed if requested
-    if passed is not None:
-        testcases = testcases.filter(passed=passed)
+    # filter by _status if requested
+    if _status is not None:
+        testcases = testcases.filter(status=_status)
 
     # build response data
     data = []

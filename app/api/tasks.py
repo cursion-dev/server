@@ -1694,7 +1694,13 @@ def reset_account_usage(account_id: str=None) -> None:
             # begining of sub payment peroid
             # OR if a specific account was requested
             if today == sub_date or account_id is not None:
+
+                # reset usage
                 reset_usage(account)
+
+                # update account.meta.last_usage_reset
+                account.meta = {'last_usage_reset': today.strftime(f)}
+                account.save()
 
         # check if accout is free
         if account.type == 'free':
@@ -1713,12 +1719,14 @@ def reset_account_usage(account_id: str=None) -> None:
 
                 # check if over 30 days
                 if abs((today - last_usage_date).days) >= 30:
+                    
+                    # reset usage
                     reset_usage(account)
 
-            # udpate account.meta.last_usage_reset
-            account.meta = {'last_usage_reset': today.strftime(f)}
-            account.save()
-    
+                    # update account.meta.last_usage_reset
+                    account.meta = {'last_usage_reset': today.strftime(f)}
+                    account.save()
+            
     return None
 
 
