@@ -5362,7 +5362,7 @@ def get_testcases_zapier(request: object) -> object:
             'time_created'    :  str(testcase.time_created),
             'time_completed'  :  str(testcase.time_completed),
             'configs'         :  testcase.configs,
-            'passed'          :  str(testcase.passed),
+            'status'          :  str(testcase.status),
         })
 
     # serialize and return
