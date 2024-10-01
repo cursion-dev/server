@@ -2173,7 +2173,7 @@ def update_links() -> None:
             text = text.replace('scanerr', 'cursion')
         return text
 
-    for issue in Issues.objects.all():
+    for issue in Issue.objects.all():
         
         # update title
         title = update_strings(issue.title)
