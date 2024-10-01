@@ -1,6 +1,6 @@
 # Cursion Server (API repo)
 
-![Build Status](https://github.com/cursion/server/actions/workflows/k8s-deploy.yaml/badge.svg)
+![Build Status](https://github.com/cursion-dev/server/actions/workflows/k8s-deploy.yaml/badge.svg)
 
 This is the server repo for the Cursion API, an error detection service designed to run front-end tests on web applications. This service is fully dockertized for local dev/testing as well as deployed environments. 
 
