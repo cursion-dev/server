@@ -2175,21 +2175,9 @@ def update_links() -> None:
 
     for issue in Issue.objects.all():
         
-        # update title
-        title = update_strings(issue.title)
-        issue.title = title
-        
-        # update trigger
-        trigger = update_strings(issue.trigger)
-        issue.trigger = trigger
-
         # update details
         details = update_strings(issue.details)
         issue.details = details
-
-        # update affected
-        affected = update_strings(issue.affected)
-        issue.affected = affected
 
         # save issue
         issue.save()
