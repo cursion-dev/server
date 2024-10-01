@@ -2160,3 +2160,37 @@ def migrate_site_bg(
 
 
 
+
+
+@shared_task
+def update_links() -> None:
+
+    def update_strings(text) -> str:
+        if text is not None:
+            text = text.replace('Scanerr.io', 'Cursion.dev')
+            text = text.replace('scanerr.io', 'cursion.dev')
+            text = text.replace('Scanerr', 'Cursion')
+            text = text.replace('scanerr', 'cursion')
+        return text
+
+    for issue in Issues.objects.all():
+        
+        # update title
+        title = update_strings(issue.title)
+        issue.title = title
+        
+        # update trigger
+        trigger = update_strings(issue.trigger)
+        issue.trigger = trigger
+
+        # update details
+        details = update_strings(issue.details)
+        issue.details = details
+
+        # update affected
+        affected = update_strings(issue.affected)
+        issue.affected = affected
+
+        # save issue
+        issue.save()
+
