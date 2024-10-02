@@ -97,9 +97,9 @@ class Issuer():
 
             # build intro
             intro = str(
-                f'Testcase [{self.testcase.case_name}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
+                f'### Testcase [{self.testcase.case_name}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
                 f' failed on **Step {step_index}**, `{failed_step[step_type]["type"]}`.\n\n\n' +
-                f' **Affected Site:** [{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]})\n\n\n'
+                f' > Affected Site: [{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]})\n\n\n'
             )
             
             # build main_issue
