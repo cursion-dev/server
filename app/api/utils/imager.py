@@ -180,7 +180,7 @@ class Imager():
         # defining browser demesions
         sizes = self.scan.configs.get('window_size', '1920,1080').split(',')
 
-        # calculating and suto setting page height
+        # calculating and auto setting page height
         if self.scan.configs.get('auto_height', True):
 
             # get scroll_height, client_height & set window_size

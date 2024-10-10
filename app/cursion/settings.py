@@ -29,12 +29,13 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ALLOWED_HOSTS = [os.environ.get('DJANGO_ALLOWED_HOSTS')]
 
-# URLs
+# URLs & location
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
 LANDING_API_ROOT = os.environ.get('LANDING_API_ROOT')
 API_URL_ROOT = os.environ.get('API_URL_ROOT')
 YELLOWLAB_ROOT = os.environ.get('YELLOWLAB_ROOT')
 LIGHTHOUSE_ROOT = os.environ.get('LIGHTHOUSE_ROOT')
+LOCATION = os.environ.get('LOCATION')
 
 # Cursion.landing API KEY
 LANDING_API_KEY = os.environ.get('LANDING_API_KEY')
@@ -230,7 +231,8 @@ if os.environ.get('STRIPE_ENV') == 'dev':
 CONFIGS = {
     'window_size': '1920,1080',
     'browser': 'chrome',
-    'device': 'desktop',
+    'device': 'Windows 10 PC',
+    'location': 'us',
     'mask_ids': None,
     'interval': 1,
     'min_wait_time': 3,

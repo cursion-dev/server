@@ -86,6 +86,27 @@ def check_and_increment_resource(account: object, resource: str) -> bool:
 
 
 
+def check_location(location: str) -> bool:
+    """ 
+    Determines if task should be executed based on 
+    passed location and curent system location (settings.LOCATION). 
+
+    Expects: {
+        'location': str
+    }
+
+    Returns: bool (True if task should run)
+    """
+
+    # compare location to system
+    if location == settings.LOCATION:
+        return True
+    if location != settings.LOCATION:
+        return False
+
+
+
+
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> None:
     """ 
@@ -552,6 +573,11 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     automation_id = kwargs.get('automation_id')
     task_id = kwargs.get('task_id')
 
+    # checking location
+    if not check_location(configs.get('location', settings.LOCATION)):
+        logger.info('Not running due to location param')
+        return None
+
     # setting defaults
     pages = []
     sites = []
@@ -932,6 +958,11 @@ def create_test_bg(self, *args, **kwargs) -> None:
     pre_scan = kwargs.get('pre_scan')
     post_scan = kwargs.get('post_scan')
     task_id = kwargs.get('task_id')
+
+    # checking location
+    if not check_location(configs.get('location', settings.LOCATION)):
+        logger.info('Not running due to location param')
+        return None
 
     # create test if none was passed
     if test_id is None:
@@ -1320,6 +1351,11 @@ def create_testcase_bg(*args, **kwargs) -> None:
     automation_id = kwargs.get('automation_id')
     task_id = kwargs.get('task_id')
     configs = kwargs.get('configs', settings.CONFIGS)
+
+    # checking location
+    if not check_location(configs.get('location', settings.LOCATION)):
+        logger.info('Not running due to location param')
+        return None
 
     # settign defaults 
     case = None

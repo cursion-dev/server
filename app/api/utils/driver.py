@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.actions.action_builder import ActionBuilder
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from .devices import get_device
 from datetime import datetime
 import time, os, sys, tempfile
 
@@ -13,7 +14,7 @@ import time, os, sys, tempfile
 def driver_init(
         browser: str='chrome',
         window_size: str='1920,1080', 
-        device: str='desktop',
+        device: str='Windows 10 PC',
         script_timeout: int=30,
         load_timeout: int=30,
         wait_time: int=15, 
@@ -37,42 +38,32 @@ def driver_init(
     Returns -> driver object
     """
 
+    # get userAgent 
+    user_agent = get_device(browser, device)['user_agent']
+
     # deciding on browser
-    # UserAgents: https://www.whatismybrowser.com/guides/the-latest-user-agent/
+    # UserAgents are from utils/devices
     if browser == 'chrome':
         options = webdriver.ChromeOptions()
         options.binary_location = os.environ.get('CHROME_BROWSER')
-        mobile_user_agent = (
-            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " + 
-            "(KHTML, like Gecko) Chrome/127.0.6533.84 Mobile Safari/537.36"
-        )
     if browser == 'firefox':
         options = webdriver.FirefoxOptions()
         options.binary_location = os.environ.get('FIREFOX_BROWSER')
-        mobile_user_agent = (
-            "Mozilla/5.0 (Android 14; Mobile; rv:68.0) Gecko/68.0 Firefox/128.0"
-        )
     if browser == 'edge':
         options = webdriver.EdgeOptions()
         options.binary_location = os.environ.get('EDGE_BROWSER')
-        mobile_user_agent = (
-            "Mozilla/5.0 (Linux; Android 10; HD1913) AppleWebKit/537.36" +
-            "(KHTML, like Gecko) Chrome/127.0.6533.103 Mobile " +
-            "Safari/537.36 EdgA/127.0.2651.90"
-        )
-
 
     # setting up browser configs
     sizes = window_size.split(',')
     width = int(sizes[0])
     height = int(sizes[1])
-    mobile_emulation = {
+    emulation = {
         "deviceMetrics": { 
             "width": width, 
             "height": height,
             "pixelRatio": pixel_ratio 
         },
-        "userAgent": mobile_user_agent
+        "userAgent": user_agent
     }
 
     # setting broswer options for chrome
@@ -84,12 +75,13 @@ def driver_init(
         options.add_argument("ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
         options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
+        options.add_argument(f"--user-agent={user_agent}")
         options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
         options.page_load_strategy = 'none'
         
-        # setting to mobile if reqeusted
-        if device == 'mobile':
-            options.add_experimental_option("mobileEmulation", mobile_emulation)
+        # setting to mobile or tablet if reqeusted
+        if device == 'mobile' or device == 'tablet':
+            options.add_experimental_option("mobileEmulation", emulation)
         
         # init driver
         driver = webdriver.Chrome(options=options)
@@ -109,7 +101,7 @@ def driver_init(
         # setting to mobile if reqeusted
         if device == 'mobile':
             options.set_preference(
-                "general.useragent.override", f"userAgent={mobile_user_agent}"
+                "general.useragent.override", f"userAgent={user_agent}"
             )
         
         # init driver
@@ -124,12 +116,13 @@ def driver_init(
         options.add_argument("ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
         options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
+        options.add_argument(f"--user-agent={user_agent}")
         options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
         options.page_load_strategy = 'none'
         
-        # setting to mobile if reqeusted
-        if device == 'mobile':
-            options.add_experimental_option("mobileEmulation", mobile_emulation)
+        # setting to mobile or tablet if reqeusted
+        if device == 'mobile' or device == 'tablet':
+            options.add_experimental_option("mobileEmulation", emulation)
         
         # init driver
         driver = webdriver.Edge(options=options)
