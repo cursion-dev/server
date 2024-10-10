@@ -3,7 +3,6 @@ from . import views as views
 
 
 urlpatterns = [
-    path('search', views.Search.as_view(), name='search'),
     path('site', views.Sites.as_view(), name='site'),
     path('site/<uuid:id>', views.SiteDetail.as_view(), name='site-detail'),
     path('site/<uuid:id>/crawl', views.SiteCrawl.as_view(), name='site-crawl'),
@@ -51,6 +50,8 @@ urlpatterns = [
     path('automation/<uuid:id>', views.AutomationDetail.as_view(), name='automation-detail'),
     path('process', views.Processes.as_view(), name='process'),
     path('process/<uuid:id>', views.ProcessDetail.as_view(), name='process-detail'),
+    path('search', views.Search.as_view(), name='search'),
+    path('device', views.Device.as_view(), name='device'),
     path('log', views.Logs.as_view(), name='log'),
     path('log/<uuid:id>', views.LogDetail.as_view(), name='log-detail'),
     path('metrics/home', views.HomeMetrics.as_view(), name='home-metrics'),

@@ -12,6 +12,7 @@ env/.env.local
 env/.env.dev
 env/.env.prod
 env/.env.stage
+env/.env.remote
 env/.env.prod.db
 
 app/data*

@@ -1,5 +1,9 @@
+
+
 ### easy local script ###
 source ./setup/scripts/local.sh
+
+
 
 ### spins up container on localhost ###
 docker compose -f docker-compose.local.yml up --build
@@ -30,4 +34,13 @@ docker compose -f docker-compose.stage.yml up --build
 
 ### spins down the container ###
 docker compose -f docker-compose.stage.yml down
+
+
+
+### spins up the container for geo-locations ###
+docker compose -f docker-compose.remote.yml up --build
+
+### spins down the container ###
+docker compose -f docker-compose.remote.yml down
+
 

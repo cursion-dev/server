@@ -19,6 +19,7 @@ from ...utils.reporter import Reporter as R
 from ...utils.wordpress import Wordpress as W
 from ...utils.caser import Caser
 from ...utils.crawler import Crawler
+from ...utils.devices import devices
 import json, boto3, asyncio, os, requests, uuid, secrets
 
 
@@ -425,6 +426,62 @@ def check_resource(account: object, resource: str) -> bool:
 
     # return response
     return success
+
+
+
+
+def check_location(request: None, local: None) -> dict:
+    """ 
+    Reroutes a request to a geo-specific 
+    instance of Cursion Server. 
+
+    Expcets: {
+        'request': obj,
+        'local'  : str,
+    }
+
+    Returns: data: {
+        'routed': bool (True if request was forwarded)
+        'response': obj (HTTP response from forwarded request)
+    }
+    """
+
+    # set defaults
+    routed = False
+    response = None
+
+    # checking if request was passed
+    if request:
+
+        # get user and account
+        user = request.user
+        account = Member.objects.get(user=user).account
+
+        # get configs obj & location
+        configs = request.data.get('configs', account.configs)
+        location = local if local else configs.get('location', settings.LOCATION)
+
+        # get path, headers, & url
+        path = request.path
+        headers = request.headers
+        root = settings.API_URL_ROOT.lstrip('https://')
+        url = f'https://{location}-{root}{path}'
+
+        # check location and forward request
+        if location != settings.LOCATION:
+            routed = True
+            response = requests.post(
+                url=url,
+                headers=headers,
+                data=request.data
+            )
+    
+    # return data
+    data = {
+        'routed': routed,
+        'response': response
+    }
+    return data
 
 
 
@@ -1470,6 +1527,11 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     Returns -> dict or HTTP Response object
     """
 
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
+
     # get request data
     if request is not None:
         site_id = request.data.get('site_id', '')
@@ -1624,6 +1686,11 @@ def create_many_scans(request: object) -> object:
 
     Returns -> HTTP Response object
     """
+
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
 
     # get request data
     site_ids = request.data.get('site_ids')
@@ -2101,6 +2168,11 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     Returns -> dict or HTTP Response object
     """
 
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
+
     # get data from request
     if request is not None:
         configs = request.data.get('configs', None)
@@ -2323,6 +2395,11 @@ def create_many_tests(request: object) -> object:
 
     Returns -> HTTP Response object
     """
+
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
 
     # get request data
     site_ids = request.data.get('site_ids')
@@ -3668,6 +3745,12 @@ def run_schedule(request: object) -> object:
     perodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
     task_kwargs = json.loads(perodic_task.kwargs)
 
+    # check location
+    local = schedule.extras['configs'].get('location', settings.LOCATION)
+    location_data = check_location(request, local)
+    if location_data['routed']:
+        return location_data['response']
+
     # decidign on which task 
     if task == 'scan':
         # run create_scan_bg
@@ -4814,6 +4897,11 @@ def create_auto_cases(request: object) -> object:
     
     Returns -> HTTP Response object
     """
+    
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
 
     # get request data
     site_id = request.data.get('site_id')
@@ -5073,6 +5161,11 @@ def create_testcase(request: object, delay: bool=False) -> object:
 
     Returns -> HTTP Response object
     """
+
+    # check location
+    location_data = check_location(request)
+    if location_data['routed']:
+        return location_data['response']
 
     # get request data
     case_id = request.data.get('case_id')
@@ -5693,6 +5786,27 @@ def search_resources(request: object) -> object:
         })
         i+=1
     
+    # return response
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_devices(request: object) -> object:
+    """ 
+    Retrieves a list of all Cursion "devices"
+    
+    Expects: None
+
+    Returns -> HTTP Response object
+    """
+    
+    # format data
+    data = {
+        'devices': devices
+    }
+
     # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response

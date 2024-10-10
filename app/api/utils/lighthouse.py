@@ -1,5 +1,6 @@
 import subprocess, json, uuid, boto3, os, requests
 from ..models import Site, Scan
+from .devices import get_device
 from cursion import settings
 
 
@@ -23,6 +24,10 @@ class Lighthouse():
         self.configs = scan.configs
         self.sizes = scan.configs['window_size'].split(',')
         self.audits_url = ''
+        self.device_type = get_device(
+            scan.configs['browser'], 
+            scan.configs['device']
+        )
 
         # initial scores object
         self.scores = {
@@ -64,7 +69,7 @@ class Lighthouse():
                 '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
                 f'--screenEmulation.width={self.sizes[0]}',
                 f'--screenEmulation.height={self.sizes[1]}',
-                f'--screenEmulation.{self.configs["device"]}',
+                f'--screenEmulation.{self.device_type}',
                 '--output',
                 'json', 
             ], 

@@ -732,6 +732,16 @@ class Search(APIView):
 
 
 
+class Device(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = get_devices(request)
+        return response
+
+
+
 
 ### ------ Begin Metrics Views ------ ###
 

@@ -1,5 +1,6 @@
 import subprocess, json, uuid, boto3, os, requests, time
 from ..models import Site, Scan
+from .devices import get_device
 from cursion import settings
 
 
@@ -22,6 +23,10 @@ class Yellowlab():
         self.page = self.scan.page
         self.configs = scan.configs
         self.audits_url = ''
+        self.device_type = get_device(
+            scan.configs['browser'], 
+            scan.configs['device']
+        )
 
         # initial audits object
         self.audits = {
@@ -65,7 +70,7 @@ class Yellowlab():
         proc = subprocess.Popen([
                 'yellowlabtools',
                 self.page.page_url,
-                f'--device={self.configs["device"]}'
+                f'--device={self.device_type}'
                 ], 
             stdout=subprocess.PIPE,
             user='app',
@@ -96,7 +101,7 @@ class Yellowlab():
         data = {
             "url": self.page.page_url,
             "waitForResponse": True,
-            "device": self.configs["device"]
+            "device": self.device_type
         }
 
         # setting up initial request
