@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
+from django.http import HttpResponse
 from ...models import *
 from rest_framework.response import Response
 from rest_framework import status
@@ -470,10 +471,18 @@ def check_location(request: None, local: None) -> dict:
         # check location and forward request
         if location != settings.LOCATION:
             routed = True
-            response = requests.post(
+            # send request
+            print(f'forwarding request to: {url}')
+            resp = requests.post(
                 url=url,
                 headers=headers,
                 data=request.data
+            )
+            # build response
+            response = HttpResponse(
+                content=resp.content,
+                status=resp.status_code,
+                headers=resp.headers
             )
     
     # return data
