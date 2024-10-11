@@ -462,12 +462,18 @@ def check_location(request: None, local: None) -> dict:
         configs = request.data.get('configs', account.configs)
         location = local if local else configs.get('location', settings.LOCATION)
 
-        # get path, headers, & url
+        # get path & build url
         path = request.path
-        headers = request.headers
         root = settings.API_URL_ROOT.lstrip('https://')
         url = f'https://{location}-{root}{path}'
 
+        # get authorization & build headers
+        auth = request.headers.get('Authorization')
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': auth
+        }
+        
         # check location and forward request
         if location != settings.LOCATION:
             routed = True
