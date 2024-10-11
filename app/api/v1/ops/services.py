@@ -1528,7 +1528,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     """
 
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
@@ -1688,7 +1688,7 @@ def create_many_scans(request: object) -> object:
     """
 
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
@@ -2169,7 +2169,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     """
 
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
@@ -2397,7 +2397,7 @@ def create_many_tests(request: object) -> object:
     """
 
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
@@ -4899,7 +4899,7 @@ def create_auto_cases(request: object) -> object:
     """
     
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
@@ -5163,7 +5163,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
     """
 
     # check location
-    location_data = check_location(request)
+    location_data = check_location(request, None)
     if location_data['routed']:
         return location_data['response']
 
