@@ -38,7 +38,7 @@ docker compose -f docker-compose.stage.yml down
 
 
 ### spins up the container for geo-locations ###
-docker compose -f docker-compose.remote.yml up --build
+docker compose -f docker-compose.remote.yml up -d --build
 
 ### spins down the container ###
 docker compose -f docker-compose.remote.yml down
