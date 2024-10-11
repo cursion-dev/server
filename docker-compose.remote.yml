@@ -59,7 +59,7 @@ services:
     volumes:
       - beat:/app
     env_file:
-      - ./env/.env.prod
+      - ./env/.env.remote
     depends_on:
       - redis
       - celery
