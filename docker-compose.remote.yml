@@ -112,17 +112,7 @@ services:
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
-
-
-  netclient:
-    image: gravitl/netclient:v0.25.0
-    network_mode: host
-    privileged: true
-    env_file:
-      - ./env/.env.remote
-    volumes:
-      - /etc/netclient:/etc/netclient
-
+      
 
 volumes:
   app:
