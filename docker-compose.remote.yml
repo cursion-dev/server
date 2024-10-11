@@ -19,8 +19,6 @@ services:
     volumes:
       - app:/app
       - static_volume:/app/static
-    depends_on:
-      - db
 
 
   redis:
@@ -47,7 +45,6 @@ services:
     depends_on:
       - redis
       - app
-      - db
 
 
   beat:
@@ -67,7 +64,6 @@ services:
       - redis
       - celery
       - app
-      - db
 
 
   yellowlab:
@@ -82,7 +78,6 @@ services:
       - redis
       - celery 
       - app
-      - db
 
 
   nginx-proxy:
@@ -135,7 +130,6 @@ volumes:
   beat:
   static_volume:
   letsencrypt-acme:
-  pgdata:
   certs:
   html:
   vhost:
