@@ -482,7 +482,7 @@ def check_location(request: None, local: None) -> dict:
             resp = requests.post(
                 url=url,
                 headers=headers,
-                data=request.data
+                data=json.dumps(request.data)
             )
             # build response
             response = HttpResponse(
