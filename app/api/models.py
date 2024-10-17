@@ -264,6 +264,15 @@ def get_usage_default():
 
 
 
+def get_system_default():
+    system = {
+        'tasks': [],
+    }
+    return system
+
+
+
+
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -374,6 +383,7 @@ class Scan(models.Model):
     yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default)
     configs = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
+    system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
 
     def __str__(self):
         return f'{self.id}__scan'
@@ -392,7 +402,7 @@ class Test(models.Model):
     post_scan = models.ForeignKey(Scan, on_delete=models.SET_NULL, serialize=True, null=True, blank=True, related_name='post_scan')
     score = models.FloatField(serialize=True, null=True, blank=True)
     threshold = models.FloatField(serialize=True, null=True, blank=True)
-    status = models.CharField(max_length=500, serialize=True, null=True, blank=True) # working, failed, passed
+    status = models.CharField(max_length=500, serialize=True, null=True, blank=True)
     component_scores = models.JSONField(serialize=True, null=True, blank=True, default=get_scores_default)
     html_delta = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
@@ -455,7 +465,7 @@ class Report(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     path = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    type = models.JSONField(serialize=True, null=True, blank=True) # array of [lighthouse, yellowlab]
+    type = models.JSONField(serialize=True, null=True, blank=True)
     info = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):

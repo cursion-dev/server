@@ -1,5 +1,6 @@
 from celery.utils.log import get_task_logger
 from celery import shared_task, Task
+from cursion import celery
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
@@ -19,7 +20,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta
 from cursion import settings
-import asyncio, boto3, time, requests, json, stripe
+import asyncio, boto3, time, requests, json, stripe, inspect, random
 
 
 
@@ -31,7 +32,7 @@ import asyncio, boto3, time, requests, json, stripe
 
 class BaseTaskWithRetry(Task):
     autoretry_for = (Exception, KeyError)
-    retry_kwargs = {'max_retries': 2}
+    retry_kwargs = {'max_retries': int(settings.MAX_ATTEMPTS - 1)}
     retry_backoff = True
 
 
@@ -103,6 +104,136 @@ def check_location(location: str) -> bool:
         return True
     if location != settings.LOCATION:
         return False
+
+
+
+
+def record_task(
+        resource_type: str=None, 
+        resource_id: str=None, 
+        task_id: str=None, 
+        task_method: str=None, 
+        **kwargs,
+    ) -> None:
+
+    """ 
+    Records task information in the `resource.system` 
+    attribute.
+
+    Expects: {
+        'resource_type' : str (scan, test, testcase)
+        'resource_id'   : str 
+        'task_id'       : str 
+        'task_method'   : str
+        'kwargs'        : dict
+    }
+    
+    Returns: None
+    """
+
+    # get resource 
+    if resource_type == 'scan':
+        resource = Scan.objects.get(id=resource_id)
+    if resource_type == 'test':
+        resource = Test.objects.get(id=resource_id)
+    if resource_type == 'testcase':
+        resource = Testcase.objects.get(id=resource_id)
+
+    # get current resoruce.system.tasks data
+    tasks = resource.system.get('tasks', [])
+
+    # get component based on task_name
+    component = task_method.replace('run_', '').replace('_bg', '').replace('_and_logs', '')
+
+    # check if task exists
+    i = 0
+    exists = False
+    for task in tasks:
+        if task['component'] == component:
+            # update existing task
+            tasks[i]['task_id'] = str(task_id)
+            tasks[i]['attempts'] += 1
+            exists = True
+        i += 1
+
+    # append new task data
+    if not exists:
+        tasks.append({
+            'attempts': int(1),
+            'task_id': str(task_id),
+            'task_method': str(task_method),
+            'component': str(component),
+            'kwargs': kwargs.get('kwargs'),
+        })
+
+    # update resource with new system data
+    resource.system['tasks'] =  tasks
+    resource.save()
+
+    # return
+    return None
+
+
+
+
+@shared_task()
+def redeliver_failed_tasks() -> None:
+    """ 
+    Check each un-completed resource (mainly scans for now) 
+    for any celery tasks which are no longer executing & 
+    associated resource.component is null. Once found, 
+    re-run those specific tasks with saved kwargs.
+
+    Expects: None
+    
+    Returns: None
+    """
+
+    # get uncompleted Scans
+    scans = Scan.objects.filter(time_completed=None)
+
+    # get executing_tasks
+    i = celery.app.control.inspect()
+    reserved = i.reserved()
+    active = i.active()
+    executing_tasks = []
+    for replica in reserved:
+        for task in reserved[replica]:
+            executing_tasks.append(task['id'])
+    for replica in active:
+        for task in active[replica]:
+            executing_tasks.append(task['id'])
+
+    # iterate through each scan and re-run any failed jobs
+    for scan in scans:
+
+        # check for localization
+        if scan.configs.get('location', 'us') != settings.LOCATION:
+            continue
+
+        # check each task in system['tasks']
+        for task in scan.system.get('tasks', []):
+
+            # get scan.{component} data
+            if task['component'] == 'yellowlab':
+                component = scan.yellowlab.get('audits', None)
+            if task['component'] == 'lighthouse':
+                component = scan.lighthouse.get('audits', None)
+            if task['component'] == 'vrt':
+                component = scan.images
+            if task['component'] == 'html':
+                component = scan.html
+            
+            # re-run task if not in executing_tasks &
+            # scan.{component} is None
+            if task['task_id'] not in executing_tasks and component is None:
+                
+                # check for max attempts
+                if task['attempts'] < settings.MAX_ATTEMPTS:
+                    print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
+                    eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+
+    return None
 
 
 
@@ -664,18 +795,47 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_html_and_logs_bg(self, scan_id: str=None, test_id: str=None, automation_id: str=None) -> None:
+def run_html_and_logs_bg(
+        self, 
+        scan_id: str=None, 
+        test_id: str=None, 
+        automation_id: str=None, 
+        **kwargs
+    ) -> None:
     """ 
     Runs the html & logs components of the passed `Scan`
 
     Expects: {
         scan_id         : str, 
         test_id         : str, 
-        automation_id   : str
+        automation_id   : str,
+        **kwargs
     }
     
     Returns -> None
     """
+
+    # sleeping random for DB 
+    time.sleep(random.uniform(0.1, 3))
+
+    # get kwargs data if no scan_id
+    if scan_id is None:
+        scan_id = kwargs.get('scan_id')
+        test_id = kwargs.get('test_id')
+        automation_id = kwargs.get('automation_id')
+   
+    # save sys data
+    record_task(
+        resource_type='scan',
+        resource_id=str(scan_id),
+        task_id=str(self.request.id),
+        task_method=str(inspect.stack()[0][3]),
+        kwargs={
+            'scan_id': str(scan_id) if scan_id is not None else None,
+            'test_id': str(test_id) if test_id is not None else None, 
+            'automation_id': str(automation_id) if automation_id is not None else None
+        }
+    )
     
     # run html and logs component
     _html_and_logs(scan_id, test_id, automation_id)
@@ -687,18 +847,47 @@ def run_html_and_logs_bg(self, scan_id: str=None, test_id: str=None, automation_
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_vrt_bg(self, scan_id: str=None, test_id: str=None, automation_id: str=None) -> None:
+def run_vrt_bg(
+        self, 
+        scan_id: str=None, 
+        test_id: str=None, 
+        automation_id: str=None, 
+        **kwargs
+    ) -> None:
     """ 
     Runs the VRT component of the passed `Scan`
 
     Expects: {
         scan_id         : str, 
         test_id         : str, 
-        automation_id   : str
+        automation_id   : str,
+        **kwargs
     }
     
     Returns -> None
     """
+
+    # sleeping random for DB 
+    time.sleep(random.uniform(0.1, 3))
+
+    # get kwargs data if no scan_id
+    if scan_id is None:
+        scan_id = kwargs.get('scan_id')
+        test_id = kwargs.get('test_id')
+        automation_id = kwargs.get('automation_id')
+   
+    # save sys data
+    record_task(
+        resource_type='scan',
+        resource_id=str(scan_id),
+        task_id=str(self.request.id),
+        task_method=str(inspect.stack()[0][3]),
+        kwargs={
+            'scan_id': str(scan_id) if scan_id is not None else None,
+            'test_id': str(test_id) if test_id is not None else None, 
+            'automation_id': str(automation_id) if automation_id is not None else None
+        }
+    )
 
     # run VRT component
     _vrt(scan_id, test_id, automation_id)
@@ -710,18 +899,47 @@ def run_vrt_bg(self, scan_id: str=None, test_id: str=None, automation_id: str=No
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_lighthouse_bg(self, scan_id: str=None, test_id: str=None, automation_id: str=None) -> None:
+def run_lighthouse_bg(
+        self, 
+        scan_id: str=None, 
+        test_id: str=None, 
+        automation_id: str=None, 
+        **kwargs
+    ) -> None:
     """ 
     Runs the lighthouse component of the passed `Scan`
 
     Expects: {
         scan_id         : str, 
         test_id         : str, 
-        automation_id   : str
+        automation_id   : str,
+        **kwargs
     }
     
     Returns -> None
     """
+
+    # sleeping random for DB 
+    time.sleep(random.uniform(0.1, 3))
+
+    # get kwargs data if no scan_id
+    if scan_id is None:
+        scan_id = kwargs.get('scan_id')
+        test_id = kwargs.get('test_id')
+        automation_id = kwargs.get('automation_id')
+   
+    # save sys data
+    record_task(
+        resource_type='scan',
+        resource_id=str(scan_id),
+        task_id=str(self.request.id),
+        task_method=str(inspect.stack()[0][3]),
+        kwargs={
+            'scan_id': str(scan_id) if scan_id is not None else None,
+            'test_id': str(test_id) if test_id is not None else None, 
+            'automation_id': str(automation_id) if automation_id is not None else None
+        }
+    )
 
     # run lighthouse component
     _lighthouse(scan_id, test_id, automation_id)
@@ -733,18 +951,47 @@ def run_lighthouse_bg(self, scan_id: str=None, test_id: str=None, automation_id:
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_yellowlab_bg(self, scan_id: str=None, test_id: str=None, automation_id: str=None) -> None:
+def run_yellowlab_bg(
+        self, 
+        scan_id: str=None, 
+        test_id: str=None, 
+        automation_id: str=None, 
+        **kwargs
+    ) -> None:
     """ 
     Runs the yellowlab component of the passed `Scan`
 
     Expects: {
         scan_id         : str, 
         test_id         : str, 
-        automation_id   : str
+        automation_id   : str,
+        **kwargs
     }
     
     Returns -> None
     """
+
+    # sleeping random for DB 
+    time.sleep(random.uniform(0.1, 3))
+
+    # get kwargs data if no scan_id
+    if scan_id is None:
+        scan_id = kwargs.get('scan_id')
+        test_id = kwargs.get('test_id')
+        automation_id = kwargs.get('automation_id')
+   
+    # save sys data
+    record_task(
+        resource_type='scan',
+        resource_id=str(scan_id),
+        task_id=str(self.request.id),
+        task_method=str(inspect.stack()[0][3]),
+        kwargs={
+            'scan_id': str(scan_id) if scan_id is not None else None,
+            'test_id': str(test_id) if test_id is not None else None, 
+            'automation_id': str(automation_id) if automation_id is not None else None
+        }
+    )
 
     # run yellowlab component
     _yellowlab(scan_id, test_id, automation_id)

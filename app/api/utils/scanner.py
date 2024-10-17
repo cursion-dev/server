@@ -346,7 +346,7 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
 
 
 
-def _html_and_logs(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
+def _html_and_logs(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
     """
     Method to run the 'html' and 'logs' component of the scan 
     allowing for multi-threading.
@@ -354,12 +354,12 @@ def _html_and_logs(scan_id: str, test_id: str=None, automation_id: str=None) -> 
     Expects: {
         scan_id: str, 
         test_id: str, 
-        automation_id: str
+        automation_id: str,
     }
 
     Returns -> `Scan` <obj>
     """
-
+    
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
 
@@ -407,7 +407,7 @@ def _html_and_logs(scan_id: str, test_id: str=None, automation_id: str=None) -> 
 
 
 
-def _vrt(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
+def _vrt(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
     """
     Method to run the visual regression (vrt) component of the scan 
     allowing for multi-threading.
@@ -420,7 +420,7 @@ def _vrt(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
 
     Returns -> `Scan` <obj>
     """
-    
+
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
     
@@ -450,7 +450,7 @@ def _vrt(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
 
 
 
-def _lighthouse(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
+def _lighthouse(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
     """
     Method to run the lighthouse component of the scan 
     allowing for multi-threading.
@@ -463,7 +463,7 @@ def _lighthouse(scan_id: str, test_id: str=None, automation_id: str=None) -> obj
 
     Returns -> `Scan` <obj>
     """
-    
+
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
 
@@ -490,7 +490,7 @@ def _lighthouse(scan_id: str, test_id: str=None, automation_id: str=None) -> obj
 
 
 
-def _yellowlab(scan_id: str, test_id: str=None, automation_id: str=None) -> object:
+def _yellowlab(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
     """
     Method to run the yellowlab component of the scan 
     allowing for multi-threading.
@@ -503,7 +503,7 @@ def _yellowlab(scan_id: str, test_id: str=None, automation_id: str=None) -> obje
 
     Returns -> `Scan` <obj>
     """ 
-    
+
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
     

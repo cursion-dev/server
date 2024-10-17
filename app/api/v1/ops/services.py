@@ -967,7 +967,6 @@ def get_sites_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated sites
@@ -1487,7 +1486,6 @@ def get_pages_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all site associated pages
@@ -2110,7 +2108,6 @@ def get_scans_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all page associated scans
@@ -2830,7 +2827,6 @@ def get_tests_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all page associated tests
@@ -3335,7 +3331,6 @@ def get_issues_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
     # get all page associated issues
@@ -5121,7 +5116,6 @@ def get_cases_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all site_id associated cases
@@ -5443,7 +5437,6 @@ def get_testcases_zapier(request: object) -> object:
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated testcases
@@ -6007,12 +6000,11 @@ def get_celery_metrics(request: object) -> object:
     
     # Tasks received, but are still waiting to be executed.
     reserved = i.reserved()
-    #
-    #  Active tasks
+
+    # Active tasks
     active = i.active()
 
-    # init task & replica counters
-    # & ratio 
+    # init task & replica counters & ratio 
     num_tasks = 0
     num_replicas = 0
     ratio = 0
