@@ -7,7 +7,7 @@ services:
     platform: linux/amd64
     privileged: true
     init: true
-    restart: always
+    restart: no
     build:
       context: .
       dockerfile: Dockerfile

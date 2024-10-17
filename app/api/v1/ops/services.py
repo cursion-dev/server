@@ -6000,12 +6000,11 @@ def get_celery_metrics(request: object) -> object:
     
     # Tasks received, but are still waiting to be executed.
     reserved = i.reserved()
-    #
-    #  Active tasks
+
+    # Active tasks
     active = i.active()
 
-    # init task & replica counters
-    # & ratio 
+    # init task & replica counters & ratio 
     num_tasks = 0
     num_replicas = 0
     ratio = 0
