@@ -4,7 +4,7 @@ services:
   client:
     image: cursiondev/client
     env_file:
-      - .env.dev
+      - ./env/.env.client.dev
     ports:
       - "3000:3000"
 
@@ -23,7 +23,7 @@ services:
     expose:
       - 8000
     env_file:
-      - .env.dev
+      - ./env/.env.dev
     volumes:
       - app:/app
       - static_volume:/app/static
@@ -38,7 +38,7 @@ services:
     ports:
       - "5432"
     env_file:
-      - .env.dev
+      - ./env/.env.dev
     volumes: 
       - pgdata:/var/lib/postgresql/data
 
@@ -62,7 +62,7 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "celery"]
     env_file:
-      - .env.dev
+      - ./env/.env.dev
     volumes:
       - celery:/app
     depends_on:
@@ -84,7 +84,7 @@ services:
     volumes:
       - beat:/app
     env_file:
-      - .env.dev
+      - ./env/.env.dev
     depends_on:
       - redis
       - celery
@@ -123,6 +123,7 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
       - app
+      - client
   
   
   nginx-proxy-letsencrypt:
