@@ -5,7 +5,6 @@ services:
     container_name: cursion-client
     hostname: cursion-client
     image: cursiondev/client
-    platform: linux/amd64
     env_file:
       - ./env/.env.client.dev
     expose:
