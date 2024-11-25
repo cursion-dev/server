@@ -15,24 +15,10 @@ services:
     expose:
       - 8000
     env_file:
-      - ./env/.env.prod
+      - .env.remote
     volumes:
       - app:/app
       - static_volume:/app/static
-    depends_on:
-      - db
-
-  
-  db:
-    container_name: cursion-db
-    hostname: cursion-db
-    image: postgres:14-alpine
-    ports:
-      - "5432"
-    env_file:
-      - ./env/.env.prod
-    volumes: 
-      - pgdata:/var/lib/postgresql/data
 
 
   redis:
@@ -53,13 +39,12 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "celery"]
     env_file:
-      - ./env/.env.prod
+      - .env.remote
     volumes:
       - celery:/app
     depends_on:
       - redis
       - app
-      - db
 
 
   beat:
@@ -74,12 +59,11 @@ services:
     volumes:
       - beat:/app
     env_file:
-      - ./env/.env.prod
+      - .env.remote
     depends_on:
       - redis
       - celery
       - app
-      - db
 
 
   yellowlab:
@@ -94,13 +78,12 @@ services:
       - redis
       - celery 
       - app
-      - db
 
 
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    build: nginx
+    image: cursiondev/nginx
     restart: always
     ports:
       - 443:443
@@ -119,9 +102,8 @@ services:
     container_name: nginx-proxy-letsencrypt
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
-    environment:
-      - DEFAULT_EMAIL=youremail@yourdomain.com
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+    env_file:
+      - .env.remote
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/etc/nginx/certs
@@ -130,7 +112,7 @@ services:
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
-
+      
 
 volumes:
   app:
@@ -138,7 +120,6 @@ volumes:
   beat:
   static_volume:
   letsencrypt-acme:
-  pgdata:
   certs:
   html:
   vhost:

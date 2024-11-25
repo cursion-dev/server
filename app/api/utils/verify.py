@@ -16,6 +16,7 @@ def verify():
         "Content-Type": "application/json",
         "Authorization" : cred
     }
+    
     data = {
         "username": username,
         "email": email,

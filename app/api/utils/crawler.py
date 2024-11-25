@@ -25,7 +25,8 @@ class Crawler():
 
 
 
-    def __init__(self, url: str=None, sitemap: str=None, max_urls: int=25):
+
+    def __init__(self, url: str=None, sitemap: str=None, max_urls: int=5):
         self.url = url
         self.sitemap = sitemap
         self.max_urls = max_urls

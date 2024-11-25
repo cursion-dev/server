@@ -32,8 +32,7 @@ class Command(BaseCommand):
             Account.objects.create(
                 user=user,
                 active=True,
-                type='enterprise',
-                max_sites=10000, 
+                type='admin',
             )
         else:
             print('Accounts can only be initialized if no Accounts exist')

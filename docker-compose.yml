@@ -6,7 +6,7 @@ services:
     hostname: cursion-app
     platform: linux/amd64
     privileged: true
-    restart: always
+    restart: no
     init: true
     build:
       context: .
@@ -45,7 +45,7 @@ services:
     hostname: cursion-celery
     platform: linux/amd64
     privileged: true
-    restart: always
+    restart: no
     build:
       context: .
       dockerfile: Dockerfile
@@ -65,7 +65,7 @@ services:
     hostname: cursion-beat
     platform: linux/amd64
     privileged: true
-    restart: always
+    restart: no
     build:
       context: .
       dockerfile: Dockerfile
@@ -85,7 +85,7 @@ services:
     container_name: yellowlab
     hostname: yellowlab
     privileged: true
-    restart: always
+    restart: no
     image: cursiondev/ylt
     ports:
       - 8383:8383

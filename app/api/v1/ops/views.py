@@ -376,37 +376,37 @@ class SchedulesDelete(APIView):
 
 
 
-### ------ Begin Automation Views ------ ###
+### ------ Begin Alert Views ------ ###
 
 
 
 
-class Automations(APIView):
+class Alerts(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
     pagination_class = LimitOffsetPagination
 
     def post(self, request):
-        response = create_or_update_automation(request)
+        response = create_or_update_alert(request)
         return response
     
     def get(self, request):
-        response = get_automations(request)
+        response = get_alerts(request)
         return response
 
 
 
 
-class AutomationDetail(APIView):
+class AlertDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        response = get_automation(request, id)
+        response = get_alert(request, id)
         return response
 
     def delete(self, request, id):
-        response = delete_automation(request, id)        
+        response = delete_alert(request, id)        
         return response
 
 
@@ -525,6 +525,17 @@ class CopyCases(APIView):
 
 
 
+class CasesDelete(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_cases(request)
+        return response
+
+
+
+
 class CasesZapier(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
@@ -536,47 +547,172 @@ class CasesZapier(APIView):
 
 
 
-### ------ Begin Testcase Views ------ ###
+### ------ Begin CaseRun Views ------ ###
 
 
 
 
-class Testcases(APIView):
+class CaseRuns(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post', 'get']
 
     def post(self, request):
-        response = create_testcase(request)        
+        response = create_caserun(request)        
         return response
     
     def get(self, request):
-        response = get_testcases(request)
+        response = get_caseruns(request)
         return response
 
 
 
 
-class TestcaseDetail(APIView):
+class CaseRunDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
 
     def get(self, request, id):
-        response = get_testcase(request, id)
+        response = get_caserun(request, id)
         return response
 
     def delete(self, request, id):
-        response = delete_testcase(request, id)        
+        response = delete_caserun(request, id)        
         return response
 
 
 
 
-class TestcasesZapier(APIView):
+class CaseRunsZapier(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
 
     def get(self, request):
-        response = get_testcases_zapier(request)
+        response = get_caseruns_zapier(request)
+        return response
+
+
+
+
+### ------ Begin Flow Views ------ ###
+
+
+
+
+class Flows(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_flow(request)        
+        return response
+    
+    def get(self, request):
+        response = get_flows(request)
+        return response
+
+
+
+
+class FlowsSearch(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = search_flows(request)
+        return response
+
+
+
+
+class FlowDetail(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        response = get_flow(request, id)
+        return response
+
+    def delete(self, request, id):
+        response = delete_flow(request, id)        
+        return response
+
+
+
+
+class CopyFlows(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post']
+
+    def post(self, request):
+        response = copy_flow(request)  
+        return response
+
+
+
+
+class FlowsDelete(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = delete_many_flows(request)
+        return response
+
+
+
+
+class FlowsZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_flows_zapier(request)
+        return response
+
+
+
+
+### ------ Begin FlowRun Views ------ ###
+
+
+
+
+class FlowRuns(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_flowrun(request)        
+        return response
+    
+    def get(self, request):
+        response = get_flowruns(request)
+        return response
+
+
+
+
+class FlowRunDetail(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        response = get_flowrun(request, id)
+        return response
+
+    def delete(self, request, id):
+        response = delete_flowrun(request, id)        
+        return response
+
+
+
+
+class FlowRunsZapier(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_flowruns_zapier(request)
         return response
 
 
@@ -656,6 +792,53 @@ class IssuesZapier(APIView):
 
     def get(self, request):
         response = get_issues_zapier(request)
+        return response
+
+
+
+
+### ------ Begin Secret Views ------ ###
+
+
+
+
+class Secrets(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_secret(request)        
+        return response
+    
+    def get(self, request):
+        response = get_secrets(request)
+        return response
+
+
+
+
+class SecretDetail(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        response = get_secret(request, id)
+        return response
+
+    def delete(self, request, id):
+        response = delete_secret(request, id)        
+        return response
+
+
+
+
+
+class SecretsAll(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = get_secrets_all(request)
         return response
 
 

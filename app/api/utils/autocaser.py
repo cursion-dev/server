@@ -1123,7 +1123,7 @@ class AutoCaser():
                 site_url = self.site.site_url,
                 user     = self.site.user,
                 account  = self.site.account,
-                name     = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
+                title    = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
                 type     = "generated",
                 steps    = {
                     'url':  steps_url,

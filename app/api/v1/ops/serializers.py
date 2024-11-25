@@ -11,7 +11,7 @@ kwargs = {
     'allow_null': False, 
     'read_only': True, 
     'pk_field': UUIDField(format='hex_verbose')
-    }
+}
 
 
 
@@ -37,6 +37,19 @@ class ProcessSerializer(serializers.HyperlinkedModelSerializer):
         model = Process
         fields = ['id', 'site', 'type', 'time_created', 'time_completed',
         'success', 'info_url', 'progress', 'info', 'exception', 'object_id'
+        ]
+
+
+
+
+class SecretSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+
+    class Meta:
+        model = Secret
+        fields = ['id', 'account', 'user', 'time_created', 'name',
         ]
 
 
@@ -148,28 +161,28 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
 class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)
-    automation = serializers.PrimaryKeyRelatedField(**kwargs)
+    alert = serializers.PrimaryKeyRelatedField(**kwargs)
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Schedule
         fields = ['id', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
-        'periodic_task_id', 'status', 'automation', 'extras', 'account', 
+        'periodic_task_id', 'status', 'alert', 'extras', 'account', 
         'scope', 'resources', 'time_last_run',
         ]
 
 
 
 
-class AutomationSerializer(serializers.HyperlinkedModelSerializer):
+class AlertSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     schedule = serializers.PrimaryKeyRelatedField(**kwargs)
     user = serializers.ReadOnlyField(source='user.username')
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
-        model = Automation
+        model = Alert
         fields = ['id', 'expressions', 'actions', 'user', 'schedule',
         'time_created', 'name', 'account',
         ]
@@ -201,15 +214,14 @@ class CaseSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Case
-        fields = ['id', 'name', 'user', 'steps', 'time_created',
-        'tags', 'account', 'site', 'type', 'site_url', 
-        'processed'
+        fields = ['id', 'title', 'user', 'steps', 'time_created',
+        'tags', 'account', 'site', 'type', 'site_url', 'processed'
         ]
 
 
 
 
-class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
+class CaseRunSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
@@ -217,17 +229,15 @@ class TestcaseSerializer(serializers.HyperlinkedModelSerializer):
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
-        model = Testcase
+        model = CaseRun
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'steps', 'case', 'case_name', 'configs', 'account',
-        # 'passed', # REMOVE
-        'status', # NEW
+        'steps', 'case', 'title', 'configs', 'account', 'status',
         ]
 
 
 
 
-class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
+class SmallCaseRunSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     case = serializers.PrimaryKeyRelatedField(source='case.id', **kwargs)
@@ -235,11 +245,9 @@ class SmallTestcaseSerializer(serializers.HyperlinkedModelSerializer):
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
-        model = Testcase
+        model = CaseRun
         fields = ['id', 'site', 'user', 'time_created', 'time_completed',
-        'case', 'case_name', 'configs', 'account',
-        # 'passed', # REMOVE
-        'status', # NEW
+        'case', 'title', 'configs', 'account', 'status',
         ]
 
 
@@ -254,6 +262,54 @@ class IssueSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'time_created', 'trigger', 'account', 'title',
         'details', 'status', 'affected', 'labels'
         ]
+
+
+
+
+class FlowSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+
+    class Meta:
+        model = Flow
+        fields = ['id', 'user', 'account', 'time_created', 'title',
+        'nodes', 'edges', 'time_last_run',
+        ]
+
+
+
+
+class FlowRunSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    flow = serializers.PrimaryKeyRelatedField(source='flow.id', **kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+
+    class Meta:
+        model = FlowRun
+        fields = ['id', 'user', 'account', 'flow', 'time_created', 'title',
+        'nodes', 'edges', 'status', 'time_completed', 'logs', 'site', 'configs'
+        ]
+
+
+
+
+class SmallFlowRunSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    flow = serializers.PrimaryKeyRelatedField(source='flow.id', **kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
+
+    class Meta:
+        model = FlowRun
+        fields = ['id', 'user', 'account', 'flow', 'time_created', 'title',
+        'status', 'time_completed', 'site', 'configs'
+        ]
+
+
 
 
 

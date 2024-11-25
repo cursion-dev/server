@@ -14,20 +14,25 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True if os.environ.get('DEBUG') == 'True' else False
+
 
 # Network settings
 CORS_ORIGIN_ALLOW_ALL = True
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 ALLOWED_HOSTS = [os.environ.get('DJANGO_ALLOWED_HOSTS')]
+
 
 # URLs & location
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
@@ -37,8 +42,10 @@ YELLOWLAB_ROOT = os.environ.get('YELLOWLAB_ROOT')
 LIGHTHOUSE_ROOT = os.environ.get('LIGHTHOUSE_ROOT')
 LOCATION = os.environ.get('LOCATION')
 
+
 # Cursion.landing API KEY
 LANDING_API_KEY = os.environ.get('LANDING_API_KEY')
+
 
 # Application definition
 INSTALLED_APPS = [
@@ -205,6 +212,12 @@ DEFAULT_TEMPLATE_NO_BUTTON = os.environ.get('DEFAULT_TEMPLATE_NO_BUTTON')
 AUTOMATION_TEMPLATE = os.environ.get('AUTOMATION_TEMPLATE')
 
 
+# Twilio configs
+TWILIO_SID = os.environ.get('TWILIO_SID')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
+TWILIO_NUMBER = os.environ.get('TWILIO_NUMBER')
+
+
 # Google oAuth2
 GOOGLE_OAUTH2_CLIENT_ID = os.environ.get('GOOGLE_OAUTH2_CLIENT_ID')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH2_CLIENT_SECRET')
@@ -216,6 +229,10 @@ GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
 
 # OpenAI's GPT API key
 GPT_API_KEY = os.environ.get('GPT_API_KEY')
+
+
+# Encryption Key
+SECRETS_KEY = os.environ.get('SECRETS_KEY')
 
 
 # Stripe keys
@@ -240,7 +257,8 @@ CONFIGS = {
     'timeout': 300,
     'disable_animations': False,
     'auto_height': True,
-    'create_issue': True
+    'create_issue': True,
+    'end_on_fail': True
 }
 
 

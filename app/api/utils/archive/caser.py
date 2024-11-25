@@ -17,10 +17,10 @@
 
 # class Caser():
 #     """ 
-#     Run a `Testcase` for a specific `Site`.
+#     Run a `CaseRun` for a specific `Site`.
 
 #     Expects: {
-#         'testcase' : object,
+#         'caserun' : object,
 #     }
 
 #     - Use `Caser.run_s()` to run with selenium
@@ -32,12 +32,12 @@
 
 
 
-#     def __init__(self, testcase: object=None):
-#         self.testcase = testcase
-#         self.site_url = self.testcase.site.site_url
-#         self.steps = self.testcase.steps
-#         self.case_name = self.testcase.case.name
-#         self.configs = self.testcase.configs
+#     def __init__(self, caserun: object=None):
+#         self.caserun = caserun
+#         self.site_url = self.caserun.site.site_url
+#         self.steps = self.caserun.steps
+#         self.title = self.caserun.case.title
+#         self.configs = self.caserun.configs
 #         self.s_keys = {
 #             '+':            Keys.ADD,
 #             'Alt':          Keys.ALT,
@@ -76,63 +76,63 @@
 
 
 #     @sync_to_async
-#     def update_testcase(
+#     def update_caserun(
 #             self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
 #             passed: bool=None, exception: str=None, time_completed: str=None, image: str=None,
 #         ) -> None:
 #         # updates Tescase for a puppeteer run (async) 
 #         if start_time != None:
-#             self.testcase.steps[index][type]['time_created'] = str(start_time)
+#             self.caserun.steps[index][type]['time_created'] = str(start_time)
 #         if end_time != None:
-#             self.testcase.steps[index][type]['time_completed'] = str(end_time)
+#             self.caserun.steps[index][type]['time_completed'] = str(end_time)
 #         if passed != None:
-#             self.testcase.steps[index][type]['passed'] = passed
+#             self.caserun.steps[index][type]['passed'] = passed
 #         if exception != None:
-#             self.testcase.steps[index][type]['exception'] = str(exception)
+#             self.caserun.steps[index][type]['exception'] = str(exception)
 #         if image != None:
-#             self.testcase.steps[index][type]['image'] = str(image)
+#             self.caserun.steps[index][type]['image'] = str(image)
 #         if time_completed != None:
-#             self.testcase.time_completed = time_completed
+#             self.caserun.time_completed = time_completed
 #             test_status = True
-#             for step in self.testcase.steps:
+#             for step in self.caserun.steps:
 #                 if step['action']['passed'] == False:
 #                     test_status = False
 #                 if step['assertion']['passed'] == False:
 #                     test_status = False
-#             self.testcase.passed = test_status
+#             self.caserun.passed = test_status
         
-#         self.testcase.save()
+#         self.caserun.save()
 #         return None
 
 
 
 
-#     def update_testcase_s(
+#     def update_caserun_s(
 #             self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
 #             passed: bool=None, exception: str=None, time_completed: str=None, image: str=None,
 #         ) -> None:
 #         # updates Tescase for a selenium run (async) 
 #         if start_time != None:
-#             self.testcase.steps[index][type]['time_created'] = str(start_time)
+#             self.caserun.steps[index][type]['time_created'] = str(start_time)
 #         if end_time != None:
-#             self.testcase.steps[index][type]['time_completed'] = str(end_time)
+#             self.caserun.steps[index][type]['time_completed'] = str(end_time)
 #         if passed != None:
-#             self.testcase.steps[index][type]['passed'] = passed
+#             self.caserun.steps[index][type]['passed'] = passed
 #         if exception != None:
-#             self.testcase.steps[index][type]['exception'] = str(exception)
+#             self.caserun.steps[index][type]['exception'] = str(exception)
 #         if image != None:
-#             self.testcase.steps[index][type]['image'] = str(image)
+#             self.caserun.steps[index][type]['image'] = str(image)
 #         if time_completed != None:
-#             self.testcase.time_completed = time_completed
+#             self.caserun.time_completed = time_completed
 #             test_status = True
-#             for step in self.testcase.steps:
+#             for step in self.caserun.steps:
 #                 if step['action']['passed'] == False:
 #                     test_status = False
 #                 if step['assertion']['passed'] == False:
 #                     test_status = False
-#             self.testcase.passed = test_status
+#             self.caserun.passed = test_status
         
-#         self.testcase.save()
+#         self.caserun.save()
 #         return
 
 
@@ -177,7 +177,7 @@
 
 #         # seting up paths
 #         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-#         remote_path = f'static/testcases/{self.testcase.id}/{pic_id}.png'
+#         remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
 #         root_path = settings.AWS_S3_URL_PATH
 #         image_url = f'{root_path}/{remote_path}'
     
@@ -219,7 +219,7 @@
 
 #         # seting up paths
 #         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-#         remote_path = f'static/testcases/{self.testcase.id}/{pic_id}.png'
+#         remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
 #         root_path = settings.AWS_S3_URL_PATH
 #         image_url = f'{root_path}/{remote_path}'
     
@@ -279,13 +279,13 @@
 
 #     def run_s(self) -> None:
 #         """
-#         Runs the self.testcase using selenium as the driver
+#         Runs the self.caserun using selenium as the driver
 
 #         Returns -> None
 #         """
 
-#         print(f'beginning testcase for {self.site_url}  \
-#             using case {self.case_name}')
+#         print(f'beginning caserun for {self.site_url}  \
+#             using case {self.title}')
         
 #         # initate driver
 #         self.driver = driver_init(
@@ -310,7 +310,7 @@
 #             if step['action']['type'] == 'navigate':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -333,7 +333,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -345,7 +345,7 @@
 #             if step['action']['type'] == 'scroll':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -365,7 +365,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -377,7 +377,7 @@
 #             if step['action']['type'] == 'click':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -404,7 +404,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -415,7 +415,7 @@
 #             if step['action']['type'] == 'change':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -443,7 +443,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -454,7 +454,7 @@
 #             if step['action']['type'] == 'keyDown':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -491,7 +491,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -502,7 +502,7 @@
 #             if step['assertion']['type'] == 'match':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -534,7 +534,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -545,7 +545,7 @@
 #             if step['assertion']['type'] == 'exists':
 #                 exception = None
 #                 passed = True
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='assertion', 
 #                     start_time=datetime.now()
 #                 )
@@ -571,7 +571,7 @@
 #                     exception = self.format_exception_s(e)
 #                     passed = False
 
-#                 self.update_testcase_s(
+#                 self.update_caserun_s(
 #                     index=i, type='assertion', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -581,15 +581,15 @@
 
 #             i += 1  
 
-#         self.update_testcase_s(
+#         self.update_caserun_s(
 #             time_completed=datetime.now()
 #         )
 #         quit_driver(driver=self.driver)
-#         print('-- testcase run complete --')
+#         print('-- caserun run complete --')
         
-#         if not self.testcase.passed and self.testcase.configs.get('create_issue'):
+#         if not self.caserun.passed and self.caserun.configs.get('create_issue'):
 #             print('generating new Issue...')
-#             Issuer(testcase=self.testcase).build_issue()
+#             Issuer(caserun=self.caserun).build_issue()
         
 #         return None
 
@@ -598,13 +598,13 @@
 
 #     async def run_p(self) -> None:
 #         """
-#         Runs the self.testcase using pupeteer as the driver
+#         Runs the self.caserun using pupeteer as the driver
 
 #         Returns -> None
 #         """
 
-#         print(f'beginning testcase for {self.site_url}  \
-#             using case {self.case_name}')
+#         print(f'beginning caserun for {self.site_url}  \
+#             using case {self.title}')
         
 #         # initate driver
 #         self.driver = await driver_p_init()
@@ -661,7 +661,7 @@
 #             if step['action']['type'] == 'navigate':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -679,7 +679,7 @@
 #                     passed = False
 
                 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -690,7 +690,7 @@
 #             if step['action']['type'] == 'scroll':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -710,7 +710,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -721,7 +721,7 @@
 #             if step['action']['type'] == 'click':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -743,7 +743,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -754,7 +754,7 @@
 #             if step['action']['type'] == 'change':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -778,7 +778,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -789,7 +789,7 @@
 #             if step['action']['type'] == 'keyDown':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     start_time=datetime.now()
 #                 )
@@ -806,7 +806,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='action', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -817,7 +817,7 @@
 #             if step['assertion']['type'] == 'match':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='assertion', 
 #                     start_time=datetime.now()
 #                 )
@@ -841,7 +841,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='assertion', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -852,7 +852,7 @@
 #             if step['assertion']['type'] == 'exists':
 #                 exception = None
 #                 passed = True
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='assertion', 
 #                     start_time=datetime.now()
 #                 )
@@ -870,7 +870,7 @@
 #                     exception = await self.format_exception(e)
 #                     passed = False
 
-#                 await self.update_testcase(
+#                 await self.update_caserun(
 #                     index=i, type='assertion', 
 #                     end_time=datetime.now(), 
 #                     passed=passed, 
@@ -879,15 +879,15 @@
 #                 )
 
 #             i += 1    
-#         await self.update_testcase(
+#         await self.update_caserun(
 #             time_completed=datetime.now()
 #         )
 #         await self.driver.close()
-#         print('-- testcase run complete --')
+#         print('-- caserun run complete --')
 
-#         if not self.testcase.passed and self.testcase.configs.get('create_issue'):
+#         if not self.caserun.passed and self.caserun.configs.get('create_issue'):
 #             print('generating new Issue...')
-#             Issuer(testcase=self.testcase).build_issue()
+#             Issuer(caserun=self.caserun).build_issue()
 
 #         return None
 

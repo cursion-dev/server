@@ -16,14 +16,14 @@ class Reporter():
     Used for generating web vitals reports for 
     the associated `Page` & `Scan`
 
-    Expects -> {
+    Expects: {
         'report': <report:obj>,
         'scan'  : <scan:obj>,
     }
 
     Use self.generate_report() to create a new report
 
-    Returns -> data: {
+    Returns: {
         'report' : object,
         'success': bool,
         'message': str
@@ -43,17 +43,21 @@ class Reporter():
         # retrieveing latest scan if none
         if scan is None:
             try:
-                self.scan = Scan.objects.get(id=self.page.info['latest_scan']['id'])
-            except:
+                self.scan = Scan.objects.filter(
+                    page=self.page
+                ).exclude(
+                    time_completed=None
+                ).order_by('-time_created')[0]
+            except Exception as e:
+                print(e)
                 self.scan = None
 
-        
         # building paths & canvas template
-        if os.path.exists(os.path.join(settings.BASE_DIR,  f'temp/')):
-            self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
+        if os.path.exists(os.path.join(settings.BASE_DIR, f'reports/')):
+            self.local_path = os.path.join(settings.BASE_DIR, f'reports/{self.report.id}.pdf')
         else:
-            os.makedirs(f'{settings.BASE_DIR}/temp')
-            self.local_path = os.path.join(settings.BASE_DIR,  f'temp/{self.report.id}.pdf')
+            os.makedirs(f'{settings.BASE_DIR}/reports')
+            self.local_path = os.path.join(settings.BASE_DIR, f'reports/{self.report.id}.pdf')
     
         # setting default colors 
         self.page_index = 0
@@ -197,19 +201,6 @@ class Reporter():
         font_size = max((30 * (26/len(self.page.page_url))), 16)
         self.c.setFont('Helvetica-Bold', font_size)
         self.draw_wrapped_line(text=self.page.page_url, length=65, x_pos=.5, y_pos=9, y_offset=.5)
-
-        # if len(self.page.page_url) <= 12:
-        #     self.c.setFont('Helvetica-Bold', 30)
-        #     self.c.drawString(.5*inch, 9*inch, self.page.page_url)
-        
-        # elif 12 < len(self.page.page_url):
-        #     extra_chars = len(self.page.page_url) - 12
-        #     m = (2/5)
-        #     y_offset = .5
-        #     length = int(20 + (extra_chars * m))
-        #     self.c.setFont('Helvetica-Bold', int(45 - (extra_chars * m)))
-        #     self.c.setFillColor(HexColor(self.text_color))
-        #     self.draw_wrapped_line(text=self.page.page_url, length=length, x_pos=.5, y_pos=9, y_offset=y_offset)
         
         # cover img
         cover_img = os.path.join(settings.BASE_DIR, "api/utils/report_assets/cover_img.png")
@@ -330,14 +321,17 @@ class Reporter():
     
     
 
-    def get_audits(self, uri: str) -> dict:
+    def get_audits(self, uri: str=None) -> dict:
         """
         Downloads the JSON file from the passed uri
         and return the data as a python dict
         """
-        res = requests.get(uri)
-        audits = res.json()
-        return audits
+        if uri:
+            res = requests.get(uri)
+            audits = res.json()
+            return audits
+        else:
+            return []
 
 
 

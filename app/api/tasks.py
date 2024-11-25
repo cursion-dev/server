@@ -6,7 +6,7 @@ from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
 from .utils.reporter import Reporter as R
 from .utils.wordpress import Wordpress as W
-from .utils.automater import Automater
+from .utils.alerter import Alerter
 from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
 from .utils.exporter import create_and_send_report_export
@@ -14,16 +14,15 @@ from .utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
     _yellowlab
 )
-from .utils.alerts import send_invite_link, send_remove_alert
+from .utils.alerts import *
+from .utils.updater import update_flowrun
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from cursion import settings
-import asyncio, boto3, time, requests, json, stripe, inspect, random
-
-
-
+import asyncio, boto3, time, requests, \
+json, stripe, inspect, random
 
 
 
@@ -64,7 +63,7 @@ def check_and_increment_resource(account: object, resource: str) -> bool:
 
     Expcets: {
         'account'  : <object>,
-        'resource' : <str> 'scan', 'test', or 'testcase
+        'resource' : <str> 'scan', 'test', 'caserun', etc
     }
 
     Returns: Bool, True if resource was incremented.
@@ -90,7 +89,7 @@ def check_and_increment_resource(account: object, resource: str) -> bool:
 def check_location(location: str) -> bool:
     """ 
     Determines if task should be executed based on 
-    passed location and curent system location (settings.LOCATION). 
+    passed location and current system location (settings.LOCATION). 
 
     Expects: {
         'location': str
@@ -121,7 +120,7 @@ def record_task(
     attribute.
 
     Expects: {
-        'resource_type' : str (scan, test, testcase)
+        'resource_type' : str (scan, test, caserun)
         'resource_id'   : str 
         'task_id'       : str 
         'task_method'   : str
@@ -136,8 +135,8 @@ def record_task(
         resource = Scan.objects.get(id=resource_id)
     if resource_type == 'test':
         resource = Test.objects.get(id=resource_id)
-    if resource_type == 'testcase':
-        resource = Testcase.objects.get(id=resource_id)
+    if resource_type == 'caserun':
+        resource = CaseRun.objects.get(id=resource_id)
 
     # get current resoruce.system.tasks data
     tasks = resource.system.get('tasks', [])
@@ -254,12 +253,15 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
 
     # getting site and updating for time_crawl_start
     site = Site.objects.get(id=site_id)
-    site.time_crawl_started = timezone.now()
+    site.time_crawl_started = datetime.now(timezone.utc)
     site.time_crawl_completed = None
     site.save()
 
+    # get max_urls
+    max_urls = site.account.usage['pages_allowed']
+
     # crawl site 
-    pages = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
+    pages = Crawler(url=site.site_url, max_urls=max_urls).get_links()
     
     # create pages and scans
     for url in pages:
@@ -296,7 +298,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
                 page.save()
 
     # updating site status
-    site.time_crawl_completed = timezone.now()
+    site.time_crawl_completed = datetime.now(timezone.utc)
     site.save()
 
     logger.info('Added site and all pages')
@@ -321,9 +323,12 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     
     # getting site and updating for time_crawl_start
     site = Site.objects.get(id=site_id)
-    site.time_crawl_started = timezone.now()
+    site.time_crawl_started = datetime.now(timezone.utc)
     site.time_crawl_completed = None
     site.save()
+
+    # get pages_allowed
+    pages_allowed = site.account.usage['pages_allowed']
     
     # getting old pages for comparison
     old_pages = Page.objects.filter(site=site)
@@ -332,7 +337,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
         old_urls.append(p.page_url)
 
     # crawl site 
-    new_urls = Crawler(url=site.site_url, max_urls=site.account.max_pages).get_links()
+    new_urls = Crawler(url=site.site_url, max_urls=pages_allowed).get_links()
     add_urls = []
 
     # checking for duplicates
@@ -346,7 +351,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     for url in add_urls:
 
         # add new page if room exists
-        if current_count < site.account.max_pages:
+        if current_count < pages_allowed:
             page = Page.objects.create(
                 site=site,
                 page_url=url,
@@ -377,7 +382,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
             current_count += 1
 
     # updating site status
-    site.time_crawl_completed = timezone.now()
+    site.time_crawl_completed = datetime.now(timezone.utc)
     site.save()
 
     logger.info('crawled site and added pages')
@@ -585,18 +590,22 @@ def scan_page_bg(
         self, 
         scan_id: str=None, 
         test_id: str=None, 
-        automation_id: str=None, 
-        configs: dict=settings.CONFIGS
+        alert_id: str=None, 
+        configs: dict=settings.CONFIGS,
+        flowrun_id: str=None,
+        node_index: str=None,
     ) -> None:
     """ 
     Runs all the requested `Scan` components 
     of the passed `Scan`.
 
     Expects: {
-        scan_id       : str, 
-        test_id       : str, 
-        automation_id : str, 
-        configs       : dict
+        scan_id    : str, 
+        test_id    : str, 
+        alert_id   : str, 
+        configs    : dict,
+        flowrun_id : str,
+        node_index : str
     }
 
     Returns -> None
@@ -607,13 +616,37 @@ def scan_page_bg(
     
     # run each scan component in parallel
     if 'html' in scan.type or 'logs' in scan.type or 'full' in scan.type:
-        run_html_and_logs_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
+        run_html_and_logs_bg.delay(
+            scan_id=scan.id, 
+            test_id=test_id, 
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index,
+        )
     if 'lighthouse' in scan.type or 'full' in scan.type:
-        run_lighthouse_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
+        run_lighthouse_bg.delay(
+            scan_id=scan.id, 
+            test_id=test_id, 
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index,
+        )
     if 'yellowlab' in scan.type or 'full' in scan.type:
-        run_yellowlab_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
+        run_yellowlab_bg.delay(
+            scan_id=scan.id, 
+            test_id=test_id, 
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index,
+        )
     if 'vrt' in scan.type or 'full' in scan.type:
-        run_vrt_bg.delay(scan_id=scan.id, test_id=test_id, automation_id=automation_id)
+        run_vrt_bg.delay(
+            scan_id=scan.id, 
+            test_id=test_id, 
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index,
+        )
 
     logger.info('created new Scan of Page')
     return None
@@ -627,7 +660,7 @@ def create_scan(
         scan_id: str=None,
         page_id: str=None, 
         type: list=settings.TYPES,
-        automation_id: str=None, 
+        alert_id: str=None, 
         configs: str=None,
         tags: str=None,
     ) -> None:
@@ -639,7 +672,7 @@ def create_scan(
         scan_id         : str,
         page_id         : str, 
         type            : list,
-        automation_id   : str, 
+        alert_id        : str, 
         configs         : dict,
         tags            : list,
     }
@@ -662,11 +695,11 @@ def create_scan(
             tags=tags, 
         )
 
-    # run scan and automation if necessary
+    # run scan and alert if necessary
     scan = S(scan=created_scan).build_scan()
-    if automation_id:
-        print('running automation from `task.create_scan`')
-        Automater(automation_id, scan.id).run_automation()
+    if alert_id:
+        print('running alert from `task.create_scan`')
+        Alerter(alert_id, scan.id).run_alert()
     
     logger.info('Created new scan of site')
     return None
@@ -683,12 +716,14 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     Expects: {
         'scope'         : str
         'resources'     : list
-        'account_id'    : str
+        'account_id'    : strx
         'type'          : list,
         'configs'       : dict,
         'tags'          : list,
-        'automation_id' : str,
-        'task_id'       : str
+        'alert_id'      : str,
+        'task_id'       : str,
+        'flowrun_id'    : str,
+        'node_index     : str
     }
 
     Returns -> None
@@ -701,8 +736,10 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     type = kwargs.get('type')
     configs = kwargs.get('configs')
     tags = kwargs.get('tags')
-    automation_id = kwargs.get('automation_id')
+    alert_id = kwargs.get('alert_id')
     task_id = kwargs.get('task_id')
+    flowrun_id = kwargs.get('flowrun_id')
+    node_index = kwargs.get('node_index')
 
     # checking location
     if not check_location(configs.get('location', settings.LOCATION)):
@@ -712,6 +749,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     # setting defaults
     pages = []
     sites = []
+    objects = []
 
     # get account if account_id exists
     if account_id:
@@ -755,33 +793,59 @@ def create_scan_bg(self, *args, **kwargs) -> None:
         # check resource 
         if check_and_increment_resource(page.account, 'scans'):
 
+            # create Scan obj
+            scan = Scan.objects.create(
+                site=page.site,
+                page=page,
+                type=type,
+                tags=tags,
+                configs=configs,
+            )
+
             # updating latest_scan info for page
-            page.info['latest_scan']['id'] = 'placeholder'
-            page.info['latest_scan']['time_created'] = str(timezone.now())
+            page.info['latest_scan']['id'] = str(scan.id)
+            page.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
             page.info['latest_scan']['time_completed'] = None
             page.info['latest_scan']['score'] = None
             page.info['latest_scan']['score'] = None
             page.save()
 
             # updating latest_scan info for site
-            page.site.info['latest_scan']['id'] = 'placeholder'
-            page.site.info['latest_scan']['time_created'] = str(timezone.now())
+            page.site.info['latest_scan']['id'] = str(scan.id)
+            page.site.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
             page.site.info['latest_scan']['time_completed'] = None
             page.site.save()
 
-            # init scan in bg
-            create_scan.delay(
-                page_id=str(page.id),
-                type=type,
+            # adding objects
+            objects.append({
+                'parent': str(scan.page.id),
+                'id': str(scan.id),
+                'status': 'working'
+            })
+
+            # init scan page in background
+            scan_page_bg.delay(
+                scan_id=str(scan.id),
+                alert_id=alert_id,
                 configs=configs,
-                tags=tags,
-                automation_id=automation_id
+                flowrun_id=flowrun_id,
+                node_index=node_index
             )
+        
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'objects': objects,
+            'node_status': 'working' if len(objects) > 0 else 'failed',
+            'message': f'starting {len(objects)} scans for {page.site.site_url} | run_id: {flowrun_id}'
+        })
     
     # update schedule if task_id is not None
     if task_id:
         try:
-            last_run = timezone.now()
+            last_run = datetime.now(timezone.utc)
             Schedule.objects.filter(periodic_task_id=task_id).update(
                 time_last_run=last_run
             )
@@ -799,16 +863,20 @@ def run_html_and_logs_bg(
         self, 
         scan_id: str=None, 
         test_id: str=None, 
-        automation_id: str=None, 
+        alert_id: str=None, 
+        flowrun_id: str=None,
+        node_index: str=None,
         **kwargs
     ) -> None:
     """ 
     Runs the html & logs components of the passed `Scan`
 
     Expects: {
-        scan_id         : str, 
-        test_id         : str, 
-        automation_id   : str,
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
         **kwargs
     }
     
@@ -816,13 +884,15 @@ def run_html_and_logs_bg(
     """
 
     # sleeping random for DB 
-    time.sleep(random.uniform(0.1, 3))
+    time.sleep(random.uniform(2, 6))
 
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
         test_id = kwargs.get('test_id')
-        automation_id = kwargs.get('automation_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
    
     # save sys data
     record_task(
@@ -833,12 +903,14 @@ def run_html_and_logs_bg(
         kwargs={
             'scan_id': str(scan_id) if scan_id is not None else None,
             'test_id': str(test_id) if test_id is not None else None, 
-            'automation_id': str(automation_id) if automation_id is not None else None
+            'alert_id': str(alert_id) if alert_id is not None else None,
+            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+            'node_index': str(node_index) if node_index is not None else None
         }
     )
     
     # run html and logs component
-    _html_and_logs(scan_id, test_id, automation_id)
+    _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran html & logs component')
     return None
@@ -851,16 +923,20 @@ def run_vrt_bg(
         self, 
         scan_id: str=None, 
         test_id: str=None, 
-        automation_id: str=None, 
+        alert_id: str=None, 
+        flowrun_id: str=None,
+        node_index: str=None,
         **kwargs
     ) -> None:
     """ 
     Runs the VRT component of the passed `Scan`
 
     Expects: {
-        scan_id         : str, 
-        test_id         : str, 
-        automation_id   : str,
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
         **kwargs
     }
     
@@ -868,13 +944,15 @@ def run_vrt_bg(
     """
 
     # sleeping random for DB 
-    time.sleep(random.uniform(0.1, 3))
+    time.sleep(random.uniform(2, 6))
 
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
         test_id = kwargs.get('test_id')
-        automation_id = kwargs.get('automation_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
    
     # save sys data
     record_task(
@@ -885,12 +963,14 @@ def run_vrt_bg(
         kwargs={
             'scan_id': str(scan_id) if scan_id is not None else None,
             'test_id': str(test_id) if test_id is not None else None, 
-            'automation_id': str(automation_id) if automation_id is not None else None
+            'alert_id': str(alert_id) if alert_id is not None else None,
+            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+            'node_index': str(node_index) if node_index is not None else None
         }
     )
 
     # run VRT component
-    _vrt(scan_id, test_id, automation_id)
+    _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran vrt component')
     return None
@@ -903,16 +983,20 @@ def run_lighthouse_bg(
         self, 
         scan_id: str=None, 
         test_id: str=None, 
-        automation_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None, 
         **kwargs
     ) -> None:
     """ 
     Runs the lighthouse component of the passed `Scan`
 
     Expects: {
-        scan_id         : str, 
-        test_id         : str, 
-        automation_id   : str,
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
         **kwargs
     }
     
@@ -920,13 +1004,15 @@ def run_lighthouse_bg(
     """
 
     # sleeping random for DB 
-    time.sleep(random.uniform(0.1, 3))
+    time.sleep(random.uniform(2, 6))
 
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
         test_id = kwargs.get('test_id')
-        automation_id = kwargs.get('automation_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
    
     # save sys data
     record_task(
@@ -937,12 +1023,14 @@ def run_lighthouse_bg(
         kwargs={
             'scan_id': str(scan_id) if scan_id is not None else None,
             'test_id': str(test_id) if test_id is not None else None, 
-            'automation_id': str(automation_id) if automation_id is not None else None
+            'alert_id': str(alert_id) if alert_id is not None else None,
+            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+            'node_index': str(node_index) if node_index is not None else None
         }
     )
 
     # run lighthouse component
-    _lighthouse(scan_id, test_id, automation_id)
+    _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran lighthouse component')
     return None
@@ -955,16 +1043,20 @@ def run_yellowlab_bg(
         self, 
         scan_id: str=None, 
         test_id: str=None, 
-        automation_id: str=None, 
+        alert_id: str=None, 
+        flowrun_id: str=None,
+        node_index: str=None,
         **kwargs
     ) -> None:
     """ 
     Runs the yellowlab component of the passed `Scan`
 
     Expects: {
-        scan_id         : str, 
-        test_id         : str, 
-        automation_id   : str,
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
         **kwargs
     }
     
@@ -972,13 +1064,15 @@ def run_yellowlab_bg(
     """
 
     # sleeping random for DB 
-    time.sleep(random.uniform(0.1, 3))
+    time.sleep(random.uniform(2, 6))
 
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
         test_id = kwargs.get('test_id')
-        automation_id = kwargs.get('automation_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
    
     # save sys data
     record_task(
@@ -989,12 +1083,14 @@ def run_yellowlab_bg(
         kwargs={
             'scan_id': str(scan_id) if scan_id is not None else None,
             'test_id': str(test_id) if test_id is not None else None, 
-            'automation_id': str(automation_id) if automation_id is not None else None
+            'alert_id': str(alert_id) if alert_id is not None else None,
+            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+            'node_index': str(node_index) if node_index is not None else None
         }
     )
 
     # run yellowlab component
-    _yellowlab(scan_id, test_id, automation_id)
+    _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran yellowlab component')
     return None
@@ -1003,14 +1099,14 @@ def run_yellowlab_bg(
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_test(self, test_id: str, automation_id: str=None) -> None:
+def run_test(self, test_id: str, alert_id: str=None) -> None:
     """ 
-    Helped function to shorted the code base 
+    Helper function to shorted the code base 
     when creating a `Test`.
 
     Expects: {
-        test_id         : str, 
-        automation_id   : str
+        test_id    : str, 
+        alert_id   : str
     }
     
     Returns -> None
@@ -1020,9 +1116,9 @@ def run_test(self, test_id: str, automation_id: str=None) -> None:
 
     # execute test
     test = T(test=test).run_test()
-    if automation_id:
-        print('running automation from `task.run_test`')
-        Automater(automation_id, test.id).run_automation()
+    if alert_id:
+        print('running alert from `task.run_test`')
+        Alerter(alert_id, test.id).run_alert()
 
     logger.info('Test completed')
     return None
@@ -1035,7 +1131,7 @@ def create_test(
         self,
         test_id: str=None,
         page_id: str=None, 
-        automation_id: str=None, 
+        alert_id: str=None, 
         configs: dict=settings.CONFIGS, 
         type: list=settings.TYPES,
         index: int=None,
@@ -1043,22 +1139,26 @@ def create_test(
         post_scan: str=None,
         tags: list=None,
         threshold: float=settings.TEST_THRESHOLD,
+        flowrun_id: str=None,
+        node_index: str=None
     ) -> None:
     """ 
     Creates a `post_scan` if necessary, waits for completion,
     and runs a `Test`
 
     Expects: {
-        test_id       : str,
-        page_id       : str, 
-        automation_id : str, 
-        configs       : dict, 
-        type          : list,
-        index         : int,
-        pre_scan      : str,
-        post_scan     : str,
-        tags          : list,
-        threshold     : float,
+        test_id     : str,
+        page_id     : str, 
+        alert_id    : str, 
+        configs     : dict, 
+        type        : list,
+        index       : int,
+        pre_scan    : str,
+        post_scan   : str,
+        tags        : list,
+        threshold   : float,
+        flowrun_id  : str,
+        node_index  : str
     }
     
     Returns -> None
@@ -1066,6 +1166,7 @@ def create_test(
 
     # setting defaults
     created_test = None
+    objects = []
 
     # get or create a Test
     if test_id is not None:
@@ -1081,6 +1182,13 @@ def create_test(
             threshold=float(threshold),
             status='working'
         )
+
+    # adding objects
+    objects.append({
+        'parent': str(page.id),
+        'id': str(created_test.id),
+        'status': 'working'
+    })
 
     # get pre_ & post_ scans
     if pre_scan is not None:
@@ -1105,6 +1213,18 @@ def create_test(
                     configs=configs,
                 )
 
+                # update flowrun
+                if flowrun_id and flowrun_id != 'None':
+                    update_flowrun(**{
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index,
+                        'objects': objects,
+                        'message': (
+                            f'❌ test for {page.page_url} could not start because there was '+
+                            f'no pre_scan available - starting new scan instead'
+                        )
+                    })
+
                 # remove created_test
                 created_test.delete()
 
@@ -1122,6 +1242,21 @@ def create_test(
         # check and increment resources
         if not check_and_increment_resource(page.account, 'scans'):
             
+            # update obects
+            objects[-1]['status'] = 'failed'
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                update_flowrun(**{
+                    'flowrun_id': flowrun_id,
+                    'node_index': node_index,
+                    'objects': objects,
+                    'message': (
+                        f'❌ test for {page.page_url} could not start because this account has reached '+
+                        f'max_allowed_scans for this billing cycle'
+                    )
+                })
+
             # remove created_test
             created_test.delete()
 
@@ -1142,9 +1277,23 @@ def create_test(
         scan_page_bg.delay(
             scan_id=post_scan.id, 
             test_id=created_test.id,
-            automation_id=automation_id,
+            alert_id=alert_id,
             configs=configs,
+            flowrun_id=flowrun_id,
+            node_index=node_index
         )
+
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'objects': objects,
+                'message': (
+                    f'test starting for {page.page_url} | '+
+                    f'run_id: {flowrun_id}'
+                )
+            })
         
     # updating parired scans
     pre_scan.paired_scan = post_scan
@@ -1160,7 +1309,7 @@ def create_test(
 
     # check if pre and post scan are complete and start test if True
     if pre_scan.time_completed is not None and post_scan.time_completed is not None:
-        run_test.delay(test_id=created_test.id, automation_id=automation_id)
+        run_test.delay(test_id=created_test.id, alert_id=alert_id)
     
     logger.info('Began Scan/Test process')
     return None
@@ -1182,11 +1331,13 @@ def create_test_bg(self, *args, **kwargs) -> None:
         type          : list
         configs       : dict
         tags          : list
-        automation_id : str
+        alert_id      : str
         pre_scan      : str
         post_scan     : str
         threshold     : float
         task_id       : str
+        flowrun_id    : str
+        node_index    : str
     }
     
     Returns -> None
@@ -1201,10 +1352,12 @@ def create_test_bg(self, *args, **kwargs) -> None:
     configs = kwargs.get('configs')
     tags = kwargs.get('tags')
     threshold = kwargs.get('threshold')
-    automation_id = kwargs.get('automation_id')
+    alert_id = kwargs.get('alert_id')
     pre_scan = kwargs.get('pre_scan')
     post_scan = kwargs.get('post_scan')
     task_id = kwargs.get('task_id')
+    flowrun_id = kwargs.get('flowrun_id')
+    node_index = kwargs.get('node_index')
 
     # checking location
     if not check_location(configs.get('location', settings.LOCATION)):
@@ -1217,6 +1370,8 @@ def create_test_bg(self, *args, **kwargs) -> None:
         # setting defaults
         pages = []
         sites = []
+        objects = []
+        failed = 0
 
         # get account if account_id exists
         if account_id:
@@ -1256,12 +1411,19 @@ def create_test_bg(self, *args, **kwargs) -> None:
         
         # create a test for each page
         for page in pages:
+            
+            objects.append({
+                'parent': str(page.id),
+                'id': None,
+                'status': 'working'
+            })
+
             # check resource 
             if check_and_increment_resource(page.account, 'tests'):
 
                 # updating latest_test info for page
                 page.info['latest_test']['id'] = 'placeholder'
-                page.info['latest_test']['time_created'] = str(timezone.now())
+                page.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
                 page.info['latest_test']['time_completed'] = None
                 page.info['latest_test']['score'] = None
                 page.info['latest_test']['status'] = 'working'
@@ -1269,7 +1431,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
                 # updating latest_test info for site
                 page.site.info['latest_test']['id'] = 'placeholder'
-                page.site.info['latest_test']['time_created'] = str(timezone.now())
+                page.site.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
                 page.site.info['latest_test']['time_completed'] = None
                 page.site.info['latest_test']['score'] = None
                 page.site.info['latest_test']['status'] = 'working'
@@ -1284,8 +1446,38 @@ def create_test_bg(self, *args, **kwargs) -> None:
                     threshold=float(threshold),
                     pre_scan=pre_scan,
                     post_scan=post_scan,
-                    automation_id=automation_id
+                    alert_id=str(alert_id),
+                    flowrun_id=str(flowrun_id),
+                    node_index=node_index
                 )
+            
+            else:
+                # update flowrun
+                if flowrun_id and flowrun_id != 'None':
+                    update_flowrun(**{
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index,
+                        'message': (
+                            f'❌ test for {page.page_url} could not start because this account has reached '+
+                            f'max_allowed_tests for this billing cycle'
+                        )
+                    })
+                
+                # update last object
+                failed += 1
+                objects[-1]['status'] = 'failed'
+                logger.info('maxed tests reached')
+                return None
+
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'objects': objects,
+                'node_status': 'working',
+                'message': f'created {str(len(objects) - failed)} tests for {page.site.site_url} | run_id: {flowrun_id}'
+            })
     
     # get test and run 
     if test_id:
@@ -1299,13 +1491,15 @@ def create_test_bg(self, *args, **kwargs) -> None:
             threshold=float(threshold),
             pre_scan=pre_scan,
             post_scan=post_scan,
-            automation_id=str(automation_id)
+            alert_id=str(alert_id),
+            flowrun_id=str(flowrun_id),
+            node_index=node_index
         )
 
     # update schedule if task_id is not None
     if task_id:
         try:
-            last_run = timezone.now()
+            last_run = datetime.now(timezone.utc)
             Schedule.objects.filter(periodic_task_id=task_id).update(
                 time_last_run=last_run
             )
@@ -1319,14 +1513,21 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
 
 @shared_task
-def create_report(page_id: str=None, automation_id: str=None) -> None:
+def create_report(
+        page_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> None:
     """ 
     Generates a new PDF `Report` of the requested `Page`
-    and runs the associated `Automation` if requested
+    and runs the associated `Alert` if requested
 
     Expcets: {
         page_id       : str, 
-        automation_id : str
+        alert_id      : str,
+        flowrun_id    : str
+        node_index    : str
     }
     
     Returns -> None
@@ -1335,30 +1536,40 @@ def create_report(page_id: str=None, automation_id: str=None) -> None:
     # get page
     page = Page.objects.get(id=page_id)
     
-    # check if report exists
-    if Report.objects.filter(page=page).exists():
-        report = Report.objects.filter(page=page).order_by('-time_created')[0]
-    
-    # create new report obj
-    else:
-        info = {
-            "text_color": '#24262d',
-            "background_color": '#e1effd',
-            "highlight_color": '#ffffff',
-        }
-        report = Report.objects.create(
-            user=page.user,
-            site=page.site,
-            account=page.account,
-            page=page,
-            info=info,
-            type=['lighthouse', 'yellowlab']
-        )
+    # create report obj
+    info = {
+        "text_color": '#24262d',
+        "background_color": '#e1effd',
+        "highlight_color": '#ffffff',
+    }
+    report = Report.objects.create(
+        user=page.user,
+        site=page.site,
+        account=page.account,
+        page=page,
+        info=info,
+        type=['lighthouse', 'yellowlab']
+    )
     
     # generate report PDF
-    R(report=report).generate_report()
-    if automation_id:
-        Automater(automation_id, str(report.id)).run_automation()
+    resp = R(report=report).generate_report()
+    
+    # run alert
+    if alert_id:
+        Alerter(alert_id, str(report.id)).run_alert()
+
+    # update flowrun 
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'report {'created' if  resp['success'] else 'not created'} for {page.page_url} | report_id: {str(report.id)}',
+            'objects': [{
+                'parent': str(page.id),
+                'id': str(report.id),
+                'status': 'passed' if resp['success'] else 'failed'
+            }]
+        })
     
     logger.info('Created new report of page')
     return None
@@ -1375,8 +1586,10 @@ def create_report_bg(*args, **kwargs) -> None:
         'scope'         : str,
         'resources'     : str
         'account_id'    : str
-        'automation_id' : str
+        'alert_id'      : str
         'task_id'       : str
+        'flowrun_id'    : str
+        'node_index'    : str
     }
      
     Returns -> None
@@ -1386,12 +1599,15 @@ def create_report_bg(*args, **kwargs) -> None:
     scope = kwargs.get('scope')
     resources = kwargs.get('resources', [])
     account_id = kwargs.get('account_id')
-    automation_id = kwargs.get('automation_id')
+    alert_id = kwargs.get('alert_id')
     task_id = kwargs.get('task_id')
+    flowrun_id = kwargs.get('flowrun_id')
+    node_index = kwargs.get('node_index')
 
     # setting defaults
     pages = []
     sites = []
+    objects = []
 
     # get account if account_id exists
     if account_id:
@@ -1429,17 +1645,42 @@ def create_report_bg(*args, **kwargs) -> None:
     for site in sites:
         pages += Page.objects.filter(site=site)
 
+    # record objects for each report
+    for page in pages:
+
+        objects.append({
+            'parent': str(page.id),
+            'id': None,
+            'status': 'working'
+        })
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'objects': objects,
+            'node_status': 'working',
+            'message': f'starting {str(len(objects))} reports for {page.site.site_url} | run_id: {flowrun_id}'
+        })
+
     # create reports for each page
     for page in pages:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+
         create_report.delay(
             page_id=page.id,
-            automation_id=automation_id
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index
         )
     
     # update schedule if task_id is not None
     if task_id:
         try:
-            last_run = timezone.now()
+            last_run = datetime.now(timezone.utc)
             Schedule.objects.filter(periodic_task_id=task_id).update(
                 time_last_run=last_run
             )
@@ -1476,6 +1717,11 @@ def create_auto_cases_bg(
     
     Returns -> None
     """
+
+    # checking location
+    if not check_location(configs.get('location', settings.LOCATION)):
+        logger.info('Not running due to location param')
+        return None
 
     # get objects
     site = Site.objects.get(id=site_id)
@@ -1537,67 +1783,79 @@ def case_pre_run_bg(
 
 
 @shared_task
-def run_testcase(
-        testcase_id: str=None, 
-        automation_id: str=None,
+def run_case(
+        caserun_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
     ) -> None:
     """
-    Runs a Testcase.
+    Runs a CaseRun.
 
     Expects: {
-        testcase_id   : str, 
-        automation_id : str,
+        caserun_id  : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str
     }
     
     Returns -> None
     """
     
-    # get testcase
-    testcase = Testcase.objects.get(id=testcase_id)
+    # get caserun
+    caserun = CaseRun.objects.get(id=caserun_id)
 
-    # running testcase
-    testresult = Caser(testcase=testcase).run()
+    # running caserun
+    Caser(
+        caserun=caserun,
+        flowrun_id=flowrun_id,
+        node_index=node_index
+    ).run()
 
-    # run automation if requested
-    if automation_id:
-        Automater(automation_id, str(testcase.id)).run_automation()
+    # run alert if requested
+    if alert_id:
+        Alerter(alert_id, str(caserun.id)).run_alert()
 
-    logger.info('Ran Testcase')
+    logger.info('Ran CaseRun')
     return None
 
 
 
 
 @shared_task
-def create_testcase_bg(*args, **kwargs) -> None:
+def create_caserun_bg(*args, **kwargs) -> None:
     """ 
-    Creates and or runs a Testcase.
+    Creates and or runs a CaseRun.
 
     Expects: {
-        testcase_id   : str, 
+        caserun_id    : str, 
         resources     : list, 
         scope         : str, 
         account_id    : str, 
         case_id       : str, 
         updates       : list, 
-        automation_id : str,
+        alert_id      : str,
         configs       : dict,
-        task_id       : str
+        task_id       : str,
+        flowrun_id    : str,
+        node_index    : str
     }
     
     Returns -> None
     """
 
     # get data
-    testcase_id = kwargs.get('testcase_id')
+    caserun_id = kwargs.get('caserun_id')
     case_id = kwargs.get('case_id')
     account_id = kwargs.get('account_id')
     resources = kwargs.get('resources', [])
     scope = kwargs.get('scope')
     updates = kwargs.get('updates')
-    automation_id = kwargs.get('automation_id')
+    alert_id = kwargs.get('alert_id')
     task_id = kwargs.get('task_id')
     configs = kwargs.get('configs', settings.CONFIGS)
+    flowrun_id = kwargs.get('flowrun_id')
+    node_index = kwargs.get('node_index')
 
     # checking location
     if not check_location(configs.get('location', settings.LOCATION)):
@@ -1607,8 +1865,9 @@ def create_testcase_bg(*args, **kwargs) -> None:
     # settign defaults 
     case = None
     steps = None
-    testcases = []
+    caseruns = []
     sites = []
+    objects = []
 
     # get case
     if case_id:
@@ -1635,12 +1894,12 @@ def create_testcase_bg(*args, **kwargs) -> None:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
 
-    # getting testcase
-    if testcase_id:
-        testcases = [Testcase.objects.get(id=testcase_id),]
+    # getting caserun
+    if caserun_id:
+        caseruns = [CaseRun.objects.get(id=caserun_id),]
     
-    # creating testcase from case
-    if testcase_id is None:
+    # creating caserun from case
+    if caserun_id is None:
         
         # getting all sites in resources
         for item in resources:
@@ -1660,12 +1919,12 @@ def create_testcase_bg(*args, **kwargs) -> None:
         for site in sites:
 
             # check and increment resource
-            if check_and_increment_resource(site.account, 'testcases'):
+            if check_and_increment_resource(site.account, 'caseruns'):
     
-                # create new testcase
-                _testcase = Testcase.objects.create(
+                # create new caserun
+                caserun = CaseRun.objects.create(
                     case = case,
-                    case_name = case.name,
+                    title = case.title,
                     site = site,
                     user = site.user,
                     account = site.account,
@@ -1674,28 +1933,181 @@ def create_testcase_bg(*args, **kwargs) -> None:
                 )
 
                 # add to list
-                testcases.append(
-                    _testcase
-                )
+                caseruns.append(caserun)
 
-    # iterate through testcases and run
-    for testcase in testcases:
-        run_testcase.delay(
-            testcase_id=str(testcase.id),
-            automation_id=automation_id
+                # add to objects
+                objects.append({
+                    'parent': str(site.id),
+                    'id': str(caserun.id),
+                    'status': 'working'
+                })
+            
+            else:
+                # update flowrun if not able to contiune
+                if flowrun_id and flowrun_id != 'None':
+                    update_flowrun(**{
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index,
+                        'node_status': 'failed',
+                        'message': (
+                            f'❌ case run could not start because this account has reached '+
+                            f'max_allowed_caseruns for this billing cycle'
+                        )
+                    })
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'node_status': 'working',
+            'objects': objects
+        })
+
+    # iterate through caseruns and run
+    for caserun in caseruns:
+        run_case.delay(
+            caserun_id=str(caserun.id),
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index
         )
-    
+
     # update schedule if task_id is not None
     if task_id:
         try:
-            last_run = timezone.now()
+            last_run = datetime.now(timezone.utc)
             Schedule.objects.filter(periodic_task_id=task_id).update(
                 time_last_run=last_run
             )
         except Exception as e:
             print(e)
 
-    logger.info('Created Testcases')
+    logger.info('Created CaseRuns')
+    return None
+
+
+
+
+@shared_task
+def create_flowrun_bg(*args, **kwargs) -> None:
+    """ 
+    Creates and runs a FlowRun.
+
+    Expects: {
+        flow_id       : str, 
+        resources     : list, 
+        scope         : str, 
+        account_id    : str, 
+        alert_id      : str,
+        configs       : dict,
+        task_id       : str
+    }
+    
+    Returns -> None
+    """
+
+    # get data
+    flow_id = kwargs.get('flow_id')
+    account_id = kwargs.get('account_id')
+    resources = kwargs.get('resources', [])
+    scope = kwargs.get('scope')
+    alert_id = kwargs.get('alert_id')
+    task_id = kwargs.get('task_id')
+    configs = kwargs.get('configs', settings.CONFIGS)
+
+    # checking location
+    if not check_location(configs.get('location', settings.LOCATION)):
+        logger.info('Not running due to location param')
+        return None
+
+    # settign defaults 
+    flow = None
+    sites = []
+
+    # get flow
+    if flow_id:
+        flow = Flow.objects.get(id=flow_id)
+
+    # getting all sites in resources
+    for item in resources:
+        if item['type'] == 'site':
+            try:
+                sites.append(
+                    Site.objects.get(id=item['id'])
+                )
+            except Exception as e:
+                print(e)
+    
+    # add all sites in account if scope == 'account'
+    if scope == 'account' and len(resources) == 0:
+        sites = Site.objects.filter(account__id=account_id)
+
+    # iterate through sites
+    for site in sites:
+
+        # check and increment resource
+        if check_and_increment_resource(site.account, 'flowruns'):
+
+            # set flowrun_id
+            flowrun_id = uuid.uuid4()
+
+            # update nodes
+            _nodes = flow.nodes
+            for i in range(len(_nodes)):
+                _nodes[i]['data']['status'] = 'queued'
+                _nodes[i]['data']['finalized'] = False
+                _nodes[i]['data']['time_started'] = None
+                _nodes[i]['data']['time_completed'] = None
+                _nodes[i]['data']['alert_id'] = alert_id
+                _nodes[i]['data']['objects'] = []
+
+            # updates edges
+            _edges = flow.edges
+            for i in range(len(_edges)):
+                _edges[i]['animated'] = False
+                _edges[i]['style'] = None
+
+            # create init log
+            logs = [{
+                'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'message': f'system starting up for run_id: {str(flowrun_id)}',
+                'step': '1'
+            },]
+
+            # create flowrun
+            flowrun = FlowRun.objects.create(
+                id      = flowrun_id,
+                flow    = flow,
+                user    = flow.user,
+                account = flow.account,
+                site    = site,
+                title   = flow.title,
+                nodes   = _nodes,
+                edges   = _edges,
+                logs    = logs,
+                configs = configs
+            )
+
+            # update flow with time_last_run
+            flow = Flow.objects.get(id=flow_id)
+            flow.time_last_run = datetime.now(timezone.utc)
+            flow.save()
+        
+        else:
+            logger.info('max flowruns reached')
+
+    # update schedule if task_id is not None
+    if task_id:
+        try:
+            last_run = datetime.now(timezone.utc)
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
+
+    logger.info('Created FlowRuns')
     return None
 
 
@@ -1811,13 +2223,13 @@ def delete_test_s3_bg(test_id: str, site_id: str, page_id: str) -> None:
 
 
 @shared_task
-def delete_testcase_s3_bg(testcase_id: str) -> None:
+def delete_caserun_s3_bg(caserun_id: str) -> None:
     """
     Deletes the directory in s3 bucked associated 
     with passed test
 
     Expects: {
-        'testcase_id': str,
+        'caserun_id': str,
     }
 
     Returns -> None
@@ -1826,11 +2238,11 @@ def delete_testcase_s3_bg(testcase_id: str) -> None:
     # deleting s3 objects
     try:
         bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-        bucket.objects.filter(Prefix=str(f'static/testcase/{testcase_id}/')).delete()
+        bucket.objects.filter(Prefix=str(f'static/caserun/{caserun_id}/')).delete()
     except:
         pass
 
-    logger.info('Deleted testcase s3 objects')
+    logger.info('Deleted caserun s3 objects')
     return None
 
 
@@ -1949,12 +2361,21 @@ def reset_account_usage(account_id: str=None) -> None:
     # setting format for today
     f = '%Y-%m-%d %H:%M:%S.%f'
 
-    # reset account.ussage
-    def reset_usage(account):
+    # reset account.usage
+    def reset_usage(account, timestamp) -> None:
+        # update usage
         account.usage['scans'] = 0
         account.usage['tests'] = 0
-        account.usage['testcases'] = 0
+        account.usage['caseruns'] = 0
+        account.usage['flowruns'] = 0
+        account.usage['flowruns_allowed'] = 5 # TODO: remove after manual update
+        # update meta
+        meta = account.meta
+        meta['last_usage_reset'] = today.strftime(f)
+        account.meta = meta
         account.save()
+        return None
+
 
     # loop through each
     for account in accounts:
@@ -1981,10 +2402,6 @@ def reset_account_usage(account_id: str=None) -> None:
                 # reset usage
                 reset_usage(account)
 
-                # update account.meta.last_usage_reset
-                account.meta = {'last_usage_reset': today.strftime(f)}
-                account.save()
-
         # check if accout is free
         if account.type == 'free':
 
@@ -2006,9 +2423,6 @@ def reset_account_usage(account_id: str=None) -> None:
                     # reset usage
                     reset_usage(account)
 
-                    # update account.meta.last_usage_reset
-                    account.meta = {'last_usage_reset': today.strftime(f)}
-                    account.save()
             
     return None
 
@@ -2016,14 +2430,14 @@ def reset_account_usage(account_id: str=None) -> None:
 
 
 @shared_task
-def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
+def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     """ 
     Update price for existing stripe Subscription 
-    based on new `Account.max_sites`
+    based on new `Account.usage.sites_allowed`
 
     Expects: {
-        'account_id'   : <str> (REQUIRED)   
-        'max_sites' : <int> (OPTIONAL)   
+        'account_id'       : <str> (REQUIRED)   
+        'sites_allowed'    : <int> (OPTIONAL)   
     }
 
     Returns: None
@@ -2035,14 +2449,14 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
     # get account
     account = Account.objects.get(id=account_id)
 
-    # set new max_sites
-    if max_sites is not None:
-        account.max_sites = max_sites
+    # set new sites_allowed
+    if sites_allowed is not None:
+        account.usage['sites_allowed'] = sites_allowed
         account.save()
     
-    # get max_sites
-    if max_sites is None:
-        max_sites = account.max_sites
+    # get sites_allowed
+    if sites_allowed is None:
+        sites_allowed = account.usage['sites_allowed']
 
     # get account coupon
     discount = 0
@@ -2050,17 +2464,17 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
         discount = account.meta['coupon']['discount']
 
     # calculate 
-    if max_sites <= 5:
+    if sites_allowed <= 5:
         price = 8900
-    elif max_sites > 5 and max_sites <= 10:
+    elif sites_allowed > 5 and sites_allowed <= 10:
         price = 17900
-    elif max_sites > 10 and max_sites <= 25:
+    elif sites_allowed > 10 and sites_allowed <= 25:
         price = 34900
-    elif max_sites > 25:
+    elif sites_allowed > 25:
         price = (
             ( 
-                (-0.0003 * (max_sites ** 2)) + 
-                (1.5142 * max_sites) + 325.2
+                (-0.0003 * (sites_allowed ** 2)) + 
+                (1.5142 * sites_allowed) + 325.2
             ) * 100
         )
 
@@ -2100,9 +2514,11 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
     account.price_id = price.id
     account.price_amount = 0
     account.price_amount = price_amount
-    account.usage['scans_allowed'] = (max_sites * 200)
-    account.usage['tests_allowed'] = (max_sites * 200)
-    account.usage['testcases_allowed'] = (max_sites * 100)
+    account.usage['sites'] = sites_allowed
+    account.usage['scans_allowed'] = (sites_allowed * 200)
+    account.usage['tests_allowed'] = (sites_allowed * 200)
+    account.usage['caseruns_allowed'] = (sites_allowed * 10)
+    account.usage['flowruns_allowed'] = (sites_allowed * 10)
     account.save()
 
     print(f'new price -> {price_amount}')
@@ -2116,7 +2532,7 @@ def update_sub_price(account_id: str=None, max_sites: int=None) -> None:
 @shared_task
 def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     """ 
-    Deletes all `Tests`, `Scans`, `Testcases`, 
+    Deletes all `Tests`, `Scans`, `CaseRuns`, 
     `Logs`, and `Processes` that have reached expiry
 
     Expects: {
@@ -2135,7 +2551,7 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     if account_id is not None:
         tests = Test.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         scans = Scan.objects.filter(site__account__id=account_id, time_created__lte=max_date)
-        testcases = Testcase.objects.filter(account__id=account_id, time_created__lte=max_date)
+        caseruns = CaseRun.objects.filter(account__id=account_id, time_created__lte=max_date)
         processes = Process.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
         
         # get all old Logs
@@ -2148,7 +2564,8 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     else:
         tests = Test.objects.filter(time_created__lte=max_date)
         scans = Scan.objects.filter(time_created__lte=max_date)
-        testcases = Testcase.objects.filter(time_created__lte=max_date)
+        caseruns = CaseRun.objects.filter(time_created__lte=max_date)
+        flowruns = FlowRun.objects.filter(time_created__lte=max_date)
         processes = Process.objects.filter(time_created__lte=max_proc_date)
         logs = Log.objects.filter(time_created__lte=max_proc_date)
 
@@ -2159,9 +2576,11 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     for scan in scans:
         delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
         scan.delete()
-    for testcase in testcases:
-        delete_testcase_s3_bg.delay(testcase.id)
-        testcase.delete()
+    for caserun in caseruns:
+        delete_caserun_s3_bg.delay(caserun.id)
+        caserun.delete()
+    for flowrun in flowrun:
+        flowrun.delete()
     for process in processes:
         process.delete()
     for log in logs:
@@ -2191,7 +2610,7 @@ def data_retention() -> None:
         # delete old resources
         delete_old_resources.delay(
             account_id=account.id,
-            days_to_live=account.retention_days
+            days_to_live=account.usage['retention_days']
         )
     
     logger.info('Requested resource cleanup')
@@ -2245,6 +2664,7 @@ def create_prospect(user_email: str=None) -> None:
 
     # get user by id
     user = User.objects.get(email=user_email)
+    member = Member.objects.get(user=user)
 
     # get account by user
     account = Account.objects.get(user=user)
@@ -2259,7 +2679,7 @@ def create_prospect(user_email: str=None) -> None:
         'first_name': str(user.first_name),
         'last_name': str(user.last_name),
         'email': str(user.email),
-        'phone': str(account.phone),
+        'phone': str(member.phone),
         'status': 'warm',
         'source': 'app',
     }
@@ -2361,6 +2781,234 @@ def send_remove_alert_bg(member_id: str) -> None:
     send_remove_alert(member)
 
     logger.info('Sent remove alert')
+    return None
+
+
+
+
+@shared_task
+def send_phone_bg( 
+        account_id: str=None, 
+        objects: list=None,
+        phone_number: str=None, 
+        body: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> dict:
+    """ 
+    Run `Alerts.send_phone` as a backgroud task
+
+    Expects: { 
+        'account_id'    : str, 
+        'objects'       : str,
+        'phone_number'  : str,
+        'body'          : str,
+        'flowrun_id'    : str,
+        'node_index'    : str,
+    }
+
+    Returns: None
+    """
+
+    # interating through objects
+    for obj in objects:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+
+        # run send_phone
+        resp = send_phone( 
+            account_id=account_id, 
+            object_id=obj['id'], 
+            phone_number=phone_number, 
+            body=body,
+        )
+        
+        if flowrun_id and flowrun_id != 'None':
+            # update flowrun
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': resp.get('message'),
+                'objects': [{
+                    'parent': obj['parent'],
+                    'id': obj['id'], 
+                    'status': 'passed' if resp.get('success') else 'failed'
+                }]
+            })
+
+    logger.info('sent phone message')
+    return None
+
+
+
+
+@shared_task
+def send_slack_bg( 
+        account_id: str=None, 
+        objects: list=None, 
+        body: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> dict:
+    """ 
+    Run `Alerts.send_slack` as a backgroud task
+
+    Expects: { 
+        'account_id'    : str, 
+        'objects'       : list,
+        'body'          : str,
+        'flowrun_id'    : str,
+        'node_index'    : str,
+    }
+
+    Returns: None
+    """
+
+    # interating through objects
+    for obj in objects:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+
+        # run send_slack
+        resp = send_slack( 
+            account_id=account_id, 
+            object_id=obj['id'], 
+            body=body,
+        )
+        
+        if flowrun_id and flowrun_id != 'None':
+            # update flowrun
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': resp.get('message'),
+                'objects': [{
+                    'parent': obj['parent'],
+                    'id': obj['id'], 
+                    'status': 'passed' if resp.get('success') else 'failed'
+                }]
+            })
+
+    logger.info('sent slack message')
+    return None
+
+
+
+
+@shared_task
+def send_email_bg( 
+        account_id: str=None, 
+        objects: list=None, 
+        message_obj: dict=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> dict:
+    """ 
+    Run `Alerts.sendgrid_email` as a backgroud task
+
+    Expects: { 
+        'account_id'    : str, 
+        'objects'       : list,
+        'message_obj'   : dict,
+        'flowrun_id'    : str,
+        'node_index'    : str,
+    }
+
+    Returns: None
+    """
+
+    # interating through objects
+    for obj in objects:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+
+        # run sendgrid_email
+        resp = sendgrid_email( 
+            account_id=account_id, 
+            object_id=obj['id'], 
+            message_obj=message_obj,
+        )
+        
+        if flowrun_id and flowrun_id != 'None':
+            # update flowrun
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': resp.get('message'),
+                'objects': [{
+                    'parent': obj['parent'],
+                    'id': obj['id'], 
+                    'status': 'passed' if resp.get('success') else 'failed'
+                }]
+            })
+
+    logger.info('sent email message')
+    return None
+
+
+
+
+@shared_task
+def send_webhook_bg( 
+        account_id: str=None, 
+        objects: list=None, 
+        request_type: str=None,
+        url: str=None,
+        headers: str=None,
+        payload: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> dict:
+    """ 
+    Run `Alerts.sendgrid_email` as a backgroud task
+
+    Expects: { 
+        'account_id'    : str, 
+        'objects'       : list,
+        'request_type'  : str,
+        'url'           : str,
+        'headers'       : str,
+        'payload'       : str,
+        'flowrun_id'    : str,
+        'node_index'    : str,
+    }
+
+    Returns: None
+    """
+
+    # interating through objects
+    for obj in objects:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+    
+        # run sendgrid_email
+        resp = send_webhook( 
+            account_id=account_id, 
+            object_id=obj['id'], 
+            request_type=request_type,
+            url=url,
+            headers=headers,
+            payload=payload
+        )
+            
+        if flowrun_id and flowrun_id != 'None':
+            # update flowrun
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': resp.get('message'),
+                'objects': [{
+                    'parent': obj['parent'],
+                    'id': obj['id'], 
+                    'status': 'passed' if resp.get('success') else 'failed'
+                }]
+            })
+
+    logger.info('sent webhook message')
     return None
 
 

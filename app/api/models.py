@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.auth.models import User
-from datetime import datetime
+from datetime import datetime, timezone as tz
 from django.contrib.postgres.fields import JSONField
 from cursion import settings
 import uuid
@@ -252,14 +252,61 @@ def get_default_configs():
 
 def get_usage_default():
     usage = {
+        'sites': 0,
+        'schedules': 0,
         'scans': 0,
         'tests': 0,
-        'testcases': 0,
+        'caseruns': 0,
+        'flowruns': 0,
+        'sites_allowed': 1, 
+        'pages_allowed': 3, 
+        'schedules_allowed': 1, 
         'scans_allowed': 30, 
         'tests_allowed': 30, 
-        'testcases_allowed': 15,
+        'caseruns_allowed': 15,
+        'flowruns_allowed': 5,
+        'nodes_allowed': 6,
+        'conditions_allowed': 2,
+        'retention_days': 15,
     }
     return usage
+
+
+
+
+def get_meta_default():
+    meta = {
+        'last_usage_reset': datetime.now(tz.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+        'coupon': {
+            'code': '', 
+            'discount': 0
+        }
+    }
+    return meta
+
+
+
+
+def get_info_default():
+    info = {'survey': []}
+    return info
+
+
+
+
+def get_permissions_default():
+    permissions = {
+        'actions': [
+            'add', 'get', 'update', 'delete'
+        ],
+        'resources': [
+            'site', 'page', 'issue', 'case', 'caserun',
+            'flow', 'flowrun', 'test', 'scan', 'schedule', 
+            'alert', 'secret', 'report', 'process', 'log'
+        ], 
+        'sites': []
+    }
+    return permissions
 
 
 
@@ -273,19 +320,57 @@ def get_system_default():
 
 
 
+def get_nodes_default():
+    nodes = [
+        {
+            'id': '1',
+            'position': {
+                'x': 0,
+                'y': 0
+            },
+            'type': 'basic',
+            'parentId': None,
+            'data': {
+                'id': '1',         # duplicate for client support
+                'position': {      # duplicate for client support
+                    'x': 0,
+                    'y': 0
+                }, 
+                'parentId': None,  # duplicate for client support
+                'task_type': None,
+                'configs': settings.CONFIGS,
+                'conditions': None,
+                'start_if': None,
+            }
+        },
+    ]
+    return nodes
+
+
+
+
+def get_edges_default():
+    edges = []
+    return edges
+
+
+
+
+
+
 class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
-    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True)
+    # phone = models.CharField(max_length=50, serialize=True, null=True, blank=True) ## -> REMOVING !!!!
     active = models.BooleanField(default=False, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    max_sites = models.IntegerField(serialize=True, null=True, blank=True, default=1)
-    max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3)
-    max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=0)
-    retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3)
+    # sites_allowed = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
+    # max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
+    # max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
+    # retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -295,7 +380,9 @@ class Account(models.Model):
     usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
-    meta = models.JSONField(serialize=True, null=True, blank=True)
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
+    meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
+   
 
     def __str__(self):
         return self.user.email
@@ -324,12 +411,28 @@ class Member(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     email = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # created by Account admin
+    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True)
     status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
+    permissions = models.JSONField(serialize=True, null=True, blank=True, default=get_permissions_default) ## NEW !!!!!!!!
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
 
     def __str__(self):
         return f'{self.email}__{self.account.name}'
+
+
+
+
+class Secret(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    name = models.CharField(max_length=500, serialize=True, null=True, blank=True)
+    value = models.TextField(serialize=True, null=True, blank=True)
+    
+    def __str__(self):
+        return f'{self.name}'
 
 
 
@@ -421,7 +524,7 @@ class Test(models.Model):
 
 class Case(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  ## RENAMED !!!! from name
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -433,17 +536,17 @@ class Case(models.Model):
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.name}' if len(self.name) > 0 else str(id)
+        return f'{self.title}' if len(self.title) > 0 else str(id)
 
 
 
 
-class Testcase(models.Model):
+class CaseRun(models.Model):  ## -> RENAME from Testcase !!!!!!!
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    case_name = models.CharField(max_length=500, null=True, blank=True, serialize=True) 
+    title = models.CharField(max_length=500, null=True, blank=True, serialize=True)  ## RENAMED !!!! from case_name
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(null=True, blank=True, serialize=True)
@@ -452,7 +555,7 @@ class Testcase(models.Model):
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.case.name}_testcase'
+        return f'{self.title}_caserun'
 
 
 
@@ -492,13 +595,50 @@ class Issue(models.Model):
 
 
 
+class Flow(models.Model): ## -> NEW !!!!!!!
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    time_last_run = models.DateTimeField(serialize=True, null=True, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    nodes = models.JSONField(serialize=True, null=True, blank=True, default=get_nodes_default)
+    edges = models.JSONField(serialize=True, null=True, blank=True, default=get_edges_default)
+
+    def __str__(self):
+        return f'{self.title if self.title is not None else self.id}_flow'
+
+
+
+
+class FlowRun(models.Model): ## -> NEW !!!!!!!
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    flow = models.ForeignKey(Flow, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    status = models.CharField(max_length=500, serialize=True, default='working')
+    nodes = models.JSONField(serialize=True, null=True, blank=True)
+    edges = models.JSONField(serialize=True, null=True, blank=True)
+    logs = models.JSONField(serialize=True, null=True, blank=True)
+    configs = models.JSONField(serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.flow.title if self.flow.title is not None else self.id}_flowrun'
+
+
+
+
 class Schedule(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
-    automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')
+    alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
     task_type = models.CharField(max_length=100, default='test', serialize=True)
@@ -513,12 +653,12 @@ class Schedule(models.Model):
     extras = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.account.name}_{self.task_type}_{self.scope}'
+        return f'{self.account.name}_{self.task_type}'
 
 
 
 
-class Automation(models.Model):
+class Alert(models.Model):  ## -> RENAME from Automation !!!!!!!
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)

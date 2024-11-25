@@ -3,7 +3,10 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from django.core import serializers
 from datetime import date, datetime, timedelta
-from ...models import Account, Card, Site, Issue
+from ...models import (
+    Account, Card, Site, Issue, Flow, Schedule,
+    get_meta_default, get_usage_default
+)
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from ..auth.serializers import AccountSerializer
@@ -25,18 +28,21 @@ def stripe_setup(request: object) -> object:
     "user" and `Account`
 
     Expects: {
-        'name'              : <str> 'basic', 'pro', 'plus', 'custom' (REQUIRED)
-        'interval'          : <str> 'month' or 'year' (REQUIRED)
-        'price_amount'      : <int> 1000 == $10 (REQUIRED)
-        'max_sites'         : <int> total # `Sites` per `Account` (REQUIRED)
-        'max_pages'         : <int> total # `Pages` per `Site` (REQUIRED)
-        'max_schedules'     : <int> total # `Schedules` per `Account` (REQUIRED)
-        'retention_days'    : <int> total # days to keep data (REQUIRED)
-        'testcases'         : <str> 'true' or 'false' (OPTIONAL)
-        'scans_allowed'     : <int> total # of `Scans` per `Account` per month (OPTIONAL)
-        'tests_allowed'     : <int> total # of `Tests` per `Account` per month (OPTIONAL)
-        'testcases_allowed' : <int> total # of `Testcases` per `Account` per month (OPTIONAL)
-        'meta'              : <dict> any extra data for the account (OPTIONAL)
+        'name'                  : <str> 'basic', 'pro', 'plus', 'custom' (REQUIRED)
+        'interval'              : <str> 'month' or 'year' (REQUIRED)
+        'price_amount'          : <int> 1000 == $10 (REQUIRED)
+        'sites_allowed'         : <int> total # `Sites` per `Account` (REQUIRED)
+        'pages_allowed'         : <int> total # `Pages` per `Site` (REQUIRED)
+        'schedules_allowed'     : <int> total # `Schedules` per `Account` (REQUIRED)
+        'retention_days'        : <int> total # days to keep data (REQUIRED)
+        'caseruns'              : <str> 'true' or 'false' (OPTIONAL)
+        'scans_allowed'         : <int> total # of `Scans` per `Account` per month (OPTIONAL)
+        'tests_allowed'         : <int> total # of `Tests` per `Account` per month (OPTIONAL)
+        'caseruns_allowed'      : <int> total # of `CaseRuns` per `Account` per month (OPTIONAL)
+        'flowruns_allowed'      : <int> total # of `FlowRuns` per `Account` per month (OPTIONAL)
+        'nodes_allowed'         : <int> total # of `nodes` per `Flow` per month (OPTIONAL)
+        'conditions_allowed'    : <int> total # of `conditons` per `Flow` (OPTIONAL)
+        'meta'                  : <dict> any extra data for the account (OPTIONAL)
     }
     
     Returns -> data: {
@@ -52,14 +58,17 @@ def stripe_setup(request: object) -> object:
     name = request.data.get('name')
     interval = request.data.get('interval') # month or year
     price_amount = int(request.data.get('price_amount'))
-    max_sites = int(request.data.get('max_sites'))
-    max_pages = int(request.data.get('max_pages'))
-    max_schedules = int(request.data.get('max_schedules'))
+    sites_allowed = int(request.data.get('sites_allowed'))
+    pages_allowed = int(request.data.get('pages_allowed'))
+    schedules_allowed = int(request.data.get('schedules_allowed'))
     retention_days = int(request.data.get('retention_days'))
     scans_allowed = int(request.data.get('scans_allowed'))
     tests_allowed = int(request.data.get('tests_allowed'))
-    testcases_allowed = int(request.data.get('testcases_allowed'))
-    meta = request.data.get('meta')
+    caseruns_allowed = int(request.data.get('caseruns_allowed'))
+    flowruns_allowed = int(request.data.get('flowruns_allowed'))
+    nodes_allowed = int(request.data.get('nodes_allowed'))
+    conditions_allowed = int(request.data.get('conditions_allowed'))
+    meta = request.data.get('meta', get_meta_default())
     
     # get user
     user = request.user
@@ -70,22 +79,6 @@ def stripe_setup(request: object) -> object:
 
     # build Stripe Product name
     product_name = f'{name.capitalize()}'
-
-    # create new `Account` if none exists
-    if not Account.objects.filter(user=user).exists():
-        create_or_update_account(
-            user=user,
-            type=name,
-            interval=interval,
-            max_sites=max_sites,
-            max_pages=max_pages,
-            max_schedules=max_schedules,
-            retention_days=retention_days, 
-            scans_allowed=scans_allowed if scans_allowed is not None else 30, 
-            tests_allowed=tests_allowed if tests_allowed is not None else 30, 
-            testcases_allowed=testcases_allowed if testcases_allowed is not None else 15,
-            meta=meta
-        )
 
     # get account 
     account = Account.objects.get(user=user)
@@ -145,23 +138,26 @@ def stripe_setup(request: object) -> object:
 
     # update `Account` with new Stripe info
     create_or_update_account(
-        user=user.id,
-        id=account.id,
-        type = name,
-        cust_id = customer.id,
-        sub_id = subscription.id,
-        product_id = product.id,
-        price_id = price.id,
-        interval = interval,
-        max_sites = max_sites,
-        max_pages = max_pages,
-        price_amount = price_amount,
-        max_schedules = max_schedules,
-        retention_days = retention_days,
-        scans_allowed = scans_allowed,
-        tests_allowed = tests_allowed,
-        testcases_allowed = testcases_allowed,
-        meta = meta
+        user                = user.id,
+        id                  = account.id,
+        type                = name,
+        cust_id             = customer.id,
+        sub_id              = subscription.id,
+        product_id          = product.id,
+        price_id            = price.id,
+        price_amount        = price_amount,
+        interval            = interval,
+        sites_allowed       = sites_allowed,
+        pages_allowed       = pages_allowed,
+        schedules_allowed   = schedules_allowed,
+        retention_days      = retention_days,
+        scans_allowed       = scans_allowed,
+        tests_allowed       = tests_allowed,
+        caseruns_allowed    = caseruns_allowed,
+        flowruns_allowed    = flowruns_allowed,
+        nodes_allowed       = nodes_allowed,
+        conditions_allowed  = conditions_allowed,
+        meta                = meta
     )        
 
     # get client_secret from Stripe 
@@ -227,13 +223,13 @@ def stripe_complete(request: object) -> object:
         
         # update `Card` object
         Card.objects.filter(account=account).update(
-            user = request.user,
-            account = account,
-            pay_method_id = pay_method.id,
-            brand = pay_method.card.brand,
-            exp_year = pay_method.card.exp_year,
-            exp_month = pay_method.card.exp_month,
-            last_four = pay_method.card.last4
+            user            = request.user,
+            account         = account,
+            pay_method_id   = pay_method.id,
+            brand           = pay_method.card.brand,
+            exp_year        = pay_method.card.exp_year,
+            exp_month       = pay_method.card.exp_month,
+            last_four       = pay_method.card.last4
         )
 
     else:
@@ -246,13 +242,13 @@ def stripe_complete(request: object) -> object:
 
         # create new `Card` object
         Card.objects.create(
-            user = request.user,
-            account = account,
-            pay_method_id = pay_method.id,
-            brand = pay_method.card.brand,
-            exp_year = pay_method.card.exp_year,
-            exp_month = pay_method.card.exp_month,
-            last_four = pay_method.card.last4
+            user            = request.user,
+            account         = account,
+            pay_method_id   = pay_method.id,
+            brand           = pay_method.card.brand,
+            exp_year        = pay_method.card.exp_year,
+            exp_month       = pay_method.card.exp_month,
+            last_four       = pay_method.card.last4
         )
 
     # update account activation
@@ -270,7 +266,7 @@ def stripe_complete(request: object) -> object:
 
 def calc_price(account: object=None) -> int:
     """ 
-    Calculates a `price` based on `Account.max_sites` 
+    Calculates a `price` based on `Account.sites_allowed` 
     and any `Account.meta.coupon` data.
 
     Expects: {
@@ -283,8 +279,8 @@ def calc_price(account: object=None) -> int:
     # init Stripe client
     stripe.api_key = settings.STRIPE_PRIVATE
     
-    # get max_sites
-    max_sites = account.max_sites
+    # get sites_allowed
+    sites_allowed = account.usage['sites_allowed']
 
     # get account coupon
     discount = 0
@@ -292,17 +288,17 @@ def calc_price(account: object=None) -> int:
         discount = account.meta['coupon']['discount']
 
     # calculate 
-    if max_sites <= 5:
+    if sites_allowed <= 5:
         price = 8900
-    elif max_sites > 5 and max_sites <= 10:
+    elif sites_allowed > 5 and sites_allowed <= 10:
         price = 17900
-    elif max_sites > 10 and max_sites <= 25:
+    elif sites_allowed > 10 and sites_allowed <= 25:
         price = 34900
-    elif max_sites > 25:
+    elif sites_allowed > 25:
         price = (
             ( 
-                (-0.0003 * (max_sites ** 2)) + 
-                (1.5142 * max_sites) + 325.2
+                (-0.0003 * (sites_allowed ** 2)) + 
+                (1.5142 * sites_allowed) + 325.2
             ) * 100
         )
 
@@ -481,7 +477,7 @@ def update_account_with_stripe_redirect(request: object=None) -> object:
         interval     = interval,
     )
     
-    # equeting account data deletion
+    # starting account data deletion
     if not active:
         cancel_subscription(account=account)
 
@@ -534,10 +530,6 @@ def get_billing_info(request: object) -> object:
             'active': account.active,
             'price_amount': account.price_amount,
             'interval': account.interval,
-            'max_sites': account.max_sites,
-            'max_pages': account.max_pages,
-            'max_schedules': account.max_schedules,
-            'retention_days': account.retention_days,
             'usage': account.usage,
             'meta': account.meta,
         },
@@ -618,7 +610,8 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
 
     # get user's account
     if request is not None:
-        account = Account.objects.get(user=request.user)
+        user = request.user
+        account = Account.objects.get(user=user)
 
     # update billing if accout is active
     if account.active == True:
@@ -633,10 +626,6 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
 
         # update Account plan
         account.type = 'free'
-        account.max_sites = 1
-        account.max_schedules = 1
-        account.max_pages = 3
-        account.retention_days = '15'
         account.interval = 'month'
         account.price_amount = 0
         account.cust_id = None
@@ -644,16 +633,8 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
         account.product_id = None
         account.price_id = None
         account.price_amount = None
-        account.usage = {
-            'scans': 0,
-            'tests': 0,
-            'testcases': 0,
-            'scans_allowed': 30, 
-            'tests_allowed': 30, 
-            'testcases_allowed': 15,
-        }
-        account.meta['last_usage_reset'] = datetime.today().strftime('%Y-%m-%d %H:%M:%S.%f')
-        account.meta['coupon'] = {"code": "", "discount": 0}
+        account.usage = get_usage_default()
+        account.meta = get_meta_default()
 
         # save Account
         account.save()
@@ -663,14 +644,20 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
         card.delete()
     
     # remove sites
-    sites = Site.objects.filter(account=account)
-    for site in sites:
-        delete_site(id=site.id, account=account)
+    for site in Site.objects.filter(account=account):
+        delete_site(id=site.id, user=user)
+
+    # remove flows
+    for flow in Flow.objects.filter(account=account):
+        flow.delete()
     
     # remove issues
-    issues = Issue.objects.filter(account=account)
-    for issue in issues:
+    for issue in Issue.objects.filter(account=account):
         issue.delete()
+
+    # remove schedules
+    for schedule in Schedule.objects.filter(account=account):
+        schedule.delete()
 
     # serialize and return
     if request is not None:
