@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# spin up app in local or remote env
-if [[ $1 == *"app"* ]]
+# spin up server in local or remote env
+if [[ $1 == *"server"* ]]
   then 
     if [[ $2 == *"local"* ]]
       then
