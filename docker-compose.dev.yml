@@ -37,7 +37,6 @@ services:
     container_name: cursion-db
     hostname: cursion-db
     image: postgres:14-alpine
-    platform: linux/amd64
     ports:
       - 5432
     env_file:
@@ -50,7 +49,6 @@ services:
     container_name: cursion-redis
     hostname: cursion-redis
     image: redis:alpine
-    platform: linux/amd64
     ports:
       - 6379
 
@@ -100,7 +98,6 @@ services:
     container_name: yellowlab
     hostname: yellowlab
     privileged: true
-    platform: linux/amd64
     restart: always
     image: cursiondev/ylt
     ports:
@@ -115,7 +112,6 @@ services:
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    image: cursiondev/nginx
     platform: linux/amd64
     restart: always
     ports:
@@ -136,7 +132,6 @@ services:
     container_name: nginx-proxy-letsencrypt
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
-    platform: linux/amd64
     environment:
       - DEFAULT_EMAIL=youremail@yourdomain.com
       - NGINX_PROXY_CONTAINER=nginx-proxy
