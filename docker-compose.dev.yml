@@ -113,7 +113,7 @@ services:
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    platform: linux/amd64
+    image: cursiondev/nginx
     restart: always
     ports:
       - 443:443
