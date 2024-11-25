@@ -67,7 +67,6 @@ def record_api_call(request: object, data: dict, status: str) -> None:
 
 
 
-
 def decrement_resource(account: object, resource: str) -> None:
     """ 
     Removes '1' from the resource total 
@@ -691,7 +690,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
 
     # get user and account info
     if request:
-        user = account.user
+        user = request.user
     member = Member.objects.get(user=user)
     account = member.account
 
@@ -3034,7 +3033,7 @@ def get_issues(request: object=None) -> object:
     page_id = request.query_params.get('page_id')
     
     user = request.user
-    member = Member.objects.get(user=request.user)
+    member = Member.objects.get(user=user)
     account = member.account
     issues = None
     
@@ -3762,7 +3761,7 @@ def run_schedule(request: object=None) -> object:
     # checking account and resource 
     check_data = check_permissions_and_usage(
         member=member, resource='schedule', 
-        action='add', id=schedule_id, id_type='schedule'
+        action='get', id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4742,13 +4741,14 @@ def create_or_update_case(request: object=None) -> object:
         # create new Case
         case = Case.objects.create(
             id = case_id,
-            user = request.user,
-            name = name, 
+            user = user,
+            account = account,
+            title = title, 
             type = _type if _type is not None else "recorded",
             site = site,
             site_url = site_url,
             steps = steps_data,
-            account = account
+            
         )
 
         # create process obj
@@ -5127,13 +5127,15 @@ def copy_case(request: object=None) -> object:
     # create new case
     new_case = Case.objects.create(
         id          = new_case_id,
-        user        = request.user,
+        user        = user,
+        account     = account,
         title       = f'Copy - {case.title}', 
         type        = case.type,
         site        = case.site,
         site_url    = case.site_url,
         steps       = steps_data,
-        account     = account
+        processed   = True
+        
     )
 
     # return response
@@ -5162,7 +5164,7 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
     # get user and account info
     if request:
         user = request.user
-    member = Member.objects.get(user=request.user)
+    member = Member.objects.get(user=user)
     account = member.account
 
     # checking account and resource 
@@ -5560,7 +5562,7 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
     # get user and account info
     if request:
         user = request.user
-    member = Member.objects.get(user=request.user)
+    member = Member.objects.get(user=user)
     account = member.account
 
     # checking account and resource 
@@ -5951,7 +5953,7 @@ def delete_flow(request: object=None, id: str=None, user: object=None) -> object
     # get user and account info
     if request:
         user = request.user
-    member = Member.objects.get(user=request.user)
+    member = Member.objects.get(user=user)
     account = member.account
         
     # checking account and resource 

@@ -590,6 +590,8 @@ class Flowr():
 
             # end flowrun if requested
             if self.flowrun.configs.get('end_on_fail', True):
+
+                print('--- ending run early due to failure ---')
                 
                 # update logs
                 logs = self.flowrun.logs

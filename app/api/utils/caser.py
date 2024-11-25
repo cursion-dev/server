@@ -57,7 +57,8 @@ class Caser():
         self.configs = self.caserun.configs if self.caserun else settings.CONFIGS
         self.flowrun_id = flowrun_id
         self.node_index = node_index
-        self.secrets = Secret.objects.filter(account=self.caserun.account)
+        self.account = self.case.account if self.case else self.caserun.account
+        self.secrets = Secret.objects.filter(account=self.account)
 
         # init driver
         self.driver = driver_init(
@@ -985,7 +986,7 @@ class Caser():
         Returns -> None
         """
 
-        print(f'beginning pre_run for Case {self.caserun.title}')
+        print(f'beginning pre_run for Case {self.case.title}')
 
         # setting implict wait_time for driver
         self.driver.implicitly_wait(self.configs.get('max_wait_time'))

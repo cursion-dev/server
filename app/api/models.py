@@ -287,7 +287,7 @@ def get_meta_default():
 
 
 
-def get_info_default():
+def get_account_info_default():
     info = {'survey': []}
     return info
 
@@ -380,7 +380,7 @@ class Account(models.Model):
     usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
-    info = models.JSONField(serialize=True, null=True, blank=True, default=get_info_default)
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default)
     meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
    
 
