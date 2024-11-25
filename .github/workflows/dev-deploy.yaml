@@ -30,5 +30,5 @@ jobs:
           cd ~/app
           git pull origin dev
           docker compose -f docker-compose.dev.yml down
-          docker volume rm app_app app_beat app_celery
+          docker volume rm app_server app_beat app_celery
           docker compose -f docker-compose.dev.yml up -d --build
