@@ -10,7 +10,7 @@ services:
     expose:
       - 3000
     volumes:
-      - client_volume:/client/build
+      - client_volume:/app/build
 
 
   server:
@@ -120,7 +120,7 @@ services:
       - 443:443
       - 80:80
     volumes:
-      - client_volume:/client/build
+      - client_volume:/app/static
       - server_volume:/app/static
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
