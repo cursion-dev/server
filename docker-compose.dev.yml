@@ -9,6 +9,8 @@ services:
       - ./env/.env.client.dev
     expose:
       - 3000
+    volumes:
+      - client_volume:/client/build
 
 
   server:
@@ -28,7 +30,7 @@ services:
       - ./env/.env.dev
     volumes:
       - server:/app
-      - static_volume:/app/static
+      - server_volume:/app/static
     depends_on:
       - db
 
@@ -118,7 +120,8 @@ services:
       - 443:443
       - 80:80
     volumes:
-      - static_volume:/app/static
+      - client_volume:/client/build
+      - server_volume:/app/static
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
@@ -149,7 +152,8 @@ volumes:
   server:
   celery:
   beat:
-  static_volume:
+  server_volume:
+  client_volume:
   letsencrypt-acme:
   pgdata:
   certs:
