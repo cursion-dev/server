@@ -9,7 +9,7 @@ services:
     env_file:
       - ./env/.env.client.dev
     expose:
-      - 8080
+      - "8080"
 
 
   server:
@@ -24,11 +24,12 @@ services:
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "server", "remote"]
     expose:
-      - 8000
+      - "8000"
     env_file:
       - ./env/.env.dev
     volumes:
       - server:/app
+      - server_static:/app/static
     depends_on:
       - db
 
@@ -39,7 +40,7 @@ services:
     image: postgres:14-alpine
     platform: linux/amd64
     ports:
-      - 5432
+      - "5432"
     env_file:
       - ./env/.env.dev
     volumes: 
@@ -52,7 +53,7 @@ services:
     image: redis:alpine
     platform: linux/amd64
     ports:
-      - 6379
+      - "6379"
 
 
   celery:
@@ -104,7 +105,7 @@ services:
     image: cursiondev/ylt
     platform: linux/amd64
     ports:
-      - 8383:8383
+      - "8383:8383"
     depends_on:
       - redis
       - celery 
@@ -115,12 +116,12 @@ services:
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    image: cursiondev/nginx
+    image: jwilder/nginx-proxy # cursiondev/nginx
     restart: always
     platform: linux/amd64
     ports:
-      - 443:443
-      - 80:80
+      - "443:443"
+      - "80:80"
     volumes:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
@@ -136,14 +137,13 @@ services:
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
     platform: linux/amd64
-    environment:
-      - DEFAULT_EMAIL=youremail@yourdomain.com
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+    env_file:
+      - ./env/.env.dev
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
@@ -151,6 +151,7 @@ services:
 
 volumes:
   server:
+  server_static:
   celery:
   beat:
   letsencrypt-acme:

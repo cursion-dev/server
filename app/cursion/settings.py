@@ -30,7 +30,7 @@ DEBUG = True if os.environ.get('DEBUG') == 'True' else False
 # Network settings
 CORS_ORIGIN_ALLOW_ALL = True
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 ALLOWED_HOSTS = [os.environ.get('DJANGO_ALLOWED_HOSTS')]
 
 
@@ -155,11 +155,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 
 # Static file service without nginx
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 
 # Used to authenticate with S3 using 'django-stores' pypi package and 'boto3'
@@ -184,11 +185,11 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 # Redis and Celery Config
-CELERY_BROKER_URL = "redis://redis:6379"
+CELERY_BROKER_URL = 'redis://redis:6379'
 
 
 # RabbitMQ and Celery Config
-# CELERY_BROKER_URL = "amqp://rabbitmq"
+# CELERY_BROKER_URL = 'amqp://rabbitmq'
 
 
 # Default primary key field type

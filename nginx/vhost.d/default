@@ -1,6 +1,6 @@
 
 location /static/ {
-    # alias /app/build/static; # -> for React file serving
+    # alias /app/static; # -> for React file serving
     add_header Access-Control-Allow-Origin *;
 }
 
