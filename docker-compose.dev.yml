@@ -29,7 +29,7 @@ services:
       - ./env/.env.dev
     volumes:
       - server:/app
-      - static_volume:/app/static
+      - static_volume:/app/staticfiles
     depends_on:
       - db
 
@@ -123,7 +123,7 @@ services:
       - "443:443"
       - "80:80"
     volumes:
-      - static_volume:/app/static
+      - static_volume:/app/staticfiles
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
