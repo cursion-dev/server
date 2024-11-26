@@ -29,7 +29,7 @@ services:
       - ./env/.env.dev
     volumes:
       - server:/app
-      - server_static:/app/staticfiles
+      - static_volume:/app/static
     depends_on:
       - db
 
@@ -123,6 +123,7 @@ services:
       - "443:443"
       - "80:80"
     volumes:
+      - static_volume:/app/static
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
@@ -151,7 +152,7 @@ services:
 
 volumes:
   server:
-  server_static:
+  static_volume:
   celery:
   beat:
   letsencrypt-acme:
