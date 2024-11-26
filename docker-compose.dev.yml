@@ -29,7 +29,7 @@ services:
       - ./env/.env.dev
     volumes:
       - server:/app
-      - server_static:/app/static
+      - server_static:/app/staticfiles
     depends_on:
       - db
 
