@@ -116,7 +116,7 @@ services:
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    image: jwilder/nginx-proxy # cursiondev/nginx
+    image: cursiondev/nginx
     restart: always
     platform: linux/amd64
     ports:
