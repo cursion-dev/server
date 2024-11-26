@@ -10,7 +10,7 @@ services:
     expose:
       - 3000
     volumes:
-      - client_volume:/app/build
+      - client:/usr/share/nginx/html # Mount the build directory for Nginx
 
 
   server:
@@ -30,7 +30,6 @@ services:
       - ./env/.env.dev
     volumes:
       - server:/app
-      - server_volume:/app/static
     depends_on:
       - db
 
@@ -120,10 +119,9 @@ services:
       - 443:443
       - 80:80
     volumes:
-      - client_volume:/app/build
-      - server_volume:/app/static
       - certs:/etc/nginx/certs
-      - html:/usr/share/nginx/html
+      # - html:/usr/share/nginx/html
+      - client:/usr/share/nginx/html # Mount React build files
       - vhost:/etc/nginx/vhost.d
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:

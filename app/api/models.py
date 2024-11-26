@@ -265,8 +265,8 @@ def get_usage_default():
         'tests_allowed': 30, 
         'caseruns_allowed': 15,
         'flowruns_allowed': 5,
-        'nodes_allowed': 6,
-        'conditions_allowed': 2,
+        'nodes_allowed': 4,
+        'conditions_allowed': 1,
         'retention_days': 15,
     }
     return usage

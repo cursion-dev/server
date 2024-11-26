@@ -781,8 +781,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             'tests_allowed': tests_allowed if tests_allowed else 30, 
             'caseruns_allowed': caseruns_allowed if caseruns_allowed else 15,
             'flowruns_allowed': flowruns_allowed if flowruns_allowed else 5,
-            'nodes_allowed': nodes_allowed if nodes_allowed else 6,
-            'conditions_allowed': conditions_allowed if conditions_allowed else 2,
+            'nodes_allowed': nodes_allowed if nodes_allowed else 4,
+            'conditions_allowed': conditions_allowed if conditions_allowed else 1,
             'retention_days': retention_days if retention_days else 15,
         }
 
