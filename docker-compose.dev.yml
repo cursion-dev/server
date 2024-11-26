@@ -5,12 +5,11 @@ services:
     container_name: cursion-client
     hostname: cursion-client
     image: cursiondev/client
+    platform: linux/amd64
     env_file:
       - ./env/.env.client.dev
     expose:
-      - 3000
-    volumes:
-      - client:/usr/share/nginx/html # Mount the build directory for Nginx
+      - 8080
 
 
   server:
@@ -38,6 +37,7 @@ services:
     container_name: cursion-db
     hostname: cursion-db
     image: postgres:14-alpine
+    platform: linux/amd64
     ports:
       - 5432
     env_file:
@@ -50,6 +50,7 @@ services:
     container_name: cursion-redis
     hostname: cursion-redis
     image: redis:alpine
+    platform: linux/amd64
     ports:
       - 6379
 
@@ -101,6 +102,7 @@ services:
     privileged: true
     restart: always
     image: cursiondev/ylt
+    platform: linux/amd64
     ports:
       - 8383:8383
     depends_on:
@@ -115,13 +117,13 @@ services:
     hostname: nginx-proxy
     image: cursiondev/nginx
     restart: always
+    platform: linux/amd64
     ports:
       - 443:443
       - 80:80
     volumes:
       - certs:/etc/nginx/certs
-      # - html:/usr/share/nginx/html
-      - client:/usr/share/nginx/html # Mount React build files
+      - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
@@ -133,6 +135,7 @@ services:
     container_name: nginx-proxy-letsencrypt
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
+    platform: linux/amd64
     environment:
       - DEFAULT_EMAIL=youremail@yourdomain.com
       - NGINX_PROXY_CONTAINER=nginx-proxy
@@ -150,8 +153,6 @@ volumes:
   server:
   celery:
   beat:
-  server_volume:
-  client_volume:
   letsencrypt-acme:
   pgdata:
   certs:
