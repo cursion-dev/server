@@ -15,7 +15,7 @@ definitions = [
     {
         'name': 'Health',
         'key': 'current_health',
-        'value': '((float(obj.lighthouse_delta["scores"].get("current_average",0) if obj.lighthouse_delta["scores"]["current_average"] is not None else 0) + float(obj.yellowlab_delta["scores"].get("current_average",0) if not obj.lighthouse_delta["scores"]["current_average"] is not None else 0))/2)'
+        'value': 'float(obj.post_scan.score)'
     },
     {
         'name': 'Avg Image Score',
@@ -37,7 +37,7 @@ definitions = [
     {
         'name': 'Health',
         'key': 'health',
-        'value': '((float(obj.lighthouse["scores"].get("average",0) if obj.lighthouse["scores"]["average"] is not None else 0) + float(obj.yellowlab["scores"].get("globalScore",0) if obj.yellowlab["scores"]["globalScore"] is not None else 0 ))/2)'
+        'value': 'float(obj.score)'
     },
     {
         'name': 'Error Logs',
