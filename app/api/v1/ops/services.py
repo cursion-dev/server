@@ -338,10 +338,10 @@ def check_permissions_and_usage(
                 }
             
 
-    # check for custom / enterprise plan
-    if (account.type == 'enterprise' or account.type == 'custom') and resource == 'site':
+    # check for cloud / enterprise plan
+    if (account.type == 'enterprise' or account.type == 'cloud') and resource == 'site':
         
-        # add to sites_allowed only for enterprise and custom plans
+        # add to sites_allowed only for enterprise and cloud plans
         if action == 'add' and account.usage['sites_allowed'] == Site.objects.filter(account=account).count():
             account.usage['sites_allowed'] += 1
             account.usage['schedules_allowed'] += 1
@@ -728,8 +728,8 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
     # decrememt resouce in account
     decrement_resource(account=account, resource='sites')
 
-    # update account if enterprise or custom
-    if account.type == 'enterprise' or account.type == 'custom':
+    # update account if enterprise or cloud
+    if account.type == 'enterprise' or account.type == 'cloud':
         account.usage['sites_allowed'] -= 1
         account.usage['schedules_allowed'] -= 1
         account.save()

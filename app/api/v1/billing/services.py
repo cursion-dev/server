@@ -10,6 +10,7 @@ from ...models import (
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
 from ..auth.serializers import AccountSerializer
+from ...tasks import create_prospect
 from cursion import settings
 import stripe
 
@@ -28,7 +29,7 @@ def stripe_setup(request: object) -> object:
     "user" and `Account`
 
     Expects: {
-        'name'                  : <str> 'basic', 'pro', 'plus', 'custom' (REQUIRED)
+        'name'                  : <str> 'free', 'cloud', 'selfhost', 'enterprise' (REQUIRED)
         'interval'              : <str> 'month' or 'year' (REQUIRED)
         'price_amount'          : <int> 1000 == $10 (REQUIRED)
         'sites_allowed'         : <int> total # `Sites` per `Account` (REQUIRED)
@@ -191,7 +192,8 @@ def stripe_complete(request: object) -> object:
     stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
-    account = Account.objects.get(user=request.user)
+    user = request.user
+    account = Account.objects.get(user=user)
     pay_method_id = request.data['payment_method']
 
     # get Stripe PaymentMethod object
@@ -223,7 +225,7 @@ def stripe_complete(request: object) -> object:
         
         # update `Card` object
         Card.objects.filter(account=account).update(
-            user            = request.user,
+            user            = user,
             account         = account,
             pay_method_id   = pay_method.id,
             brand           = pay_method.card.brand,
@@ -242,7 +244,7 @@ def stripe_complete(request: object) -> object:
 
         # create new `Card` object
         Card.objects.create(
-            user            = request.user,
+            user            = user,
             account         = account,
             pay_method_id   = pay_method.id,
             brand           = pay_method.card.brand,
@@ -254,6 +256,9 @@ def stripe_complete(request: object) -> object:
     # update account activation
     account.active = True
     account.save()
+
+    # update prospect
+    create_prospect.delay(user_email=str(user.email))
 
     # serialize and return
     serializer_context = {'request': request,}
@@ -287,20 +292,12 @@ def calc_price(account: object=None) -> int:
     if account.meta.get('coupon'):
         discount = account.meta['coupon']['discount']
 
-    # calculate 
-    if sites_allowed <= 5:
-        price = 8900
-    elif sites_allowed > 5 and sites_allowed <= 10:
-        price = 17900
-    elif sites_allowed > 10 and sites_allowed <= 25:
-        price = 34900
-    elif sites_allowed > 25:
-        price = (
-            ( 
-                (-0.0003 * (sites_allowed ** 2)) + 
-                (1.5142 * sites_allowed) + 325.2
-            ) * 100
-        )
+    # calculate
+    price = (
+        ( 
+            (54.444 * (sites_allowed ** 0.4764))
+        ) * 100
+    )
 
     # apply discount
     price = price - (price * discount)
@@ -729,14 +726,10 @@ def get_stripe_invoices(request: object) -> object:
                 # is not proration
                 if not item['proration']:
                     # get product_name
-                    if 'basic' in item['description'].lower():
-                        product_name = 'Basic'
-                    if 'pro' in item['description'].lower():
-                        product_name = 'Pro'
-                    if 'plus' in item['description'].lower():
-                        product_name = 'Plus'
-                    if 'custom' in item['description'].lower():
-                        product_name = 'Custom'
+                    if 'cloud' in item['description'].lower():
+                        product_name = 'Cloud'
+                    if 'selfhost' in item['description'].lower():
+                        product_name = 'Self Host'
                     if 'enterprise' in item['description'].lower():
                         product_name = 'Enterprise'
                     # get interval

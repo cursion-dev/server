@@ -2463,20 +2463,12 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     if account.meta.get('coupon'):
         discount = account.meta['coupon']['discount']
 
-    # calculate 
-    if sites_allowed <= 5:
-        price = 8900
-    elif sites_allowed > 5 and sites_allowed <= 10:
-        price = 17900
-    elif sites_allowed > 10 and sites_allowed <= 25:
-        price = 34900
-    elif sites_allowed > 25:
-        price = (
-            ( 
-                (-0.0003 * (sites_allowed ** 2)) + 
-                (1.5142 * sites_allowed) + 325.2
-            ) * 100
-        )
+    # calculate
+    price = (
+        ( 
+            (54.444 * (sites_allowed ** 0.4764))
+        ) * 100
+    )
 
     # apply discount
     price = price - (price * discount)
@@ -2662,12 +2654,35 @@ def create_prospect(user_email: str=None) -> None:
     Returns -> None
     """
 
+    if settings.MODE == 'selfhost':
+        print('not running because of selfhost mode')
+        return None
+
     # get user by id
     user = User.objects.get(email=user_email)
-    member = Member.objects.get(user=user)
+    phone = None
+    if Member.objects.filter(user=user).exists():
+        member = Member.objects.get(user=user)
+        phone = member.phone
 
     # get account by user
     account = Account.objects.get(user=user)
+
+    # determinig user's 'status'
+    if account.type == 'free':
+        if Site.objects.filter(account=account).exists():
+            _status = 'warm' # account has one site onboarded
+        else:
+            _status = 'cold' # account is free but no site onboarded
+    if account.type != 'free':
+        if account.active:
+            _status = 'customer' # account is active and paid
+        else:
+            _status = 'warm' # account is paused and paid
+    if account.type == 'new':
+        _status = 'cold' # account has not onboarded
+    if account.type == 'selfhost':
+        _status = 'customer' # account is active and paid
     
     # setup configs
     url = f'{settings.LANDING_API_ROOT}/ops/prospect'
@@ -2679,8 +2694,10 @@ def create_prospect(user_email: str=None) -> None:
         'first_name': str(user.first_name),
         'last_name': str(user.last_name),
         'email': str(user.email),
-        'phone': str(member.phone),
-        'status': 'warm',
+        'phone': phone,
+        'license_key': str(account.license_key),
+        'info': account.info,
+        'status': _status,
         'source': 'app',
     }
     

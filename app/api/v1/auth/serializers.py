@@ -82,7 +82,7 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'active', 'time_created', 'type', 
         'cust_id', 'sub_id', 'product_id', 'price_id', 'slack',
         'user', 'code', 'name', 'price_amount',
-        'configs', 'meta', 'usage', 'info',
+        'configs', 'meta', 'usage', 'info', 'license_key',
         ]
 
 

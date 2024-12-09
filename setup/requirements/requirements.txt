@@ -27,7 +27,7 @@ imutils==0.5.4
 kombu==5.3.7
 Markdown==3.6
 numpy~=1.26.4
-openai==1.35.14
+openai==1.57.0
 opencv-python==4.5.5.64
 Pillow==10.3.0
 prometheus-client==0.8.0

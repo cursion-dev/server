@@ -27,6 +27,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 DEBUG = True if os.environ.get('DEBUG') == 'True' else False
 
 
+# Specifies app and billing behavior
+MODE = os.environ.get('MODE')
+
+
 # Network settings
 CORS_ORIGIN_ALLOW_ALL = True
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880

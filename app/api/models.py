@@ -367,6 +367,7 @@ class Account(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
+    license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True) ## -> NEW!!!!!
     # sites_allowed = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
     # max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
     # max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
@@ -380,7 +381,7 @@ class Account(models.Model):
     usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
-    info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default)
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default) ## -> NEW!!!!!
     meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
    
 

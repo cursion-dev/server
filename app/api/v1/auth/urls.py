@@ -34,6 +34,7 @@ urlpatterns = [
     path('verify', views.Verify.as_view(), name='verify'),
     path('account', views.Account.as_view(), name='account'),
     path('account/<uuid:id>/members', views.AccountMembers.as_view(), name='account-members'),
+    path('account/license', views.AccountLicense.as_view(), name='account-license'),
     path('member', views.Member.as_view(), name='member'),
     path('member/<uuid:id>', views.Member.as_view(), name='member-detail'),
     path('prospect', views.Prospect.as_view(), name='prospect'),
