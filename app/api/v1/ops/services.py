@@ -514,14 +514,14 @@ def create_site(request: object=None) -> object:
 
 
 
-def crawl_site(request: object=None, id: str=None, account: object=None) -> object:
+def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Initiates a new Crawl for the passed `Site`.id
 
     Expects: {
         'request' : object, 
         'id'      : str,
-        'account' ; object
+        'user'    : object
     }
     
     Returns -> HTTP Response object
@@ -530,13 +530,10 @@ def crawl_site(request: object=None, id: str=None, account: object=None) -> obje
     # get user and account
     if request:
         user = request.user
-        member = Member.objects.get(user=user)
-        account = member.account
-        configs = request.data.get('configs', None)
-    
-    if not request:
-        user = account.user
-        configs = account.configs
+
+    member = Member.objects.get(user=user)
+    account = member.account
+    configs = request.data.get('configs', None)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -682,7 +679,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
     Expcets: {
         'request' : object,
         'id'      : str,
-        'account' : object,
+        'user'    : object,
     }
 
     Returns -> HTTP Response object
@@ -1436,7 +1433,6 @@ def create_scan(request: object=None, **kwargs) -> object:
 
     Expects: {
         'request': object, 
-        'delay': bool
     }
 
     Returns -> dict or HTTP Response object

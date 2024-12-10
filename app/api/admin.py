@@ -60,7 +60,7 @@ class SiteAdmin(admin.ModelAdmin):
         for site in queryset:
             crawl_site(
                 id=site.id,
-                account=site.account
+                user=site.account.user
             )
 
     def scan_sites(self, request, queryset):
@@ -81,7 +81,7 @@ class SiteAdmin(admin.ModelAdmin):
         for site in queryset:
             delete_site(
                 id=site.id,
-                account=site.account
+                user=site.account.user
             )
 
 
