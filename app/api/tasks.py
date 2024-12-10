@@ -2465,8 +2465,8 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
 
     # calculate
     price = (
-        ( 
-            (54.444 * (sites_allowed ** 0.4764))
+        (
+            54.444 * (sites_allowed ** 0.4764)
         ) * 100
     )
 
@@ -2504,7 +2504,6 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
 
     # update account with new info
     account.price_id = price.id
-    account.price_amount = 0
     account.price_amount = price_amount
     account.usage['sites'] = sites_allowed
     account.usage['scans_allowed'] = (sites_allowed * 200)
