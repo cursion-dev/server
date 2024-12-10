@@ -14,20 +14,20 @@ class Command(BaseCommand):
 
         tasks = [
             {
-                'every': 3,
-                'peroid': IntervalSchedule.SECONDS,
+                'every': 2,
+                'period': IntervalSchedule.MINUTES,
                 'name': 'Redeliver Failed Tasks',
                 'task': 'api.tasks.redeliver_failed_tasks'
             },
             {
                 'every': 1,
-                'peroid': IntervalSchedule.DAYS,
+                'period': IntervalSchedule.DAYS,
                 'name': 'Data Retention Cleanup',
                 'task': 'api.tasks.data_retention'
             },
             {
                 'every': 1,
-                'peroid': IntervalSchedule.DAYS,
+                'period': IntervalSchedule.DAYS,
                 'name': 'Reset Account Usage',
                 'task': 'api.tasks.reset_account_usage'
             },
