@@ -504,14 +504,25 @@ def get_billing_info(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Account.objects.get(user=user)
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # set default
     card = None
+
+    # build plan
+    plan = {
+        'name': account.type,
+        'active': account.active,
+        'price_amount': account.price_amount,
+        'interval': account.interval,
+        'usage': account.usage,
+        'meta': account.meta,
+    }
         
     # get `Card` info if exists
-    if Card.objects.filter(user=user).exists():
-        _card = Card.objects.get(user=user)
+    if Card.objects.filter(account=account).exists():
+        _card = Card.objects.get(account=account)
         card = {
             'brand': _card.brand,
             'exp_year': _card.exp_year,
@@ -522,14 +533,7 @@ def get_billing_info(request: object) -> object:
     # format billing info
     data = {
         'card': card,
-        'plan': {
-            'name': account.type,
-            'active': account.active,
-            'price_amount': account.price_amount,
-            'interval': account.interval,
-            'usage': account.usage,
-            'meta': account.meta,
-        },
+        'plan': plan
     }
     
     # return data
@@ -687,7 +691,9 @@ def get_stripe_invoices(request: object) -> object:
     stripe.api_key = settings.STRIPE_PRIVATE
 
     # get user's account
-    account = Account.objects.get(user=request.user)
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # setting defaults
     data = {"message": "no Account found"}
