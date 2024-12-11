@@ -2428,6 +2428,18 @@ def reset_account_usage(account_id: str=None) -> None:
 
 
 
+@shared_task
+def temp_account_reset(account_id: str=None) -> None:
+
+    acccount = Account.objects.get(id=account_id)
+    usage = get_usage_default()
+    usage['sites'] = Site.objects.filter(account=account).count()
+    account.usage = usage
+    account.save()
+
+    return None
+
+
 
 @shared_task
 def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
