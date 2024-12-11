@@ -6,6 +6,7 @@ services:
     hostname: cursion-client
     image: cursiondev/client
     platform: linux/amd64
+    pull_policy: always
     env_file:
       - ./env/.env.client.dev
     expose:
