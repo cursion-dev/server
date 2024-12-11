@@ -3,14 +3,15 @@ from .driver import (
     driver_wait , get_data
 )
 from ..models import *
-from .automater import Automater
+from .alerter import Alerter
 from .tester import Tester
 from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .imager import Imager
+from .updater import update_flowrun
 from datetime import datetime
 from cursion import settings
-import os, asyncio, uuid, boto3
+import os, asyncio, uuid, boto3, random, time
 
 
 
@@ -283,7 +284,13 @@ def save_html(html: str, scan: object) -> object:
 
 
 
-def check_scan_completion(scan: object, test_id: str=None, automation_id: str=None) -> object:
+def check_scan_completion(
+        scan: object, 
+        test_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None, 
+        node_index: str=None
+    ) -> object:
     """
     Method that checks if the scan has finished all 
     components. If so, method also updates Scan, Site, 
@@ -292,11 +299,14 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
     Expects: {
         scan: object, 
         test_id: str,
-        automation_id: str
+        alert_id: str
     }
 
     Returns -> `Scan` <obj>
     """
+
+    # sleeping random for DB update
+    time.sleep(random.uniform(0.1, 2))
 
     # setting defaults
     finished = True
@@ -327,18 +337,63 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
         time_completed = datetime.now()
         scan.time_completed = time_completed
         scan.save()
+
+        # update assoc site, page, & scan score
         update_scan_score(scan)
         update_page_info(scan)
         update_site_info(scan)
 
+        # add scan to objects
+        objects = [{
+            'parent': str(scan.page.id),
+            'id': str(test_id) if test_id else str(scan.id),
+            'status': 'working' if test_id else 'passed' 
+        }]
+
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            time.sleep(random.uniform(0.1, 5))
+            update_flowrun(**{
+                'flowrun_id': str(flowrun_id),
+                'node_index': node_index,
+                'message': f'finished running all scan components for {scan.page.page_url} | scan_id: {str(scan.id)}',
+                'objects': objects
+            })
+
         # start Test if test_id present
         if test_id is not None:
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                time.sleep(random.uniform(0.1, 5))
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': f'starting test comparison algorithm for {scan.page.page_url} | test_id: {str(test_id)}',
+                    'objects': objects
+                })
+            
             print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
             test = Test.objects.get(id=test_id)
-            Tester(test=test).run_test()
-            if automation_id is not None and automation_id != 'None':
-                print('running automation from `cursion.check_scan_completion`')
-                Automater(automation_id, test.id).run_automation()
+            updated_test = Tester(test=test).run_test()
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                objects[-1]['status'] = updated_test.status
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': (
+                        f'test for {scan.page.page_url} completed with status: '+
+                        f'{"❌ FAILED" if updated_test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
+                    ),
+                    'objects': objects
+                })
+            
+        if alert_id is not None and alert_id != 'None':
+            print('running alert from `cursion.check_scan_completion`')
+            obj_id = test_id if test_id else str(scan.id)
+            Alerter(alert_id=alert_id, object_id=obj_id).run_alert()
 
     # returning scan
     return scan
@@ -346,22 +401,41 @@ def check_scan_completion(scan: object, test_id: str=None, automation_id: str=No
 
 
 
-def _html_and_logs(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
+def _html_and_logs(
+        scan_id: str=None, 
+        test_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None, 
+        node_index: str=None
+    ) -> object:
     """
     Method to run the 'html' and 'logs' component of the scan 
     allowing for multi-threading.
 
     Expects: {
-        scan_id: str, 
-        test_id: str, 
-        automation_id: str,
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str, 
+        node_index  : str
     }
 
     Returns -> `Scan` <obj>
     """
-    
+
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
+
+    # setting defaults
+    message = None
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'starting html and logs component for {scan.page.page_url} | scan_id: {scan_id}',
+        })
 
     try:
         # get html and logs using selenium
@@ -389,17 +463,32 @@ def _html_and_logs(scan_id: str=None, test_id: str=None, automation_id: str=None
             scan.logs = logs
             scan.save()
         quit_driver(driver)
+        
+        # setting flowrun log
+        message = f'completed html and logs component for {scan.page.page_url} | scan_id: {scan_id}'
 
     except Exception as e:
         print(e)
+        
+        # setting flowrun log
+        message = f'html and logs component failed for {scan.page.page_url} | scan_id: {scan_id}'
+
         # try to quit selenium session
         try:
             quit_driver(driver)
         except:
             pass
 
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': message,
+        })
+
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, automation_id)
+    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
 
     # return udpated scan
     return scan
@@ -407,15 +496,23 @@ def _html_and_logs(scan_id: str=None, test_id: str=None, automation_id: str=None
 
 
 
-def _vrt(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
+def _vrt(
+        scan_id: str=None, 
+        test_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None, 
+        node_index: str=None
+    ) -> object:
     """
     Method to run the visual regression (vrt) component of the scan 
     allowing for multi-threading.
 
     Expects: {
-        scan_id: str, 
-        test_id: str, 
-        automation_id: str
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str, 
+        node_index  : str
     }
 
     Returns -> `Scan` <obj>
@@ -423,6 +520,17 @@ def _vrt(scan_id: str=None, test_id: str=None, automation_id: str=None) -> objec
 
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
+
+    # setting defaults
+    message = None
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'starting images (vrt) component for {scan.page.page_url} | scan_id: {scan_id}',
+        })
     
     try:
         # run Imager using selenium
@@ -438,11 +546,26 @@ def _vrt(scan_id: str=None, test_id: str=None, automation_id: str=None) -> objec
         scan = Scan.objects.get(id=scan_id)
         scan.images = images
         scan.save()
+
+        # setting flowrun log
+        message = f'completed images (vrt) component for {scan.page.page_url} | scan_id: {scan_id}'
+
     except Exception as e:
         print(e)
 
+        # setting flowrun log
+        message = f'html and logs component failed for {scan.page.page_url} | scan_id: {scan_id}'
+    
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': message
+        })
+
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, automation_id)
+    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
@@ -450,15 +573,23 @@ def _vrt(scan_id: str=None, test_id: str=None, automation_id: str=None) -> objec
 
 
 
-def _lighthouse(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
+def _lighthouse(
+        scan_id: str=None, 
+        test_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None, 
+        node_index: str=None
+    ) -> object:
     """
     Method to run the lighthouse component of the scan 
     allowing for multi-threading.
 
     Expects: {
-        scan_id: str, 
-        test_id: str, 
-        automation_id: str
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str, 
+        node_index  : str
     }
 
     Returns -> `Scan` <obj>
@@ -466,6 +597,17 @@ def _lighthouse(scan_id: str=None, test_id: str=None, automation_id: str=None) -
 
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
+
+    # setting defaults
+    message = None
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'starting lighthouse component for {scan.page.page_url} | scan_id: {scan_id}',
+        })
 
     try:
         # running lighthouse
@@ -476,13 +618,28 @@ def _lighthouse(scan_id: str=None, test_id: str=None, automation_id: str=None) -
         scan = Scan.objects.get(id=scan_id)
         scan.lighthouse = lh_data
         scan.save()
+
+        # setting flowrun log
+        message = f'completed lighthouse component for {scan.page.page_url} | scan_id: {scan_id}'
+        
     except Exception as e:
-        scan.yellowlab['failed'] = True
+        scan.lighthouse['failed'] = True
         scan.save()
         print(e)
 
+        # setting flowrun log
+        message = f'lighthouse component failed for {scan.page.page_url} | scan_id: {scan_id}'
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': message
+        })
+
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, automation_id)
+    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
@@ -490,15 +647,23 @@ def _lighthouse(scan_id: str=None, test_id: str=None, automation_id: str=None) -
 
 
 
-def _yellowlab(scan_id: str=None, test_id: str=None, automation_id: str=None) -> object:
+def _yellowlab(
+        scan_id: str=None, 
+        test_id: str=None, 
+        alert_id: str=None,
+        flowrun_id: str=None, 
+        node_index: str=None
+    ) -> object:
     """
     Method to run the yellowlab component of the scan 
     allowing for multi-threading.
 
     Expects: {
-        scan_id: str, 
-        test_id: str, 
-        automation_id: str
+        scan_id     : str, 
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str, 
+        node_index  : str
     }
 
     Returns -> `Scan` <obj>
@@ -506,6 +671,17 @@ def _yellowlab(scan_id: str=None, test_id: str=None, automation_id: str=None) ->
 
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
+
+    # setting defaults
+    message = None
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'starting yellowlab component for {scan.page.page_url} | scan_id: {scan_id}',
+        })
     
     try:
         # running yellowlab
@@ -516,13 +692,28 @@ def _yellowlab(scan_id: str=None, test_id: str=None, automation_id: str=None) ->
         scan = Scan.objects.get(id=scan_id)
         scan.yellowlab = yl_data
         scan.save()
+
+        # setting flowrun log
+        message = f'completed yellowlab component for {scan.page.page_url} | scan_id: {scan_id}'
+
     except Exception as e:
         scan.yellowlab['failed'] = True
         scan.save()
         print(e)
 
+        # setting flowrun log
+        message = f'yellowlab component failed for {scan.page.page_url} | scan_id: {scan_id}'
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': message
+        })
+
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, automation_id)
+    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan

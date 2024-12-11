@@ -9,7 +9,6 @@ on:
     paths:
       - 'app/**'
       - 'Dockerfile'
-      - 'Dockerfile.dev'
       - 'docker-compose.dev.yml'
       - '.github/workflows/**'
 
@@ -26,9 +25,9 @@ jobs:
         username: ${{ secrets.DEV_USER }}
         key: ${{ secrets.DEV_KEY }}
         command_timeout: 30m
-        script: | 
+        script: |  # docker volume rm app_pgdata
           cd ~/app
           git pull origin dev
           docker compose -f docker-compose.dev.yml down
-          docker volume rm app_app app_beat app_celery
+          docker volume rm app_server app_beat app_celery
           docker compose -f docker-compose.dev.yml up -d --build

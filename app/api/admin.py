@@ -5,7 +5,7 @@ from .v1.ops.services import (
     create_scan, create_test, 
     delete_site, delete_page, 
     delete_scan, delete_test,
-    delete_case, delete_testcase,
+    delete_case, delete_caserun,
     crawl_site
 )
 from .tasks import (
@@ -35,7 +35,7 @@ class AccountAdmin(admin.ModelAdmin):
 
 @admin.register(Member)
 class MemberAdmin(admin.ModelAdmin):
-    list_display = ('user', 'account', 'time_created', 'type', 'status')
+    list_display = ('email', 'account', 'time_created', 'type', 'status')
     search_fields = ('user__username', 'account__name')
 
 
@@ -60,7 +60,7 @@ class SiteAdmin(admin.ModelAdmin):
         for site in queryset:
             crawl_site(
                 id=site.id,
-                account=site.account
+                user=site.account.user
             )
 
     def scan_sites(self, request, queryset):
@@ -81,7 +81,7 @@ class SiteAdmin(admin.ModelAdmin):
         for site in queryset:
             delete_site(
                 id=site.id,
-                account=site.account
+                user=site.account.user
             )
 
 
@@ -120,7 +120,7 @@ class SiteAdmin(admin.ModelAdmin):
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed', 'type')
-    search_fields = ('page',)
+    search_fields = ('page__page_url',)
     actions = ['delete_tests',]
 
     def delete_tests(self, request, queryset):
@@ -135,8 +135,8 @@ class TestAdmin(admin.ModelAdmin):
 @admin.register(Scan)
 class ScanAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed')
-    search_fields = ('page',)
-    actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ] # NEW!!!
+    search_fields = ('page__page_url',)
+    actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ]
 
     def delete_scans(self, request, queryset):
         for scan in queryset:
@@ -145,7 +145,7 @@ class ScanAdmin(admin.ModelAdmin):
                 account=scan.page.account
             )
     
-    def add_scan_score(self, request, queryset): # NEW!!!
+    def add_scan_score(self, request, queryset):
         for scan in queryset:
             update_scan_score.delay(
                 scan_id=scan.id
@@ -178,8 +178,8 @@ class ScheduleAdmin(admin.ModelAdmin):
 
 
 
-@admin.register(Automation)
-class AutomationAdmin(admin.ModelAdmin):
+@admin.register(Alert)
+class AlertAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_created', 'schedule', 'user')
 
 
@@ -194,7 +194,8 @@ class ProcessAdmin(admin.ModelAdmin):
 
 @admin.register(Case)
 class CaseAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'user', 'time_created',)
+    list_display = ('title', 'user', 'site', 'time_created',)
+    search_fields = ('title', 'site__site_url')
     actions = ['delete_cases',]
 
     def delete_cases(self, request, queryset):
@@ -207,16 +208,18 @@ class CaseAdmin(admin.ModelAdmin):
 
 
 
-@admin.register(Testcase)
-class TestcaseAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'user', 'time_created', 'time_completed',)
-    actions = ['delete_testcases',]
+@admin.register(CaseRun)
+class CaseRunAdmin(admin.ModelAdmin):
+    list_display = ('title', 'user', 'time_created', 'time_completed',)
+    search_fields = ('title', 'site__site_url')
 
-    def delete_testcases(self, request, queryset):
-        for testcase in queryset:
-            delete_testcase(
-                id=testcase.id,
-                account=testcase.account
+    actions = ['delete_caseruns',]
+
+    def delete_caseruns(self, request, queryset):
+        for caserun in queryset:
+            delete_caserun(
+                id=caserun.id,
+                account=caserun.account
             )
 
 
@@ -224,8 +227,32 @@ class TestcaseAdmin(admin.ModelAdmin):
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'account', 'time_created', 'status',)
+    list_display = ('title', 'account', 'time_created', 'status',)
+    search_fields = ('title', 'affected')
 
+
+
+
+@admin.register(Flow)
+class FlowAdmin(admin.ModelAdmin):
+    list_display = ('title', 'account', 'time_created',)
+    search_fields = ('title',)
+
+
+
+
+
+@admin.register(FlowRun)
+class FlowRunAdmin(admin.ModelAdmin):
+    list_display = ('title', 'account', 'site', 'time_created', 'time_completed', 'status')
+    search_fields = ('title', 'site__site_url',)
+
+
+
+
+@admin.register(Secret)
+class SecretAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'account', 'time_created',)
 
 
 

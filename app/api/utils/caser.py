@@ -1,12 +1,14 @@
-from .driver import driver_init, driver_wait, quit_driver
-from .issuer import Issuer
-import time, uuid, json, boto3, os, requests
+from asgiref.sync import sync_to_async
+from cryptography.fernet import Fernet
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from .driver import driver_init, driver_wait, quit_driver
+from .issuer import Issuer
+from .updater import update_flowrun
 from ..models import * 
-from datetime import datetime, timezone
-from asgiref.sync import sync_to_async
 from cursion import settings
+from datetime import datetime, timezone
+import time, uuid, json, boto3, os, requests
 
 
 
@@ -15,15 +17,18 @@ from cursion import settings
 
 class Caser():
     """ 
-    Run a `Testcase` for a specific `Site` or 
+    Run a `CaseRun` for a specific `Site` or 
     gather element info for new `Case`.
 
     Expects: {
-        'testcase'  : object,
-        'case'      : object,
+        'caserun'       : object,
+        'case'          : object,
+        'process'       : object,
+        'flowrun_id'    : str,
+        'node_index'    : str,
     }
 
-    - Use `Caser.run()` to run Case as Testcase
+    - Use `Caser.run()` to run Case as CaseRun
     - Use `Caser.pre_run()` to run gather element info for a new Case 
 
     Returns -> None
@@ -34,21 +39,26 @@ class Caser():
 
     def __init__(
             self, 
-            case        : object=None, 
-            testcase    : object=None,
-            process     : object=None
+            case       : object=None, 
+            caserun    : object=None,
+            process    : object=None,
+            flowrun_id : str=None,
+            node_index : str=None,
         ):
        
         # primary objects
-        self.testcase = testcase
         self.case = case
+        self.caserun = caserun
         self.process = process
         
         # secondary objects
-        self.site_url = self.testcase.site.site_url if self.testcase else self.case.site.site_url
-        self.steps = self.testcase.steps if self.testcase else requests.get(self.case.steps['url']).json()
-        self.case_name = self.testcase.case.name if self.testcase else self.case.name
-        self.configs = self.testcase.configs if self.testcase else settings.CONFIGS
+        self.site_url = self.caserun.site.site_url if self.caserun else self.case.site.site_url
+        self.steps = self.caserun.steps if self.caserun else requests.get(self.case.steps['url']).json()
+        self.configs = self.caserun.configs if self.caserun else settings.CONFIGS
+        self.flowrun_id = flowrun_id
+        self.node_index = node_index
+        self.account = self.case.account if self.case else self.caserun.account
+        self.secrets = Secret.objects.filter(account=self.account)
 
         # init driver
         self.driver = driver_init(
@@ -92,35 +102,85 @@ class Caser():
             'Tab':          Keys.TAB
         }
 
+        # update flowrun
+        if self.flowrun_id:
+            update_flowrun(**{
+                'flowrun_id': self.flowrun_id,
+                'node_index': self.node_index,
+                'message': (
+                    f'starting up driver for case run using {self.configs.get('browser', 'chrome')}'
+                ),
+                'object_id': str(self.caserun.id)
+            })
 
 
 
-    def update_testcase(
+
+    def transpose_data(self, string: str=None) -> str:
+        """ 
+        Using replaces all vairables in string with 
+        account `Secrets`.
+
+        Expects: {
+            'string' : str (to be transposed)
+        }
+
+        Returns -> transposed string
+        """
+
+        # decryption helper
+        def decrypt_secret(value):
+            f = Fernet(settings.SECRETS_KEY)
+            decoded = f.decrypt(value)
+            return decoded.decode('utf-8')
+
+        # create secrets_list
+        secrets_list = []
+        for secret in self.secrets:
+            secrets_list.append({
+                'key': '{{'+str(secret.name)+'}}',
+                'value': decrypt_secret(secret.value)
+            })
+        
+        # iterate through secrets and replace data 
+        for item in secrets_list:
+            string = string.replace(
+                item['key'], 
+                item['value']
+            )
+        
+        # return transposed str
+        return string
+
+
+
+
+    def update_caserun(
             self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
             status: str=None, exception: str=None, time_completed: str=None, image: str=None,
         ) -> None:
         # updates Tescase for a selenium run (async) 
         if start_time != None:
-            self.testcase.steps[index][type]['time_created'] = str(start_time)
+            self.caserun.steps[index][type]['time_created'] = str(start_time)
         if end_time != None:
-            self.testcase.steps[index][type]['time_completed'] = str(end_time)
+            self.caserun.steps[index][type]['time_completed'] = str(end_time)
         if status != None:
-            self.testcase.steps[index][type]['status'] = status
+            self.caserun.steps[index][type]['status'] = status
         if exception != None:
-            self.testcase.steps[index][type]['exception'] = str(exception)
+            self.caserun.steps[index][type]['exception'] = str(exception)
         if image != None:
-            self.testcase.steps[index][type]['image'] = str(image)
+            self.caserun.steps[index][type]['image'] = str(image)
         if time_completed != None:
-            self.testcase.time_completed = time_completed
-            test_status = 'passed'
-            for step in self.testcase.steps:
+            self.caserun.time_completed = time_completed
+            run_status = 'passed'
+            for step in self.caserun.steps:
                 if step['action']['status'] == 'failed':
-                    test_status = 'failed'
+                    run_status = 'failed'
                 if step['assertion']['status'] == 'failed':
-                    test_status = 'failed'
-            self.testcase.status = test_status
+                    run_status = 'failed'
+            self.caserun.status = run_status
         
-        self.testcase.save()
+        self.caserun.save()
         return
 
 
@@ -174,12 +234,12 @@ class Caser():
 
 
     def save_screenshot(self) -> str:
-        '''
+        """
         Grabs & uploads a screenshot of the `page` 
         passed in the params. 
 
         Returns -> `image_url` <str:remote path to image>
-        '''
+        """
 
         # setup boto3 configurations
         s3 = boto3.client(
@@ -197,7 +257,7 @@ class Caser():
 
         # seting up paths
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-        remote_path = f'static/testcases/{self.testcase.id}/{pic_id}.png'
+        remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
@@ -366,12 +426,26 @@ class Caser():
 
     def run(self) -> None:
         """
-        Runs the self.testcase using selenium as the driver
+        Runs the self.caserun using selenium as the driver
 
         Returns -> None
         """
 
-        print(f'beginning testcase for {self.site_url} using case {self.case_name}')
+        msg = f'starting case run for {self.site_url} using case "{self.caserun.title}" | run_id: {str(self.caserun.id)}'
+        print(msg)
+
+        # update flowrun
+        if self.flowrun_id:
+            update_flowrun(**{
+                'flowrun_id': self.flowrun_id,
+                'node_index': self.node_index,
+                'message': msg,
+                'objects': [{
+                    'parent': str(self.caserun.site.id),
+                    'id': str(self.caserun.id),
+                    'status': 'working'
+                }]
+            })
         
         # initate driver
         self.driver = driver_init(
@@ -385,7 +459,15 @@ class Caser():
 
         i = 0
         for step in self.steps:
-            print(f'-- running step #{i+1} --')
+            msg = f'running step #{i+1} | run_id: {str(self.caserun.id)}'
+            
+            # update flowrun
+            if self.flowrun_id:
+                update_flowrun(**{
+                    'flowrun_id': self.flowrun_id,
+                    'node_index': self.node_index,
+                    'message': msg
+                })
         
             # adding catch if nav is not first
             if i == 0 and step['action']['type'] != 'navigate':
@@ -398,13 +480,23 @@ class Caser():
             if step['action']['type'] == 'navigate':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='action', 
                     start_time=datetime.now(timezone.utc)
                 )
 
                 try:
-                    print(f'navigating to {self.site_url}{step["action"]["path"]}')
+                    msg = f'navigating to {self.site_url}{step["action"]["path"]} | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
                     # using selenium, navigate to requested path & wait for page to load
                     driver_wait(
                         driver=self.driver, 
@@ -419,9 +511,19 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
+                    msg = excaption
                     status = 'failed'
 
-                self.update_testcase(
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
                     index=i, type='action', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
@@ -429,17 +531,30 @@ class Caser():
                     image=image
                 )
 
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
 
             if step['action']['type'] == 'scroll':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='action', 
                     start_time=datetime.now(timezone.utc)
                 )
 
                 try:
-                    print(f'scrolling -> {step["action"]["value"]}')
+                    msg = f'scrolling ({step["action"]["value"]}) | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message':msg
+                        })
                                     
                     # scrolling using plain JavaScript
                     self.driver.execute_script(f'window.scrollTo({step["action"]["value"]});')
@@ -453,25 +568,48 @@ class Caser():
                     exception = self.format_exception(e)
                     status = 'failed'
 
-                self.update_testcase(
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
                     index=i, type='action', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
                     exception=exception,
                     image=image
                 )
+
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
         
 
             if step['action']['type'] == 'click':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='action', 
                     start_time=datetime.now(timezone.utc)
                 )
 
                 try:
-                    print(f'clicking element -> {step["action"]["element"]}')
+                    msg = f'clicking element "{step["action"]["element"]["selector"]}" | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message':msg
+                        })
+
                     # using selenium, find and click on the 'element' 
                     selector = self.format_element(step["action"]["element"]["selector"])
                     xpath = self.format_element(step["action"]["element"]["xpath"])
@@ -498,25 +636,48 @@ class Caser():
                     exception = self.format_exception(e)
                     status = 'failed'
 
-                self.update_testcase(
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
                     index=i, type='action', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
                     exception=exception,
                     image=image
                 )
+
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
         
 
             if step['action']['type'] == 'change':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='action', 
                     start_time=datetime.now(timezone.utc)
                 )
                 
                 try:
-                    print(f'changing element to value -> {step["action"]["value"]}') 
+                    msg = f'changing element "{step["action"]["element"]["selector"]}" value to "{step["action"]["value"]}" | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
                     # using selenium, find and change the 'element'.value
                     selector = self.format_element(step["action"]["element"]["selector"])
                     xpath = self.format_element(step["action"]["element"]["xpath"])
@@ -534,7 +695,7 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # changing value of element
-                    value = step["action"]["value"]
+                    value = self.transpose_data(step["action"]["value"])
                     element.send_keys(value)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot()
@@ -543,8 +704,17 @@ class Caser():
                     image = self.save_screenshot()
                     exception = self.format_exception(e)
                     status = 'failed'
+                
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
 
-                self.update_testcase(
+                # update caserun
+                self.update_caserun(
                     index=i, type='action', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
@@ -552,17 +722,31 @@ class Caser():
                     image=image
                 )
 
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
 
             if step['action']['type'] == 'keyDown':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='action', 
                     start_time=datetime.now(timezone.utc)
                 )
                 
                 try:
-                    print(f'keyDown action for key -> {step["action"]["key"]}')
+                    msg = f'keyDown action using key "{step["action"]["key"]}" | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
                     # getting last known element
                     n = (i - 1)
                     elm = None
@@ -599,7 +783,16 @@ class Caser():
                     exception = self.format_exception(e)
                     status = 'failed'
 
-                self.update_testcase(
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
                     index=i, type='action', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
@@ -607,18 +800,32 @@ class Caser():
                     image=image
                 )
 
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
 
             if step['assertion']['type'] == 'match':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='assertion', 
                     start_time=datetime.now(timezone.utc)
                 )
 
                 try:
                     # using selenium, find elememt and assert if element.text == assertion.value
-                    print(f'asserting that element value -> {step["assertion"]["element"]} matches {step["assertion"]["value"]}')
+                    msg = f'asserting that element "{step["assertion"]["element"]["selector"]}".innerText matches "{step["assertion"]["value"]}" | run_id: {str(self.caserun.id)}' 
+                    print(msg)
+
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
                     selector = self.format_element(step["assertion"]["element"]["selector"])
                     xpath = self.format_element(step["assertion"]["element"]["xpath"])
                     element_data = self.get_element(selector, xpath)
@@ -641,8 +848,8 @@ class Caser():
                     print(f'value -> {step["assertion"]["value"]}')
 
                     # assert text
-                    if elementText != step["assertion"]["value"]:
-                        raise AssertionError(f'innerText of element "{selector}" does match "{step['assertion']['value']}"')
+                    if elementText != self.transpose_data(step["assertion"]["value"]):
+                        raise AssertionError(f'innerText of element "{selector}" does match expected')
                     
                     # save screenshot
                     image = self.save_screenshot()
@@ -652,25 +859,48 @@ class Caser():
                     exception = self.format_exception(e)
                     status = 'failed'
 
-                self.update_testcase(
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
                     index=i, type='assertion', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
                     exception=exception,
                     image=image
                 )
+
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
             
 
             if step['assertion']['type'] == 'exists':
                 exception = None
                 status = 'passed'
-                self.update_testcase(
+                self.update_caserun(
                     index=i, type='assertion', 
                     start_time=datetime.now(timezone.utc)
                 )
 
                 try:
-                    print(f'asserting that element -> {step["assertion"]["element"]} exists')
+                    msg = f'asserting that {step["assertion"]["element"]["selector"]} exists | run_id: {str(self.caserun.id)}'
+                    print(msg)
+                    
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
                     # find elememt and assert it exists
                     selector = self.format_element(step["action"]["element"]["selector"])
                     xpath = self.format_element(step["action"]["element"]["xpath"])
@@ -694,7 +924,15 @@ class Caser():
                     exception = self.format_exception(e)
                     status = 'failed'
 
-                self.update_testcase(
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                self.update_caserun(
                     index=i, type='assertion', 
                     end_time=datetime.now(timezone.utc), 
                     status=status, 
@@ -702,17 +940,38 @@ class Caser():
                     image=image
                 )
 
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
             i += 1  
 
-        self.update_testcase(
+        self.update_caserun(
             time_completed=datetime.now(timezone.utc)
         )
         quit_driver(driver=self.driver)
-        print('-- testcase run complete --')
+        print('-- caserun run complete --')
+
+        # update flowrun
+        if self.flowrun_id:
+            update_flowrun(**{
+                'flowrun_id': self.flowrun_id,
+                'node_index': self.node_index,
+                'message': (
+                    f'case run "{self.caserun.title}" for {self.caserun.site.site_url} completed with status: '+
+                    f'{"❌ FAILED" if self.caserun.status == 'failed' else "✅ PASSED"} | run_id: {str(self.caserun.id)}'
+                ),
+                'objects': [{
+                    'parent': str(self.caserun.site.id),
+                    'id': str(self.caserun.id),
+                    'status': self.caserun.status
+                }],
+                'node_status': self.caserun.status
+            })
         
-        if self.testcase.status == 'failed' and self.testcase.configs.get('create_issue'):
+        if self.caserun.status == 'failed' and self.caserun.configs.get('create_issue'):
             print('generating new Issue...')
-            Issuer(testcase=self.testcase).build_issue()
+            Issuer(caserun=self.caserun).build_issue()
         
         return None
 
@@ -727,7 +986,7 @@ class Caser():
         Returns -> None
         """
 
-        print(f'beginning pre_run for Case {self.case_name}')
+        print(f'beginning pre_run for Case {self.case.title}')
 
         # setting implict wait_time for driver
         self.driver.implicitly_wait(self.configs.get('max_wait_time'))

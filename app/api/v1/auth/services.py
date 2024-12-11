@@ -6,6 +6,7 @@ from django.contrib.auth.middleware import get_user
 from django.contrib.auth.password_validation import validate_password
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db.models import Q
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
@@ -15,11 +16,11 @@ from slack_sdk.oauth import AuthorizeUrlGenerator
 from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
 from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
-from ...models import Account, Card, Member, Site
+from ...models import Account, Card, Member, Site, get_permissions_default
 from ..ops.services import record_api_call
 from .serializers import *
 from ...utils.alerts import send_reset_link
-from ...tasks import send_invite_link_bg, send_remove_alert_bg
+from ...tasks import send_invite_link_bg, send_remove_alert_bg, create_prospect
 from cursion import settings
 import requests, os, subprocess, secrets
 
@@ -116,15 +117,15 @@ def register_user(request: object) -> object:
 
 def login_user(request: object) -> object: 
     """ 
-    Creates a User object and returns a request 
+    Authenticates a User object and returns a request 
 
     Expects the following:
-        'email'    : str,
+        'username' : str, (same as email unless 'admin')
         'password' : str
 
     Returns -> data: {
         'user'      : dict,
-        'token'    : str,
+        'token'     : str,
         'refresh'   : str,
         'api_token' : str
     }
@@ -132,22 +133,25 @@ def login_user(request: object) -> object:
 
     # get data
     password = request.data.get('password')
-    username = request.data.get('username')
+    email = request.data.get('email')
 
     # validate requests
     if (password is None or len(password) == 0) or \
-        (username is None or len(username) == 0):
+        (email is None or len(email) == 0):
         data = {'detail': 'Must provide an email and password.'}
         return Response(data=data, status=status.HTTP_400_BAD_REQUEST)
 
     # setting defalt response
     data = {'detail': 'No account found with the given credentials.'}
 
-    # checking is User exists via provided username
-    if User.objects.filter(username=username).exists():
+    # checking is User exists via provided email / username
+    if User.objects.filter(Q(username=email) | Q(email=email)):
 
         # retrieving User obj
-        user = User.objects.get(username=username)
+        if User.objects.filter(username=email):
+            user = User.objects.get(username=email) 
+        else:
+            user = User.objects.get(email=email)
 
         # validating password
         if user.check_password(password):
@@ -169,7 +173,6 @@ def login_user(request: object) -> object:
                 'api_token': str(api_token.key)
             }
             return Response(data=data, status=status.HTTP_201_CREATED)
-
         else:
             return Response(data=data, status=status.HTTP_401_UNAUTHORIZED)
     else:
@@ -192,15 +195,21 @@ def update_user(request: object) -> object:
     # get request data
     email = request.data.get('email')
     user = request.user
+    member = Member.objects.get(user=user)
 
     # check if an email is already associated with a user
     if User.objects.filter(email=email).exists() and user.email != email:
         return Response(status=status.HTTP_417_EXPECTATION_FAILED)
     
     # update user email
-    user.username = email
+    if user.username != 'admin':
+        user.username = email
     user.email = email
     user.save()
+
+    # update member email
+    member.email = email
+    member.save()
 
     # serialize and return
     data = UserSerializer(user).data
@@ -614,58 +623,70 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
     if request is not None:
         _id = request.data.get('id')
         name = request.data.get('name')
-        phone = request.data.get('phone')
         active = request.data.get('active')
         type = request.data.get('type')
         code = request.data.get('code')
-        max_sites = request.data.get('max_sites')
-        max_pages = request.data.get('max_pages')
-        max_schedules = request.data.get('max_schedules')
-        retention_days = request.data.get('retention_days')
         cust_id = request.data.get('cust_id')
         sub_id = request.data.get('sub_id')
         product_id = request.data.get('product_id')
         price_id = request.data.get('price_id')
         price_amount = request.data.get('price_amount')
         interval = request.data.get('interval')
+        sites_allowed = request.data.get('sites_allowed')
+        pages_allowed = request.data.get('pages_allowed')
+        schedules_allowed = request.data.get('schedules_allowed')
+        retention_days = request.data.get('retention_days')
         scans_allowed = request.data.get('scans_allowed')
         tests_allowed = request.data.get('tests_allowed')
-        testcases_allowed = request.data.get('testcases_allowed')
+        caseruns_allowed = request.data.get('caseruns_allowed')
+        flowruns_allowed = request.data.get('flowruns_allowed')
+        nodes_allowed = request.data.get('nodes_allowed')
+        conditions_allowed = request.data.get('conditions_allowed')
+        sites = request.data.get('sites')
+        schedules = request.data.get('schedules')
         scans = request.data.get('scans')
         tests = request.data.get('tests')
-        testcases = request.data.get('testcases')
+        caseruns = request.data.get('caseruns')
+        flowruns = request.data.get('flowruns')
         slack = request.data.get('slack')
         configs = request.data.get('configs')
         meta = request.data.get('meta')
+        info = request.data.get('info')
         user = request.user
 
     # get kwargs data
     if request is None:
         _id = kwargs.get('id')
         name = kwargs.get('name')
-        phone = kwargs.get('phone')
         active = kwargs.get('active')
         type = kwargs.get('type')
         code = kwargs.get('code')
-        max_sites = kwargs.get('max_sites')
-        max_pages = kwargs.get('max_pages')
-        max_schedules = kwargs.get('max_schedules')
-        retention_days = kwargs.get('retention_days')
         cust_id = kwargs.get('cust_id')
         sub_id = kwargs.get('sub_id')
         product_id = kwargs.get('product_id')
         price_id = kwargs.get('price_id')
         price_amount = kwargs.get('price_amount')
         interval = kwargs.get('interval')
+        sites_allowed = kwargs.get('sites_allowed')
+        pages_allowed = kwargs.get('pages_allowed')
+        schedules_allowed = kwargs.get('schedules_allowed')
+        retention_days = kwargs.get('retention_days')
         scans_allowed = kwargs.get('scans_allowed')
         tests_allowed = kwargs.get('tests_allowed')
-        testcases_allowed = kwargs.get('testcases_allowed')
+        caseruns_allowed = kwargs.get('caseruns_allowed')
+        flowruns_allowed = kwargs.get('flowruns_allowed')
+        nodes_allowed = kwargs.get('nodes_allowed')
+        conditions_allowed = kwargs.get('conditions_allowed')
+        sites = kwargs.get('sites')
+        schedules = kwargs.get('schedules')
         scans = kwargs.get('scans')
         tests = kwargs.get('tests')
-        testcases = kwargs.get('testcases')
+        caseruns = kwargs.get('caseruns')
+        flowruns = kwargs.get('flowruns')
         slack = kwargs.get('slack')
         configs = kwargs.get('configs')
         meta = kwargs.get('meta')
+        info = kwargs.get('info')
         user_id = kwargs.get('user')
         user = User.objects.get(id=user_id)
 
@@ -680,22 +701,12 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         account = Account.objects.get(id=_id)
         if name is not None:
             account.name = name
-        if phone is not None:
-            account.phone = phone
         if active is not None:
             account.active = active
         if type is not None:
             account.type = type
         if code is not None:
             account.code = code
-        if max_sites is not None:
-            account.max_sites = max_sites
-        if max_pages is not None:
-            account.max_pages = max_pages
-        if max_schedules is not None:
-            account.max_schedules = max_schedules
-        if retention_days is not None:
-            account.retention_days = retention_days
         if cust_id is not None:
             account.cust_id = cust_id
         if sub_id is not None:
@@ -712,20 +723,42 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
             account.usage['scans_allowed'] = scans_allowed
         if tests_allowed is not None:
             account.usage['tests_allowed'] = tests_allowed
-        if testcases_allowed is not None:
-            account.usage['testcases_allowed'] = testcases_allowed
+        if caseruns_allowed is not None:
+            account.usage['caseruns_allowed'] = caseruns_allowed
+        if flowruns_allowed is not None:
+            account.usage['flowruns_allowed'] = flowruns_allowed
+        if sites_allowed is not None:
+            account.usage['sites_allowed'] = sites_allowed
+        if pages_allowed is not None:
+            account.usage['pages_allowed'] = pages_allowed
+        if schedules_allowed is not None:
+            account.usage['schedules_allowed'] = schedules_allowed
+        if nodes_allowed is not None:
+            account.usage['nodes_allowed'] = nodes_allowed
+        if conditions_allowed is not None:
+            account.usage['conditions_allowed'] = conditions_allowed
+        if retention_days is not None:
+            account.usage['retention_days'] = retention_days
+        if sites is not None:
+            account.usage['sites'] = sites
+        if schedules is not None:
+            account.usage['schedules'] = schedules
         if scans is not None:
             account.usage['scans'] = scans
         if tests is not None:
             account.usage['tests'] = tests
-        if testcases is not None:
-            account.usage['testcases'] = testcases
+        if caseruns is not None:
+            account.usage['caseruns'] = caseruns
+        if flowruns is not None:
+            account.usage['flowruns'] = flowruns
         if slack is not None:
             account.slack = slack
         if configs is not None:
             account.configs = configs
         if meta is not None:
             account.meta = meta
+        if info is not None:
+            account.info = info
         
         # saving updated info
         account.save()
@@ -737,32 +770,46 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         if code is None:
             code = secrets.token_urlsafe(16)
 
+        # create account license_key
+        license_key = 'cursion-license-' + secrets.token_hex(32)
+
+        # build usage 
+        usage = {
+            'sites': 0,
+            'schedules': 0,
+            'scans': 0,
+            'tests': 0,
+            'caseruns': 0,
+            'flowruns': 0,
+            'sites_allowed': sites_allowed if sites_allowed else 1, 
+            'pages_allowed': pages_allowed if pages_allowed else 3, 
+            'schedules_allowed': schedules_allowed if schedules_allowed else 1,
+            'scans_allowed': scans_allowed if scans_allowed else 30, 
+            'tests_allowed': tests_allowed if tests_allowed else 30, 
+            'caseruns_allowed': caseruns_allowed if caseruns_allowed else 15,
+            'flowruns_allowed': flowruns_allowed if flowruns_allowed else 5,
+            'nodes_allowed': nodes_allowed if nodes_allowed else 4,
+            'conditions_allowed': conditions_allowed if conditions_allowed else 1,
+            'retention_days': retention_days if retention_days else 15,
+        }
+
         # create new account
         account = Account.objects.create(
             user=user,
             name=name,
-            phone=phone,
             active=True,
+            license_key=license_key,
             type=type,
             code=code,
-            max_sites=max_sites,
-            max_pages=max_pages,
-            max_schedules=max_schedules if max_schedules is not None else 0,
-            retention_days=retention_days if retention_days is not None else 14,
             cust_id=cust_id,
             sub_id=sub_id,
             product_id=product_id,
             price_id=price_id,
-            meta=meta,
-            usage={
-                'scans': 0,
-                'tests': 0,
-                'testcases': 0,
-                'scans_allowed': scans_allowed if scans_allowed is not None else 30, 
-                'tests_allowed': tests_allowed if tests_allowed is not None else 30, 
-                'testcases_allowed': testcases_allowed if testcases_allowed is not None else 15,
-            },
+            usage=usage,
         )
+
+        # create proepsct
+        create_prospect.delay(user_email=str(user.email))
     
     # serialize and return
     serializer_context = {'request': request,}
@@ -832,6 +879,66 @@ def create_user_token(request: object) -> object:
 
 
 
+def get_account_license(request: object) -> object:
+    """ 
+    Checks if Account is type "selfhost" and returns
+    rquested ENV data
+
+    Expects: {
+        'request': object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    license_key = request.data.get('license_key')
+
+    # set defaults
+    success = False
+    data = {}
+
+    # check key 
+    if Account.objects.filter(license_key=license_key).exists():
+        
+        # build data
+        data = {
+            'GOOGLE_CRUX_KEY'               : os.environ.get('GOOGLE_CRUX_KEY'),
+            'TWILIO_SID'                    : os.environ.get('TWILIO_SID'),
+            'TWILIO_AUTH_TOKEN'             : os.environ.get('TWILIO_AUTH_TOKEN'),
+            'SENDGRID_API_KEY'              : os.environ.get('SENDGRID_API_KEY'),
+            'DEFAULT_TEMPLATE'              : os.environ.get('DEFAULT_TEMPLATE'),
+            'DEFAULT_TEMPLATE_NO_BUTTON'    : os.environ.get('DEFAULT_TEMPLATE_NO_BUTTON'),
+            'AUTOMATION_TEMPLATE'           : os.environ.get('AUTOMATION_TEMPLATE'),
+            'SLACK_APP_ID'                  : os.environ.get('SLACK_APP_ID'),
+            'SLACK_CLIENT_ID'               : os.environ.get('SLACK_CLIENT_ID'),
+            'SLACK_CLIENT_SECRET'           : os.environ.get('SLACK_CLIENT_SECRET'),
+            'SLACK_SIGNING_SECRET'          : os.environ.get('SLACK_SIGNING_SECRET'),
+            'SLACK_VERIFICATION_TOKEN'      : os.environ.get('SLACK_VERIFICATION_TOKEN'),
+            'SLACK_BOT_TOKEN'               : os.environ.get('SLACK_BOT_TOKEN'),
+            'AWS_ACCESS_KEY_ID'             : os.environ.get('AWS_ACCESS_KEY_ID'),
+            'AWS_SECRET_ACCESS_KEY'         : os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            'GPT_API_KEY'                   : os.environ.get('GPT_API_KEY')
+        }
+
+        # update success
+        success = True
+    
+    # return response
+    data = {
+        'success': success,
+        'data': data
+    }
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+### ------ Begin Member Services ------ ###
+
+
+
+
 def get_account_members(request: object, *args, **kwargs) -> object:
     """ 
     Get a list of `Members` associated with the 
@@ -885,11 +992,14 @@ def create_or_update_member(request: object=None) -> object:
     if request is not None:
         user = request.user
         _id = request.data.get('id')
+        send_invite = request.data.get('send_invite')
         account = request.data.get('account')
         _status = request.data.get('status')
         _type = request.data.get('type')
         email = request.data.get('email')
+        phone = request.data.get('phone')
         code = request.data.get('code')
+        permissions = request.data.get('permissions')
 
     # checking account
     if account is not None:
@@ -913,10 +1023,14 @@ def create_or_update_member(request: object=None) -> object:
             member.account = account
         if email is not None:
             member.email = email
+        if phone is not None:
+            member.phone = phone
         if user is not None and user.username == member.email:
             member.user = user
         if _type is not None:
             member.type = _type
+        if permissions is not None:
+            member.permissions = permissions
         
         # updating status
         if _status is not None:
@@ -933,15 +1047,21 @@ def create_or_update_member(request: object=None) -> object:
 
     # create new Member
     if _id is None:
+
+        # get permissonions or default
+        _permissions = permissions if permissions else get_permissions_default()
+
         member = Member.objects.create(
             email=email,
+            phone=phone,
             status=_status,
             type=_type,
             account=account,
+            permissions=_permissions
         )
 
     # sending invite link
-    if _status == 'pending':
+    if _status == 'pending' and send_invite:
         send_invite_link_bg.delay(member_id=member.id)
     
     # sending removed alert and deleting
@@ -1007,6 +1127,11 @@ def get_member(request: object=None, id: str=None) -> object:
 
 
 
+### ------ Begin Prospect Services ------ ###
+
+
+
+
 def get_prospects(request: object) -> object:
     """ 
     This pulls all admin Members and 
@@ -1050,14 +1175,24 @@ def get_prospects(request: object) -> object:
                 _status = 'customer' # account is active and paid
             else:
                 _status = 'warm' # account is paused and paid
+        if account.type == 'new':
+            _status = 'cold' # account has not onboarded
+        if account.type == 'selfhost':
+            _status = 'customer'
+
+        # get admin member
+        member = Member.objects.filter(account=account, type='admin')[0]
 
         # building prospect
         prospect = {
             'first_name': account.user.first_name,
             'last_name': account.user.last_name,
             'email': account.user.email,
-            'phone': account.phone,
-            'status': _status
+            'phone': member.phone,
+            'status': _status,
+            'info': account.info,
+            'meta': account.meta,
+            'license_key': account.license_key
         }
 
         # adding to results
@@ -1090,7 +1225,7 @@ def t7e(request: object) -> None:
     success = False
 
     # validating
-    if request.params.get('cred') == os.environ.get('CRED'):
+    if request.query_params.get('license_key') == os.environ.get('LICENSE_KEY'):
         subprocess.Popen(['pkill -f gunicorn'], 
             stdout=subprocess.PIPE,
             user='app',

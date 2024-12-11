@@ -79,11 +79,10 @@ class AccountSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Account
-        fields = ['id', 'active', 'time_created', 'type', 'phone', 
+        fields = ['id', 'active', 'time_created', 'type', 
         'cust_id', 'sub_id', 'product_id', 'price_id', 'slack',
-        'user', 'code', 'name', 'price_amount', 'max_sites', 
-        'max_pages', 'max_schedules', 'retention_days',
-        'configs', 'meta', 'usage',
+        'user', 'code', 'name', 'price_amount',
+        'configs', 'meta', 'usage', 'info', 'license_key',
         ]
 
 
@@ -96,8 +95,8 @@ class MemberSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['id', 'status', 'time_created', 'type',
-        'email', 'type', 'user', 'account',
+        fields = ['id', 'status', 'time_created', 'type', 'phone',
+        'email', 'type', 'user', 'account', 'permissions',
         ]
 
 

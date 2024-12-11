@@ -1,9 +1,9 @@
 services:
   
 
-  app:
-    container_name: cursion-app
-    hostname: cursion-app
+  server:
+    container_name: cursion-server
+    hostname: cursion-server
     platform: linux/amd64
     privileged: true
     init: true
@@ -13,7 +13,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-    entrypoint: ["/entrypoint.sh", "app", "stage"]
+    entrypoint: ["/entrypoint.sh", "server", "stage"]
     env_file:
       - ./env/.env.stage
     volumes:

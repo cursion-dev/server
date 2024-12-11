@@ -243,9 +243,9 @@ def get_device(browser: str=None, name: str=None) -> str:
     # setting default to 'Windows 10 PC'
     selected = devices[6]
 
-    # iterate and search throguh devices 
+    # iterate and search through devices
     for device in devices:
-        if device['browser'] == browser and device['name'] == 'name':
+        if device['browser'] == browser and device['name'] == name:
             selected = device
             break
     

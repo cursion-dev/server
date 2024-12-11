@@ -1,26 +1,21 @@
-from datetime import datetime, timedelta
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
 from django.http import HttpResponse
-from ...models import *
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework import status
+from cryptography.fernet import Fernet
 from cursion import celery
 from redis import Redis
 from cursion import settings
 from celery import app
 from .serializers import *
 from ...tasks import *
-from rest_framework.pagination import LimitOffsetPagination
-from ...utils.scanner import Scanner as S
-from ...utils.tester import Tester as T
-from ...utils.imager import Imager as I
+from ...models import *
 from ...utils.reporter import Reporter as R
-from ...utils.wordpress import Wordpress as W
-from ...utils.caser import Caser
-from ...utils.crawler import Crawler
 from ...utils.devices import devices
+from datetime import datetime, timedelta, timezone as timezone
 import json, boto3, asyncio, os, requests, uuid, secrets
 
 
@@ -72,361 +67,24 @@ def record_api_call(request: object, data: dict, status: str) -> None:
 
 
 
-def check_account_and_resource(
-        request: object=None, 
-        user: object=None, 
-        resource: str=None, 
-        action: str='get',
-        **kwargs
-    ) -> dict:
+def decrement_resource(account: object, resource: str) -> None:
     """ 
-    Based on the passed "resource" & kwargs, checks to see 
-    if account is allowed to add/get a "resource". 
-    Also increments the `Account.usage` for the specified resource.
-
-    Expects: {
-        'request'   : object, 
-        'user'      : object, 
-        'resource'  : str, 
-        **kwargs    : dict
-    }
-    
-    Returns -> data: {
-        'allowed'   : bool,
-        'error'     : str,
-        'status'    : object 
-        'code'      : str
-    }
-    """
-    
-    # setting defaults
-    allowed = True
-    error = None
-    member = None
-    _status = status.HTTP_402_PAYMENT_REQUIRED
-    code = '402'
-
-    # checking for kwargs
-    site_id = kwargs.get('site_id')
-    site_url = kwargs.get('site_url')
-    page_id = kwargs.get('page_id')
-    page_url = kwargs.get('page_url')
-    test_id = kwargs.get('test_id')
-    scan_id = kwargs.get('scan_id')
-    case_id = kwargs.get('case_id')
-    testcase_id = kwargs.get('testcase_id')
-    issue_id = kwargs.get('issue_id')
-    schedule_id = kwargs.get('schedule_id')
-    automation_id = kwargs.get('automation_id')
-    process_id = kwargs.get('process_id')
-    report_id = kwargs.get('report_id')
-
-    # retrieving account
-    if request is not None:
-        user = request.user
-    if Member.objects.filter(user=user).exists():
-        member = Member.objects.get(user=user)
-        account = member.account
-        allowed = member.account.active
-        if not allowed:
-            error = 'account not funded'
-    else:
-        allowed = False
-        error = 'no account assocation'
-        _status = status.HTTP_401_UNAUTHORIZED
-        code = '401'
-    
-    # returning early bc account 
-    # is not funded or not associated
-    if not allowed:
-        data = {
-            'allowed': allowed,
-            'error': error, 
-            'status': _status,
-            'code': code
-        }
-        return data
-
-    # checking if user is 'admin'
-    if user.username == 'admin':
-        data = {
-            'allowed': allowed,
-            'error': error, 
-            'status': _status,
-            'code': code
-        }
-        return data
-
-    # checking resource limit
-    if resource is not None:
-        
-        # checking pages
-        if resource == 'page':
-            if not page_id:
-                if site_id:
-                    if not Site.objects.filter(id=site_id, account=account).exists():
-                        allowed = False
-                        error = 'site not found'
-                        _status = status.HTTP_404_NOT_FOUND
-                        code = '404'
-                    else:
-                        current_count = Page.objects.filter(account=account, site__id=site_id).count()
-                        if current_count >= account.max_pages and action == 'add':
-                            allowed = False
-                            error = 'max pages reached'
-                            _status = status.HTTP_402_PAYMENT_REQUIRED
-                            code = '402'
-            if page_id:
-                if not Page.objects.filter(id=page_id, account=account).exists():
-                    allowed = False
-                    error = 'page not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if page_url:
-                if Page.objects.filter(page_url=page_url, account=account).exists():
-                    allowed = False
-                    error = 'page already exists'
-                    _status = status.HTTP_409_CONFLICT
-                    code = '409'
-        
-        # checking sites
-        if resource == 'site':
-            if site_id:
-                if not Site.objects.filter(id=site_id, account=account).exists():
-                    allowed = False
-                    error = 'site not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if site_url:
-                current_count = Site.objects.filter(account=account).count()
-                if Site.objects.filter(site_url=site_url, account=account).exists():
-                    allowed = False
-                    error = 'site already exists'
-                    _status = status.HTTP_409_CONFLICT
-                    code = '409'
-                elif current_count >= account.max_sites and action == 'add' and (account.type != 'custom' and account.type != 'enterprise'):
-                    allowed = False
-                    error = 'max sites reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
-                elif current_count >= account.max_sites  and action == 'add' and (account.type == 'enterprise' or account.type == 'custom'):
-                    # add to max_sites only for enterprise
-                    account.max_sites += 1
-                    account.max_schedules += 1
-                    account.save()
-                    # update price for sub
-                    update_sub_price.delay(account.id)
-        
-        # checking schedules
-        if resource == 'schedule':
-            if not schedule_id:
-                current_count = Schedule.objects.filter(account=account).count()
-                if current_count >= account.max_schedules and action == 'add':
-                    allowed = False
-                    error = 'max schedules reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
-                elif page_id:
-                    if not Page.objects.filter(id=page_id, account=account).exists():
-                        allowed = False
-                        error = 'page not found'
-                        _status = status.HTTP_404_NOT_FOUND
-                        code = '404'
-                elif site_id:
-                    if not Site.objects.filter(id=site_id, account=account).exists():
-                        allowed = False
-                        error = 'site not found'
-                        _status = status.HTTP_404_NOT_FOUND
-                        code = '404'
-                
-            if schedule_id:
-                if not Schedule.objects.filter(id=schedule_id, account=account).exists():
-                    allowed = False
-                    error = 'schedule not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-                if page_id:
-                    if not Page.objects.filter(id=page_id, account=account).exists():
-                        allowed = False
-                        error = 'page not found'
-                        _status = status.HTTP_404_NOT_FOUND
-                        code = '404'
-                if site_id:
-                    if not Site.objects.filter(id=site_id, account=account).exists():
-                        allowed = False
-                        error = 'site not found'
-                        _status = status.HTTP_404_NOT_FOUND
-                        code = '404'
-        
-        # checking automations
-        if resource == 'automation':
-            if automation_id:
-                if not Automation.objects.filter(id=automation_id, account=account).exists():
-                    allowed = False
-                    error = 'automation not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking testcases
-        if resource == 'testcase':
-            if not testcase_id and action == 'add':
-                if not check_resource(account, 'testcases'):
-                    allowed = False
-                    error = 'max testcases reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
-            if testcase_id:
-                if not Testcase.objects.filter(id=testcase_id, account=account).exists():
-                    allowed = False
-                    error = 'testcase not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if case_id:
-                if not Case.objects.filter(id=case_id, account=account).exists():
-                    allowed = False
-                    error = 'case not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if site_id:
-                if not Site.objects.filter(id=site_id, account=account).exists():
-                    allowed = False
-                    error = 'site not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            
-        # checking cases
-        if resource == 'case':
-            if case_id:
-                if not Case.objects.filter(id=case_id, account=account).exists():
-                    allowed = False
-                    error = 'case not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if site_id:
-                if not Site.objects.filter(id=site_id, account=account).exists():
-                    allowed = False
-                    error = 'site not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking issues
-        if resource == 'issue':
-            if issue_id:
-                if not Issue.objects.filter(id=issue_id, account=account).exists():
-                    allowed = False
-                    error = 'issue not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if site_id:
-                if not Site.objects.filter(id=site_id, account=account).exists():
-                    allowed = False
-                    error = 'site not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if page_id:
-                if not Page.objects.filter(id=page_id, account=account).exists():
-                    allowed = False
-                    error = 'page not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking scans
-        if resource == 'scan':
-            if not scan_id and action == 'add':
-                if not check_resource(account, 'scans'):
-                    allowed = False
-                    error = 'max scans reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
-            if scan_id:
-                if not Scan.objects.filter(id=scan_id, page__account=account).exists():
-                    allowed = False
-                    error = 'scan not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking tests
-        if resource == 'test':
-            if not test_id and action == 'add':
-                if not check_resource(account, 'tests'):
-                    allowed = False
-                    error = 'max tests reached'
-                    _status = status.HTTP_402_PAYMENT_REQUIRED
-                    code = '402'
-            if test_id:
-                if not Test.objects.filter(id=test_id, page__account=account).exists():
-                    allowed = False
-                    error = 'test not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-
-        # checking process
-        if resource == 'process':
-            if process_id:
-                if not Process.objects.filter(id=process_id, account=account).exists():
-                    allowed = False
-                    error = 'process not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking reports
-        if resource == 'report':
-            if report_id:
-                if not Report.objects.filter(id=report_id, account=account).exists():
-                    allowed = False
-                    error = 'report not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            if page_id:
-                if not Page.objects.filter(id=page_id, account=account).exists():
-                    allowed = False
-                    error = 'page not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-        
-        # checking logs
-        if resource == 'log':
-            if log_id:
-                if not Log.objects.filter(id=log_id, account=account).exists():
-                    allowed = False
-                    error = 'log not found'
-                    _status = status.HTTP_404_NOT_FOUND
-                    code = '404'
-            
-    # returning data
-    data = {
-        'allowed': allowed,
-        'error': error, 
-        'status': _status,
-        'code': code
-    }
-    return data
-
-
-
-
-def check_resource(account: object, resource: str) -> bool:
-    """ 
-    Validates if account can add a new {resource} 
+    Removes '1' from the resource total 
 
     Expcets: {
         'account'  : <object>,
-        'resource' : <str> 'scan', 'test', or 'testcase
+        'resource' : <str> 'site', 'page', 'schedule'
     }
 
-    Returns: Bool, True if resource can be added.
+    Returns: Non
     """
 
-    # define defaults
-    success = False
+    # remove 1 from account.usage[{resource}]
+    account.usage[f'{resource}'] -= 1
+    account.save()
 
-    # check allowance
-    if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
-        # update success
-        success = True
-
-    # return response
-    return success
+    # return None
+    return None
 
 
 
@@ -456,7 +114,8 @@ def check_location(request: None, local: None) -> dict:
 
         # get user and account
         user = request.user
-        account = Member.objects.get(user=user).account
+        member = Member.objects.get(user=user)
+        account = member.account
 
         # get configs obj & location
         configs = request.data.get('configs', account.configs)
@@ -500,13 +159,226 @@ def check_location(request: None, local: None) -> dict:
 
 
 
+
+def check_permissions_and_usage(
+        member: object=None, 
+        resource: str=None, 
+        action: str='get', 
+        id: str=None, 
+        id_type: str=None,
+        url: str=None
+    ) -> dict:
+    """ 
+    References Member.permissions to determine if 
+    give action is allowed on given resource.
+
+    Expects: {
+        'member'    : obj, (REQUIRED)
+        'resource'  : str, (REQUIRED)
+        'action'    : str, (OPTIONAL, 'get')
+        'id'        : str, (OPTIONAL)
+        'id_type'   : str, (OPTIONAL)
+        'url'       : str, (OPTIONAL)
+    }
     
+    Returns: {
+        'allowed'   : bool,
+        'error'     : str,
+        'code':     : str, 
+        'status':   : object
+    }
+    """
+
+    # get account from member
+    account = member.account
+
+    # set default 
+    allowed = True
+    error = 'not allowed'
+    code = '403'
+    _status = status.HTTP_403_FORBIDDEN
+
+    # ignore site assoc checks on these resorces
+    ignore_list = ['alert', 'schedule', 'log', 'process', 'flow', 'secret']
+    
+    # check usage on these resources
+    usage_list = ['site', 'schedule', 'caserun', 'flowrun', 'scan', 'test']
+
+    # helper method to search permissions.sites
+    def site_in_sites(id) -> bool:
+        if len(member.permissions.get('sites', [])) == 0:
+            return True
+        for site in member.permissions.get('sites'):
+            if id == site['id']:
+                return True
+        return False
+
+
+    # check action with permissions
+    if action not in member.permissions.get('actions'):
+        return {
+            'allowed': False,
+            'error': error,
+            'code': code,
+            'status': _status
+        }
+
+
+    # check resource with permissions
+    if resource not in member.permissions.get('resources'):
+        return {
+            'allowed': False,
+            'error': error,
+            'code': code,
+            'status': _status
+        }
+
+
+    # check id 
+    if id and id_type:
+
+        # create obj_str
+        obj_str = id_type.capitalize()
+        if 'run' in obj_str:
+            obj_str = obj_str.replace('run', 'Run')
+
+        # retrieve obj
+        if id_type not in ['scan', 'test']:
+            objs = eval(f'{obj_str}.objects.filter(id="{id}", account__id="{account.id}")')
+        if id_type in ['scan', 'test']:
+            objs = eval(f'{obj_str}.objects.filter(id="{id}", site__account__id="{account.id}")')
+        
+        # return False if not found
+        if len(objs) == 0:
+            return {
+                'allowed': False,
+                'error': f'{resource} not found',
+                'code': '404',
+                'status': status.HTTP_404_NOT_FOUND
+            }
+
+
+    # check for site association
+    if (id and id_type) and id_type not in ignore_list:
+
+        # special case for `Issue`
+        if id_type == 'issue':
+            affected_type = objs[0].affected.get('type') 
+
+            if affected_type == 'site':
+                # check site in permissions.sites
+                if not site_in_sites(objs[0].affected.get('id')):
+                    return {
+                        'allowed': False,
+                        'error': error,
+                        'code': code,
+                        'status': _status
+                    }
+            
+            if affected_type == 'page':
+                # check page.site in permissions.sites
+                try:
+                    page = Page.objects.get(id=objs[0].affected.get('id'))
+                    if not site_in_sites(str(page.site.id)):
+                        return {
+                            'allowed': False,
+                            'error': error,
+                            'code': code,
+                            'status': _status
+                        }
+                except:
+                    return {
+                        'allowed': False,
+                        'error': f'{resource} not found',
+                        'code': '404',
+                        'status': status.HTTP_404_NOT_FOUND
+                    }
+
+        # check site in permissions.sites
+        elif id_type == 'site':
+            if not site_in_sites(str(objs[0].id)):
+                return {
+                    'allowed': False,
+                    'error': error,
+                    'code': code,
+                    'status': _status
+                }
+
+        # check associated site in permissions.sites
+        else:
+            if not site_in_sites(str(objs[0].site.id)):
+                return {
+                    'allowed': False,
+                    'error': error,
+                    'code': code,
+                    'status': _status
+                }
+
+
+    # handle special cases for site and page
+    if resource == 'site' or resource == 'page':
+        # check existance
+        if url:
+            if eval(f'{resource.capitalize()}.objects.filter(account__id="{account.id}", {resource}_url="{url}").exists()'):
+                return {
+                    'allowed': False,
+                    'error': f'{resource} exists',
+                    'code': '409',
+                    'status': status.HTTP_409_CONFLICT
+                }
+
+        # check usage for page only
+        if resource == 'page' and id_type == 'site' and action == 'add':
+            if account.usage['pages_allowed'] == Page.objects.filter(site__id=id).count():
+                return {
+                    'allowed': False,
+                    'error': f'max pages reached',
+                    'code': '426',
+                    'status': status.HTTP_426_UPGRADE_REQUIRED
+                }
+            
+
+    # check for cloud / enterprise plan
+    if (account.type == 'enterprise' or account.type == 'cloud') and resource == 'site':
+        
+        # add to sites_allowed only for enterprise and cloud plans
+        if action == 'add' and account.usage['sites_allowed'] == Site.objects.filter(account=account).count():
+            account.usage['sites_allowed'] += 1
+            account.usage['schedules_allowed'] += 1
+            account.save()
+            # update price for sub
+            update_sub_price.delay(account.id)
+
+
+    # check usage if action is 'add'
+    if action == 'add' and resource in usage_list:
+
+        # check if usage allows for add
+        if int(account.usage[f'{resource}s']) >= int(account.usage[f'{resource}s_allowed']):
+            return {
+                'allowed': False,
+                'error': f'max {resource}s reached',
+                'code': '426',
+                'status': status.HTTP_426_UPGRADE_REQUIRED
+            }
+        
+    # return True
+    return {
+        'allowed': True,
+        'error': None,
+        'code': '201' if action == 'add' else '200',
+        'status': status.HTTP_201_CREATED if action == 'add' else status.HTTP_200_OK
+    }
+
+
+
+
 ### ------ Begin Site Services ------ ###
 
 
 
 
-def create_site(request: object, delay: bool=False) -> object:
+def create_site(request: object=None) -> object:
     """ 
     Creates a new `Site`, initiates a Crawl, initial `Scans` 
     for each added `Page`, and generates new `Cases`. 
@@ -529,7 +401,8 @@ def create_site(request: object, delay: bool=False) -> object:
     
     # gettting account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     sites = Site.objects.filter(account=account)
 
     # updating configs if None:
@@ -551,9 +424,9 @@ def create_site(request: object, delay: bool=False) -> object:
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # check account and resource
-    check_data = check_account_and_resource(
-        request=request, resource='site', action='add',
-        site_url=site_url
+    check_data = check_permissions_and_usage(
+        member=member, resource='site', action='add',
+        url=site_url
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -568,6 +441,10 @@ def create_site(request: object, delay: bool=False) -> object:
         account=account,
         time_crawl_started=datetime.now()
     )
+    
+    # updated accounts usage
+    account.usage['sites'] += 1
+    account.save()
 
     # create process obj
     process = Process.objects.create(
@@ -637,14 +514,14 @@ def create_site(request: object, delay: bool=False) -> object:
 
 
 
-def crawl_site(request: object=None, id: str=None, account: object=None) -> object:
+def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Initiates a new Crawl for the passed `Site`.id
 
     Expects: {
         'request' : object, 
         'id'      : str,
-        'account' ; object
+        'user'    : object
     }
     
     Returns -> HTTP Response object
@@ -653,18 +530,19 @@ def crawl_site(request: object=None, id: str=None, account: object=None) -> obje
     # get user and account
     if request:
         user = request.user
-        account = Member.objects.get(user=user).account
-        configs = request.data.get('configs', None)
-    
-    if not request:
-        user = account.user
-        configs = account.configs
+
+    member = Member.objects.get(user=user)
+    account = member.account
+    configs = request.data.get('configs', None)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
 
     # check account and resource
-    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
+    check_data = check_permissions_and_usage(
+        member=member, resource='site', action='get', 
+        id=id, id_type='site'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         if request:
@@ -693,7 +571,7 @@ def crawl_site(request: object=None, id: str=None, account: object=None) -> obje
 
 
 
-def get_sites(request: object) -> object:
+def get_sites(request: object=None) -> object:
     """ 
     Get one or more `Sites` in paginated response
 
@@ -709,13 +587,16 @@ def get_sites(request: object) -> object:
     user = request.user
 
     # getting account
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check if site_id was passed
     if site_id != None:
 
         # check account and resource
-        check_data = check_account_and_resource(request=request, site_id=site_id, resource='site')
+        check_data = check_permissions_and_usage(
+            member=member, resource='site', action='get', id=site_id, id_type='site'
+        )
         if not check_data['allowed']:
             data = {'reason': check_data['error'],}
             record_api_call(request, data, check_data['code'])
@@ -734,6 +615,11 @@ def get_sites(request: object) -> object:
     # getting all account assoicated sites
     sites = Site.objects.filter(account=account).order_by('-time_created')
 
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites', [])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        sites = sites.filter(id__in=id_list).order_by('-time_created')
+
     # serialize response and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(sites, request)
@@ -746,7 +632,7 @@ def get_sites(request: object) -> object:
 
 
 
-def get_site(request: object, id: str) -> object:
+def get_site(request: object=None, id: str=None) -> object:
     """
     Get single `Site` from the passed "id"
 
@@ -760,11 +646,13 @@ def get_site(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        site_id=id, resource='site'
+    check_data = check_permissions_and_usage(
+        member=member, resource='site', action='get', 
+        id=id, id_type='site'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -784,14 +672,14 @@ def get_site(request: object, id: str) -> object:
 
 
 
-def delete_site(request: object=None, id: str=None, account: object=None) -> object:
+def delete_site(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Site` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
         'id'      : str,
-        'account' : object,
+        'user'    : object,
     }
 
     Returns -> HTTP Response object
@@ -799,14 +687,15 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
 
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
-    
-    if not request:
-        user = account.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(user=user, site_id=id, resource='site')
+    check_data = check_permissions_and_usage(
+        member=member, resource='site', 
+        action='delete', id=id, id_type='site'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         if request:
@@ -833,10 +722,13 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
     # remove site
     site.delete()
 
-    # update account if enterprise or custom
-    if account.type == 'enterprise' or account.type == 'custom':
-        account.max_sites -= 1
-        account.max_schedules -= 1
+    # decrememt resouce in account
+    decrement_resource(account=account, resource='sites')
+
+    # update account if enterprise or cloud
+    if account.type == 'enterprise' or account.type == 'cloud':
+        account.usage['sites_allowed'] -= 1
+        account.usage['schedules_allowed'] -= 1
         account.save()
 
         # update billing
@@ -853,7 +745,7 @@ def delete_site(request: object=None, id: str=None, account: object=None) -> obj
 
 
 
-def delete_many_sites(request: object) -> object:
+def delete_many_sites(request: object=None) -> object:
     """ 
     Deletes one or more `Sites` associated
     with the passed "request.ids" 
@@ -870,7 +762,8 @@ def delete_many_sites(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check for ids
     if ids is not None:
@@ -889,34 +782,21 @@ def delete_many_sites(request: object) -> object:
 
             # trying to delete site
             try:
-                site = Site.objects.get(id=id)
-                if site.account == account:
-
-                    # delete site and associated resources
-                    data = delete_site(id=id, account=site.account)
-                    if data.get('reason'):
-                        raise Exception
+                # delete site and associated resources
+                data = delete_site(id=id, user=user)
+                if data.get('reason'):
+                    raise Exception(data['reason'])
 
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
 
-            except:
+            except Exception as e:
                 print(e)
                 # add to failed attempts
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
-
-        
-        # update account if enterprise or custom
-        if account.type == 'enterprise' or account.type == 'custom':
-            account.max_sites -= num_succeeded
-            account.max_schedules -= num_succeeded
-            account.save()
-
-            # update billing
-            update_sub_price.delay(account_id=account.id)
 
         # format response
         data = {
@@ -943,7 +823,7 @@ def delete_many_sites(request: object) -> object:
 
 
 
-def get_sites_zapier(request: object) -> object:
+def get_sites_zapier(request: object=None) -> object:
     """ 
     Get all `Sites` associated with user's Account.
 
@@ -955,15 +835,17 @@ def get_sites_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
     sites = None
     
     # deciding on scope
     resource = 'site'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource,
+    check_data = check_permissions_and_usage(
+        member=member, resource=resource, action='get',
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -974,6 +856,11 @@ def get_sites_zapier(request: object) -> object:
         sites = Site.objects.filter(
             account=account,
         ).order_by('-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites', [])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        sites = sites.filter(id__in=id_list).order_by('-time_created')
 
     # build response data
     data = []
@@ -999,7 +886,7 @@ def get_sites_zapier(request: object) -> object:
 
 
 
-def create_page(request: object, delay: bool=False) -> object:
+def create_page(request: object=None) -> object:
     """ 
     Creates one or more pages.
 
@@ -1020,7 +907,8 @@ def create_page(request: object, delay: bool=False) -> object:
 
     # retrieving user, account, & site
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     site = Site.objects.get(id=site_id)
 
     # updating configs if None:
@@ -1028,7 +916,6 @@ def create_page(request: object, delay: bool=False) -> object:
 
     # creating many pages if page_urls was passed
     if page_urls is not None:
-        print('trying to add many pages')
         data = create_many_pages(request=request, http_response=False)
         _status = status.HTTP_201_CREATED
         if data.get('reason') is not None:
@@ -1045,9 +932,9 @@ def create_page(request: object, delay: bool=False) -> object:
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # check account and resource
-    check_data = check_account_and_resource(
-        request=request, resource='page', site_id=site_id, page_url=page_url,
-        action='add'
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', action='add', 
+        id=site_id, id_type='site', url=page_url,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1079,8 +966,7 @@ def create_page(request: object, delay: bool=False) -> object:
 
         # running scan in background
         scan_page_bg.delay(scan_id=scan.id, configs=configs)
-
-            
+      
     # serialize response and return
     serializer_context = {'request': request,}
     serialized = PageSerializer(page, context=serializer_context)
@@ -1113,7 +999,8 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -1123,8 +1010,9 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     pages = Page.objects.filter(site=site)
 
     # check account and resource
-    check_data = check_account_and_resource(
-        request=request, resource='page', site_id=site_id, action='add'
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', action='add', 
+        id=site_id, id_type='site'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1134,9 +1022,9 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
         return data
 
     # pre check for max_pages
-    if (pages.count() + len(page_urls)) > account.max_pages:
-        print('max pages aparently')
-        data = {'reason': 'maximum number of pages reached',}
+    if (pages.count() + len(page_urls)) > account.usage['pages_allowed']:
+        print('max pages reached')
+        data = {'reason': 'max pages reached',}
         record_api_call(request, data, '402')
         if http_response:
             return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -1224,7 +1112,7 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     
     
 
-def get_pages(request: object) -> object:
+def get_pages(request: object=None) -> object:
     """ 
     Get one or more `Pages` from either 
     "page_id" or "site_id"
@@ -1242,17 +1130,20 @@ def get_pages(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check for params
     if page_id is None and site_id is None:
-        data = {'reason': 'must provide a Site or Page id'}
+        data = {'reason': 'neet site or page id'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # check account and resource
-    check_data = check_account_and_resource(
-        request=request, resource='page', site_id=site_id, page_id=page_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', action='get', 
+        id=(site_id if site_id else page_id), 
+        id_type=('site' if site_id else 'page')
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1288,7 +1179,7 @@ def get_pages(request: object) -> object:
 
 
 
-def get_page(request: object, id: str) -> object:
+def get_page(request: object=None, id: str=None) -> object:
     """
     Get single `Page` from the passed "id"
 
@@ -1302,11 +1193,13 @@ def get_page(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        page_id=id, resource='page'
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', action='get', 
+        id=id, id_type='page'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1326,7 +1219,7 @@ def get_page(request: object, id: str) -> object:
 
 
 
-def delete_page(request: object=None, id: str=None, account: object=None) -> object:
+def delete_page(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Page` associated with the passed "id" 
 
@@ -1340,14 +1233,15 @@ def delete_page(request: object=None, id: str=None, account: object=None) -> obj
     
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
-    
-    if not request:
-        user = account.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(user=user, page_id=id, resource='page')
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', 
+        action='delete', id=id, id_type='page'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         print(data)
@@ -1382,7 +1276,7 @@ def delete_page(request: object=None, id: str=None, account: object=None) -> obj
 
 
 
-def delete_many_pages(request: object) -> object:
+def delete_many_pages(request: object=None) -> object:
     """ 
     Deletes one or more `Pages` associated
     with the passed "request.ids" 
@@ -1399,7 +1293,8 @@ def delete_many_pages(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check for ids
     if ids is not None:
@@ -1418,13 +1313,10 @@ def delete_many_pages(request: object) -> object:
 
             # trying to delete page
             try:
-                page = Page.objects.get(id=id)
-                if page.account == account:
-
-                    # delete page and all assocaited resourses
-                    data = delete_page(id=id, account=page.account)
-                    if data.get('reason'):
-                        raise Exception
+                # delete page and all assocaited resourses
+                data = delete_page(id=id, user=user)
+                if data.get('reason'):
+                    raise Exception
 
                 # add to success attempts
                 num_succeeded += 1
@@ -1461,7 +1353,7 @@ def delete_many_pages(request: object) -> object:
 
 
 
-def get_pages_zapier(request: object) -> object:
+def get_pages_zapier(request: object=None) -> object:
     """ 
     Get all `Pages` associated with user's Account.
 
@@ -1473,7 +1365,8 @@ def get_pages_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    member = Member.objects.get(user=request.user)
+    account = member.account
     site_id = request.query_params.get('site_id')
     pages = None
     
@@ -1481,8 +1374,9 @@ def get_pages_zapier(request: object) -> object:
     resource = 'page'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, site_id=site_id
+    check_data = check_permissions_and_usage(
+        user_id=str(request.user.id), resource=resource, action='get',
+        id=site_id, id_type='site'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1500,6 +1394,11 @@ def get_pages_zapier(request: object) -> object:
         pages = Page.objects.filter(
             account=account,
         ).order_by('-time_created')
+
+        # filter out all non permissioned sites
+        if len(member.permissions.get('sites',[])) != 0:
+            id_list = [item['id'] for item in member.permissions.get('sites')]
+            pages = pages.filter(site__id__in=id_list)
 
     # build response data
     data = []
@@ -1527,14 +1426,13 @@ def get_pages_zapier(request: object) -> object:
 
 
 
-def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
+def create_scan(request: object=None, **kwargs) -> object:
     """ 
     Create one or more `Scans` depanding on 
     `Page` or `Site` scope
 
     Expects: {
         'request': object, 
-        'delay': bool
     }
 
     Returns -> dict or HTTP Response object
@@ -1565,7 +1463,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         user = User.objects.get(id=user_id)
     
     # getting account
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -1575,17 +1474,17 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     page_id = '' if page_id is None else page_id
     site_id = site_id if len(str(site_id)) > 0 else None
     page_id = page_id if len(str(page_id)) > 0 else None
+    id = site_id if site_id else page_id
+    id_type = 'site' if site_id else 'page'
 
     # verifying types
     if len(types) == 0:
         types = settings.TYPES
 
-    # deciding on scope
-    resource = 'site' if site_id else 'page'
-
     # check account and resource for site or page
-    check_data = check_account_and_resource(
-        user=user, resource=resource, page_id=page_id, site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='scan', action='add', 
+        id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {
@@ -1618,8 +1517,8 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
     for p in pages:
 
         # check for account usage
-        check_data = check_account_and_resource(
-            user=user, action='add', resource='scan'
+        check_data = check_permissions_and_usage(
+            member=member, resource='scan', action='add',
         )
         if not check_data['allowed']:
             data = {
@@ -1650,9 +1549,13 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
         created_scans.append(str(created_scan.id))
         message = 'Scans are being created in the background'
 
+        # setting format for timestamp
+        f = '%Y-%m-%d %H:%M:%S.%f'
+        timestamp = datetime.today().strftime(f)
+
         # updating latest_scan info for page
         p.info['latest_scan']['id'] = str(created_scan.id)
-        p.info['latest_scan']['time_created'] = str(timezone.now())
+        p.info['latest_scan']['time_created'] = timestamp
         p.info['latest_scan']['time_completed'] = None
         p.info['latest_scan']['score'] = None
         p.info['latest_scan']['score'] = None
@@ -1660,7 +1563,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
         # updating latest_scan info for site
         p.site.info['latest_scan']['id'] = str(created_scan.id)
-        p.site.info['latest_scan']['time_created'] = str(timezone.now())
+        p.site.info['latest_scan']['time_created'] = timestamp
         p.site.info['latest_scan']['time_completed'] = None
         p.site.save()
 
@@ -1688,7 +1591,7 @@ def create_scan(request: object=None, delay: bool=False, **kwargs) -> object:
 
 
 
-def create_many_scans(request: object) -> object:
+def create_many_scans(request: object=None) -> object:
     """ 
     Bulk creates `Scans` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
@@ -1712,7 +1615,8 @@ def create_many_scans(request: object) -> object:
     types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -1736,7 +1640,7 @@ def create_many_scans(request: object) -> object:
             }
             try:
                 # create scan
-                res = create_scan(delay=True, **data)
+                res = create_scan(**data)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
@@ -1744,7 +1648,7 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-                    print(res['message'])
+                    print(res['reason'])
             except Exception as e:
                 print(e)
                 if str(id) not in failed:
@@ -1764,7 +1668,7 @@ def create_many_scans(request: object) -> object:
             }
             try:
                 # create scan
-                res = create_scan(delay=True, **data)
+                res = create_scan(**data)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
@@ -1772,7 +1676,7 @@ def create_many_scans(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-                    print(res['message'])
+                    print(res['reason'])
             except Exception as e:
                 print(e)
                 if str(id) not in failed:
@@ -1794,7 +1698,7 @@ def create_many_scans(request: object) -> object:
 
 
 
-def get_scans(request: object) -> object:
+def get_scans(request: object=None) -> object:
     """ 
     Get one or more `Scans`.
 
@@ -1810,14 +1714,17 @@ def get_scans(request: object) -> object:
     page_id = request.query_params.get('page_id')
     lean = request.query_params.get('lean')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     
     # deciding on scope
-    resource = 'page' if page_id else 'scan'
+    id = page_id if page_id else scan_id
+    id_type = 'page' if page_id else 'scan'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource=resource, page_id=page_id, scan_id=scan_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='scan', 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1855,7 +1762,7 @@ def get_scans(request: object) -> object:
 
 
 
-def get_scan(request: object, id: str) -> object:
+def get_scan(request: object=None, id: str=None) -> object:
     """
     Get single `Scan` from the passed "id"
 
@@ -1869,11 +1776,13 @@ def get_scan(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        scan_id=id, resource='scan'
+    check_data = check_permissions_and_usage(
+        member=member, resource='scan', action='get',
+        id=id, id_type='scan'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1893,7 +1802,7 @@ def get_scan(request: object, id: str) -> object:
 
 
 
-def get_scan_lean(request: object, id: str) -> object:
+def get_scan_lean(request: object=None, id: str=None) -> object:
     """ 
     Get a single `Scan` and only return scores & timestamps
 
@@ -1907,11 +1816,13 @@ def get_scan_lean(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='scan', scan_id=id
+    check_data = check_permissions_and_usage(
+        member=member, resource='scan', action='get',
+        id=id, id_type='scan'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -1947,14 +1858,15 @@ def get_scan_lean(request: object, id: str) -> object:
 
 
 
-def delete_scan(request: object=None, id: str=None, account: object=None) -> object:
+def delete_scan(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Scan` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
         'id'      : str,
-        'account' : object
+        'account' : object,
+        'user'    : object
     }
 
     Returns -> HTTP Response object
@@ -1962,14 +1874,15 @@ def delete_scan(request: object=None, id: str=None, account: object=None) -> obj
 
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
-    
-    if not request:
-        user = account.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(user=user, scan_id=id, resource='scan')
+    check_data = check_permissions_and_usage(
+        member=member, resource='scan', action='delete',
+        id=id, id_type='scan'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         if request:
@@ -2003,7 +1916,7 @@ def delete_scan(request: object=None, id: str=None, account: object=None) -> obj
 
 
 
-def delete_many_scans(request: object) -> object:
+def delete_many_scans(request: object=None) -> object:
     """ 
     Deletes one or more `Scans` associated
     with the passed "request.ids" 
@@ -2020,7 +1933,8 @@ def delete_many_scans(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check for ids
     if ids is not None:
@@ -2039,19 +1953,17 @@ def delete_many_scans(request: object) -> object:
             
             # trying to delete scan
             try:
-                scan = Scan.objects.get(id=id)
-                if scan.site.account == account:
-                    delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
-                    update_site_and_page_info.delay(
-                        resource='scan', 
-                        page_id=str(scan.page.id)
-                    )
-                    scan.delete()
+                # delete scan and all assocaited resourses
+                data = delete_scan(id=id, user=user)
+                if data.get('reason'):
+                    raise Exception
+
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
             except Exception as e:
                 # add to failed attempts
+                print(e)
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
@@ -2081,7 +1993,7 @@ def delete_many_scans(request: object) -> object:
 
 
 
-def get_scans_zapier(request: object) -> object:
+def get_scans_zapier(request: object=None) -> object: 
     """ 
     Get all `Scans` associated with user's Account.
 
@@ -2093,18 +2005,21 @@ def get_scans_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    member = Member.objects.get(user=request.user)
+    account = member.account
     page_id = request.query_params.get('page_id')
     site_id = request.query_params.get('site_id')
+    id = page_id if page_id else site_id
+    id_type = 'page' if page_id else 'site'
     scans = None
     
     # deciding on scope
     resource = 'scan'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, page_id=page_id, 
-        site_id=site_id
+    check_data = check_permissions_and_usage(
+        user_id=str(request.user.id), resource=resource, 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2128,13 +2043,18 @@ def get_scans_zapier(request: object) -> object:
             time_completed=None,
         ).order_by('-time_created')
 
-    # get all account assocoiated tests
+    # get all account assocoiated scans
     if scans is None:
         scans = Scan.objects.filter(
             site__account=account,
         ).exclude(
             time_completed=None,
         ).order_by('-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        scans = scans.filter(site__id__in=id_list).order_by('-time_created')
 
     # build response data
     data = []
@@ -2167,7 +2087,7 @@ def get_scans_zapier(request: object) -> object:
 
 
 
-def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
+def create_test(request: object=None, **kwargs) -> object:
     """ 
     Create one or more `Tests` depanding on 
     `Page` or `Site` scope
@@ -2217,7 +2137,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
         user = User.objects.get(id=user_id)
 
     # get account
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -2231,13 +2152,13 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     page_id = '' if page_id is None else page_id
     site_id = site_id if len(str(site_id)) > 0 else None
     page_id = page_id if len(str(page_id)) > 0 else None
-
-    # deciding on scope
-    resource = 'site' if site_id else 'page'
+    id = site_id if site_id else page_id
+    id_type = 'site' if site_id else 'page'
 
     # check account and resource for page or site
-    check_data = check_account_and_resource(
-        user=user, resource=resource, page_id=page_id, site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='test', action='add', 
+        id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {
@@ -2270,8 +2191,8 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
     for p in pages:
 
         # check for account usage
-        check_data = check_account_and_resource(
-            user=user, action='add', resource='test'
+        check_data = check_permissions_and_usage(
+            member=member, action='add', resource='test'
         )
         if not check_data['allowed']:
             data = {
@@ -2346,9 +2267,13 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
             status='working',
         )
 
+        # setting format for timestamp
+        f = '%Y-%m-%d %H:%M:%S.%f'
+        timestamp = datetime.today().strftime(f)
+
         # updating latest_test info for page
         p.info['latest_test']['id'] = str(test.id)
-        p.info['latest_test']['time_created'] = str(timezone.now())
+        p.info['latest_test']['time_created'] = timestamp
         p.info['latest_test']['time_completed'] = None
         p.info['latest_test']['score'] = None
         p.info['latest_test']['status'] = 'working'
@@ -2356,7 +2281,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
         # updating latest_test info for site
         p.site.info['latest_test']['id'] = str(test.id)
-        p.site.info['latest_test']['time_created'] = str(timezone.now())
+        p.site.info['latest_test']['time_created'] = timestamp
         p.site.info['latest_test']['time_completed'] = None
         p.site.info['latest_test']['score'] = None
         p.site.info['latest_test']['status'] = 'working'
@@ -2396,7 +2321,7 @@ def create_test(request: object=None, delay: bool=False, **kwargs) -> object:
 
 
 
-def create_many_tests(request: object) -> object:
+def create_many_tests(request: object=None) -> object:
     """ 
     Bulk creates `Tests` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
@@ -2421,7 +2346,8 @@ def create_many_tests(request: object) -> object:
     types = request.data.get('type', settings.TYPES)
     tags = request.data.get('tags')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -2446,7 +2372,7 @@ def create_many_tests(request: object) -> object:
             }
             try:
                 # create test
-                res = create_test(delay=True, **data)
+                res = create_test(**data)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
@@ -2454,7 +2380,7 @@ def create_many_tests(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-                    print(res['message'])
+                    print(res['reason'])
             except Exception as e:
                 print(e)
                 if str(id) not in failed:
@@ -2475,7 +2401,7 @@ def create_many_tests(request: object) -> object:
             }
             try:
                 # create test
-                res = create_test(delay=True, **data)
+                res = create_test(**data)
                 if res['success']:
                     num_succeeded += 1
                     succeeded.append(str(id))
@@ -2483,7 +2409,7 @@ def create_many_tests(request: object) -> object:
                     num_failed += 1
                     this_status = False
                     failed.append(str(id))
-                    print(res['message'])
+                    print(res['reason'])
             except Exception as e:
                 print(e)
                 if str(id) not in failed:
@@ -2505,7 +2431,7 @@ def create_many_tests(request: object) -> object:
 
 
 
-def get_tests(request: object) -> object:
+def get_tests(request: object=None) -> object:
     """ 
     Get one or more `Tests`.
 
@@ -2521,14 +2447,17 @@ def get_tests(request: object) -> object:
     page_id = request.query_params.get('page_id')
     lean = request.query_params.get('lean')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     
     # deciding on scope
-    resource = 'page' if page_id else 'test'
+    id = test_id if test_id else page_id
+    id_type = 'page' if page_id else 'test'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource=resource, page_id=page_id, test_id=test_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='test', 
+        action='add',id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2566,7 +2495,7 @@ def get_tests(request: object) -> object:
 
 
 
-def get_test(request: object, id: str) -> object:
+def get_test(request: object=None, id: str=None) -> object:
     """
     Get single `Test` from the passed "id"
 
@@ -2580,11 +2509,13 @@ def get_test(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        test_id=id, resource='test'
+    check_data = check_permissions_and_usage(
+        member=member, resource='test',
+        action='get', id=id, id_type='test'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2604,7 +2535,7 @@ def get_test(request: object, id: str) -> object:
 
 
 
-def get_test_lean(request: object, id: str) -> object:
+def get_test_lean(request: object=None, id: str=None) -> object:
     """ 
     Get a single `Test` and only return scores & timestamps
 
@@ -2618,11 +2549,13 @@ def get_test_lean(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='scan', scan_id=id
+    check_data = check_permissions_and_usage(
+        member=member, resource='test',
+        action='get', id=id, id_type='test'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2665,7 +2598,7 @@ def get_test_lean(request: object, id: str) -> object:
 
 
 
-def delete_test(request: object=None, id: str=None, account: object=None) -> object:
+def delete_test(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Test` associated with the passed "id" 
 
@@ -2680,14 +2613,15 @@ def delete_test(request: object=None, id: str=None, account: object=None) -> obj
 
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
-    
-    if not request:
-        user = account.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(user=user, test_id=id, resource='test')
+    check_data = check_permissions_and_usage(
+        member=member, resource='test',
+        action='delete', id=id, id_type='test'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         if request:
@@ -2721,7 +2655,7 @@ def delete_test(request: object=None, id: str=None, account: object=None) -> obj
 
 
 
-def delete_many_tests(request: object) -> object:
+def delete_many_tests(request: object=None) -> object:
     """ 
     Deletes one or more `Tests` associated
     with the passed "request.ids" 
@@ -2738,7 +2672,8 @@ def delete_many_tests(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check for ids
     if ids is not None:
@@ -2755,21 +2690,19 @@ def delete_many_tests(request: object) -> object:
         # loop through passed ids
         for id in ids:
 
-            # trying to delete site
+            # trying to delete test
             try:
-                test = Test.objects.get(id=id)
-                if test.site.account == account:
-                    delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
-                    update_site_and_page_info.delay(
-                        resource='test', 
-                        page_id=str(test.page.id)
-                    )
-                    test.delete()
+                # delete test and all assocaited resourses
+                data = delete_test(id=id, user=user)
+                if data.get('reason'):
+                    raise Exception
+
                 # add to success attempts
                 num_succeeded += 1
                 succeeded.append(str(id))
-            except:
+            except Exception as e:
                 # add to failed attempts
+                print(e)
                 num_failed += 1
                 failed.append(str(id))
                 this_status = False
@@ -2799,7 +2732,7 @@ def delete_many_tests(request: object) -> object:
 
 
 
-def get_tests_zapier(request: object) -> object:
+def get_tests_zapier(request: object=None) -> object:
     """ 
     Get all `Tests` associated with user's Account.
 
@@ -2811,9 +2744,12 @@ def get_tests_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    member = Member.objects.get(user=request.user)
+    account = member.account
     page_id = request.query_params.get('page_id')
     site_id = request.query_params.get('site_id')
+    id = page_id if page_id else site_id
+    id_type = 'page' if page_id else 'site'
     _status = request.query_params.get('status')
     tests = None
     
@@ -2821,9 +2757,9 @@ def get_tests_zapier(request: object) -> object:
     resource = 'test'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, page_id=page_id, 
-        site_id=site_id
+    check_data = check_permissions_and_usage(
+        user_id=str(request.user.id), resource=resource, 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -2864,6 +2800,11 @@ def get_tests_zapier(request: object) -> object:
     # filter my status if requested
     if status is not None:
         tests = tests.filter(status=_status)
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        tests = tests.filter(site__id__in=id_list).order_by('-time_created')
 
     # build response data
     data = []
@@ -2916,7 +2857,9 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         _status = request.data.get('status')
         affected = request.data.get('affected')
         labels = request.data.get('labels')
-        account = Member.objects.get(user=request.user).account
+        user = request.user
+        member = Member.objects.get(user=user)
+        account = member.account
     
     # get kwargs data
     if request is None:
@@ -2928,11 +2871,18 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
         affected = kwargs.get('affected')
         labels = kwargs.get('labels')
         account_id = kwargs.get('account_id')
+        user_id = kwargs.get('user_id')
+        user = User.objects.get(id=user_id)
+        member = Member.objects.get(user=user)
         account = Account.objects.get(id=account_id)
 
+    # decide on action
+    action = 'update' if id else 'add'
+
     # check account and resource
-    check_data = check_account_and_resource(user=account.user, 
-        issue_id=id, resource='issue'
+    check_data = check_permissions_and_usage(
+        member=member, resource='issue', 
+        action=action, id=id, id_type='issue'
     )
     if not check_data['allowed']:
         data = {
@@ -3012,7 +2962,8 @@ def update_many_issues(request: object=None) -> object:
     #  get request data
     ids = request.data.get('ids')
     updates = request.data.get('updates')
-    member = Member.objects.get(user=request.user)
+    user = request.user
+    member = Member.objects.get(user=user)
     account = member.account
 
     # set defaults
@@ -3028,18 +2979,18 @@ def update_many_issues(request: object=None) -> object:
         data = updates
         data['id'] = str(id)
         data['account_id'] = str(account.id)
+        data['user_id'] = str(user.id)
 
         # send update
         try:
-            res = create_or_update_issue(**data)
-            if res['success']:
-                num_succeeded += 1
-                succeeded.append(str(id))
-            else:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
-                print(res['message'])
+            data = create_or_update_issue(**data)
+            if data.get('reason'):
+                raise Exception
+            
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
+
         except Exception as e:
             print(e)
             if str(id) not in failed:
@@ -3061,7 +3012,7 @@ def update_many_issues(request: object=None) -> object:
 
 
 
-def get_issues(request: object) -> object:
+def get_issues(request: object=None) -> object:
     """ 
     Get one or more `Issues`.
 
@@ -3076,16 +3027,21 @@ def get_issues(request: object) -> object:
     issue_id = request.query_params.get('issue_id')
     site_id = request.query_params.get('site_id')
     page_id = request.query_params.get('page_id')
-    account = Member.objects.get(user=request.user).account
+    
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
     issues = None
     
     # deciding on scope
     resource = 'issue'
+    id = issue_id if issue_id else (site_id if site_id else page_id)
+    id_type = 'issue' if issue_id else ('site' if site_id else 'page')
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, page_id=page_id, site_id=site_id,
-        issue_id=issue_id
+    check_data = check_permissions_and_usage(
+        member=member, resource=resource, action='get',
+        id=id, id_type=id_type,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3124,6 +3080,15 @@ def get_issues(request: object) -> object:
             account=account
         ).order_by('-status', '-time_created')
 
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        new_ids = id_list
+        for id in id_list:
+            for page in Page.objects.filter(site__id=id):
+                new_ids.append(str(page.id))
+        issues = issues.filter(affected__id__in=new_ids).order_by('-time_created')
+
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(issues, request)
@@ -3136,7 +3101,7 @@ def get_issues(request: object) -> object:
 
 
 
-def get_issue(request: object, id: str) -> object:
+def get_issue(request: object=None, id: str=None) -> object:
     """
     Get single `Issue` from the passed "id"
 
@@ -3150,11 +3115,13 @@ def get_issue(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        issue_id=id, resource='issue'
+    check_data = check_permissions_and_usage(
+        member=member, resource='issue', action='get', 
+        id=id, id_type='issue'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3174,7 +3141,7 @@ def get_issue(request: object, id: str) -> object:
 
 
 
-def search_issues(request: object) -> object:
+def search_issues(request: object=None) -> object:
     """ 
     Searches for matching `Issues` to the passed 
     "query"
@@ -3188,8 +3155,19 @@ def search_issues(request: object) -> object:
 
     # get request data
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     query = request.query_params.get('query')
+
+    # check account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='issue', action='get'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
     
     # search for issues
     issues = Issue.objects.filter(
@@ -3197,6 +3175,15 @@ def search_issues(request: object) -> object:
         Q(account=account, details__icontains=query) |
         Q(account=account, affected__icontains=query)
     ).order_by('-status', '-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        new_ids = id_list
+        for id in id_list:
+            for page in Page.objects.filter(site__id=id):
+                new_ids.append(str(page.id))
+        issues = issues.filter(affected__id__in=new_ids).order_by('-time_created')
     
     # serialize and rerturn
     paginator = LimitOffsetPagination()
@@ -3210,7 +3197,7 @@ def search_issues(request: object) -> object:
 
 
 
-def delete_issue(request: object, id: str) -> object:
+def delete_issue(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Issue` associated with the passed "id" 
 
@@ -3223,15 +3210,22 @@ def delete_issue(request: object, id: str) -> object:
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, issue_id=id, resource='issue')
+    check_data = check_permissions_and_usage(
+        member=member, resource='issue', action='delete',
+        id=id, id_type='issue',
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get issue if checks passed
     issue = Issue.objects.get(id=id)
@@ -3241,10 +3235,12 @@ def delete_issue(request: object, id: str) -> object:
 
     # return response
     data = {'message': 'Issue has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
-
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
+    
 
 
 
@@ -3261,7 +3257,8 @@ def delete_many_issues(request: object=None) -> object:
     
     #  get request data
     ids = request.data.get('ids')
-    member = Member.objects.get(user=request.user)
+    user = request.user
+    member = Member.objects.get(user=user)
     account = member.account
 
     # set defaults
@@ -3274,21 +3271,22 @@ def delete_many_issues(request: object=None) -> object:
     # loop through ids and delete
     for id in ids:
 
-        # delete issue
+        # trying to delete issue
         try:
-            issue = Issue.objects.get(id=id)
-            if issue.account == account:
-                issue.delete()
-            elif str(id) not in failed:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+            # delete issue and all assocaited resourses
+            data = delete_issue(id=id, user=user)
+            if data.get('reason'):
+                raise Exception
+
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
         except Exception as e:
+            # add to failed attempts
             print(e)
-            if str(id) not in failed:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+            num_failed += 1
+            failed.append(str(id))
+            this_status = False
 
     # format and return
     data = {
@@ -3304,7 +3302,7 @@ def delete_many_issues(request: object=None) -> object:
 
 
 
-def get_issues_zapier(request: object) -> object:
+def get_issues_zapier(request: object=None) -> object:
     """ 
     Get all `Issues` associated with user's Account.
 
@@ -3316,18 +3314,21 @@ def get_issues_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    member = Member.objects.get(user=request.user)
+    account = member.account
     page_id = request.query_params.get('page_id')
     site_id = request.query_params.get('site_id')
+    id = page_id if page_id else site_id
+    id_type = 'page' if page_id else 'site'
     issues = None
     
     # deciding on scope
     resource = 'issue'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, page_id=page_id,
-        site_id=site_id
+    check_data = check_permissions_and_usage(
+        user_id=str(request.user.id), resource=resource, 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3352,6 +3353,15 @@ def get_issues_zapier(request: object) -> object:
         issues = Issue.objects.filter(
             account=account
         ).order_by('-status', '-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        new_ids = id_list
+        for id in id_list:
+            for page in Page.objects.filter(site__id=id):
+                new_ids.append(str(page.id))
+        issues = issues.filter(affected__id__in=new_ids).order_by('-time_created')
 
     # build response data
     data = []
@@ -3399,14 +3409,14 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         timezone = request.data.get('timezone')
         freq = request.data.get('frequency')
         task_type = request.data.get('task_type')
-        test_type = request.data.get('test_type', settings.TYPES)
-        scan_type = request.data.get('scan_type', settings.TYPES)
+        types = request.data.get('type', settings.TYPES)
         configs = request.data.get('configs', None)
         threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = request.data.get('schedule_id')
         resources = request.data.get('resources')
         scope = request.data.get('scope')
         case_id = request.data.get('case_id')
+        flow_id = request.data.get('flow_id')
         updates = request.data.get('updates')
         user = request.user
     
@@ -3417,21 +3427,22 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         timezone = kwargs.get('timezone')
         freq = kwargs.get('frequency')
         task_type = kwargs.get('task_type')
-        test_type = kwargs.get('test_type', settings.TYPES)
-        scan_type = kwargs.get('scan_type', settings.TYPES)
+        types = kwargs.get('type', settings.TYPES)
         configs = kwargs.get('configs', None)
         threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = kwargs.get('schedule_id')
         resources = kwargs.get('resources')
         scope = kwargs.get('scope')
         case_id = kwargs.get('case_id')
+        flow_id = kwargs.get('flow_id')
         updates = kwargs.get('updates')
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
         
 
     # get account
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -3440,12 +3451,12 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
     schedule = None
     
     # deciding on action type
-    action = 'add' if not schedule_id else None
+    action = 'add' if not schedule_id else 'update'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='schedule', 
-        schedule_id=schedule_id, action=action
+    check_data = check_permissions_and_usage(
+        member=member, resource='schedule', 
+        action=action, id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3474,12 +3485,12 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
     # creating or updating schedule
     if not schedule_status:
 
-        # get automation if schedule exists
-        auto_id = None
+        # get alert if schedule exists
+        alert_id = None
         if schedule:
-            if Automation.objects.filter(schedule=schedule).exists():
-                automation = Automation.objects.filter(schedule=schedule)[0]
-                auto_id = str(automation.id)
+            if Alert.objects.filter(schedule=schedule).exists():
+                alert = Alert.objects.filter(schedule=schedule)[0]
+                alert_id = str(alert.id)
 
         # build task
         task = f'api.tasks.create_{task_type}_bg'
@@ -3492,9 +3503,10 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             'updates': updates,
             'configs': configs,
             'case_id': case_id,
-            'type': scan_type if task_type == 'scan' else test_type,
+            'flow_id': flow_id,
+            'type': types,
             'threshold': threshold,
-            'automation_id': auto_id,
+            'alert_id': alert_id,
         }
 
         # setting start date default
@@ -3585,9 +3597,9 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         # building extras for scheduls
         extras = {
             "configs": configs,
-            "test_type": test_type,
-            "scan_type": scan_type, 
+            "type": types,
             "case_id": case_id, 
+            "flow_id": flow_id, 
             "updates": updates,
             "threshold": threshold,
         }
@@ -3635,6 +3647,10 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
                 extras=extras,
                 account=account
             )
+
+            # updated accounts usage
+            account.usage['schedules'] += 1
+            account.save()
 
     # deciding on response type
     if request:
@@ -3689,15 +3705,13 @@ def update_many_schedules(request: object=None) -> object:
 
         # send update
         try:
-            res = create_or_update_schedule(**data)
-            if res['success']:
-                num_succeeded += 1
-                succeeded.append(str(id))
-            else:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
-                print(res['message'])
+            data = create_or_update_schedule(**data)
+            if data.get('reason'):
+                raise Exception(data['reason'])
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
+
         except Exception as e:
             print(e)
             if str(id) not in failed:
@@ -3719,7 +3733,7 @@ def update_many_schedules(request: object=None) -> object:
 
 
 
-def run_schedule(request: object) -> object:
+def run_schedule(request: object=None) -> object:
     """
     Grabs all the args from the asociated perodic_task
     and executes the task manually without interupting
@@ -3737,12 +3751,13 @@ def run_schedule(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='schedule', 
-        schedule_id=schedule_id,
+    check_data = check_permissions_and_usage(
+        member=member, resource='schedule', 
+        action='get', id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3772,9 +3787,14 @@ def run_schedule(request: object) -> object:
         create_test_bg.delay(
             **task_kwargs
         )
-    if task == 'testcase':
-        # run create_testcase_bg
-        create_testcase_bg.delay(
+    if task == 'caserun':
+        # run create_caserun_bg
+        create_caserun_bg.delay(
+            **task_kwargs
+        )
+    if task == 'flowrun':
+        # run create_flowrun_bg
+        create_flowrun_bg.delay(
             **task_kwargs
         )
     if task == 'report':
@@ -3793,7 +3813,7 @@ def run_schedule(request: object) -> object:
 
 
 
-def get_schedules(request: object) -> object:
+def get_schedules(request: object=None) -> object:
     """ 
     Get one or more `Schedules`.
 
@@ -3809,15 +3829,16 @@ def get_schedules(request: object) -> object:
     scope = request.query_params.get('scope')
     resource_id = request.query_params.get('resource_id')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # setting default
     schedules = None
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='schedule',
-        schedule_id=schedule_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='schedule', 
+        action='get', id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3871,7 +3892,7 @@ def get_schedules(request: object) -> object:
 
 
 
-def get_schedule(request: object, id: str) -> object:
+def get_schedule(request: object=None, id: str=None) -> object:
     """
     Get single `Schedule` from the passed "id"
 
@@ -3885,11 +3906,13 @@ def get_schedule(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        schedule_id=id, resource='schedule'
+    check_data = check_permissions_and_usage(
+        member=member, resource='schedule', 
+        action='get', id=id, id_type='schedule'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -3909,28 +3932,36 @@ def get_schedule(request: object, id: str) -> object:
 
 
 
-def delete_schedule(request: object, id: str) -> object:
+def delete_schedule(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Schedule` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
-        'id'      : str
+        'id'      : str,
+        'user'    : object
     }
 
     Returns -> HTTP Response object
     """
 
     # get user and account info
-    user = request.user
-    account = Member.objects.get(user=user).account
+    if request:
+        user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, schedule_id=id, resource='schedule')
+    check_data = check_permissions_and_usage(
+        member=member, resource='schedule',
+        action='delete', id=id, id_type='schedule'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
 
     # get schedule and task if checks passed
     schedule = Schedule.objects.get(id=id)
@@ -3942,11 +3973,16 @@ def delete_schedule(request: object, id: str) -> object:
     # delete task
     task.delete()
 
+    # decrement resource
+    decrement_resource(account=account, resource='schedules')
+
     # return response
     data = {'message': 'Schedule has been deleted',}
-    record_api_call(request, data, '200')
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
 
 
 
@@ -3964,7 +4000,8 @@ def delete_many_schedules(request: object=None) -> object:
     
     #  get request data
     ids = request.data.get('ids')
-    member = Member.objects.get(user=request.user)
+    user = request.user
+    member = Member.objects.get(user=user)
     account = member.account
 
     # set defaults
@@ -3977,23 +4014,22 @@ def delete_many_schedules(request: object=None) -> object:
     # loop through ids and delete
     for id in ids:
 
-        # delete schedule
+        # trying to delete schedule
         try:
-            schedule = Schedule.objects.get(id=id)
-            task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
-            if schedule.account == account:
-                schedule.delete()
-                task.delete()
-            elif str(id) not in failed:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+            # delete issue and all assocaited resourses
+            data = delete_schedule(id=id, user=user)
+            if data.get('reason'):
+                raise Exception
+
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
         except Exception as e:
+            # add to failed attempts
             print(e)
-            if str(id) not in failed:
-                num_failed += 1
-                this_status = False
-                failed.append(str(id))
+            num_failed += 1
+            failed.append(str(id))
+            this_status = False
 
     # format and return
     data = {
@@ -4050,14 +4086,14 @@ def delete_tasks_and_schedules(
 
 
 
-### ------ Begin Automation Services ------ ###
+### ------ Begin Alert Services ------ ###
 
 
 
 
-def create_or_update_automation(request: object) -> object:
+def create_or_update_alert(request: object=None) -> object:
     """ 
-    Creates or Updates an `Automation` 
+    Creates or Updates an `Alert` 
 
     Expects: {
         'request': object
@@ -4069,25 +4105,28 @@ def create_or_update_automation(request: object) -> object:
     # get request data
     actions = request.data.get('actions')
     schedule_id = request.data.get('schedule_id')
-    automation_id = request.data.get('automation_id')
+    alert_id = request.data.get('alert_id')
     name = request.data.get('name')
     expressions = request.data.get('expressions')
 
     # set defaults
-    automation = None
+    alert = None
     schedule = None
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # deciding on recsource
-    resource = 'automation' if automation_id else 'schedule'
+    id = alert_id if alert_id else schedule_id
+    id_type = 'alert' if alert_id else 'schedule'
+    action = 'add' if schedule_id else 'update'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource=resource, 
-        automation_id=automation_id, schedule_id=schedule_id,
+    check_data = check_permissions_and_usage(
+        member=member, resource='alert', 
+        action=action, id=id, id_type=id_type,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4097,26 +4136,26 @@ def create_or_update_automation(request: object) -> object:
     # get schedule if checks passed
     if schedule_id:
         schedule = Schedule.objects.get(id=schedule_id)
-    if automation_id:
-        automation = Automation.objects.get(id=automation_id)
-        schedule = automation.schedule
+    if alert_id:
+        alert = Alert.objects.get(id=alert_id)
+        schedule = alert.schedule
 
-    # update existing automation
-    if automation:
+    # update existing alert
+    if alert:
         if name:
-            automation.name = name
+            alert.name = name
         if expressions:
-            automation.expressions = expressions
+            alert.expressions = expressions
         if actions:
-            automation.actions = actions
+            alert.actions = actions
         if schedule:
-            automation.schedule = schedule
+            alert.schedule = schedule
         # save updates
-        automation.save()
+        alert.save()
 
-    # create new automation
-    if not automation:
-        automation = Automation.objects.create(
+    # create new alert
+    if not alert:
+        alert = Alert.objects.create(
             name=name, 
             expressions=expressions, 
             actions=actions,
@@ -4128,8 +4167,8 @@ def create_or_update_automation(request: object) -> object:
     # update schedule 
     if schedule:
 
-        # update schedule with new automation
-        schedule.automation = automation
+        # update schedule with new alert
+        schedule.alert = alert
         schedule.save()
 
         # update associated periodicTask
@@ -4140,11 +4179,12 @@ def create_or_update_automation(request: object) -> object:
             'scope': json.loads(task.kwargs).get('scope'),
             'resources': json.loads(task.kwargs).get('resources'),
             'account_id': json.loads(task.kwargs).get('account_id'),
-            'automation_id': str(automation.id),
+            'alert_id': str(alert.id),
             'configs': json.loads(task.kwargs).get('configs'), 
             'type': json.loads(task.kwargs).get('type'),
             'threshold': json.loads(task.kwargs).get('threshold'),
             'case_id': json.loads(task.kwargs).get('case_id'),
+            'flow_id': json.loads(task.kwargs).get('flow_id'),
             'updates': json.loads(task.kwargs).get('updates'),
             'task_id': json.loads(task.kwargs).get('task_id'),
         }
@@ -4153,7 +4193,7 @@ def create_or_update_automation(request: object) -> object:
 
     # serialize and return
     serializer_context = {'request': request,}
-    data = AutomationSerializer(automation, context=serializer_context).data
+    data = AlertSerializer(alert, context=serializer_context).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4161,9 +4201,9 @@ def create_or_update_automation(request: object) -> object:
     
 
 
-def get_automations(request: object) -> object:
+def get_alerts(request: object=None) -> object:
     """ 
-    Get one or more `Automations`.
+    Get one or more `Alerts`.
 
     Expects: {
         'request': object
@@ -4173,42 +4213,44 @@ def get_automations(request: object) -> object:
     """
 
     # get request data
-    automation_id = request.query_params.get('automation_id')
+    alert_id = request.query_params.get('alert_id')
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='automation', automation_id=automation_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='alert', 
+        action='get', id=alert_id, id_type='alert'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get single automation
-    if automation_id:        
+    # get single alert
+    if alert_id:        
         
-        # get automation
-        automation = Automation.objects.get(id=automation_id)
+        # get alert
+        alert = Alert.objects.get(id=alert_id)
         
         # serialize and return
         serializer_context = {'request': request,}
-        serialized = AutomationSerializer(automation, context=serializer_context)
+        serialized = AlertSerializer(alert, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     
-    # get all automations associated with account
-    automations = Automation.objects.filter(account=account).order_by('-time_created')
+    # get all alerts associated with account
+    alerts = Alert.objects.filter(account=account).order_by('-time_created')
 
     # serialize and return
     paginator = LimitOffsetPagination()
-    result_page = paginator.paginate_queryset(automations, request)
+    result_page = paginator.paginate_queryset(alerts, request)
     serializer_context = {'request': request,}
-    serialized = AutomationSerializer(result_page, many=True, context=serializer_context)
+    serialized = AlertSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -4216,9 +4258,9 @@ def get_automations(request: object) -> object:
 
 
 
-def get_automation(request: object, id: str) -> object:
+def get_alert(request: object=None, id: str=None) -> object:
     """
-    Get single `Automation` from the passed "id"
+    Get single `Alert` from the passed "id"
 
     Expects: {
         'request' : object,
@@ -4230,23 +4272,25 @@ def get_automation(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-        automation_id=id, resource='automation'
+    check_data = check_permissions_and_usage(
+        member=member, resource='alert', 
+        action='get', id=id, id_type='alert'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get automation if checks passed
-    automation = Automation.objects.get(id=id)
+    # get alert if checks passed
+    alert = Alert.objects.get(id=id)
         
     # serialize and return
     serializer_context = {'request': request,}
-    serialized = AutomationSerializer(automation, context=serializer_context)
+    serialized = AlertSerializer(alert, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
@@ -4254,9 +4298,9 @@ def get_automation(request: object, id: str) -> object:
 
 
 
-def delete_automation(request: object, id: str) -> object:
+def delete_alert(request: object=None, id: str=None) -> object:
     """ 
-    Deletes the `Automation` associated with the passed "id" 
+    Deletes the `Alert` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
@@ -4268,23 +4312,27 @@ def delete_automation(request: object, id: str) -> object:
 
     # get user and account info
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, automation_id=id, resource='automation')
+    check_data = check_permissions_and_usage(
+        member=member, resource='alert', 
+        action='delete', id=id, id_type='alert'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get automation if checks passed
-    automation = Automation.objects.get(id=id)
+    # get alert if checks passed
+    alert = Alert.objects.get(id=id)
 
-    # delete automation
-    automation.delete()
+    # delete alert
+    alert.delete()
 
     # return response
-    data = {'message': 'Automation has been deleted',}
+    data = {'message': 'Alert has been deleted',}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4297,7 +4345,7 @@ def delete_automation(request: object, id: str) -> object:
 
 
 
-def create_or_update_report(request: object) -> object:
+def create_or_update_report(request: object=None) -> object:
     """ 
     Creates or Updates an `Report` 
 
@@ -4322,12 +4370,17 @@ def create_or_update_report(request: object) -> object:
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    id = report_id if report_id else page_id
+    id_type = 'report' if report_id else 'page'
+    action = 'update' if report_id else 'add'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='report', 
-        report_id=report_id, page_id=page_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='report', 
+        action=action, id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4396,7 +4449,7 @@ def create_or_update_report(request: object) -> object:
 
 
 
-def get_reports(request: object) -> object:
+def get_reports(request: object=None) -> object:
     """ 
     Get one or more `Reports`.
 
@@ -4408,17 +4461,21 @@ def get_reports(request: object) -> object:
     """
 
     # get request data
-    page_id = request.query_params.get('page_id', None)
-    report_id = request.query_params.get('report_id', None)
+    page_id = request.query_params.get('page_id')
+    report_id = request.query_params.get('report_id')
     
     # get user and account
     user = request.user 
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
-    # check account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='report', report_id=report_id,
-        page_id=page_id
+    id = report_id if report_id else page_id
+    id_type = 'report' if report_id else 'page'
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='report', 
+        action='add', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4447,6 +4504,11 @@ def get_reports(request: object) -> object:
     if page_id is None and report_id is None:
         reports = Report.objects.filter(user=request.user).order_by('-time_created')
 
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        reports = reports.filter(site__id__in=id_list).order_by('-time_created')
+
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(reports, request)
@@ -4459,7 +4521,7 @@ def get_reports(request: object) -> object:
 
 
 
-def get_report(request: object, id: str) -> object:
+def get_report(request: object=None, id: str=None) -> object:
     """
     Get single `Report` from the passed "id"
 
@@ -4473,11 +4535,13 @@ def get_report(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-       report_id=id, resource='report'
+    check_data = check_permissions_and_usage(
+        member=member, resource='report', 
+        action='get', id=id, id_type='report'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4497,7 +4561,7 @@ def get_report(request: object, id: str) -> object:
 
 
 
-def delete_report(request: object, id: str) -> object:
+def delete_report(request: object=None, id: str=None) -> object:
     """ 
     Deletes the `Report` associated with the passed "id" 
 
@@ -4511,10 +4575,14 @@ def delete_report(request: object, id: str) -> object:
 
     # get user and account info
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, report_id=id, resource='report')
+    check_data = check_permissions_and_usage(
+        member=member, resource='report', 
+        action='delete', id=id, id_type='report'
+    )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
@@ -4538,7 +4606,7 @@ def delete_report(request: object, id: str) -> object:
 
 
 
-def export_report(request: object) -> object:
+def export_report(request: object=None) -> object:
     """
     Used to create and send a Cursion.landing 
     `Report` to the passed "email"  
@@ -4580,9 +4648,9 @@ def export_report(request: object) -> object:
 
 
 
-def create_or_update_case(request: object) -> object:
+def create_or_update_case(request: object=None) -> object:
     """ 
-    Creates or Updates a `Report` 
+    Creates or Updates a `Case` 
 
     Expects: {
         'request': object
@@ -4596,22 +4664,24 @@ def create_or_update_case(request: object) -> object:
     steps = request.data.get('steps')
     site_url = request.data.get('site_url')
     site_id = request.data.get('site_id')
-    name = request.data.get('name')
+    title = request.data.get('title')
     tags = request.data.get('tags')
     _type = request.data.get('type')
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # setting defaults
     site = None
     case = None
+    action = 'update' if case_id else 'add'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='case', 
-        case_id=case_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action=action, id=case_id, id_type='case'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4629,6 +4699,12 @@ def create_or_update_case(request: object) -> object:
             site = Site.objects.get(id=site_id)
             site_url = site.site_url
 
+    # check for no site and no case_id
+    if not site and not case_id:
+        data = {'reason': 'site not found'}
+        record_api_call(request, data, '404')
+        response = Response(data, status=status.HTTP_404_NOT_FOUND)
+
     # get case if checks passed
     if case_id:
         case = Case.objects.get(id=case_id)
@@ -4638,8 +4714,8 @@ def create_or_update_case(request: object) -> object:
         if steps is not None:
             steps_data = save_case_steps(steps, case_id)
             case.steps = steps_data
-        if name is not None:
-            case.name = name
+        if title is not None:
+            case.title = title
         if tags is not None:
             case.tags = tags
         if site is not None:
@@ -4661,13 +4737,14 @@ def create_or_update_case(request: object) -> object:
         # create new Case
         case = Case.objects.create(
             id = case_id,
-            user = request.user,
-            name = name, 
+            user = user,
+            account = account,
+            title = title, 
             type = _type if _type is not None else "recorded",
             site = site,
             site_url = site_url,
             steps = steps_data,
-            account = account
+            
         )
 
         # create process obj
@@ -4755,7 +4832,7 @@ def save_case_steps(steps: dict, case_id: str) -> dict:
 
 
 
-def get_cases(request: object) -> object:
+def get_cases(request: object=None) -> object:
     """ 
     Get one or more `Cases`.
 
@@ -4770,16 +4847,19 @@ def get_cases(request: object) -> object:
     case_id = request.query_params.get('case_id')
     site_id = request.query_params.get('site_id')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # setting defaulta
     case = None
     site = None
+    id = case_id if case_id else site_id
+    id_type = 'case' if case_id else 'site'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='case', 
-        case_id=case_id, site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4811,6 +4891,11 @@ def get_cases(request: object) -> object:
     if not site:
         cases = Case.objects.filter(account=account).order_by('-time_created')
 
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        cases = cases.filter(site__id__in=id_list).order_by('-time_created')
+
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
@@ -4823,7 +4908,7 @@ def get_cases(request: object) -> object:
 
 
 
-def get_case(request: object, id: str) -> object:
+def get_case(request: object=None, id: str=None) -> object:
     """
     Get single `Case` from the passed "id"
 
@@ -4837,11 +4922,13 @@ def get_case(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-       case_id=id, resource='case'
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='get', id=id, id_type='case'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4861,7 +4948,7 @@ def get_case(request: object, id: str) -> object:
 
 
 
-def search_cases(request: object) -> object:
+def search_cases(request: object=None) -> object:
     """ 
     Searches for matching `Cases` to the passed 
     "query"
@@ -4875,14 +4962,29 @@ def search_cases(request: object) -> object:
 
     # get request data
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     query = request.query_params.get('query')
+
+    # check account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', action='get'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
     
     # search for cases
     cases = Case.objects.filter(
-        Q(account=account, name__icontains=query) |
+        Q(account=account, title__icontains=query) |
         Q(account=account, site_url__icontains=query) 
     ).order_by('-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        cases = cases.filter(site__id__in=id_list).order_by('-time_created')
     
     # serialize and rerturn
     paginator = LimitOffsetPagination()
@@ -4896,7 +4998,7 @@ def search_cases(request: object) -> object:
 
 
 
-def create_auto_cases(request: object) -> object:
+def create_auto_cases(request: object=None) -> object:
     """
     Initiates a new `Case` generation task for the `Site` 
     associated with either the passed "site_url" or "site_id" 
@@ -4923,7 +5025,8 @@ def create_auto_cases(request: object) -> object:
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -4934,9 +5037,9 @@ def create_auto_cases(request: object) -> object:
         site_id = str(site.id)
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='case', 
-        site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='add', id=site_id, id_type='site'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -4977,7 +5080,7 @@ def create_auto_cases(request: object) -> object:
 
 
 
-def copy_case(request: object) -> object:
+def copy_case(request: object=None) -> object:
     """ 
     Creates a copy of the passed `Case`
 
@@ -4993,12 +5096,13 @@ def copy_case(request: object) -> object:
 
     # get user and acount
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='case', 
-        case_id=case_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='add', id=case_id, id_type='case'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5018,14 +5122,16 @@ def copy_case(request: object) -> object:
 
     # create new case
     new_case = Case.objects.create(
-        id = new_case_id,
-        user = request.user,
-        name = f'Copy - {case.name}', 
-        type = case.type,
-        site = case.site,
-        site_url = case.site_url,
-        steps = steps_data,
-        account = account
+        id          = new_case_id,
+        user        = user,
+        account     = account,
+        title       = f'Copy - {case.title}', 
+        type        = case.type,
+        site        = case.site,
+        site_url    = case.site_url,
+        steps       = steps_data,
+        processed   = True
+        
     )
 
     # return response
@@ -5034,18 +5140,18 @@ def copy_case(request: object) -> object:
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
-    
 
 
 
-def delete_case(request: object=None, id: str=None, account: object=None) -> object:
+
+def delete_case(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Deletes the `Case` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
         'id'      : str,
-        'account' : object,
+        'user'    : object,
     }
 
     Returns -> HTTP Response object
@@ -5053,16 +5159,14 @@ def delete_case(request: object=None, id: str=None, account: object=None) -> obj
 
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
-    
-    if not request:
-        user = account.user
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='case', 
-        case_id=id
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='delete', id=id, id_type='case'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5091,7 +5195,65 @@ def delete_case(request: object=None, id: str=None, account: object=None) -> obj
 
 
 
-def get_cases_zapier(request: object) -> object:
+def delete_many_cases(request: object=None) -> object:
+    """ 
+    Deletes many `Cases` passed in a list
+
+    Expects: {
+        'ids': list
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and delete
+    for id in ids:
+
+        # trying to delete case
+        try:
+            # delete case and all assocaited resourses
+            data = delete_case(id=id, user=user)
+            if data.get('reason'):
+                raise Exception
+
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
+        except Exception as e:
+            # add to failed attempts
+            print(e)
+            num_failed += 1
+            failed.append(str(id))
+            this_status = False
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_cases_zapier(request: object=None) -> object:
     """ 
     Get all `Cases` associated with user's Account.
 
@@ -5103,7 +5265,9 @@ def get_cases_zapier(request: object) -> object:
     """
 
     # get request data
-    account = Member.objects.get(user=request.user).account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
     site_id = request.query_params.get('site_id')
     cases = None
     
@@ -5111,8 +5275,9 @@ def get_cases_zapier(request: object) -> object:
     resource = 'case'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource, site_id=site_id,
+    check_data = check_permissions_and_usage(
+        member=member, resource=resource, 
+        action='get', id=site_id, id_type='site'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5126,12 +5291,16 @@ def get_cases_zapier(request: object) -> object:
             site=site
         ).order_by('-time_created')
 
-
     # get all account assocoiated cases
     if cases is None:
         cases = Case.objects.filter(
             account=account,
         ).order_by('-time_created')
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        cases = cases.filter(site__id__in=id_list).order_by('-time_created')
 
     # build response data
     data = []
@@ -5139,7 +5308,7 @@ def get_cases_zapier(request: object) -> object:
     for case in cases:
         data.append({
             'id'              :  str(case.id),
-            'name'            :  case.name,
+            'title'           :  case.title,
             'time_created'    :  str(case.time_created),
             'site'            :  str(case.site.id),
             'site_url'        :  case.site_url,
@@ -5154,14 +5323,14 @@ def get_cases_zapier(request: object) -> object:
 
 
 
-### ------ Begin Testcase Services ------ ###
+### ------ Begin CaseRun Services ------ ###
 
 
 
 
-def create_testcase(request: object, delay: bool=False) -> object:
+def create_caserun(request: object=None) -> object:
     """ 
-    Creates a new `Testcase` from the passed "case_id" for the 
+    Creates a new `CaseRun` from the passed "case_id" for the 
     passed "site_id"
 
     Expects: {
@@ -5184,15 +5353,22 @@ def create_testcase(request: object, delay: bool=False) -> object:
     
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
 
+    # check site
+    if not Site.objects.filter(id=site_id, account=account).exists():
+        data = {'reason': 'site not found'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='testcase', 
-        case_id=case_id, site_id=site_id, action='add',
+    check_data = check_permissions_and_usage(
+        member=member, resource='caserun', 
+        action='add', id=case_id, id_type='case'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5206,7 +5382,7 @@ def create_testcase(request: object, delay: bool=False) -> object:
     # getting steps from case
     steps = requests.get(case.steps['url']).json()
 
-    # adding new info to steps for testcase
+    # adding new info to steps for caserun
     for step in steps:
         # expanding action
         if step['action']['type'] != None:
@@ -5227,14 +5403,14 @@ def create_testcase(request: object, delay: bool=False) -> object:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
 
-    # increment account.usage.testcase
-    account.usage['testcases'] += 1
+    # increment account.usage.caserun
+    account.usage['caseruns'] += 1
     account.save()
 
     # create new tescase 
-    testcase = Testcase.objects.create(
+    caserun = CaseRun.objects.create(
         case = case,
-        case_name = case.name,
+        title = case.title,
         site = site,
         user = request.user,
         configs = configs, 
@@ -5242,12 +5418,12 @@ def create_testcase(request: object, delay: bool=False) -> object:
         account = account
     )
 
-    # pass the newly created Testcase to the backgroud task to run
-    run_testcase.delay(testcase_id=testcase.id)
+    # pass the newly created CaseRun to the backgroud task to run
+    run_case.delay(caserun_id=caserun.id)
 
     # serialize and return
     serializer_context = {'request': request,}
-    data = TestcaseSerializer(testcase, context=serializer_context).data
+    data = CaseRunSerializer(caserun, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -5255,9 +5431,9 @@ def create_testcase(request: object, delay: bool=False) -> object:
 
 
 
-def get_testcases(request: object) -> object:
+def get_caseruns(request: object=None) -> object:
     """ 
-    Get one or more `Testcase`.
+    Get one or more `CaseRun`.
 
     Expects: {
         'request': object
@@ -5267,53 +5443,58 @@ def get_testcases(request: object) -> object:
     """
     
     # get request data
-    testcase_id = request.query_params.get('testcase_id')
+    caserun_id = request.query_params.get('caserun_id')
     site_id = request.query_params.get('site_id')
     lean = request.query_params.get('lean')
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # defaults
+    id = caserun_id if caserun_id else site_id
+    id_type = 'caserun' if caserun_id else 'site'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='testcase', 
-        testcase_id=testcase_id, site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='caserun', 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get single testcase
-    if testcase_id:        
+    # get single caserun
+    if caserun_id:        
 
-        # get testcase
-        testcase = Testcase.objects.get(id=testcase_id)
+        # get caserun
+        caserun = CaseRun.objects.get(id=caserun_id)
 
         # serialize and return
         serializer_context = {'request': request,}
-        serialized = TestcaseSerializer(testcase, context=serializer_context)
+        serialized = CaseRunSerializer(caserun, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    # get testcases scoped to site
+    # get caseruns scoped to site
     if site_id:
         site = Site.objects.get(id=site_id, account=account)
-        testcases = Testcase.objects.filter(site=site).order_by('-time_created')
+        caseruns = CaseRun.objects.filter(site=site).order_by('-time_created')
     
-    # get testcases scoped to account
+    # get caseruns scoped to account
     if not site_id:
-        testcases = Testcase.objects.filter(account=account).order_by('-time_created')
+        caseruns = CaseRun.objects.filter(account=account).order_by('-time_created')
 
     # serialize and return
     paginator = LimitOffsetPagination()
-    result_page = paginator.paginate_queryset(testcases, request)
+    result_page = paginator.paginate_queryset(caseruns, request)
     serializer_context = {'request': request,}
-    serialized = TestcaseSerializer(result_page, many=True, context=serializer_context)
+    serialized = CaseRunSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
-        serialized = SmallTestcaseSerializer(result_page, many=True, context=serializer_context)
+        serialized = SmallCaseRunSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -5321,9 +5502,9 @@ def get_testcases(request: object) -> object:
 
 
 
-def get_testcase(request: object, id: str) -> object:
+def get_caserun(request: object=None, id: str=None) -> object:
     """
-    Get single `Testcase` from the passed "id"
+    Get single `CaseRun` from the passed "id"
 
     Expects: {
         'request' : object,
@@ -5335,23 +5516,25 @@ def get_testcase(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-       testcase_id=id, resource='testcase'
+    check_data = check_permissions_and_usage(
+        member=member, resource='caserun', 
+        action='get', id=id, id_type='caserun'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get testcase if checks passed
-    testcase = Testcase.objects.get(id=id)
+    # get caserun if checks passed
+    caserun = CaseRun.objects.get(id=id)
         
     # serialize and return
     serializer_context = {'request': request,}
-    serialized = TestcaseSerializer(testcase, context=serializer_context)
+    serialized = CaseRunSerializer(caserun, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
@@ -5359,9 +5542,786 @@ def get_testcase(request: object, id: str) -> object:
 
 
 
-def delete_testcase(request: object=None, id: str=None, account: object=None) -> object:
+def delete_caserun(request: object=None, id: str=None, user: object=None) -> object:
     """ 
-    Deletes the `Testcase` associated with the passed "id" 
+    Deletes the `CaseRun` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str,
+        'user' : object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    if request:
+        user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='caserun', 
+        action='delete', id=id, id_type='caserun'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # get caserun if checks passed
+    caserun = CaseRun.objects.get(id=id)
+
+    # remove s3 objects
+    delete_caserun_s3_bg.delay(caserun_id=id)
+
+    # delete caserun
+    caserun.delete()
+
+    # return response
+    data = {'message': 'CaseRun has been deleted',}
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
+
+
+
+
+def get_caseruns_zapier(request: object=None) -> object:
+    """ 
+    Get all `CaseRuns` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    _status = request.query_params.get('status')
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+    caseruns = None
+    
+    # deciding on scope
+    resource = 'caserun'
+
+    # check account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource=resource,
+        action='get',
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        return Response(data, status=check_data['status'])
+
+    # get all account assocoiated caseruns
+    if caseruns is None:
+        caseruns = CaseRun.objects.filter(
+            account=account,
+        ).exclude(
+            time_completed=None,
+        ).order_by('-time_created')
+
+    # filter by _status if requested
+    if _status is not None:
+        caseruns = caseruns.filter(status=_status)
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        caseruns = caseruns.filter(site__id__in=id_list).order_by('-time_created')
+    
+    # build response data
+    data = []
+
+    for caserun in caseruns:
+        data.append({
+            'id'              :  str(caserun.id),
+            'case'            :  str(caserun.case.id),
+            'title'           :  str(caserun.title),
+            'site'            :  str(caserun.site.id),
+            'time_created'    :  str(caserun.time_created),
+            'time_completed'  :  str(caserun.time_completed),
+            'configs'         :  caserun.configs,
+            'status'          :  str(caserun.status),
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+### ------ Begin Flow Services ------ ###
+
+
+
+
+def create_or_update_flow(request: object=None) -> object:
+    """ 
+    Creates or Updates a `Flow` 
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    flow_id = request.data.get('flow_id')
+    nodes = request.data.get('nodes')
+    edges = request.data.get('edges')
+    title = request.data.get('title')
+    
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # setting defaults
+    flow = None
+    action = 'update' if flow_id else 'add'
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action=action, id=flow_id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get flow if checks passed
+    if flow_id:
+        flow = Flow.objects.get(id=flow_id)
+
+    # update flow   
+    if flow:
+        if title is not None:
+            flow.title = title
+        if nodes is not None:
+            flow.nodes = nodes
+        if edges is not None:
+            flow.edges = edges
+        # save updates
+        flow.save()
+    
+    # create Case
+    if not flow:
+        
+        # create new Flow
+        flow = Flow.objects.create(
+            user = request.user,
+            account = account,
+            title = title if title is not None else 'Untitled Flow',  
+        )
+
+    # serialize and return
+    serializer_context = {'request': request,}
+    data = FlowSerializer(flow, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def get_flows(request: object=None) -> object:
+    """ 
+    Get one or more `Flows`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    flow_id = request.query_params.get('flow_id')
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # setting default
+    flow = None
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='get', id=flow_id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single flow
+    if flow_id:        
+
+        # get flow
+        flow = Flow.objects.get(id=flow_id)
+
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = FlowSerializer(flow, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+
+    # get flows scoped by account
+    flows = Flow.objects.filter(account=account).order_by('-time_created')
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(flows, request)
+    serializer_context = {'request': request,}
+    serialized = FlowSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def get_flow(request: object=None, id: str=None) -> object:
+    """
+    Get single `Flow` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='get', id=id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get flow if checks passed
+    flow = Flow.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = FlowSerializer(flow, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def search_flows(request: object=None) -> object:
+    """ 
+    Searches for matching `Flows` to the passed 
+    "query"
+
+    Expects: {
+        'request': obejct
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+    query = request.query_params.get('query')
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='get'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # search for flows
+    flows = Flow.objects.filter(
+        Q(account=account, title__icontains=query)
+    ).order_by('-time_created')
+    
+    # serialize and rerturn
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(flows, request)
+    serializer_context = {'request': request,}
+    serialized = FlowSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response 
+
+
+
+
+def copy_flow(request: object=None) -> object:
+    """ 
+    Creates a copy of the passed `Flow`
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response obejct
+    """
+
+    # get request data
+    flow_id = request.data.get('flow_id')
+
+    # get user and acount
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='add', id=flow_id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get flow if checks passed
+    if flow_id:
+        flow = Flow.objects.get(id=flow_id, account=account)
+
+    # create new flow
+    new_flow = Flow.objects.create(
+        user = request.user,
+        account = account,
+        title = f'Copy - {flow.title}', 
+        nodes = flow.nodes,
+        edges = flow.edges
+    )
+
+    # return response
+    serializer_context = {'request': request,}
+    data = FlowSerializer(new_flow, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+    
+
+
+
+def delete_flow(request: object=None, id: str=None, user: object=None) -> object:
+    """ 
+    Deletes the `Flow` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str,
+        'user'    : object,
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    if request:
+        user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+        
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='delete', id=id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # get flow if checks passed
+    flow = Flow.objects.get(id=id)
+
+    # delete flow
+    flow.delete()
+
+    # return response
+    data = {'message': 'Flow has been deleted',}
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
+
+
+
+
+def delete_many_flows(request: object=None) -> object:
+    """ 
+    Deletes many `Flows` passed in a list
+
+    Expects: {
+        'ids': list
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    #  get request data
+    ids = request.data.get('ids')
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # set defaults
+    num_succeeded = 0
+    succeeded = []
+    num_failed = 0
+    failed = []
+    this_status = True
+
+    # loop through ids and delete
+    for id in ids:
+
+        # trying to delete flow
+        try:
+            # delete flow and all assocaited resourses
+            data = delete_flow(id=id, user=user)
+            if data.get('reason'):
+                raise Exception
+
+            # add to success attempts
+            num_succeeded += 1
+            succeeded.append(str(id))
+        except Exception as e:
+            # add to failed attempts
+            print(e)
+            num_failed += 1
+            failed.append(str(id))
+            this_status = False
+
+    # format and return
+    data = {
+        'success': this_status,
+        'num_succeeded': num_succeeded,
+        'succeeded': succeeded,
+        'num_failed': num_failed,
+        'failed': failed, 
+    }
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_flows_zapier(request: object=None) -> object:
+    """ 
+    Get all `Flows` associated with user's Account.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+    flows = None
+    
+    # deciding on scope
+    resource = 'flow'
+
+    # check account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flow', 
+        action='get',
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        return Response(data, status=check_data['status'])
+
+    # get all account assocoiated flows
+    if flows is None:
+        flows = Flow.objects.filter(
+            account=account,
+        ).order_by('-time_created')
+
+    # build response data
+    data = []
+
+    for flow in flows:
+        data.append({
+            'id'              :  str(flow.id),
+            'title'           :  flow.title,
+            'time_created'    :  str(flow.time_created)
+        })
+
+    # serialize and return
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+### ------ Begin FlowRun Services ------ ###
+
+
+
+
+def create_flowrun(request: object=None) -> object:
+    """ 
+    Creates a new `FlowRun` from the passed 
+    "flow_id" & "site_id"
+
+    Expects: {
+        'request': obejct
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    flow_id = request.data.get('flow_id')
+    site_id = request.data.get('site_id')
+    configs = request.data.get('configs', None)
+    
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # update configs
+    configs = account.configs if configs is None else configs
+
+    # check site
+    if not Site.objects.filter(id=site_id, account=account).exists():
+        data = {'reason': 'site not found'}
+        record_api_call(request, data, '404')
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flowrun', 
+        action='add', id=flow_id, id_type='flow'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get flow if checks passed
+    flow = Flow.objects.get(id=flow_id)
+
+    # get site if checks passed
+    site = Site.objects.get(id=site_id)
+
+    # increment account.usage.runs
+    account.usage['flowruns'] += 1
+    account.save()
+
+    # set flowrun_id
+    flowrun_id = uuid.uuid4()
+
+    # update nodes
+    nodes = flow.nodes
+    for i in range(len(nodes)):
+        nodes[i]['data']['status'] = 'queued'
+        nodes[i]['data']['finalized'] = False
+        nodes[i]['data']['time_started'] = None
+        nodes[i]['data']['time_completed'] = None
+        nodes[i]['data']['objects'] = []
+
+    # updates edges
+    edges = flow.edges
+    for i in range(len(edges)):
+        edges[i]['animated'] = False
+        edges[i]['style'] = None
+
+    # create init log
+    logs = [{
+        'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+        'message': f'system starting up for run_id: {str(flowrun_id)}',
+        'step': '1'
+    },]
+
+    # create flowrun
+    flowrun = FlowRun.objects.create(
+        id      = flowrun_id,
+        flow    = flow,
+        user    = flow.user,
+        account = flow.account,
+        site    = site,
+        title   = flow.title,
+        nodes   = nodes,
+        edges   = edges,
+        logs    = logs,
+        configs = configs
+    )
+
+    # update flow with time_last_run
+    flow = Flow.objects.get(id=flow_id)
+    flow.time_last_run = datetime.now(timezone.utc)
+    flow.save()
+
+    # signals.py should pick up this `create()`
+    # event and then run the first instance of flowr.py
+
+    # serialize and return
+    serializer_context = {'request': request,}
+    data = FlowRunSerializer(flowrun, context=serializer_context).data
+    record_api_call(request, data, '201')
+    response = Response(data, status=status.HTTP_201_CREATED)
+    return response
+
+
+
+
+def get_flowruns(request: object=None) -> object:
+    """ 
+    Get one or more `FlowRun`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
+    flowrun_id = request.query_params.get('flowrun_id')
+    site_id = request.query_params.get('site_id')
+    lean = request.query_params.get('lean')
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # defaults
+    id = site_id if site_id else flowrun_id
+    id_type = 'site' if site_id else 'flowrun'
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='flowrun', 
+        action='get', id=id, id_type=id_type
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single flowrun
+    if flowrun_id:        
+
+        # get flowrun
+        flowrun = FlowRun.objects.get(id=flowrun_id)
+
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = FlowRunSerializer(flowrun, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    # getting site scoped flowruns
+    if site_id:
+        flowruns = FlowRun.objects.filter(
+            site__id=site_id, 
+            account=account
+        ).order_by('-time_created')
+    
+    # get flowruns scoped to account
+    if not site_id:
+        flowruns = FlowRun.objects.filter(
+            account=account
+        ).order_by('-time_created')
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(flowruns, request)
+    serializer_context = {'request': request,}
+    serialized = FlowRunSerializer(result_page, many=True, context=serializer_context)
+    if str(lean).lower() == 'true':
+        serialized = SmallFlowRunSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def get_flowrun(request: object=None, id: str=None) -> object:
+    """
+    Get single `FlowRun` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='flowrun', 
+        action='get', id=id, id_type='flowrun'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get flowruns if checks passed
+    flowruns = FlowRun.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = FlowRunSerializer(flowruns, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_flowrun(request: object=None, id: str=None, user: object=None) -> object:
+    """ 
+    Deletes the `FlowRun` associated with the passed "id" 
 
     Expcets: {
         'request' : object,
@@ -5374,16 +6334,14 @@ def delete_testcase(request: object=None, id: str=None, account: object=None) ->
 
     # get user and account info
     if request:
-        account = Member.objects.get(user=request.user).account
         user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
     
-    if not request:
-        user = account.user
-
     # checking account and resource 
-    check_data = check_account_and_resource(
-        user=user, resource='testcase', 
-        testcase_id=id
+    check_data = check_permissions_and_usage(
+        member=member, resource='flowrun', 
+        action='delete', id=id, id_type='flowrun'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5392,17 +6350,14 @@ def delete_testcase(request: object=None, id: str=None, account: object=None) ->
             return Response(data, status=check_data['status'])
         return data
 
-    # get testcase if checks passed
-    testcase = Testcase.objects.get(id=id)
+    # get flowrun if checks passed
+    flowrun = FlowRun.objects.get(id=id)
 
-    # remove s3 objects
-    delete_testcase_s3_bg.delay(testcase_id=id)
-
-    # delete testcase
-    testcase.delete()
+    # delete flowrun
+    flowrun.delete()
 
     # return response
-    data = {'message': 'Testcase has been deleted',}
+    data = {'message': 'FlowRun has been deleted',}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -5412,9 +6367,9 @@ def delete_testcase(request: object=None, id: str=None, account: object=None) ->
 
 
 
-def get_testcases_zapier(request: object) -> object:
+def get_flowruns_zapier(request: object=None) -> object:
     """ 
-    Get all `Testcases` associated with user's Account.
+    Get all `FlowRuns` associated with user's Account.
 
     Expects: {
         'request': object
@@ -5425,23 +6380,25 @@ def get_testcases_zapier(request: object) -> object:
 
     # get request data
     _status = request.query_params.get('status')
-    account = Member.objects.get(user=request.user).account
-    testcases = None
+    member = Member.objects.get(user=request.user)
+    account = member.account
+    flowruns = None
     
     # deciding on scope
-    resource = 'testcase'
+    resource = 'flowrun'
 
     # check account and resource 
-    check_data = check_account_and_resource(
-        user=request.user, resource=resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='flowrun', 
+        action='get',
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
         return Response(data, status=check_data['status'])
 
-    # get all account assocoiated testcases
-    if testcases is None:
-        testcases = Testcase.objects.filter(
+    # get all account assocoiated flowruns
+    if flowruns is None:
+        flowruns = FlowRun.objects.filter(
             account=account,
         ).exclude(
             time_completed=None,
@@ -5449,21 +6406,25 @@ def get_testcases_zapier(request: object) -> object:
 
     # filter by _status if requested
     if _status is not None:
-        testcases = testcases.filter(status=_status)
+        flowruns = flowruns.filter(status=_status)
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        flowruns = flowruns.filter(site__id__in=id_list).order_by('-time_created')
 
     # build response data
     data = []
 
-    for testcase in testcases:
+    for run in flowruns:
         data.append({
-            'id'              :  str(testcase.id),
-            'case'            :  str(testcase.case.id),
-            'case_name'       :  str(testcase.case_name),
-            'site'            :  str(testcase.site.id),
-            'time_created'    :  str(testcase.time_created),
-            'time_completed'  :  str(testcase.time_completed),
-            'configs'         :  testcase.configs,
-            'status'          :  str(testcase.status),
+            'id'              :  str(run.id),
+            'flow'            :  str(run.flow.id),
+            'site'            :  str(run.site.id),
+            'title'           :  str(run.title),
+            'time_created'    :  str(run.time_created),
+            'time_completed'  :  str(run.time_completed),
+            'status'          :  str(run.status)
         })
 
     # serialize and return
@@ -5473,12 +6434,276 @@ def get_testcases_zapier(request: object) -> object:
 
 
 
+### ------ Begin Secret Services ------ ###
+
+
+
+
+def create_or_update_secret(request: object=None) -> object:
+    """ 
+    Creates or Updates a `Secret`
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
+    secret_id = request.data.get('secret_id')
+    name = request.data.get('name')
+    value = request.data.get('value')
+    action = 'update' if secret_id else 'add'
+    
+    # get user & account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+    
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='secret', 
+        action=action, id=secret_id, id_type='secret'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # encrypt value if passed
+    f = Fernet(settings.SECRETS_KEY)
+    bytes_value = bytes(value, 'utf-8')
+    encrypted_value = f.encrypt(bytes_value).decode('utf-8')
+
+    # update secret
+    if secret_id:
+        
+        # get secret 
+        secret = Secret.objects.get(id=secret_id)
+
+        # save new value
+        secret.value = encrypted_value
+        secret.save()
+    
+    # create new secret
+    if not secret_id:
+        secret = Secret.objects.create(
+            account=account,
+            user=user,
+            name=name,
+            value=encrypted_value
+        )
+
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = SecretSerializer(secret, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_secrets(request: object=None) -> object:
+    """ 
+    Get one or more `Secrets`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+    
+    # get request data
+    secret_id = request.query_params.get('secret_id')
+    lean = request.query_params.get('lean')
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='secret', 
+        action='get', id=secret_id, id_type='secret'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single secret
+    if secret_id:        
+
+        # get secret
+        secret = Secret.objects.get(id=secret_id)
+
+        # serialize and return
+        serializer_context = {'request': request,}
+        serialized = SecretSerializer(secret, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    # get secrets scoped to account
+    secrets = Secret.objects.filter(account=account).order_by('-time_created')
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(secrets, request)
+    serializer_context = {'request': request,}
+    serialized = SecretSerializer(result_page, many=True, context=serializer_context)
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def get_secret(request: object=None, id: str=None) -> object:
+    """
+    Get single `Secret` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='secret', 
+        action='get', id=id, id_type='secret'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get secrets if checks passed
+    secrets = Secret.objects.get(id=id)
+        
+    # serialize and return
+    serializer_context = {'request': request,}
+    serialized = SecretSerializer(secrets, context=serializer_context)
+    data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def get_secrets_all(request: object=None) -> object:
+    """ 
+    Get all `Secrets` associated with the 
+    equesting user's `Account`.
+
+    Expects: {
+        'request': object
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='secret', 
+        action='get'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get secrets scoped to account
+    secrets = Secret.objects.filter(account=account).order_by('-time_created')
+
+    # build into list
+    data = []
+    for secret in secrets:
+        data.append({
+            'name': secret.name,
+            'value': secret.name,
+            'task': 'any'
+        })
+
+    # return list
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_secret(request: object=None, id: str=None, user: object=None) -> object:
+    """ 
+    Deletes the `Secret` associated with the passed "id" 
+
+    Expcets: {
+        'request' : object,
+        'id'      : str,
+        'user'    : object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account info
+    if request:
+        user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='secret', 
+        action='delete', id=id, id_type='secret'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # get secret if checks passed
+    secret = Secret.objects.get(id=id)
+
+    # delete secret
+    secret.delete()
+
+    # return response
+    data = {'message': 'Secret has been deleted',}
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
+
+
+
+
 ### ------ Begin Process Services ------ ###
 
 
 
 
-def get_processes(request: object) -> object:
+def get_processes(request: object=None) -> object:
     """ 
     Get one or more `Processes`.
 
@@ -5497,12 +6722,16 @@ def get_processes(request: object) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    id = process_id if process_id else site_id
+    id_type = 'process' if process_id else 'site'
 
     # checking account and resource 
-    check_data = check_account_and_resource(
-        request=request, resource='process', 
-        process_id=process_id, site_id=site_id
+    check_data = check_permissions_and_usage(
+        member=member, resource='process', 
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5536,6 +6765,11 @@ def get_processes(request: object) -> object:
         if object_id is not None:
             processes = Process.objects.filter(account=account, object_id=object_id).order_by('-time_created')
 
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        processes = processes.filter(site__id__in=id_list).order_by('-time_created')
+
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(processes, request)
@@ -5548,7 +6782,7 @@ def get_processes(request: object) -> object:
 
 
 
-def get_process(request: object, id: str) -> object:
+def get_process(request: object=None, id: str=None) -> object:
     """
     Get single `Process` from the passed "id"
 
@@ -5562,11 +6796,13 @@ def get_process(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-       process_id=id, resource='process'
+    check_data = check_permissions_and_usage(
+        member=member, resource='process', 
+        action='get', id=id, id_type='process'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5591,9 +6827,9 @@ def get_process(request: object, id: str) -> object:
 
 
 
-def get_logs(request: object) -> object:
+def get_logs(request: object=None) -> object:
     """ 
-    Get one or more `Testcase`.
+    Get one or more `CaseRun`.
 
     Expects: {
         'request': object
@@ -5609,6 +6845,18 @@ def get_logs(request: object) -> object:
 
     # get user 
     user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='log', 
+        action='get', id=log_id, id_type='log'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
 
     # get single log
     if log_id:
@@ -5644,7 +6892,7 @@ def get_logs(request: object) -> object:
 
 
 
-def get_log(request: object, id: str) -> object:
+def get_log(request: object=None, id: str=None) -> object:
     """
     Get single `Log` from the passed "id"
 
@@ -5658,11 +6906,13 @@ def get_log(request: object, id: str) -> object:
 
     # get user and account
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
 
     # check account and resource
-    check_data = check_account_and_resource(request=request, 
-       log_id=id, resource='log'
+    check_data = check_permissions_and_usage(
+        member=member, resource='log', 
+        action='get', id=id, id_type='log'
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error'],}
@@ -5687,7 +6937,7 @@ def get_log(request: object, id: str) -> object:
 
 
 
-def search_resources(request: object) -> object:
+def search_resources(request: object=None) -> object:
     """
     This method will search for any `Page` or `Site`
     that is associated with the user's `Account` and
@@ -5711,45 +6961,78 @@ def search_resources(request: object) -> object:
     # get data
     query = request.query_params.get('query')
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
+    actions = member.permissions.get('actions', [])
+    resources = member.permissions.get('resources', [])
+    allowed_ids = [item['id'] for item in member.permissions.get('sites')]
     data = []
     cases = []
     pages = []
     sites = []
     issues = []
+    flows = []
+
+    # check action permissons
+    if 'get' not in actions:
+        data = {'reason': 'not allowed',}
+        record_api_call(request, data, '403')
+        return Response(data, status=status.HTTP_403_FORBIDDEN)
 
     # check for object specification i.e 'site:', 'case:', 'issue:'
     resource_type = query.replace('https://', '').replace('http://', '').split(':')[0]
     query = query.replace('https://', '').replace('http://', '').split(':')[-1]
 
     # search for sites
-    if resource_type == 'site' or resource_type == query:
+    if (resource_type == 'site' or resource_type == query) and 'site' in resources:
         sites = Site.objects.filter(account=account).filter(
             site_url__icontains=query
         )
+        # filter out all non permisioned
+        if len(allowed_ids) > 0:
+            sites = sites.filter(id__in=allowed_ids)
 
     # search for pages
-    if resource_type == 'page' or resource_type == query:
+    if (resource_type == 'page' or resource_type == query) and 'page' in resources:
         pages = Page.objects.filter(account=account).filter(
             page_url__icontains=query
         )
+        # filter out all non permisioned
+        if len(allowed_ids) > 0:
+            pages = pages.filter(site__id__in=allowed_ids)
 
     # search for cases
-    if resource_type == 'case' or resource_type == query:
+    if (resource_type == 'case' or resource_type == query) and 'case' in resources:
         cases = Case.objects.filter(account=account).filter(
-            name__icontains=query
+            title__icontains=query
         )
+        # filter out all non permisioned
+        if len(allowed_ids) > 0:
+            cases = cases.filter(site__id__in=allowed_ids)
 
     # search for issues
-    if resource_type == 'issue' or resource_type == query:
+    if (resource_type == 'issue' or resource_type == query) and 'issue' in resources:
         issues = Issue.objects.filter(account=account).filter(
+            title__icontains=query
+        )
+        # filter out all non permisioned
+        if len(allowed_ids) > 0:
+            new_ids = allowed_ids
+            for id in allowed_ids:
+                for page in Page.objects.filter(site__id=id):
+                    new_ids.append(str(page.id))
+            issues = issues.filter(affected__id__in=new_ids)
+
+    # search for flows
+    if (resource_type == 'flow' or resource_type == query) and 'flow' in resources:
+        flows = Flow.objects.filter(account=account).filter(
             title__icontains=query
         )
 
     # adding first several sites if present
     i = 0
-    max_sites = 10 if resource_type == 'site' else 3
-    while i <= max_sites and i <= (len(sites)-1):
+    sites_allowed = 10 if resource_type == 'site' else 3
+    while i <= sites_allowed and i <= (len(sites)-1):
         data.append({
             'str': str(sites[i].site_url),
             'path': f'/site/{sites[i].id}',
@@ -5775,7 +7058,7 @@ def search_resources(request: object) -> object:
     max_cases = 10 if resource_type == 'case' else 3
     while i <= max_cases and i <= (len(cases)-1):
         data.append({
-            'str': str(cases[i].name),
+            'str': str(cases[i].title),
             'path': f'/case/{cases[i].id}',
             'id'  : str(cases[i].id),
             'type': 'case',
@@ -5793,6 +7076,18 @@ def search_resources(request: object) -> object:
             'type': 'issue',
         })
         i+=1
+
+    # adding first several flows if present
+    i = 0
+    max_flows = 10 if resource_type == 'flows' else 2
+    while i <= max_flows and i <= (len(flows)-1):
+        data.append({
+            'str': str(flows[i].title),
+            'path': f'/flow/{flows[i].id}',
+            'id'  : str(flows[i].id),
+            'type': 'flow',
+        })
+        i+=1
     
     # return response
     response = Response(data, status=status.HTTP_200_OK)
@@ -5801,7 +7096,7 @@ def search_resources(request: object) -> object:
 
 
 
-def get_devices(request: object) -> object:
+def get_devices(request: object=None) -> object:
     """ 
     Retrieves a list of all Cursion "devices"
     
@@ -5827,7 +7122,7 @@ def get_devices(request: object) -> object:
 
 
 
-def get_home_metrics(request: object) -> object:
+def get_home_metrics(request: object=None) -> object:
     """ 
     Builds metrics for account "Home" view 
     on Cursion.client
@@ -5841,22 +7136,35 @@ def get_home_metrics(request: object) -> object:
 
     # get user, account, sites, & issues
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     sites = Site.objects.filter(account=account).count()
-    issues = Issue.objects.filter(account=account, status='open').count()
+    issues = Issue.objects.filter(account=account, status='open')
     schedules = Schedule.objects.filter(account=account).count()
+    
+    # filter issues by allowed sites
+    if len(member.permissions.get('sites',[])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        new_ids = id_list
+        for id in id_list:
+            for page in Page.objects.filter(site__id=id):
+                new_ids.append(str(page.id))
+        issues = issues.filter(affected__id__in=new_ids)
     
     # setting resource defaults
     tests = account.usage['tests']
     scans = account.usage['scans']
-    testcases = account.usage['testcases']
+    caseruns = account.usage['caseruns']
+    flowruns = account.usage.get('flowruns', 0)
+    issues = issues.count()
 
     # calculate usages
-    sites_usage = round((sites/account.max_sites)*100, 2) if sites > 0 else 0
-    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    sites_usage = round((sites/account.usage['sites_allowed'])*100, 2) if sites > 0 else 0
+    schedules_usage = round((schedules/account.usage['schedules_allowed'])*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
     tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
-    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
+    caseruns_usage = round((caseruns/account.usage['caseruns_allowed'])*100, 2) if caseruns > 0 else 0
+    flowruns_usage = round((flowruns/account.usage['flowruns_allowed'])*100, 2) if flowruns > 0 else 0
     
     # format data
     data = {
@@ -5868,8 +7176,10 @@ def get_home_metrics(request: object) -> object:
         "scans_usage": scans_usage,
         "schedules": schedules,
         "schedules_usage": schedules_usage,
-        "testcases": testcases,
-        "testcases_usage": testcases_usage,
+        "caseruns": caseruns,
+        "caseruns_usage": caseruns_usage,
+        "flowruns": flowruns,
+        "flowruns_usage": flowruns_usage,
         "open_issues": issues,
     }
     
@@ -5880,8 +7190,7 @@ def get_home_metrics(request: object) -> object:
 
 
 
-
-def get_site_metrics(request: object) -> object:
+def get_site_metrics(request: object=None) -> object:
     """ 
     Builds metrics for account "Site" view 
     on Cursion.client
@@ -5895,10 +7204,11 @@ def get_site_metrics(request: object) -> object:
 
     # get user, account, site, & pages
     user = request.user
-    account = Member.objects.get(user=user).account
+    member = Member.objects.get(user=user)
+    account = member.account
     site_id = request.query_params.get('site_id')
     site = Site.objects.get(id=site_id)
-    max_sites = account.max_sites
+    sites_allowed = account.usage['sites_allowed']
     pages = Page.objects.filter(site=site)
 
     # get last reset day 
@@ -5923,8 +7233,14 @@ def get_site_metrics(request: object) -> object:
         time_created__gte=last_usage_date
     ).count()
 
-    # get testcases
-    testcases = Testcase.objects.filter(
+    # get caseruns
+    caseruns = CaseRun.objects.filter(
+        site=site,
+        time_created__gte=last_usage_date
+    ).count()
+
+    # get flowruns
+    flowruns = FlowRun.objects.filter(
         site=site,
         time_created__gte=last_usage_date
     ).count()
@@ -5944,11 +7260,12 @@ def get_site_metrics(request: object) -> object:
         
     # calculate usage
     pages = pages.count()
-    pages_usage = round((pages/account.max_pages)*100, 2) if pages > 0 else 0
-    schedules_usage = round((schedules/account.max_schedules)*100, 2) if schedules > 0 else 0
+    pages_usage = round((pages/account.usage['pages_allowed'])*100, 2) if pages > 0 else 0
+    schedules_usage = round((schedules/account.usage['schedules_allowed'])*100, 2) if schedules > 0 else 0
     scans_usage = round((scans/account.usage['scans_allowed'])*100, 2) if scans > 0 else 0
     tests_usage = round((tests/account.usage['tests_allowed'])*100, 2) if tests > 0 else 0
-    testcases_usage = round((testcases/account.usage['testcases_allowed'])*100, 2) if testcases > 0 else 0
+    caseruns_usage = round((caseruns/account.usage['caseruns_allowed'])*100, 2) if caseruns > 0 else 0
+    flowruns_usage = round((flowruns/account.usage['flowruns_allowed'])*100, 2) if flowruns > 0 else 0
 
     # format data
     data = {
@@ -5960,8 +7277,10 @@ def get_site_metrics(request: object) -> object:
         "scans_usage": scans_usage,
         "schedules": schedules,
         "schedules_usage": schedules_usage,
-        "testcases": testcases,
-        "testcases_usage": testcases_usage,
+        "caseruns": caseruns,
+        "caseruns_usage": caseruns_usage,
+        "flowruns": flowruns,
+        "flowruns_usage": flowruns_usage,
     }
 
     # return response
@@ -5971,8 +7290,7 @@ def get_site_metrics(request: object) -> object:
 
 
 
-
-def get_celery_metrics(request: object) -> object:
+def get_celery_metrics(request: object=None) -> object:
     """ 
     Builds metrics for current Celery task load.
     Used to provision and terminate new pods in 
@@ -6046,7 +7364,7 @@ def get_celery_metrics(request: object) -> object:
 
 
 
-def migrate_site(request: object) -> object:
+def migrate_site(request: object=None) -> object:
     """
     Initiate a `Site` migration task in background
 
@@ -6074,7 +7392,7 @@ def migrate_site(request: object) -> object:
     driver = request.data.get('driver', 'selenium')
 
     # checking account and resource 
-    check_data = check_account_and_resource(
+    check_data = check_permissions_and_usage(
         request=request, resource='site', 
         site_id=site_id
     )

@@ -1,9 +1,21 @@
 services:
 
 
-  app:
-    container_name: cursion-app
-    hostname: cursion-app
+  client:
+    container_name: cursion-client
+    hostname: cursion-client
+    image: cursiondev/client
+    platform: linux/amd64
+    pull_policy: always
+    env_file:
+      - ./env/.env.client.dev
+    expose:
+      - "8080"
+
+
+  server:
+    container_name: cursion-server
+    hostname: cursion-server
     platform: linux/amd64
     privileged: true
     restart: always
@@ -11,14 +23,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/entrypoint.sh", "app", "remote"]
+    entrypoint: ["/entrypoint.sh", "server", "remote"]
     expose:
-      - 8000
+      - "8000"
     env_file:
       - ./env/.env.dev
     volumes:
-      - app:/app
-      - static_volume:/app/static
+      - server:/app
+      - static_volume:/app/staticfiles
     depends_on:
       - db
 
@@ -27,6 +39,7 @@ services:
     container_name: cursion-db
     hostname: cursion-db
     image: postgres:14-alpine
+    platform: linux/amd64
     ports:
       - "5432"
     env_file:
@@ -39,6 +52,7 @@ services:
     container_name: cursion-redis
     hostname: cursion-redis
     image: redis:alpine
+    platform: linux/amd64
     ports:
       - "6379"
 
@@ -59,7 +73,7 @@ services:
       - celery:/app
     depends_on:
       - redis
-      - app
+      - server
       - db
 
 
@@ -80,7 +94,7 @@ services:
     depends_on:
       - redis
       - celery
-      - app
+      - server
       - db
       
   
@@ -90,55 +104,58 @@ services:
     privileged: true
     restart: always
     image: cursiondev/ylt
+    platform: linux/amd64
     ports:
-      - 8383:8383
+      - "8383:8383"
     depends_on:
       - redis
       - celery 
-      - app
+      - server
       - db
 
 
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
-    build: nginx
+    image: cursiondev/nginx
+    platform: linux/amd64
     restart: always
     ports:
-      - 443:443
-      - 80:80
+      - "443:443"
+      - "80:80"
     volumes:
-      - static_volume:/app/static
+      - static_volume:/app/staticfiles
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
-      - app
+      - server
+      - client
   
   
   nginx-proxy-letsencrypt:
     container_name: nginx-proxy-letsencrypt
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
-    environment:
-      - DEFAULT_EMAIL=youremail@yourdomain.com
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+    platform: linux/amd64
+    env_file:
+      - ./env/.env.dev
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
 
 
 volumes:
-  app:
+  server:
+  static_volume:
   celery:
   beat:
-  static_volume:
   letsencrypt-acme:
   pgdata:
   certs:

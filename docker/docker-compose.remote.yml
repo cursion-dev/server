@@ -1,36 +1,25 @@
 services:
-  
+
 
   app:
     container_name: cursion-app
     hostname: cursion-app
+    restart: always
     platform: linux/amd64
     privileged: true
-    restart: always
     init: true
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    entrypoint: ["/entrypoint.sh", "app", "local"]
+    entrypoint: ["/entrypoint.sh", "app", "remote"]
+    expose:
+      - 8000
     env_file:
-      - ./env/.env.local
+      - .env.remote
     volumes:
       - app:/app
-    depends_on:
-      - db
+      - static_volume:/app/static
 
-
-  db:
-    container_name: cursion-db
-    hostname: cursion-db
-    image:  postgres:14-alpine
-    env_file:
-      - ./env/.env.local
-    volumes: 
-      - pgdata:/var/lib/postgresql/data
-  
 
   redis:
     container_name: cursion-redis
@@ -43,27 +32,24 @@ services:
   celery:
     container_name: cursion-celery
     hostname: cursion-celery
-    platform: linux/amd64
     privileged: true
     restart: always
     build:
       context: .
       dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "celery"]
+    env_file:
+      - .env.remote
     volumes:
       - celery:/app
-    env_file:
-      - ./env/.env.local
     depends_on:
       - redis
       - app
-      - db
 
 
   beat:
     container_name: cursion-beat
     hostname: cursion-beat
-    platform: linux/amd64
     privileged: true
     restart: always
     build:
@@ -73,12 +59,11 @@ services:
     volumes:
       - beat:/app
     env_file:
-      - ./env/.env.local
+      - .env.remote
     depends_on:
       - redis
       - celery
       - app
-      - db
 
 
   yellowlab:
@@ -93,11 +78,48 @@ services:
       - redis
       - celery 
       - app
-      - db
 
+
+  nginx-proxy:
+    container_name: nginx-proxy
+    hostname: nginx-proxy
+    image: cursiondev/nginx
+    restart: always
+    ports:
+      - 443:443
+      - 80:80
+    volumes:
+      - static_volume:/app/static
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    depends_on:
+      - app
+  
+  
+  nginx-proxy-letsencrypt:
+    container_name: nginx-proxy-letsencrypt
+    hostname: nginx-proxy-letsencrypt
+    image: nginxproxy/acme-companion
+    env_file:
+      - .env.remote
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhost:/etc/nginx/vhost.d
+      - letsencrypt-acme:/etc/acme.sh
+    depends_on:
+      - nginx-proxy
+      
 
 volumes:
-  pgdata:
   app:
   celery:
   beat:
+  static_volume:
+  letsencrypt-acme:
+  certs:
+  html:
+  vhost:

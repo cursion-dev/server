@@ -180,6 +180,22 @@ class AccountMembers(APIView):
 
 
 
+class AccountLicense(APIView):
+    authentication_classes = []
+    permission_classes = (AllowAny,)
+    http_method_names = ['post']
+
+    def post(self, request):
+        response = get_account_license(request)
+        return response
+
+
+
+
+### ------ Begin Member Views ------ ###
+
+
+
 class Member(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'post']
@@ -192,7 +208,12 @@ class Member(APIView):
         response = get_member(request, id)
         return response
 
-        
+
+
+
+### ------ Begin External Views ------ ###
+
+
 
 
 class Prospect(APIView):

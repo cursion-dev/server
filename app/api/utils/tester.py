@@ -824,7 +824,7 @@ class Tester():
         # testing LH
         if 'lighthouse' in self.test.type or 'full' in self.test.type:
             try:
-            # scores & data
+                # scores & data
                 lighthouse_data = self.delta_lighthouse()
                 lh_audits_uri = self.get_lh_audits_deltas(scores=lighthouse_data['scores'])
                 lighthouse_data['audits'] = lh_audits_uri

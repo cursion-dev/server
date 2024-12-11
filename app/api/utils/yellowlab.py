@@ -257,7 +257,7 @@ class Yellowlab():
 
         data = {
             "scores": self.scores, 
-            "audits": self.audits_url,
+            "audits": self.audits_url if self.audits_url != '' else None,
             "failed": failed
         }
             

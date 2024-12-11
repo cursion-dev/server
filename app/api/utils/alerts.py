@@ -1,13 +1,15 @@
-from datetime import date
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import RefreshToken
-from ..models import *
 from twilio.rest import Client
 from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, From, To
+from sendgrid.helpers.mail import *
+from ..models import *
 from cursion import settings
+from .definitions import get_definition, definitions
+from datetime import date
+from cryptography.fernet import Fernet
 import os, json, requests, uuid
 
 
@@ -36,7 +38,7 @@ def send_reset_link(email: str=None) -> dict:
         user = User.objects.get(email=email)
         token = RefreshToken.for_user(user)
         access_token = str(token.access_token)
-        reset_link = str(os.environ.get('CLIENT_URL_ROOT') + '/reset-password?token='+access_token)
+        reset_link = str(settings.CLIENT_URL_ROOT+'/reset-password?token='+access_token)
         subject = 'Rest Password'
         title = 'Reset Password'
         pre_header = 'Reset Password'
@@ -51,7 +53,7 @@ def send_reset_link(email: str=None) -> dict:
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : reset_link,
-            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'home_page' : settings.CLIENT_URL_ROOT,
             'button_text' : 'Rest my password',
             'content' : '',
             'signature' : '- Cheers!',
@@ -91,11 +93,17 @@ def send_invite_link(member: object=None) -> dict:
     if Member.objects.filter(email=member.email, status="pending").exists():
 
         # build email data
-        link = f'{os.environ.get("CLIENT_URL_ROOT")}/account/join?team={member.account.id}&code={member.account.code}&member={member.id}&email={member.email}'
+        link = (
+            f'{settings.CLIENT_URL_ROOT}/account/join?team={member.account.id}'+
+            f'&code={member.account.code}&member={member.id}&email={member.email}'
+        )
         subject = 'Cursion Invite'
         title = 'Cursion Invite'
         pre_header = 'Cursion Invite'
-        pre_content = f'A user with the email "{member.account.user.username}" invited you to join their Team on Cursion. Now just click the link below to accept the invite!'
+        pre_content = (
+            f'A user with the email "{member.account.user.username}" invited you to join their '+
+            f'Team on Cursion. Now just click the link below to accept the invite!'
+        )
         greeting = 'Hi there,'
 
         context = {
@@ -106,7 +114,7 @@ def send_invite_link(member: object=None) -> dict:
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : link,
-            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'home_page' : settings.CLIENT_URL_ROOT,
             'button_text' : 'Accept Invite',
             'content' : '',
             'signature' : '- Cheers!',
@@ -150,7 +158,10 @@ def send_remove_alert(member: object=None) -> dict:
         subject = 'Removed From Account'
         title = 'Removed From Account'
         pre_header = 'Removed From Account'
-        pre_content = f'A user with the email "{member.account.user.username}" removed you from their Team on Cursion. Please let us know if there\'s been a mistake.'
+        pre_content = (
+            f'A user with the email "{member.account.user.username}" removed you '+
+            f'from their Team on Cursion. Please let us know if there\'s been a mistake.'
+        )
         greeting = 'Hi there,'
 
         context = {
@@ -161,7 +172,7 @@ def send_remove_alert(member: object=None) -> dict:
             'pre_header' : pre_header,
             'pre_content' : pre_content,
             'object_url' : None,
-            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
+            'home_page' : settings.CLIENT_URL_ROOT,
             'content' : '',
             'signature' : '- Cheers!',
         }
@@ -186,14 +197,14 @@ def send_remove_alert(member: object=None) -> dict:
 
 
 
-def create_exp(item: object=None, automation: object=None) -> dict:
+def create_exp(obj: object=None, alert: object=None) -> dict:
     """ 
     Builds an expression list (exp_list = []) based 
-    on the passed 'item' and `Automation`.
+    on the passed 'obj' and `Alert`.
 
     Expects: {
-        'item'       :  object (Scan, Test, Testcase),
-        'automation' :  object
+        'obj'   :  object (Scan, Test, CaseRun, FlowRun),
+        'alert' :  object
     }
 
     Returns -> data: {
@@ -206,166 +217,42 @@ def create_exp(item: object=None, automation: object=None) -> dict:
     exp_list = []
     exp_str = ''
     
-    # loop through automation expressions
-    for e in automation.expressions:
+    # loop through alert expressions
+    for e in alert.expressions:
 
-        # top-level scores and data
+        # settign defaults
+        title = None
+        data = None
+
+        # generate custom data and scores
         if 'test_score' in e['data_type']:
             title = 'Test Score'
-            data = str(round(item.score, 2))
-        elif 'test_status' in e['data_type']:
+            data = str(round(obj.score, 2))
+        if 'test_status' in e['data_type']:
             status = '❌ FAILED'
-            if item.status == 'passed':
+            if obj.status == 'passed':
                 status = '✅ PASSED'
             title = 'Test Status'
             data = status
-        elif 'testcase_status' in e['data_type']:
+        if 'caserun_status' in e['data_type']:
             status = '❌ FAILED'
             if e['value'] == 'passed':
                 status = '✅ PASSED'
-            title = f'"{item.case.name}"'
+            title = f'"{obj.title}"'
             data = status
-        elif 'current_health' in e['data_type']:
-            title = 'Health'
-            data = str(
-                (float(item.lighthouse_delta["scores"]["current_average"]) + 
-                float(item.yellowlab_delta["scores"]["current_average"])) /2
-            )
-        elif 'health' in e['data_type']:
-            title = 'Health'
-            data = str(
-                (float(item.lighthouse["scores"]["average"]) + 
-                float(item.yellowlab["scores"]["globalScore"])) /2
-            )
-        
-        # LH test data
-        elif 'current_lighthouse_average' in e['data_type']:
-            title = 'Lighthouse Average'
-            data = str(item.lighthouse_delta["scores"]["current_average"])
-        elif 'seo_delta' in e['data_type']:
-            title = 'SEO Delta'
-            data = str(item.lighthouse_delta["scores"]["seo_delta"])
-        elif 'pwa_delta' in e['data_type']:
-            title = 'PWA Delta'
-            data = str(item.lighthouse_delta["scores"]["pwa_delta"])
-        elif 'crux_delta' in e['data_type']:
-            title = 'CRUX Delta'
-            data = str(item.lighthouse_delta["scores"]["crux_delta"])
-        elif 'best_practices_delta' in e['data_type']:
-            title = 'Best Practices Delta'
-            data = str(item.lighthouse_delta["scores"]["best_practices_delta"])
-        elif 'performance_delta' in e['data_type']:
-            title = 'Performance Delta'
-            data = str(item.lighthouse_delta["scores"]["performance_delta"])
-        elif 'accessibility_delta' in e['data_type']:
-            title = 'Accessibility Delta'
-            data = str(item.lighthouse_delta["scores"]["accessibility_delta"])
+        if 'flowrun_status' in e['data_type']:
+            status = '❌ FAILED'
+            if e['value'] == 'passed':
+                status = '✅ PASSED'
+            title = f'"{obj.title}"'
+            data = status
 
-        # LH scan data
-        elif 'lighthouse_average' in e['data_type']:
-            title = 'Lighthouse Average'
-            data = str(item.lighthouse["scores"]["average"])
-        elif 'seo' in e['data_type']:
-            title = 'SEO'
-            data = str(item.lighthouse["scores"]["seo"])
-        elif 'pwa' in e['data_type']:
-            title = 'PWA'
-            data = str(item.lighthouse["scores"]["pwa"])
-        elif 'crux' in e['data_type']:
-            title = 'CRUX'
-            data = str(item.lighthouse["scores"]["crux"])
-        elif 'best_practices' in e['data_type']:
-            title = 'Best Practices'
-            data = str(item.lighthouse["scores"]["best_practices"])
-        elif 'performance' in e['data_type']:
-            title = 'Performance'
-            data = str(item.lighthouse["scores"]["performance"])
-        elif 'accessibility' in e['data_type']:
-            title = 'Accessibility'
-            data = str(item.lighthouse["scores"]["accessibility"])
-        
-        # yellowlab test data
-        elif 'current_yellowlab_average' in e['data_type']:
-            title = 'Yellow Lab Avg'
-            data = str(item.yellowlab_delta["scores"]["current_average"])
-        elif 'pageWeight_delta' in e['data_type']:
-            title = 'Page Weight Delta'
-            data = str(item.yellowlab_delta["scores"]["pageWeight_delta"])
-        elif 'images_delta' in e['data_type']:
-            title = 'Images Delta'
-            data = str(item.yellowlab_delta["scores"]["images_delta"])
-        elif 'domComplexity_delta' in e['data_type']:
-            title = 'DOM Complexity Delta'
-            data = str(item.yellowlab_delta["scores"]["domComplexity_delta"])
-        elif 'javascriptComplexity_delta' in e['data_type']:
-            title = 'JS Complexity Delta'
-            data = str(item.yellowlab_delta["scores"]["javascriptComplexity_delta"])
-        elif 'badJavascript_delta' in e['data_type']:
-            title = 'Bad JS Delta'
-            data = str(item.yellowlab_delta["scores"]["badJavascript_delta"])
-        elif 'jQuery_delta' in e['data_type']:
-            title = 'jQuery Delta'
-            data = str(item.yellowlab_delta["scores"]["jQuery_delta"])
-        elif 'cssComplexity_delta' in e['data_type']:
-            title = 'CSS Complexity Delta'
-            data = str(item.yellowlab_delta["scores"]["cssComplexity_delta"])
-        elif 'badCSS_delta' in e['data_type']:
-            title = 'Bad CSS Delta'
-            data = str(item.yellowlab_delta["scores"]["badCSS_delta"])
-        elif 'fonts_delta' in e['data_type']:
-            title = 'Fonts Delta'
-            data = str(item.yellowlab_delta["scores"]["fonts_delta"])
-        elif 'serverConfig_delta' in e['data_type']:
-            title = 'Server Configs Delta'
-            data = str(item.yellowlab_delta["scores"]["serverConfig_delta"])
-
-        # yellowlab scan data
-        elif 'yellowlab_average' in e['data_type']:
-            title = 'Yellow Lab Avg'
-            data = str(item.yellowlab["scores"]["globalScore"])
-        elif 'pageWeight' in e['data_type']:
-            title = 'Page Weight'
-            data = str(item.yellowlab["scores"]["pageWeight"])
-        elif 'images' in e['data_type']:
-            title = 'Images'
-            data = str(item.yellowlab["scores"]["images"])
-        elif 'domComplexity' in e['data_type']:
-            title = 'DOM Complexity'
-            data = str(item.yellowlab["scores"]["domComplexity"])
-        elif 'javascriptComplexity' in e['data_type']:
-            title = 'JS Complexity'
-            data = str(item.yellowlab["scores"]["javascriptComplexity"])  
-        elif 'badJavascript' in e['data_type']:
-            title = 'Bad JS'
-            data = str(item.yellowlab["scores"]["badJavascript"])
-        elif 'jQuery' in e['data_type']:
-            title = 'jQuery'
-            data = str(item.yellowlab["scores"]["jQuery"])
-        elif 'cssComplexity' in e['data_type']:
-            title = 'CSS Complexity'
-            data = str(item.yellowlab["scores"]["cssComplexity"])
-        elif 'badCSS' in e['data_type']:
-            title = 'Bad CSS'
-            data = str(item.yellowlab["scores"]["badCSS"])
-        elif 'fonts' in e['data_type']:
-            title = 'Fonts'
-            data = str(item.yellowlab["scores"]["fonts"])
-        elif 'serverConfig' in e['data_type']:
-            title = 'Server Configs'
-            data = str(item.yellowlab["scores"]["serverConfig"])
-        
-        # image data
-        elif 'avg_image_score' in e['data_type']:
-            title = 'Avg Image Score'
-            data = str(item.images_delta["average_score"])
-        elif 'image_scores' in e['data_type']:
-            title = 'List of Image Scores'
-            data = str([i["score"] for i in item.images_delta["images"]])
-        
-        # logs data
-        elif 'logs' in e['data_type']:
-            title = 'Error Logs'
-            data = str(len(item.logs))
+        # get title and data if None
+        if title == None:
+            definition = get_definition(e['data_type'])
+            if definition:
+                title = definition['name']
+                data = str(eval(definition['value']))
         
         # create data string
         data_str = f' {title}:   {data}\n'
@@ -388,124 +275,66 @@ def create_exp(item: object=None, automation: object=None) -> dict:
 
 
 
-def create_json_data(json_data: dict=None, item: object=None) -> dict: 
+def transpose_data(string: str=None, obj: object=None, secrets: list=[]) -> dict: 
     """ 
-    Builds an expression list (exp_list = []) based 
-    on the passed 'item' and `Automation`.
+    Using 'definitions.py' replaces all vairables with definition data.
 
     Expects: {
-        'item'       :  object (Scan, Test, Testcase),
-        'automation' :  object
+        'string'    : str (to be transposed)
+        'obj'       : object (Scan, Test, CaseRun, Report),
+        'secrets'   : list (account secrets)
     }
 
-    Returns -> dict
+    Returns -> transposed string
     """
 
-    # looping through json_data to 
-    # update values with item.data
-    for key in json_data:
+    # decryption helper
+    def decrypt_secret(value):
+        f = Fernet(settings.SECRETS_KEY)
+        decoded = f.decrypt(value)
+        return decoded.decode('utf-8')
 
-        # high-level test score
-        if 'test_score' == json_data[key]:
-            json_data[key] = item.score
-        elif 'current_health' == json_data[key]:
-            json_data[key] = (float(item.lighthouse_delta["scores"]["average"]) + float(item.yellowlab_delta["scores"]["globalScore"])/2)
-        elif 'avg_image_score' == json_data[key]:
-            json_data[key] = item.images_delta["average_score"]
-        elif 'image_scores' == json_data[key]:
-            json_data[key] = [i["score"] for i in item.images_delta["images"]]
+    # create secrets_list
+    secrets_list = []
+    for secret in secrets:
+        secrets_list.append({
+            'key': '{{'+str(secret.name)+'}}',
+            'value': decrypt_secret(secret.value)
+        })
 
-        # high-level scan score
-        elif 'health' == json_data[key]:
-            json_data[key] = (float(item.lighthouse["scores"]["average"]) + float(item.yellowlab["scores"]["globalScore"])/2)
-        elif 'logs' == json_data[key]:
-            json_data[key] = len(item.logs)
+    # iterate through secrets and replace data 
+    for item in secrets_list:
+        string = string.replace(
+            item['key'], 
+            item['value']
+        )
 
-        # LH test data
-        elif 'seo_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["seo_delta"]
-        elif 'pwa_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["pwa_delta"]
-        elif 'crux_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["crux_delta"]
-        elif 'best_practices_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["best_practices_delta"]
-        elif 'performance_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["performance_delta"]
-        elif 'accessibility_delta' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["accessibility_delta"]
-        elif 'current_lighthouse_average' == json_data[key]:
-            json_data[key] = item.lighthouse_delta["scores"]["current_average"]
-        
-        # LH scan data
-        elif 'seo' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["seo"]
-        elif 'pwa' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["pwa"]
-        elif 'crux' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["crux"]
-        elif 'best_practice' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["best_practices"]
-        elif 'performance' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["performance"]
-        elif 'accessibility' == json_data[key]:
-            json_data[key] = item.lighthouse["scores"]["accessibility"]
+    # iterate through definitions and 
+    # replace {{vairables}} with str(value) first
+    for item in definitions:
+        string = string.replace(
+            ('{{'+str(item['key'])+'}}'), 
+            str(item['value'])
+        )
 
-        # YL test data
-        elif 'current_yellowlab_average' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["current_average"]
-        elif 'pageWeight_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["pageWeight_delta"]
-        elif 'images_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["images_delta"]
-        elif 'domComplexity_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["domComplexity_delta"]
-        elif 'javascriptComplexity_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["javascriptComplexity_delta"]
-        elif 'badJavascript_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["badJavascript_delta"]
-        elif 'jQuery_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["jQuery_delta"]
-        elif 'cssComplexity_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["cssComplexity_delta"]
-        elif 'badCSS_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["badCSS_delta"]
-        elif 'fonts_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["fonts_delta"]
-        elif 'serverConfig_delta' == json_data[key]:
-            json_data[key] = item.yellowlab_delta["scores"]["serverConfig_delta"]
-        
-        # YL scan data
-        elif 'yellowlab_average' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["globalScore"]
-        elif 'pageWeight' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["pageWeight"]
-        elif 'images' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["images"]
-        elif 'domComplexity' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["domComplexity"]
-        elif 'javascriptComplexity' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["javascriptComplexity"]
-        elif 'badJavascript' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["badJavascript"]
-        elif 'jQuery' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["jQuery"]
-        elif 'cssComplexity' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["cssComplexity"]
-        elif 'badCSS' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["badCSS"]
-        elif 'fonts' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["fonts"]
-        elif 'serverConfig' == json_data[key]:
-            json_data[key] = item.yellowlab["scores"]["serverConfig"]
+    # iterate through definitions and replace 
+    # str(value) with eval(str(value))
+    for item in definitions:
+        if item['value'] in string:
+            value = eval(item['value'])
+            data = value if value is not None else 0
+            string = string.replace(
+                str(item['value']), 
+                str(data)
+            )
 
-    # return updated json
-    return json_data
+    # return updated string
+    return string
 
 
 
 
-def get_item(object_id: str=None) -> dict:
+def get_obj(object_id: str=None) -> dict:
     """ 
     Tries to find an object that matches theh passed 'object_id'.
 
@@ -514,44 +343,58 @@ def get_item(object_id: str=None) -> dict:
     }
 
     Returns -> data: {
-        'item'      : object (Scan, Test, Testcase),
-        'item_type' : str,
-        'success'   : bool
+        'obj'      : object (Scan, Test, CaseRun, FlowRun, Report),
+        'obj_type' : str,
+        'success'  : bool
     }
     """
 
-    # init item
-    item = None
-    item_type = ''
+    # init obj
+    obj = None
+    obj_type = ''
     success = False
 
-    # check for item
-    if not item:
+    # check for obj
+    if not obj:
         try:
-            item = Test.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Test'
+            obj = Test.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'Test'
             success = True
         except:
             pass
-    if not item:
+    if not obj:
         try:
-            item = Scan.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Scan'
+            obj = Scan.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'Scan'
             success = True
         except:
             pass
-    if not item:
+    if not obj:
         try:
-            item = Testcase.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Testcase'
+            obj = CaseRun.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'CaseRun'
+            success = True
+        except:
+            pass
+    if not obj:
+        try:
+            obj = FlowRun.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'FlowRun'
+            success = True
+        except:
+            pass
+    if not obj:
+        try:
+            obj = Report.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'Report'
             success = True
         except:
             pass
     
     # format and return data
     data = {
-        'item': item,
-        'item_type': item_type, 
+        'obj': obj,
+        'obj_type': obj_type, 
         'success': success
     }
 
@@ -560,14 +403,14 @@ def get_item(object_id: str=None) -> dict:
 
 
 
-def automation_email(email: str=None, automation_id: str=None, object_id: str=None) -> dict:
+def alert_email(email: str=None, alert_id: str=None, object_id: str=None) -> dict:
     """
-    Sends an automation email to the User with 
+    Sends an alert email to the User with 
     the passed 'email'
 
     Expects: {
         'email'         : str,
-        'automation_id' : str,
+        'alert_id' : str,
         'object_id'     : str
     }
 
@@ -577,47 +420,51 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
     """
 
     # check if data is present
-    if email and automation_id:
+    if email and alert_id:
 
-        # get automation 
-        automation = Automation.objects.get(id=automation_id)
-        schedule = automation.schedule
+        # get alert 
+        alert = Alert.objects.get(id=alert_id)
+        schedule = alert.schedule
     
         # getting object
-        data = get_item(object_id=object_id)
+        data = get_obj(object_id=object_id)
         if not data['success']:
             return {'success': False}
 
         # getting object data
-        item = data['item']
-        item_type = data['item_type']
+        obj = data['obj']
+        obj_type = data['obj_type']
+
+        # clean obj_type
+        obj_name = obj_type.replace('Run', '')
 
         # deciding if "page" or "site" scope
-        if item_type == 'Testcase':
-            url = item.site.site_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        if obj_type == 'CaseRun' or obj_type == 'FlowRun':
+            url = obj.site.site_url
         else:
-            url = item.page.page_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+            url = obj.page.page_url
 
-        # generating expressions from automation
+        # build dash link
+        dash_link = f'{settings.CLIENT_URL_ROOT}/schedule'
+
+        # generating expressions from alert
         exp_list = create_exp(
-            item=item, 
-            automation=automation
+            obj=obj, 
+            alert=alert
         )['exp_list']
 
         # build email data
-        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type.lower()}/{str(item.id)}'
+        object_url = f'{settings.CLIENT_URL_ROOT}/{obj_type.lower()}/{str(obj.id)}'
         subject = f'Alert for {url}'
         title = f'Alert for {url}'
         pre_header = f'Alert for {url}'
         pre_content = (
-            f'Cursion just finished running a {item_type} for {url}. ' 
+            f'Cursion just finished running a {obj_name} for {url}. ' 
             f'Below are the current stats:'
         )
         content = (
-            f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your '
+            f'This message was triggered by an alert you created. ' 
+            f'You can change the alert and schedule in your '
             f'<a href="{dash_link}">dashboard</a>.'
         )
 
@@ -628,8 +475,8 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
             'pre_content' : pre_content,
             'exp_list': exp_list,
             'object_url' : object_url,
-            'home_page' : os.environ.get('CLIENT_URL_ROOT'),
-            'button_text' : f'View {item_type}',
+            'home_page' : settings.CLIENT_URL_ROOT,
+            'button_text' : f'View {obj_name}',
             'content' : content,
             'email': email,
             'signature' : '- Cheers!',
@@ -652,14 +499,14 @@ def automation_email(email: str=None, automation_id: str=None, object_id: str=No
 
 
 
-def automation_report_email(email: str=None, automation_id: str=None, object_id: str=None) -> dict:
+def alert_report_email(email: str=None, alert_id: str=None, object_id: str=None) -> dict:
     """
-    Sends an automation report email to the User with 
+    Sends an alert report email to the User with 
     the passed 'email'
 
     Expects: {
         'email'         : str,
-        'automation_id' : str,
+        'alert_id' : str,
         'object_id'     : str
     }
 
@@ -669,19 +516,19 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
     """
 
     # check if data is present
-    if email and automation_id:
+    if email and alert_id:
         
         # retrieving user
         user = User.objects.get(email=email)
 
-        # get automation and deciding if "page" or "site" scope
-        automation = Automation.objects.get(id=automation_id)
-        schedule = automation.schedule
+        # get alert and deciding if "page" or "site" scope
+        alert = Alert.objects.get(id=alert_id)
+        schedule = alert.schedule
         
         # get `Report` if exists
         try:
             report = Report.objects.get(id=uuid.UUID(object_id))
-            item_type = 'Report'
+            obj_type = 'Report'
             url = report.page.page_url
         except:
             return {'success': False}
@@ -697,9 +544,9 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
             f'Please click the link below to access and download the PDF.'
         )
         content = (
-            f'\nThis message was triggered by an automation created with Cursion. ' 
-            f'You can change the automation and schedule in your ' 
-            f'<a href="{settings.CLIENT_URL_ROOT}/page/{str(report.page.id)}">dashboard</a>.'
+            f'\nThis message was triggered by an alert created with Cursion. ' 
+            f'You can change the alert and schedule in your ' 
+            f'<a href="{settings.CLIENT_URL_ROOT}/schedule">dashboard</a>.'
         )
 
         context = {
@@ -731,87 +578,14 @@ def automation_report_email(email: str=None, automation_id: str=None, object_id:
 
 
 
-def automation_webhook(
-        request_type: str=None, 
-        request_url: str=None, 
-        request_data: dict=None,
-        automation_id: str=None, 
-        object_id: str=None,
-    ) -> dict:
-    """
-    Sends a GET or POST request to the passed 'request_url'
-    with the passed 'request_data'
-
-    Expects: {
-        'request_type'    : str, 
-        'request_url'     : str, 
-        'request_data'    : dict,
-        'automation_id'   : str, 
-        'object_id'       : str,
-    }
-
-    Returns -> data: {
-        'success': bool
-    }
-    """
-
-    # checking that data is present
-    if request_type and automation_id and request_url and request_data and object_id:
-
-        # deciding if "page" or "site" scope
-        automation = Automation.objects.get(id=automation_id)
-        schedule = automation.schedule
-
-        # getting object
-        data = get_item(object_id=object_id)
-        if not data['success']:
-            return {'success': False}
-
-        # get object and type
-        item = data['item']
-        item_type = data['item_type']
-
-        # deciding if "page" or "site" scope
-        if item_type == 'Testcase':
-            url = item.site.site_url
-        else:
-            url = item.page.page_url
-        
-        # building json
-        pre_json_data = json.loads(request_data)
-        json_data = create_json_data(pre_json_data, item)
-
-        # send the request
-        try:
-            if request_type == 'POST':
-                response = requests.post(request_url, data=json_data)
-            elif request_data == 'GET':
-                response = requests.get(request_url, params=json_data)
-        except:
-            return {'success': False}
-
-        data = {
-            'success': True
-        }
-    
-    else:
-        data = {
-            'success': False
-        }
-        
-    return data
-
-
-
-
-def automation_phone(phone_number: str=None, automation_id: str=None, object_id: str=None) -> dict:
+def alert_phone(phone_number: str=None, alert_id: str=None, object_id: str=None) -> dict:
     """
     Sends an SMS alert to the passed 'phone_number' 
-    with the `Automation` data 
+    with the `Alert` data 
 
     Expects: {
         'phone_number'    : str, 
-        'automation_id'   : str, 
+        'alert_id'        : str, 
         'object_id'       : str,
     }
 
@@ -821,58 +595,58 @@ def automation_phone(phone_number: str=None, automation_id: str=None, object_id:
     """
 
     # checking if data is present
-    if phone_number and automation_id and object_id:
+    if phone_number and alert_id and object_id:
 
-        # getting schedule and automation
-        automation = Automation.objects.get(id=automation_id)
-        schedule = automation.schedule
+        # getting schedule and alert
+        alert = Alert.objects.get(id=alert_id)
+        schedule = alert.schedule
+        account_id = str(schedule.account.id)
 
         # getting object
-        data = get_item(object_id=object_id)
+        data = get_obj(object_id=object_id)
         if not data['success']:
             return {'success': False}
 
         # get obj and type
-        item = data['item']
-        item_type = data['item_type']
+        obj = data['obj']
+        obj_type = data['obj_type']
+
+        # clean obj_type
+        obj_name = obj_type.replace('Run', '')
 
         # deciding if "page" or "site" scope
-        if item_type == 'Testcase':
-            url = item.site.site_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        if obj_type == 'CaseRun' or obj_type == 'FlowRun':
+            url = obj.site.site_url
         else:
-            url = item.page.page_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+            url = obj.page.page_url
+        
+        # build dash link
+        dash_link = f'{settings.CLIENT_URL_ROOT}/schedule'
 
         # build the exp_str
-        exp_str = create_exp(item=item, automation=automation)['exp_str']
+        exp_str = create_exp(obj=obj, alert=alert)['exp_str']
 
         # build message data
-        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type.lower()}/{item.id}'
+        object_url = f'{settings.CLIENT_URL_ROOT}/{obj_type.lower()}/{obj.id}'
         pre_content = (
-            f'Cursion just finished running a {item_type} for {url}. ' 
+            f'Cursion just finished running a {obj_name} for {url}. ' 
             f'Below are the current stats:\n\n{exp_str}\n'
-            f'View {item_type}: {object_url}\n\n'
+            f'View {obj_name}: {object_url}\n\n'
         )
         content = (
-            f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your dashboard: {dash_link}'
+            f'This message was triggered by an alert you created. ' 
+            f'You can change the alert and schedule in your dashboard: {dash_link}'
         )
         body = f'Hi there,\n\n{pre_content}{content}'
-        account_sid = os.environ.get("TWILIO_SID")
-        auth_token  = os.environ.get("TWILIO_AUTH_TOKEN")
-        client = Client(account_sid, auth_token)
 
-        # send message
-        message = client.messages.create(
-            to=phone_number, 
-            from_=os.environ.get('TWILIO_NUMBER'),
+        # send message 
+        data = send_phone(
+            account_id=account_id, 
+            object_id=object_id, 
+            phone_number=phone_number, 
             body=body
         )
-        
-        data = {
-            'success': True
-        }
+        return data        
     
     else:
         data = {
@@ -884,13 +658,13 @@ def automation_phone(phone_number: str=None, automation_id: str=None, object_id:
 
 
 
-def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
+def alert_slack(alert_id: str=None, object_id: str=None) -> dict:
     """
-    Sends a Slack alert with the `Automation` data 
+    Sends a Slack alert with the `Alert` data 
 
     Expects: {
-        'automation_id'   : str, 
-        'object_id'       : str,
+        'alert_id'   : str, 
+        'object_id'  : str,
     }
 
     Returns -> data: {
@@ -899,72 +673,60 @@ def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
     """
 
     # check if data is present
-    if automation_id and object_id:
+    if alert_id and object_id:
         
-        # getting schedule, account and automation
-        automation = Automation.objects.get(id=automation_id)
-        account = Account.objects.get(user=automation.user)
-        schedule = automation.schedule
+        # getting schedule, account and alert
+        alert = Alert.objects.get(id=alert_id)
+        schedule = alert.schedule
+        account = schedule.account
+        
 
         # getting object
-        data = get_item(object_id=object_id)
+        data = get_obj(object_id=object_id)
         if not data['success']:
             return {'success': False}
 
         # get obj and type
-        item = data['item']
-        item_type = data['item_type']
+        obj = data['obj']
+        obj_type = data['obj_type']
 
         # deciding if "page" or "site" scope
-        if item_type == 'Testcase':
-            url = item.site.site_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/site/{str(item.site.id)}'
+        if obj_type == 'CaseRun' or obj_type == 'FlowRun':
+            url = obj.site.site_url
         else:
-            url = item.page.page_url
-            dash_link = f'{settings.CLIENT_URL_ROOT}/page/{str(item.page.id)}'
+            url = obj.page.page_url
+        
+        # build dash link
+        dash_link = f'{settings.CLIENT_URL_ROOT}/schedule'
 
         # build exp_str
-        exp_str = create_exp(item=item, automation=automation)['exp_str']
+        exp_str = create_exp(obj=obj, alert=alert)['exp_str']
+
+        # clean obj_type
+        obj_name = obj_type.replace('Run', '')
 
         # build message data
-        object_url = f'{settings.CLIENT_URL_ROOT}/{item_type}/{item.id}'
+        object_url = f'{settings.CLIENT_URL_ROOT}/{obj_type}/{obj.id}'
         pre_content = (
-            f'Cursion just finished running a `{item_type}` for {url}. ' 
+            f'Cursion just finished running a `{obj_name}` for {url}. ' 
             f'Below are the current stats:\n\n```{exp_str}```\n'
-            f'<{object_url}|*View {item_type}*>\n\n'
+            f'<{object_url}|*View {obj_name}*>\n\n'
         )
         content = (
-            f'This message was triggered by an automation you created. ' 
-            f'You can change the automation and schedule in your '
+            f'This message was triggered by an alert you created. ' 
+            f'You can change the alert and schedule in your '
             f'<{dash_link}|dashboard>.'
         )
         body = f'Hi there,\n\n{pre_content}{content}'
-        token = account.slack['bot_access_token']
-        channel = account.slack['slack_channel_id']
-        client = WebClient(token=token) 
 
-        # send message
-        try:
-            response = client.chat_postMessage(
-                channel=channel,
-                text=(body),
-                block=[
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": body,
-                                    
-                        }
-                    }
-                ]
-            )
-        except SlackApiError as e:
-            assert e.response["error"]
+        # send slack message
+        data = send_slack(
+            account_id=account.id, 
+            object_id=object_id, 
+            body=body
+        )
 
-        data = {
-            'success': True
-        }
+        return data
     
     else:
         data = {
@@ -976,12 +738,19 @@ def automation_slack(automation_id: str=None, object_id: str=None) -> dict:
 
 
 
-def sendgrid_email(message_obj: dict=None) -> dict:
+def sendgrid_email(
+        account_id: str=None, 
+        object_id: str=None, 
+        message_obj: dict=None
+    ) -> dict:
     """
     Tries to send an email via the SendGrid API.
 
-    Expects the following:
+    Expects:{
+        'account_id' : str, 
+        'object_id'  : str,
         'message_obj': dict {
+            'plain_text':   bool,
             'pre_content':  str,
             'content':      str,
             'subject':      str,
@@ -995,16 +764,19 @@ def sendgrid_email(message_obj: dict=None) -> dict:
             'signature':    str,
             'greeting':     str,
         }
+    }
 
-    Returns --> data: {
-        'success': bool
+    Returns: {
+        'success': bool,
+        'message': str
     }
     """
 
     # defining data
+    plain_text = message_obj.get('plain_text', False)
     pre_content = message_obj.get('pre_content')
     content = message_obj.get('content')
-    subject = message_obj.get('subject')
+    subject = message_obj.get('subject', 'Alert from Cursion')
     title = message_obj.get('title')
     pre_header = message_obj.get('pre_header')
     button_text = message_obj.get('button_text')
@@ -1013,6 +785,22 @@ def sendgrid_email(message_obj: dict=None) -> dict:
     object_url = message_obj.get('object_url')
     signature = message_obj.get('signature', '- Cheers!')
     greeting = message_obj.get('greeting', 'Hi there,')
+
+    if account_id:
+        # get account & secrets
+        account = Account.objects.get(id=account_id)
+        secrets = Secret.objects.filter(account=account)
+
+        # get object
+        obj = get_obj(object_id)['obj']
+
+        # cleaning data
+        content = transpose_data(content, obj, secrets)
+        subject = transpose_data(subject, obj, secrets)
+
+        # replacing '\n' with <br>
+        content = content.replace('\n', '<br>')
+        pre_content = content.replace('\n', '<br>')
 
     # build template data
     template_data = {
@@ -1038,35 +826,252 @@ def sendgrid_email(message_obj: dict=None) -> dict:
 
     # init SendGrid message
     message = Mail(
-        from_email=From('hello@cursion.dev', 'Cursion'),  # prod -> settings.EMAIL_HOST_USER
+        from_email=From(settings.EMAIL_HOST_USER, 'Cursion'),
         to_emails=email,  
     )
-    
+
     # attach template data and id
-    message.dynamic_template_data = template_data
-    message.template_id = template
+    if not plain_text:
+        message.dynamic_template_data = template_data
+        message.template_id = template
+    
+    # building message as plain text
+    if plain_text:
+        message.subject = Subject(subject)
+        message.content = [
+            Content(
+                mime_type="text/html",
+                content=content
+            )
+        ]
 
     # send message 
     try:
         sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
         response = sg.send(message)
         status = True
-        error = None
+        msg = 'email sent successfully'
     except Exception as e:
         status = False
-        error = e.message
-        print(e.message)
+        msg = e.message
 
     # formatting resposne
     data = {
         'success': status,
-        'error': error
+        'message': msg
     }
 
     return data
 
 
 
+
+def send_phone(
+        account_id: str=None, 
+        object_id: str=None, 
+        phone_number: str=None, 
+        body: str=None
+    ) -> dict:
+    """ 
+    Using Twilio, sends an SMS with the passed 'body'
+    top the passed 'phone_number'
+
+    Expects: { 
+        'account_id'    : str, 
+        'object_id'     : str,
+        'phone_number'  : str,
+        'body'          : str,
+    }
+
+    Returns: {
+        'success': bool,
+        'message': str
+    }
+    """
+
+    if account_id and object_id:
+        # get account & secrets
+        account = Account.objects.get(id=account_id)
+        secrets = Secret.objects.filter(account=account)
+
+        # get object
+        obj = get_obj(object_id)['obj']
+
+        # cleaning data
+        body = transpose_data(body, obj, secrets)
+
+    try:
+        # setup client
+        account_sid = settings.TWILIO_SID
+        auth_token  = settings.TWILIO_AUTH_TOKEN
+        client = Client(account_sid, auth_token)
+
+        # clean phone_number
+        phone_number = phone_number.strip().replace('(', '').replace(')', '').replace('-', '')
+        phone_number = ''.join(phone_number.split())
+
+        # send message
+        message = client.messages.create(
+            to=phone_number, 
+            from_=settings.TWILIO_NUMBER,
+            body=body
+        )
+        success = True
+        msg = 'sms sent successfully'
+
+    except Exception as e:
+        print(e)
+        success = False
+        msg = str(e)
+    
+    data = {
+        'success': success,
+        'message': msg
+    }
+    return data
+
+
+
+
+def send_slack(
+        account_id: str=None, 
+        object_id: str=None, 
+        body: str=None
+    ) -> dict:
+    """ 
+    Using Slack, sends an message with the passed 'body'
+    top the passed 'account'.channel
+
+    Expects: { 
+        'account_id' : str, 
+        'object_id'  : str,
+        'body'       : str,
+    }
+
+    Returns: {
+        'success': bool,
+        'message': str
+    }
+    """
+
+    if account_id and object_id:
+        # get account & secrets
+        account = Account.objects.get(id=account_id)
+        secrets = Secret.objects.filter(account=account)
+
+        # get object
+        obj = get_obj(object_id)['obj']
+
+        # cleaning data
+        body = transpose_data(body, obj, secrets)
+    
+    try:
+        # setup client
+        token = account.slack['bot_access_token']
+        channel = account.slack['slack_channel_id']
+        client = WebClient(token=token) 
+
+        # send message
+        response = client.chat_postMessage(
+            channel=channel,
+            text=(body),
+            block=[
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": body,        
+                    }
+                }
+            ]
+        )
+        success = True
+        msg = 'slack message sent successfully'
+
+    except SlackApiError as e:
+        print(e)
+        success = False
+        msg = str(e)
+    
+    data = {
+        'success': success,
+        'message': msg
+    }
+    return data
+        
+
+    
+
+def send_webhook(
+        account_id: str=None, 
+        object_id: str=None,
+        request_type: str=None, 
+        url: str=None, 
+        headers: dict=None,
+        payload: dict=None,
+    ) -> dict:
+    """
+    Sends a GET or POST request to the passed 'url'
+    with the passed 'payload' & 'heasders'
+
+    Expects: {
+        'account_id'   : str, 
+        'object_id'    : str,
+        'request_type' : str, 
+        'url'          : str, 
+        'headers'      : dict,
+        'payload'      : dict,
+    }
+
+    Returns: {
+        'success': bool,
+        'message': str
+    }
+    """
+
+    # get account & secrets
+    account = Account.objects.get(id=account_id)
+    secrets = Secret.objects.filter(account=account)
+
+    # get object
+    obj = get_obj(object_id)['obj']
+
+    # cleaning data
+    cleaned_headers = transpose_data(headers, obj, secrets)
+    cleaned_payload = transpose_data(payload, obj, secrets)
+    cleaned_url = transpose_data(url, obj, secrets)
+    
+    # building json
+    json_payload = json.loads(cleaned_payload) if request_type == 'POST' else {}
+    json_headers = json.loads(cleaned_headers)
+
+    # send the request
+    try:
+        if request_type == 'POST':
+            response = requests.post(
+                url=cleaned_url, 
+                headers=json_headers,
+                data=json.dumps(json_payload)
+            ).json()
+
+        elif request_type == 'GET':
+            response = requests.get(
+                url=cleaned_url, 
+                headers=json_headers
+            ).json()
+
+        success = True
+        msg = str(response) 
+    
+    except Exception as e:
+        success = False
+        msg = str(e) 
+    
+    data = {
+        'success': success,
+        'message': msg
+    }
+    return data
 
 
 

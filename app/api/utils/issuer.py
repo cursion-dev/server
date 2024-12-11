@@ -10,11 +10,11 @@ import time, os, json, uuid, random, boto3
 
 class Issuer():
     """ 
-    Generate new `Issue` for the passed 'test' or 'testcase'.
+    Generate new `Issue` for the passed 'test' or 'caserun'.
 
     Expects: {
-        'test'        : object,
-        'testcase'    : object,
+        'test'    : object,
+        'caserun' : object,
     }
 
     Use `Issuer.build_issue()` to generate new `Issue`
@@ -28,12 +28,12 @@ class Issuer():
     def __init__(
             self, 
             test: object=None,
-            testcase: object=None,
+            caserun: object=None,
         ):
          
         # main objects
         self.test = test
-        self.testcase = testcase
+        self.caserun = caserun
         
         # init GPT client
         self.gpt_client = OpenAI(
@@ -46,7 +46,7 @@ class Issuer():
     def build_issue(self):
         """ 
         Creates a new `Issue` based on the info 
-        from the passed "self.test" or "self.testcase"
+        from the passed "self.test" or "self.caserun"
 
         Expects: None
 
@@ -57,15 +57,15 @@ class Issuer():
         title = None
         details = None
         labels = None
-        account = self.test.page.account if self.test else self.testcase.account
+        account = self.test.page.account if self.test else self.caserun.account
         trigger = {
-            'type': 'test' if self.test else 'testcase', 
-            'id': str(self.test.id) if self.test else str(self.testcase.id)
+            'type': 'test' if self.test else 'caserun', 
+            'id': str(self.test.id) if self.test else str(self.caserun.id)
         }
         affected = {
             'type': 'page' if self.test else 'site',
-            'id': str(self.test.page.id) if self.test else str(self.testcase.site.id),
-            'str': self.test.page.page_url if self.test else self.testcase.site.site_url
+            'id': str(self.test.page.id) if self.test else str(self.caserun.site.id),
+            'str': self.test.page.page_url if self.test else self.caserun.site.site_url
         }
 
         # defining detail components 
@@ -74,14 +74,14 @@ class Issuer():
         recommendation = ''
 
         # building details, title, & labels 
-        # for testcase failure
-        if self.testcase:
+        # for caserun failure
+        if self.caserun:
 
-            # get first step that failed in testcase
+            # get first step that failed in caserun
             failed_step = None
             step_index = 0
             step_type = 'action'
-            for step in self.testcase.steps:
+            for step in self.caserun.steps:
                 step_index += 1
                 if step['action']['status'] == 'failed':
                     failed_step = step
@@ -93,11 +93,11 @@ class Issuer():
                     break
 
             # build title
-            title = f'Testcase "{self.testcase.case_name}" Failed'
+            title = f'Case Run "{self.caserun.title}" Failed'
 
             # build intro
             intro = str(
-                f'### Testcase [{self.testcase.case_name}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
+                f'### Case Run [{self.caserun.title}]({settings.CLIENT_URL_ROOT}/{trigger["type"]}/{trigger["id"]})' + 
                 f' failed on **Step {step_index}**, `{failed_step[step_type]["type"]}`.\n\n\n' +
                 f' > Affected Site: [{affected["str"]}]({settings.CLIENT_URL_ROOT}/{affected["type"]}/{affected["id"]})\n\n\n'
             )
@@ -223,8 +223,8 @@ class Issuer():
                         "content": f"Create a recommendation for developers \
                             baseded on this generated issue: '\n\n{details}\n\n'. \
                             The components are portions of a regression test of a website. \
-                            Format with markdown. \
-                            Format each recommendation as a markdown task. \
+                            Format each recommendation with markdown. \
+                            Begin each recommendation with '- [ ]' to format as a task. \
                             Omit the title or header in your response. \
                             Remove any disclaimer or note section. \
                             Remove any reference to 'Test Cases'. \
@@ -236,8 +236,8 @@ class Issuer():
             ).choices[0].message.content
         
         # building recommendation
-        # for self.testcase
-        if self.testcase:
+        # for self.caserun
+        if self.caserun:
 
             # send the initial request
             recommendation = self.gpt_client.chat.completions.create(
@@ -247,8 +247,8 @@ class Issuer():
                         "role": "user", 
                         "content": f"Create a recommendation for developers \
                             baseded on this generated issue: '\n\n{details}\n\n'. \
-                            Format with markdown. \
-                            Format each recommendation as a markdown task. \
+                            Format each recommendation with markdown. \
+                            Begin each recommendation with '- [ ]' to format as a task. \
                             Omit the title or header in your response. \
                             Omit any links in your response. \
                             Remove any disclaimer or notes section. \

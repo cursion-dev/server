@@ -1,0 +1,103 @@
+services:
+  
+
+  server:
+    container_name: cursion-server
+    hostname: cursion-server
+    platform: linux/amd64
+    privileged: true
+    restart: no
+    init: true
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    entrypoint: ["/entrypoint.sh", "server", "local"]
+    env_file:
+      - ./env/.env.local
+    volumes:
+      - server:/app
+    depends_on:
+      - db
+
+
+  db:
+    container_name: cursion-db
+    hostname: cursion-db
+    image:  postgres:14-alpine
+    env_file:
+      - ./env/.env.local
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
+  
+
+  redis:
+    container_name: cursion-redis
+    hostname: cursion-redis
+    image: redis:alpine
+    ports:
+      - "6379"
+
+
+  celery:
+    container_name: cursion-celery
+    hostname: cursion-celery
+    platform: linux/amd64
+    privileged: true
+    restart: no
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/entrypoint.sh", "celery"]
+    volumes:
+      - celery:/app
+    env_file:
+      - ./env/.env.local
+    depends_on:
+      - redis
+      - server
+      - db
+
+
+  beat:
+    container_name: cursion-beat
+    hostname: cursion-beat
+    platform: linux/amd64
+    privileged: true
+    restart: no
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/entrypoint.sh", "beat"]
+    volumes:
+      - beat:/app
+    env_file:
+      - ./env/.env.local
+    depends_on:
+      - redis
+      - celery
+      - server
+      - db
+
+
+  yellowlab:
+    container_name: yellowlab
+    hostname: yellowlab
+    privileged: true
+    restart: no
+    image: cursiondev/ylt
+    ports:
+      - 8383:8383
+    depends_on:
+      - redis
+      - celery 
+      - server
+      - db
+
+
+volumes:
+  pgdata:
+  server:
+  celery:
+  beat:

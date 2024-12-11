@@ -14,6 +14,9 @@ env/.env.prod
 env/.env.stage
 env/.env.remote
 env/.env.prod.db
+env/.env.client.dev
+env/.env.client.prod
+
 
 app/data*
 app/static*
@@ -28,3 +31,4 @@ app/.cache*
 app/.config*
 app/.local*
 app/.pki*
+env/.env.client.dev
