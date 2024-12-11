@@ -9,7 +9,6 @@ on:
     paths:
       - 'app/**'
       - 'Dockerfile'
-      - 'Dockerfile.dev'
       - 'docker-compose.dev.yml'
       - '.github/workflows/**'
 
