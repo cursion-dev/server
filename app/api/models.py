@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from datetime import datetime, timezone as tz
 from django.contrib.postgres.fields import JSONField
 from cursion import settings
-import uuid
+import uuid, secrets
 
 
 
