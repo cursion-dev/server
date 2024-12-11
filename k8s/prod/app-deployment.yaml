@@ -18,11 +18,11 @@ spec:
         - name: regcred
       containers:
         - name: cursion-server
-          image: <IMAGE> # cursiondev/server:latest # 
+          image: <IMAGE> # cursiondev/server:cd77834 #
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
-          command: ["/entrypoint.sh", "app", "remote"]
+          command: ["/entrypoint.sh", "server", "remote"]
           envFrom:
             - configMapRef:
                 name: app-configs

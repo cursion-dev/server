@@ -1375,7 +1375,7 @@ def get_pages_zapier(request: object=None) -> object:
 
     # check account and resource 
     check_data = check_permissions_and_usage(
-        user_id=str(request.user.id), resource=resource, action='get',
+        member=member, resource=resource, action='get',
         id=site_id, id_type='site'
     )
     if not check_data['allowed']:
@@ -2018,7 +2018,7 @@ def get_scans_zapier(request: object=None) -> object:
 
     # check account and resource 
     check_data = check_permissions_and_usage(
-        user_id=str(request.user.id), resource=resource, 
+        member=member, resource=resource, 
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
@@ -2758,7 +2758,7 @@ def get_tests_zapier(request: object=None) -> object:
 
     # check account and resource 
     check_data = check_permissions_and_usage(
-        user_id=str(request.user.id), resource=resource, 
+        member=member, resource=resource, 
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
@@ -3327,7 +3327,7 @@ def get_issues_zapier(request: object=None) -> object:
 
     # check account and resource 
     check_data = check_permissions_and_usage(
-        user_id=str(request.user.id), resource=resource, 
+        member=member, resource=resource, 
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
