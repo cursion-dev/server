@@ -155,6 +155,7 @@ class Alerter():
         
         # build expression string
         self.exp_string = ' '.join(exp_list)
+        print(f'Current EXP -> {self.exp_string}')
 
         # return exp_string
         return self.exp_string
