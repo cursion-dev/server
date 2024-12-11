@@ -108,6 +108,7 @@ class Alerter():
         """
                 
         # begin iteration
+        exp_list = []
         for expression in self.expressions:
 
             # set defaults
@@ -117,7 +118,6 @@ class Alerter():
             joiner = ''
             data_type = 'obj.status'
             value = f"str('{str(expression['value'])}')"
-            exp_list = []
             non_float_types = ['caserun_status', 'test_status', 'flowrun_status']
 
             # get comparison value
@@ -155,7 +155,6 @@ class Alerter():
         
         # build expression string
         self.exp_string = ' '.join(exp_list)
-        print(f'Current EXP -> {self.exp_string}')
 
         # return exp_string
         return self.exp_string
