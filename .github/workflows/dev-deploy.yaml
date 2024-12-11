@@ -25,7 +25,7 @@ jobs:
         username: ${{ secrets.DEV_USER }}
         key: ${{ secrets.DEV_KEY }}
         command_timeout: 30m
-        script: | 
+        script: |  # docker volume rm app_pgdata
           cd ~/app
           git pull origin dev
           docker compose -f docker-compose.dev.yml down

@@ -356,6 +356,13 @@ def get_edges_default():
 
 
 
+def get_license_key():
+    license_key = 'cursion-license-' + secrets.token_hex(32)
+    return license_key
+
+
+
+
 
 
 class Account(models.Model):
@@ -367,7 +374,7 @@ class Account(models.Model):
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True) ## -> NEW!!!!!
+    license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True, default=get_license_key) ## -> NEW!!!!!
     # sites_allowed = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
     # max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
     # max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
