@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core import serializers
 from datetime import date, datetime, timedelta
 from ...models import (
-    Account, Member, Card, Site, Issue, Flow, Schedule,
+    Account, Member, Card, Site, Issue, Schedule, Flow,
     get_meta_default, get_usage_default
 )
 from ..ops.services import delete_site

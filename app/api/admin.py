@@ -136,7 +136,7 @@ class TestAdmin(admin.ModelAdmin):
 class ScanAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed')
     search_fields = ('page__page_url',)
-    actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ] # NEW!!!
+    actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ]
 
     def delete_scans(self, request, queryset):
         for scan in queryset:
@@ -145,7 +145,7 @@ class ScanAdmin(admin.ModelAdmin):
                 account=scan.page.account
             )
     
-    def add_scan_score(self, request, queryset): # NEW!!!
+    def add_scan_score(self, request, queryset):
         for scan in queryset:
             update_scan_score.delay(
                 scan_id=scan.id

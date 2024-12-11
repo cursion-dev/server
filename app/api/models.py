@@ -375,7 +375,7 @@ class Account(models.Model):
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True, default=get_license_key) ## -> NEW!!!!!
-    # sites_allowed = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
+    # max_sites = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
     # max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
     # max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
     # retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
@@ -419,7 +419,7 @@ class Member(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     email = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # created by Account admin
-    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True)
+    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True) ## NEW !!!
     status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
     permissions = models.JSONField(serialize=True, null=True, blank=True, default=get_permissions_default) ## NEW !!!!!!!!
@@ -431,7 +431,7 @@ class Member(models.Model):
 
 
 
-class Secret(models.Model):
+class Secret(models.Model): ### NEW !!!!
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
@@ -532,7 +532,7 @@ class Test(models.Model):
 
 class Case(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  ## RENAMED !!!! from name
+    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  ## RENAMED !!!! from name to title
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -544,17 +544,17 @@ class Case(models.Model):
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.title}' if len(self.title) > 0 else str(id)
+        return f'{self.title}' if len(self.title) > 0 else str(id)  ### REMANED from self.name to self.title
 
 
 
 
-class CaseRun(models.Model):  ## -> RENAME from Testcase !!!!!!!
+class CaseRun(models.Model):  ## -> RENAME from Testcase to CaseRun !!!!!!!
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    title = models.CharField(max_length=500, null=True, blank=True, serialize=True)  ## RENAMED !!!! from case_name
+    title = models.CharField(max_length=500, null=True, blank=True, serialize=True)  ## RENAMED !!!! from case_name to title
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(null=True, blank=True, serialize=True)
@@ -563,7 +563,7 @@ class CaseRun(models.Model):  ## -> RENAME from Testcase !!!!!!!
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.title}_caserun'
+        return f'{self.title}_caserun' ## RENAMED !!! from case.name to title
 
 
 
@@ -646,7 +646,8 @@ class Schedule(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
-    alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
+    alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert') ## NEW !!!!
+    # automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')  ## REMOVE !!!!
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
     task_type = models.CharField(max_length=100, default='test', serialize=True)
@@ -666,7 +667,7 @@ class Schedule(models.Model):
 
 
 
-class Alert(models.Model):  ## -> RENAME from Automation !!!!!!!
+class Alert(models.Model):  ## -> RENAME from Automation to alert !!!!!!!
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
