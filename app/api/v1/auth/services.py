@@ -22,7 +22,7 @@ from .serializers import *
 from ...utils.alerts import send_reset_link
 from ...tasks import send_invite_link_bg, send_remove_alert_bg, create_prospect
 from cursion import settings
-import requests, os, subprocess, secrets
+import requests, os, subprocess, secrets, sys, signal
 
 
 
@@ -1221,21 +1221,14 @@ def t7e(request: object) -> None:
     Returns -> None
     """
 
-    # default
-    success = False
-
     # validating
     if request.query_params.get('license_key') == os.environ.get('LICENSE_KEY'):
-        subprocess.Popen(['pkill -f gunicorn'], 
-            stdout=subprocess.PIPE,
-            user='app',
-        )
-        os.abort()
-        success = True
-        
-    # returning response
-    data = {'success': True}
-    return Response(data, status=status.HTTP_200_OK)
+
+        # terminating
+        try:
+            os.kill(os.getpid(), signal.SIGTERM)
+        except Exception as e:
+            return Response({'success': False}, status=status.HTTP_200_OK)
 
 
 
