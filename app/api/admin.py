@@ -202,7 +202,7 @@ class CaseAdmin(admin.ModelAdmin):
         for case in queryset:
             delete_case(
                 id=case.id,
-                account=case.account
+                user=case.user
             )
 
 
