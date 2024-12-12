@@ -1,30 +1,30 @@
 services:
 
 
-  app:
-    container_name: cursion-app
-    hostname: cursion-app
-    restart: always
+  server:
+    container_name: cursion-server
+    hostname: cursion-server
+    image: cursiondev/server
     platform: linux/amd64
+    pull_policy: always
+    restart: always
     privileged: true
     init: true
-    build:
-      context: .
-      dockerfile: Dockerfile
-    entrypoint: ["/entrypoint.sh", "app", "remote"]
+    entrypoint: ["/entrypoint.sh", "server", "remote"]
     expose:
-      - 8000
+      - "8000"
     env_file:
-      - .env.remote
+      - ./env/.server.env
     volumes:
-      - app:/app
-      - static_volume:/app/static
+      - server:/app
+      - static_volume:/app/staticfiles
 
 
   redis:
     container_name: cursion-redis
     hostname: cursion-redis
     image: redis:alpine
+    platform: linux/amd64
     ports:
       - "6379"
 
@@ -32,93 +32,102 @@ services:
   celery:
     container_name: cursion-celery
     hostname: cursion-celery
+    image: cursiondev/server
+    platform: linux/amd64
+    pull_policy: always
     privileged: true
     restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "celery"]
     env_file:
-      - .env.remote
+      - ./env/.server.env
     volumes:
       - celery:/app
     depends_on:
       - redis
-      - app
+      - server
+      - db
 
 
   beat:
     container_name: cursion-beat
     hostname: cursion-beat
+    image: cursiondev/server
+    platform: linux/amd64
     privileged: true
+    pull_policy: always
     restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
       - beat:/app
     env_file:
-      - .env.remote
+      - ./env/.server.env
     depends_on:
       - redis
       - celery
-      - app
+      - server
+      - db
 
 
   yellowlab:
     container_name: yellowlab
     hostname: yellowlab
+    image: cursiondev/ylt
+    pull_policy: always
+    platform: linux/amd64
     privileged: true
     restart: always
-    image: cursiondev/ylt
     ports:
-      - 8383:8383
+      - "8383:8383"
     depends_on:
       - redis
       - celery 
-      - app
+      - server
+      - db
 
 
   nginx-proxy:
     container_name: nginx-proxy
     hostname: nginx-proxy
     image: cursiondev/nginx
+    pull_policy: always
+    platform: linux/amd64
     restart: always
     ports:
-      - 443:443
-      - 80:80
+      - "443:443"
+      - "80:80"
     volumes:
-      - static_volume:/app/static
+      - static_volume:/app/staticfiles
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
-      - app
+      - server
+      - client
   
   
   nginx-proxy-letsencrypt:
     container_name: nginx-proxy-letsencrypt
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
+    platform: linux/amd64
     env_file:
-      - .env.remote
+      - ./env/.server.env
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
       - vhost:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
       - letsencrypt-acme:/etc/acme.sh
     depends_on:
       - nginx-proxy
       
 
 volumes:
-  app:
+  server:
+  static_volume:
   celery:
   beat:
-  static_volume:
   letsencrypt-acme:
   certs:
   html:
