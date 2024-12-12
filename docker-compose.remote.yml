@@ -45,7 +45,6 @@ services:
     depends_on:
       - redis
       - server
-      - db
 
 
   beat:
@@ -65,7 +64,6 @@ services:
       - redis
       - celery
       - server
-      - db
 
 
   yellowlab:
@@ -82,7 +80,6 @@ services:
       - redis
       - celery 
       - server
-      - db
 
 
   nginx-proxy:
