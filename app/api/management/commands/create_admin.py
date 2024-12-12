@@ -79,4 +79,3 @@ class Command(BaseCommand):
 
         if not Token.objects.filter(user=user).exists():
             Token.objects.create(user=user)
-        # verify()
