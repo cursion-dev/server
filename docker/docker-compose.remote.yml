@@ -14,7 +14,7 @@ services:
     expose:
       - "8000"
     env_file:
-      - ./env/.server.env
+      - ./env/.env.remote
     volumes:
       - server:/app
       - static_volume:/app/staticfiles
@@ -39,7 +39,7 @@ services:
     restart: always
     entrypoint: ["/entrypoint.sh", "celery"]
     env_file:
-      - ./env/.server.env
+      - ./env/.env.remote
     volumes:
       - celery:/app
     depends_on:
@@ -60,7 +60,7 @@ services:
     volumes:
       - beat:/app
     env_file:
-      - ./env/.server.env
+      - ./env/.env.remote
     depends_on:
       - redis
       - celery
@@ -112,7 +112,7 @@ services:
     image: nginxproxy/acme-companion
     platform: linux/amd64
     env_file:
-      - ./env/.server.env
+      - ./env/.env.remote
     volumes:
       - certs:/etc/nginx/certs
       - html:/usr/share/nginx/html
