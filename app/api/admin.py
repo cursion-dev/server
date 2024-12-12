@@ -111,7 +111,7 @@ class SiteAdmin(admin.ModelAdmin):
         for page in queryset:
             delete_page(
                 id=page.id,
-                account=page.account
+                user=page.user
             )
 
 
@@ -202,7 +202,7 @@ class CaseAdmin(admin.ModelAdmin):
         for case in queryset:
             delete_case(
                 id=case.id,
-                account=case.account
+                user=case.user
             )
 
 
@@ -219,7 +219,7 @@ class CaseRunAdmin(admin.ModelAdmin):
         for caserun in queryset:
             delete_caserun(
                 id=caserun.id,
-                account=caserun.account
+                user=caserun.user
             )
 
 

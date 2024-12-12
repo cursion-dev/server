@@ -544,7 +544,7 @@ class Case(models.Model):
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.title}' if len(self.title) > 0 else str(id)  ### REMANED from self.name to self.title
+        return f'{self.title}' if self.title else str(id)  ### REMANED from self.name to self.title
 
 
 
