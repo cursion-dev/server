@@ -100,7 +100,6 @@ services:
       - /var/run/docker.sock:/tmp/docker.sock:ro
     depends_on:
       - server
-      - client
   
   
   nginx-proxy-letsencrypt:
