@@ -5422,8 +5422,12 @@ def create_caserun(request: object=None) -> object:
     run_case.delay(caserun_id=caserun.id)
 
     # serialize and return
-    serializer_context = {'request': request,}
-    data = CaseRunSerializer(caserun, context=serializer_context).data
+    data = {
+        'id': str(caserun.id),
+        'title': str(flowrun.title),
+        'site': str(site.id),
+        'time_created': str(caserun.time_created)
+    }
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -6195,8 +6199,12 @@ def create_flowrun(request: object=None) -> object:
     # event and then run the first instance of flowr.py
 
     # serialize and return
-    serializer_context = {'request': request,}
-    data = FlowRunSerializer(flowrun, context=serializer_context).data
+    data = {
+        'id': str(flowrun.id),
+        'title': str(flowrun.title),
+        'site': str(site.id),
+        'time_created': str(flowrun.time_created)
+    }
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
