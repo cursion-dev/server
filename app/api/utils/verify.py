@@ -1,5 +1,4 @@
 import os, requests, json, signal
-from cursion import settings
 
 
 
@@ -14,7 +13,7 @@ def verify():
         license_key = os.environ.get('LICENSE_KEY')
         api_root = os.environ.get('API_URL_ROOT')
         client_root = os.environ.get('CLIENT_URL_ROOT')
-        url = f'{settings.LANDING_API_ROOT}/ops/verify'
+        url = f'{os.environ.get('LANDING_URL_ROOT')}/ops/verify'
 
         headers = {
             "Content-Type": "application/json",

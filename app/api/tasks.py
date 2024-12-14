@@ -2697,7 +2697,7 @@ def create_prospect(user_email: str=None) -> None:
         _status = 'customer' # account is active and paid
     
     # setup configs
-    url = f'{settings.LANDING_API_ROOT}/ops/prospect'
+    url = f'{settings.LANDING_URL_ROOT}/ops/prospect'
     headers = {
         "content-type": "application/json",
         "Authorization" : f'Token {settings.LANDING_API_KEY}'

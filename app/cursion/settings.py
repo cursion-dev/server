@@ -40,7 +40,7 @@ ALLOWED_HOSTS = [os.environ.get('DJANGO_ALLOWED_HOSTS')]
 
 # URLs & location
 CLIENT_URL_ROOT = os.environ.get('CLIENT_URL_ROOT')
-LANDING_API_ROOT = os.environ.get('LANDING_API_ROOT')
+LANDING_URL_ROOT = os.environ.get('LANDING_URL_ROOT')
 API_URL_ROOT = os.environ.get('API_URL_ROOT')
 YELLOWLAB_ROOT = os.environ.get('YELLOWLAB_ROOT')
 LIGHTHOUSE_ROOT = os.environ.get('LIGHTHOUSE_ROOT')
