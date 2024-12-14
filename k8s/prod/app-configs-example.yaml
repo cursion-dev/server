@@ -10,7 +10,7 @@ data:
   YELLOWLAB_ROOT : "http://ylt-service"
   LIGHTHOUSE_ROOT : "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
   LANDING_API_KEY : ""
-  LANDING_API_ROOT : "https://yourdomain.com"
+  LANDING_URL_ROOT : "https://yourdomain.com"
   LETSENCRYPT_HOST : "api.yourdomain.com"         
   VIRTUAL_HOST : "api.yourdomain.com"            
   VIRTUAL_PORT : "8000"

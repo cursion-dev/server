@@ -810,7 +810,7 @@ def sendgrid_email(
         'pre_content' : pre_content,
         'object_url' : object_url,
         'exp_list': exp_list,
-        'home_page' : settings.LANDING_API_ROOT,
+        'home_page' : settings.LANDING_URL_ROOT,
         'button_text' : button_text,
         'content' : content,
         'signature' : signature,

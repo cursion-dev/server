@@ -37,7 +37,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     driver = driver_init(scale_factor=1)
 
     # nav to report page
-    driver.get(f'{settings.LANDING_API_ROOT}/report/{report_id}')
+    driver.get(f'{settings.LANDING_URL_ROOT}/report/{report_id}')
     time.sleep(5)
 
     # setting screensize
