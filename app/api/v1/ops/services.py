@@ -5424,7 +5424,7 @@ def create_caserun(request: object=None) -> object:
     # serialize and return
     data = {
         'id': str(caserun.id),
-        'title': str(flowrun.title),
+        'title': str(caserun.title),
         'site': str(site.id),
         'time_created': str(caserun.time_created)
     }
