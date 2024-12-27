@@ -2436,7 +2436,7 @@ def reset_account_usage(account_id: str=None) -> None:
     f = '%Y-%m-%d %H:%M:%S.%f'
 
     # reset account.usage
-    def reset_usage(account, timestamp) -> None:
+    def reset_usage(account) -> None:
         # update usage
         account.usage['scans'] = 0
         account.usage['tests'] = 0
