@@ -2556,6 +2556,7 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
         tests = Test.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         scans = Scan.objects.filter(site__account__id=account_id, time_created__lte=max_date)
         caseruns = CaseRun.objects.filter(account__id=account_id, time_created__lte=max_date)
+        flowruns = FlowRun.objects.filter(account__id=account_id, time_created__lte=max_date)
         processes = Process.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
         
         # get all old Logs
@@ -2583,7 +2584,7 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     for caserun in caseruns:
         delete_caserun_s3_bg.delay(caserun.id)
         caserun.delete()
-    for flowrun in flowrun:
+    for flowrun in flowruns:
         flowrun.delete()
     for process in processes:
         process.delete()
