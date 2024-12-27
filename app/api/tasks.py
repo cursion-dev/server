@@ -20,9 +20,11 @@ from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta, timezone
+from redis import Redis
+from contextlib import contextmanager
 from cursion import settings
 import asyncio, boto3, time, requests, \
-json, stripe, inspect, random
+json, stripe, inspect, random, secrets
 
 
 
@@ -39,6 +41,29 @@ class BaseTaskWithRetry(Task):
 
 # setting logger 
 logger = get_task_logger(__name__)
+
+
+
+
+# setting redis client
+redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
+
+
+
+
+# setting locking manager to prevent duplicate tasks
+@contextmanager
+def task_lock(lock_name, timeout=60):
+    lock = redis_client.lock(lock_name, timeout=timeout)
+    acquired = lock.acquire(blocking=False)
+    try:
+        if acquired:
+            yield True
+        else:
+            yield False
+    finally:
+        if acquired:
+            lock.release()
 
 
 
@@ -741,119 +766,124 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     flowrun_id = kwargs.get('flowrun_id')
     node_index = kwargs.get('node_index')
 
-    # checking location
-    if not check_location(configs.get('location', settings.LOCATION)):
-        logger.info('Not running due to location param')
-        return None
+    # check for redis lock
+    redis_id = task_id if task_id else secrets.token_hex(8)
+    lock_name = f"lock:create_scan_bg_{redis_id}"
+    with task_lock(lock_name):
 
-    # setting defaults
-    pages = []
-    sites = []
-    objects = []
+        # checking location
+        if not check_location(configs.get('location', settings.LOCATION)):
+            logger.info('Not running due to location param')
+            return None
 
-    # get account if account_id exists
-    if account_id:
-        account = Account.objects.get(id=account_id)
-        
-    # iterating through resources 
-    # and adding to sites or pages
-    if len(resources) > 0:
-        for item in resources:
+        # setting defaults
+        pages = []
+        sites = []
+        objects = []
+
+        # get account if account_id exists
+        if account_id:
+            account = Account.objects.get(id=account_id)
             
-            # adding to pages
-            if item['type'] == 'page':
-                try:
-                    pages.append(
-                        Page.objects.get(id=item['id'])
-                    )
-                except Exception as e:
-                    print(e)
-            
-            # adding to sites
-            if item['type'] == 'site':
-                try:
-                    sites.append(
-                        Site.objects.get(id=item['id'])
-                    ) 
-                except Exception as e:
-                    print(e)
-    
-    # grabbing all sites because no 
-    # resources were specified and scope is "account"
-    if len(resources) == 0 and scope == 'account':
-        sites = Site.objects.filter(account=account)
-
-    # get all pages from existing sites
-    for site in sites:
-        pages += Page.objects.filter(site=site)
-
-    # creating scans for each page
-    for page in pages:
+        # iterating through resources 
+        # and adding to sites or pages
+        if len(resources) > 0:
+            for item in resources:
+                
+                # adding to pages
+                if item['type'] == 'page':
+                    try:
+                        pages.append(
+                            Page.objects.get(id=item['id'])
+                        )
+                    except Exception as e:
+                        print(e)
+                
+                # adding to sites
+                if item['type'] == 'site':
+                    try:
+                        sites.append(
+                            Site.objects.get(id=item['id'])
+                        ) 
+                    except Exception as e:
+                        print(e)
         
-        # check resource 
-        if check_and_increment_resource(page.account, 'scans'):
+        # grabbing all sites because no 
+        # resources were specified and scope is "account"
+        if len(resources) == 0 and scope == 'account':
+            sites = Site.objects.filter(account=account)
 
-            # create Scan obj
-            scan = Scan.objects.create(
-                site=page.site,
-                page=page,
-                type=type,
-                tags=tags,
-                configs=configs,
-            )
+        # get all pages from existing sites
+        for site in sites:
+            pages += Page.objects.filter(site=site)
 
-            # updating latest_scan info for page
-            page.info['latest_scan']['id'] = str(scan.id)
-            page.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
-            page.info['latest_scan']['time_completed'] = None
-            page.info['latest_scan']['score'] = None
-            page.info['latest_scan']['score'] = None
-            page.save()
+        # creating scans for each page
+        for page in pages:
+            
+            # check resource 
+            if check_and_increment_resource(page.account, 'scans'):
 
-            # updating latest_scan info for site
-            page.site.info['latest_scan']['id'] = str(scan.id)
-            page.site.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
-            page.site.info['latest_scan']['time_completed'] = None
-            page.site.save()
+                # create Scan obj
+                scan = Scan.objects.create(
+                    site=page.site,
+                    page=page,
+                    type=type,
+                    tags=tags,
+                    configs=configs,
+                )
 
-            # adding objects
-            objects.append({
-                'parent': str(scan.page.id),
-                'id': str(scan.id),
-                'status': 'working'
+                # updating latest_scan info for page
+                page.info['latest_scan']['id'] = str(scan.id)
+                page.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
+                page.info['latest_scan']['time_completed'] = None
+                page.info['latest_scan']['score'] = None
+                page.info['latest_scan']['score'] = None
+                page.save()
+
+                # updating latest_scan info for site
+                page.site.info['latest_scan']['id'] = str(scan.id)
+                page.site.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
+                page.site.info['latest_scan']['time_completed'] = None
+                page.site.save()
+
+                # adding objects
+                objects.append({
+                    'parent': str(scan.page.id),
+                    'id': str(scan.id),
+                    'status': 'working'
+                })
+
+                # init scan page in background
+                scan_page_bg.delay(
+                    scan_id=str(scan.id),
+                    alert_id=alert_id,
+                    configs=configs,
+                    flowrun_id=flowrun_id,
+                    node_index=node_index
+                )
+            
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'objects': objects,
+                'node_status': 'working' if len(objects) > 0 else 'failed',
+                'message': f'starting {len(objects)} scans for {page.site.site_url} | run_id: {flowrun_id}'
             })
-
-            # init scan page in background
-            scan_page_bg.delay(
-                scan_id=str(scan.id),
-                alert_id=alert_id,
-                configs=configs,
-                flowrun_id=flowrun_id,
-                node_index=node_index
-            )
         
-    # update flowrun
-    if flowrun_id and flowrun_id != 'None':
-        update_flowrun(**{
-            'flowrun_id': flowrun_id,
-            'node_index': node_index,
-            'objects': objects,
-            'node_status': 'working' if len(objects) > 0 else 'failed',
-            'message': f'starting {len(objects)} scans for {page.site.site_url} | run_id: {flowrun_id}'
-        })
-    
-    # update schedule if task_id is not None
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
-            )
-        except Exception as e:
-            print(e)
-    
-    logger.info('created new Scans')
-    return None
+        # update schedule if task_id is not None
+        if task_id:
+            try:
+                last_run = datetime.now(timezone.utc)
+                Schedule.objects.filter(periodic_task_id=task_id).update(
+                    time_last_run=last_run
+                )
+            except Exception as e:
+                print(e)
+        
+        logger.info('created new Scans')
+        return None
 
 
 
@@ -1359,155 +1389,160 @@ def create_test_bg(self, *args, **kwargs) -> None:
     flowrun_id = kwargs.get('flowrun_id')
     node_index = kwargs.get('node_index')
 
-    # checking location
-    if not check_location(configs.get('location', settings.LOCATION)):
-        logger.info('Not running due to location param')
-        return None
+    # check for redis lock
+    redis_id = task_id if task_id else secrets.token_hex(8)
+    lock_name = f"lock:create_test_bg_{redis_id}"
+    with task_lock(lock_name):
 
-    # create test if none was passed
-    if test_id is None:
-        
-        # setting defaults
-        pages = []
-        sites = []
-        objects = []
-        failed = 0
+        # checking location
+        if not check_location(configs.get('location', settings.LOCATION)):
+            logger.info('Not running due to location param')
+            return None
 
-        # get account if account_id exists
-        if account_id:
-            account = Account.objects.get(id=account_id)
+        # create test if none was passed
+        if test_id is None:
             
-        # iterating through resources 
-        # and adding to sites or pages
-        if len(resources) > 0:
-            for item in resources:
-                
-                # adding to pages
-                if item['type'] == 'page':
-                    try:
-                        pages.append(
-                            Page.objects.get(id=item['id'])
-                        ) 
-                    except Exception as e:
-                        print(e)
-                
-                # adding to sites
-                if item['type'] == 'site':
-                    try:
-                        sites.append(
-                            Site.objects.get(id=item['id'])
-                        ) 
-                    except Exception as e:
-                        print(e)
-        
-        # grabbing all sites because no 
-        # resources were specified and scope is "account"
-        if len(resources) == 0 and scope == 'account':
-            sites = Site.objects.filter(account=account)
+            # setting defaults
+            pages = []
+            sites = []
+            objects = []
+            failed = 0
 
-        # get all pages from existing sites
-        for site in sites:
-            pages += Page.objects.filter(site=site)
-        
-        # create a test for each page
-        for page in pages:
+            # get account if account_id exists
+            if account_id:
+                account = Account.objects.get(id=account_id)
+                
+            # iterating through resources 
+            # and adding to sites or pages
+            if len(resources) > 0:
+                for item in resources:
+                    
+                    # adding to pages
+                    if item['type'] == 'page':
+                        try:
+                            pages.append(
+                                Page.objects.get(id=item['id'])
+                            ) 
+                        except Exception as e:
+                            print(e)
+                    
+                    # adding to sites
+                    if item['type'] == 'site':
+                        try:
+                            sites.append(
+                                Site.objects.get(id=item['id'])
+                            ) 
+                        except Exception as e:
+                            print(e)
             
-            objects.append({
-                'parent': str(page.id),
-                'id': None,
-                'status': 'working'
-            })
+            # grabbing all sites because no 
+            # resources were specified and scope is "account"
+            if len(resources) == 0 and scope == 'account':
+                sites = Site.objects.filter(account=account)
 
-            # check resource 
-            if check_and_increment_resource(page.account, 'tests'):
-
-                # updating latest_test info for page
-                page.info['latest_test']['id'] = 'placeholder'
-                page.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
-                page.info['latest_test']['time_completed'] = None
-                page.info['latest_test']['score'] = None
-                page.info['latest_test']['status'] = 'working'
-                page.save()
-
-                # updating latest_test info for site
-                page.site.info['latest_test']['id'] = 'placeholder'
-                page.site.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
-                page.site.info['latest_test']['time_completed'] = None
-                page.site.info['latest_test']['score'] = None
-                page.site.info['latest_test']['status'] = 'working'
-                page.site.save()
-
-                # create test
-                create_test.delay(
-                    page_id=str(page.id),
-                    type=type,
-                    configs=configs,
-                    tags=tags,
-                    threshold=float(threshold),
-                    pre_scan=pre_scan,
-                    post_scan=post_scan,
-                    alert_id=str(alert_id),
-                    flowrun_id=str(flowrun_id),
-                    node_index=node_index
-                )
+            # get all pages from existing sites
+            for site in sites:
+                pages += Page.objects.filter(site=site)
             
-            else:
-                # update flowrun
-                if flowrun_id and flowrun_id != 'None':
-                    update_flowrun(**{
-                        'flowrun_id': flowrun_id,
-                        'node_index': node_index,
-                        'message': (
-                            f'❌ test for {page.page_url} could not start because this account has reached '+
-                            f'max_allowed_tests for this billing cycle'
-                        )
-                    })
+            # create a test for each page
+            for page in pages:
                 
-                # update last object
-                failed += 1
-                objects[-1]['status'] = 'failed'
-                logger.info('maxed tests reached')
-                return None
+                objects.append({
+                    'parent': str(page.id),
+                    'id': None,
+                    'status': 'working'
+                })
 
-        # update flowrun
-        if flowrun_id and flowrun_id != 'None':
-            update_flowrun(**{
-                'flowrun_id': flowrun_id,
-                'node_index': node_index,
-                'objects': objects,
-                'node_status': 'working',
-                'message': f'created {str(len(objects) - failed)} tests for {page.site.site_url} | run_id: {flowrun_id}'
-            })
-    
-    # get test and run 
-    if test_id:
-        test = Test.objects.get(id=test_id)
-        create_test.delay(
-            test_id=str(test_id),
-            page_id=str(test.page.id),
-            type=type,
-            configs=configs,
-            tags=tags,
-            threshold=float(threshold),
-            pre_scan=pre_scan,
-            post_scan=post_scan,
-            alert_id=str(alert_id),
-            flowrun_id=str(flowrun_id),
-            node_index=node_index
-        )
+                # check resource 
+                if check_and_increment_resource(page.account, 'tests'):
 
-    # update schedule if task_id is not None
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
+                    # updating latest_test info for page
+                    page.info['latest_test']['id'] = 'placeholder'
+                    page.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
+                    page.info['latest_test']['time_completed'] = None
+                    page.info['latest_test']['score'] = None
+                    page.info['latest_test']['status'] = 'working'
+                    page.save()
+
+                    # updating latest_test info for site
+                    page.site.info['latest_test']['id'] = 'placeholder'
+                    page.site.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
+                    page.site.info['latest_test']['time_completed'] = None
+                    page.site.info['latest_test']['score'] = None
+                    page.site.info['latest_test']['status'] = 'working'
+                    page.site.save()
+
+                    # create test
+                    create_test.delay(
+                        page_id=str(page.id),
+                        type=type,
+                        configs=configs,
+                        tags=tags,
+                        threshold=float(threshold),
+                        pre_scan=pre_scan,
+                        post_scan=post_scan,
+                        alert_id=str(alert_id),
+                        flowrun_id=str(flowrun_id),
+                        node_index=node_index
+                    )
+                
+                else:
+                    # update flowrun
+                    if flowrun_id and flowrun_id != 'None':
+                        update_flowrun(**{
+                            'flowrun_id': flowrun_id,
+                            'node_index': node_index,
+                            'message': (
+                                f'❌ test for {page.page_url} could not start because this account has reached '+
+                                f'max_allowed_tests for this billing cycle'
+                            )
+                        })
+                    
+                    # update last object
+                    failed += 1
+                    objects[-1]['status'] = 'failed'
+                    logger.info('maxed tests reached')
+                    return None
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                update_flowrun(**{
+                    'flowrun_id': flowrun_id,
+                    'node_index': node_index,
+                    'objects': objects,
+                    'node_status': 'working',
+                    'message': f'created {str(len(objects) - failed)} tests for {page.site.site_url} | run_id: {flowrun_id}'
+                })
+        
+        # get test and run 
+        if test_id:
+            test = Test.objects.get(id=test_id)
+            create_test.delay(
+                test_id=str(test_id),
+                page_id=str(test.page.id),
+                type=type,
+                configs=configs,
+                tags=tags,
+                threshold=float(threshold),
+                pre_scan=pre_scan,
+                post_scan=post_scan,
+                alert_id=str(alert_id),
+                flowrun_id=str(flowrun_id),
+                node_index=node_index
             )
-        except Exception as e:
-            print(e)
 
-    logger.info('Created new Tests')
-    return None
+        # update schedule if task_id is not None
+        if task_id:
+            try:
+                last_run = datetime.now(timezone.utc)
+                Schedule.objects.filter(periodic_task_id=task_id).update(
+                    time_last_run=last_run
+                )
+            except Exception as e:
+                print(e)
+
+        logger.info('Created new Tests')
+        return None
 
 
 
@@ -1604,91 +1639,96 @@ def create_report_bg(*args, **kwargs) -> None:
     flowrun_id = kwargs.get('flowrun_id')
     node_index = kwargs.get('node_index')
 
-    # setting defaults
-    pages = []
-    sites = []
-    objects = []
+    # check for redis lock
+    redis_id = task_id if task_id else secrets.token_hex(8)
+    lock_name = f"lock:create_report_bg_{redis_id}"
+    with task_lock(lock_name):
 
-    # get account if account_id exists
-    if account_id:
-        account = Account.objects.get(id=account_id)
+        # setting defaults
+        pages = []
+        sites = []
+        objects = []
+
+        # get account if account_id exists
+        if account_id:
+            account = Account.objects.get(id=account_id)
+            
+        # iterating through resources 
+        # and adding to sites or pages
+        if len(resources) > 0:
+            for item in resources:
+                
+                # adding to pages
+                if item['type'] == 'page':
+                    try:
+                        pages.append(
+                            Page.objects.get(id=item['id'])
+                        ) 
+                    except Exception as e:
+                        print(e)
+                
+                # adding to sites
+                if item['type'] == 'site':
+                    try:
+                        sites.append(
+                            Site.objects.get(id=item['id'])
+                        ) 
+                    except Exception as e:
+                        print(e)
         
-    # iterating through resources 
-    # and adding to sites or pages
-    if len(resources) > 0:
-        for item in resources:
-            
-            # adding to pages
-            if item['type'] == 'page':
-                try:
-                    pages.append(
-                        Page.objects.get(id=item['id'])
-                    ) 
-                except Exception as e:
-                    print(e)
-            
-            # adding to sites
-            if item['type'] == 'site':
-                try:
-                    sites.append(
-                        Site.objects.get(id=item['id'])
-                    ) 
-                except Exception as e:
-                    print(e)
-    
-    # grabbing all sites because no 
-    # resources were specified and scope is "account"
-    if len(resources) == 0 and scope == 'account':
-        sites = Site.objects.filter(account=account)
+        # grabbing all sites because no 
+        # resources were specified and scope is "account"
+        if len(resources) == 0 and scope == 'account':
+            sites = Site.objects.filter(account=account)
 
-    # get all pages from existing sites
-    for site in sites:
-        pages += Page.objects.filter(site=site)
+        # get all pages from existing sites
+        for site in sites:
+            pages += Page.objects.filter(site=site)
 
-    # record objects for each report
-    for page in pages:
+        # record objects for each report
+        for page in pages:
 
-        objects.append({
-            'parent': str(page.id),
-            'id': None,
-            'status': 'working'
-        })
+            objects.append({
+                'parent': str(page.id),
+                'id': None,
+                'status': 'working'
+            })
 
-    # update flowrun
-    if flowrun_id and flowrun_id != 'None':
-        update_flowrun(**{
-            'flowrun_id': flowrun_id,
-            'node_index': node_index,
-            'objects': objects,
-            'node_status': 'working',
-            'message': f'starting {str(len(objects))} reports for {page.site.site_url} | run_id: {flowrun_id}'
-        })
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'objects': objects,
+                'node_status': 'working',
+                'message': f'starting {str(len(objects))} reports for {page.site.site_url} | run_id: {flowrun_id}'
+            })
 
-    # create reports for each page
-    for page in pages:
+        # create reports for each page
+        for page in pages:
 
-        # sleeping random for DB 
-        time.sleep(random.uniform(2, 6))
+            # sleeping random for DB 
+            time.sleep(random.uniform(2, 6))
 
-        create_report.delay(
-            page_id=page.id,
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index
-        )
-    
-    # update schedule if task_id is not None
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
+            create_report.delay(
+                page_id=page.id,
+                alert_id=alert_id,
+                flowrun_id=flowrun_id,
+                node_index=node_index
             )
-        except Exception as e:
-            print(e)
-    
-    logger.info('Created new Reports')
-    return None
+        
+        # update schedule if task_id is not None
+        if task_id:
+            try:
+                last_run = datetime.now(timezone.utc)
+                Schedule.objects.filter(periodic_task_id=task_id).update(
+                    time_last_run=last_run
+                )
+            except Exception as e:
+                print(e)
+        
+        logger.info('Created new Reports')
+        return None
 
 
 
@@ -1857,134 +1897,139 @@ def create_caserun_bg(*args, **kwargs) -> None:
     flowrun_id = kwargs.get('flowrun_id')
     node_index = kwargs.get('node_index')
 
-    # checking location
-    if not check_location(configs.get('location', settings.LOCATION)):
-        logger.info('Not running due to location param')
-        return None
+    # check for redis lock
+    redis_id = task_id if task_id else secrets.token_hex(8)
+    lock_name = f"lock:create_caserun_bg_{redis_id}"
+    with task_lock(lock_name):
 
-    # settign defaults 
-    case = None
-    steps = None
-    caseruns = []
-    sites = []
-    objects = []
+        # checking location
+        if not check_location(configs.get('location', settings.LOCATION)):
+            logger.info('Not running due to location param')
+            return None
 
-    # get case
-    if case_id:
-        case = Case.objects.get(id=case_id)
+        # settign defaults 
+        case = None
+        steps = None
+        caseruns = []
+        sites = []
+        objects = []
 
-    # update steps
-    if case:
-        steps = requests.get(case.steps['url']).json()
-        for step in steps:
-            if step['action']['type'] != None:
-                step['action']['time_created'] = None
-                step['action']['time_completed'] = None
-                step['action']['exception'] = None
-                step['action']['status'] = None
+        # get case
+        if case_id:
+            case = Case.objects.get(id=case_id)
 
-            if step['assertion']['type'] != None:
-                step['assertion']['time_created'] = None
-                step['assertion']['time_completed'] = None
-                step['assertion']['exception'] = None
-                step['assertion']['status'] = None
+        # update steps
+        if case:
+            steps = requests.get(case.steps['url']).json()
+            for step in steps:
+                if step['action']['type'] != None:
+                    step['action']['time_created'] = None
+                    step['action']['time_completed'] = None
+                    step['action']['exception'] = None
+                    step['action']['status'] = None
 
-    # adding updates
-    if steps:
-        for update in updates:
-            steps[int(update['index'])]['action']['value'] = update['value']
+                if step['assertion']['type'] != None:
+                    step['assertion']['time_created'] = None
+                    step['assertion']['time_completed'] = None
+                    step['assertion']['exception'] = None
+                    step['assertion']['status'] = None
 
-    # getting caserun
-    if caserun_id:
-        caseruns = [CaseRun.objects.get(id=caserun_id),]
-    
-    # creating caserun from case
-    if caserun_id is None:
+        # adding updates
+        if steps:
+            for update in updates:
+                steps[int(update['index'])]['action']['value'] = update['value']
+
+        # getting caserun
+        if caserun_id:
+            caseruns = [CaseRun.objects.get(id=caserun_id),]
         
-        # getting all sites in resources
-        for item in resources:
-            if item['type'] == 'site':
-                try:
-                    sites.append(
-                        Site.objects.get(id=item['id'])
-                    )
-                except Exception as e:
-                    print(e)
-        
-        # add all sites in account if scope == 'account'
-        if scope == 'account' and len(resources) == 0:
-            sites = Site.objects.filter(account__id=account_id)
-
-        # iterate through sites
-        for site in sites:
-
-            # check and increment resource
-            if check_and_increment_resource(site.account, 'caseruns'):
-    
-                # create new caserun
-                caserun = CaseRun.objects.create(
-                    case = case,
-                    title = case.title,
-                    site = site,
-                    user = site.user,
-                    account = site.account,
-                    configs = configs,
-                    steps = steps
-                )
-
-                # add to list
-                caseruns.append(caserun)
-
-                # add to objects
-                objects.append({
-                    'parent': str(site.id),
-                    'id': str(caserun.id),
-                    'status': 'working'
-                })
+        # creating caserun from case
+        if caserun_id is None:
             
-            else:
-                # update flowrun if not able to contiune
-                if flowrun_id and flowrun_id != 'None':
-                    update_flowrun(**{
-                        'flowrun_id': flowrun_id,
-                        'node_index': node_index,
-                        'node_status': 'failed',
-                        'message': (
-                            f'❌ case run could not start because this account has reached '+
-                            f'max_allowed_caseruns for this billing cycle'
+            # getting all sites in resources
+            for item in resources:
+                if item['type'] == 'site':
+                    try:
+                        sites.append(
+                            Site.objects.get(id=item['id'])
                         )
+                    except Exception as e:
+                        print(e)
+            
+            # add all sites in account if scope == 'account'
+            if scope == 'account' and len(resources) == 0:
+                sites = Site.objects.filter(account__id=account_id)
+
+            # iterate through sites
+            for site in sites:
+
+                # check and increment resource
+                if check_and_increment_resource(site.account, 'caseruns'):
+        
+                    # create new caserun
+                    caserun = CaseRun.objects.create(
+                        case = case,
+                        title = case.title,
+                        site = site,
+                        user = site.user,
+                        account = site.account,
+                        configs = configs,
+                        steps = steps
+                    )
+
+                    # add to list
+                    caseruns.append(caserun)
+
+                    # add to objects
+                    objects.append({
+                        'parent': str(site.id),
+                        'id': str(caserun.id),
+                        'status': 'working'
                     })
+                
+                else:
+                    # update flowrun if not able to contiune
+                    if flowrun_id and flowrun_id != 'None':
+                        update_flowrun(**{
+                            'flowrun_id': flowrun_id,
+                            'node_index': node_index,
+                            'node_status': 'failed',
+                            'message': (
+                                f'❌ case run could not start because this account has reached '+
+                                f'max_allowed_caseruns for this billing cycle'
+                            )
+                        })
 
-    # update flowrun
-    if flowrun_id and flowrun_id != 'None':
-        update_flowrun(**{
-            'flowrun_id': flowrun_id,
-            'node_index': node_index,
-            'node_status': 'working',
-            'objects': objects
-        })
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'node_status': 'working',
+                'objects': objects
+            })
 
-    # iterate through caseruns and run
-    for caserun in caseruns:
-        run_case.delay(
-            caserun_id=str(caserun.id),
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index
-        )
-
-    # update schedule if task_id is not None
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
+        # iterate through caseruns and run
+        for caserun in caseruns:
+            run_case.delay(
+                caserun_id=str(caserun.id),
+                alert_id=alert_id,
+                flowrun_id=flowrun_id,
+                node_index=node_index
             )
-        except Exception as e:
-            print(e)
 
-    logger.info('Created CaseRuns')
-    return None
+        # update schedule if task_id is not None
+        if task_id:
+            try:
+                last_run = datetime.now(timezone.utc)
+                Schedule.objects.filter(periodic_task_id=task_id).update(
+                    time_last_run=last_run
+                )
+            except Exception as e:
+                print(e)
+
+        logger.info('Created CaseRuns')
+        return None
 
 
 
@@ -2016,99 +2061,104 @@ def create_flowrun_bg(*args, **kwargs) -> None:
     task_id = kwargs.get('task_id')
     configs = kwargs.get('configs', settings.CONFIGS)
 
-    # checking location
-    if not check_location(configs.get('location', settings.LOCATION)):
-        logger.info('Not running due to location param')
-        return None
+    # check for redis lock
+    redis_id = task_id if task_id else secrets.token_hex(8)
+    lock_name = f"lock:create_flowrun_bg_{redis_id}"
+    with task_lock(lock_name):
 
-    # settign defaults 
-    flow = None
-    sites = []
+        # checking location
+        if not check_location(configs.get('location', settings.LOCATION)):
+            logger.info('Not running due to location param')
+            return None
 
-    # get flow
-    if flow_id:
-        flow = Flow.objects.get(id=flow_id)
+        # settign defaults 
+        flow = None
+        sites = []
 
-    # getting all sites in resources
-    for item in resources:
-        if item['type'] == 'site':
+        # get flow
+        if flow_id:
+            flow = Flow.objects.get(id=flow_id)
+
+        # getting all sites in resources
+        for item in resources:
+            if item['type'] == 'site':
+                try:
+                    sites.append(
+                        Site.objects.get(id=item['id'])
+                    )
+                except Exception as e:
+                    print(e)
+        
+        # add all sites in account if scope == 'account'
+        if scope == 'account' and len(resources) == 0:
+            sites = Site.objects.filter(account__id=account_id)
+
+        # iterate through sites
+        for site in sites:
+
+            # check and increment resource
+            if check_and_increment_resource(site.account, 'flowruns'):
+
+                # set flowrun_id
+                flowrun_id = uuid.uuid4()
+
+                # update nodes
+                _nodes = flow.nodes
+                for i in range(len(_nodes)):
+                    _nodes[i]['data']['status'] = 'queued'
+                    _nodes[i]['data']['finalized'] = False
+                    _nodes[i]['data']['time_started'] = None
+                    _nodes[i]['data']['time_completed'] = None
+                    _nodes[i]['data']['alert_id'] = alert_id
+                    _nodes[i]['data']['objects'] = []
+
+                # updates edges
+                _edges = flow.edges
+                for i in range(len(_edges)):
+                    _edges[i]['animated'] = False
+                    _edges[i]['style'] = None
+
+                # create init log
+                logs = [{
+                    'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'message': f'system starting up for run_id: {str(flowrun_id)}',
+                    'step': '1'
+                },]
+
+                # create flowrun
+                flowrun = FlowRun.objects.create(
+                    id      = flowrun_id,
+                    flow    = flow,
+                    user    = flow.user,
+                    account = flow.account,
+                    site    = site,
+                    title   = flow.title,
+                    nodes   = _nodes,
+                    edges   = _edges,
+                    logs    = logs,
+                    configs = configs
+                )
+
+                # update flow with time_last_run
+                flow = Flow.objects.get(id=flow_id)
+                flow.time_last_run = datetime.now(timezone.utc)
+                flow.save()
+            
+            else:
+                logger.info('max flowruns reached')
+
+        # update schedule if task_id is not None
+        if task_id:
             try:
-                sites.append(
-                    Site.objects.get(id=item['id'])
+                last_run = datetime.now(timezone.utc)
+                Schedule.objects.filter(periodic_task_id=task_id).update(
+                    time_last_run=last_run
                 )
             except Exception as e:
                 print(e)
-    
-    # add all sites in account if scope == 'account'
-    if scope == 'account' and len(resources) == 0:
-        sites = Site.objects.filter(account__id=account_id)
 
-    # iterate through sites
-    for site in sites:
-
-        # check and increment resource
-        if check_and_increment_resource(site.account, 'flowruns'):
-
-            # set flowrun_id
-            flowrun_id = uuid.uuid4()
-
-            # update nodes
-            _nodes = flow.nodes
-            for i in range(len(_nodes)):
-                _nodes[i]['data']['status'] = 'queued'
-                _nodes[i]['data']['finalized'] = False
-                _nodes[i]['data']['time_started'] = None
-                _nodes[i]['data']['time_completed'] = None
-                _nodes[i]['data']['alert_id'] = alert_id
-                _nodes[i]['data']['objects'] = []
-
-            # updates edges
-            _edges = flow.edges
-            for i in range(len(_edges)):
-                _edges[i]['animated'] = False
-                _edges[i]['style'] = None
-
-            # create init log
-            logs = [{
-                'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
-                'message': f'system starting up for run_id: {str(flowrun_id)}',
-                'step': '1'
-            },]
-
-            # create flowrun
-            flowrun = FlowRun.objects.create(
-                id      = flowrun_id,
-                flow    = flow,
-                user    = flow.user,
-                account = flow.account,
-                site    = site,
-                title   = flow.title,
-                nodes   = _nodes,
-                edges   = _edges,
-                logs    = logs,
-                configs = configs
-            )
-
-            # update flow with time_last_run
-            flow = Flow.objects.get(id=flow_id)
-            flow.time_last_run = datetime.now(timezone.utc)
-            flow.save()
-        
-        else:
-            logger.info('max flowruns reached')
-
-    # update schedule if task_id is not None
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
-            )
-        except Exception as e:
-            print(e)
-
-    logger.info('Created FlowRuns')
-    return None
+        logger.info('Created FlowRuns')
+        return None
 
 
 
