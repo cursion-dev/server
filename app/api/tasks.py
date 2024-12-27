@@ -56,14 +56,13 @@ redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
 def task_lock(lock_name, timeout=300):
     lock = redis_client.lock(lock_name, timeout=timeout)
     acquired = lock.acquire(blocking=False)
+    print(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
     try:
-        if acquired:
-            yield True
-        else:
-            yield False
+        yield acquired
     finally:
         if acquired:
             lock.release()
+            print(f"Lock released for {lock_name}")
 
 
 
@@ -769,7 +768,12 @@ def create_scan_bg(self, *args, **kwargs) -> None:
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
     lock_name = f"lock:create_scan_bg_{redis_id}"
-    with task_lock(lock_name):
+    with task_lock(lock_name) as lock_acquired:
+        
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
 
         # checking location
         if not check_location(configs.get('location', settings.LOCATION)):
@@ -1392,7 +1396,12 @@ def create_test_bg(self, *args, **kwargs) -> None:
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
     lock_name = f"lock:create_test_bg_{redis_id}"
-    with task_lock(lock_name):
+    with task_lock(lock_name) as lock_acquired:
+        
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
 
         # checking location
         if not check_location(configs.get('location', settings.LOCATION)):
@@ -1642,7 +1651,12 @@ def create_report_bg(*args, **kwargs) -> None:
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
     lock_name = f"lock:create_report_bg_{redis_id}"
-    with task_lock(lock_name):
+    with task_lock(lock_name) as lock_acquired:
+        
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
 
         # setting defaults
         pages = []
@@ -1900,7 +1914,12 @@ def create_caserun_bg(*args, **kwargs) -> None:
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
     lock_name = f"lock:create_caserun_bg_{redis_id}"
-    with task_lock(lock_name):
+    with task_lock(lock_name) as lock_acquired:
+        
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
 
         # checking location
         if not check_location(configs.get('location', settings.LOCATION)):
@@ -2064,7 +2083,12 @@ def create_flowrun_bg(*args, **kwargs) -> None:
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
     lock_name = f"lock:create_flowrun_bg_{redis_id}"
-    with task_lock(lock_name):
+    with task_lock(lock_name) as lock_acquired:
+        
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
 
         # checking location
         if not check_location(configs.get('location', settings.LOCATION)):
