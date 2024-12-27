@@ -24,6 +24,7 @@ app.conf.update(
     worker_prefetch_multiplier=1,
     worker_hijack_root_logger=False,
     task_always_eager=False,
+    task_reject_on_worker_lost=True,
     worker_cancel_long_running_tasks_on_connection_loss=True,
     worker_max_tasks_per_child=100
 )
