@@ -316,7 +316,7 @@ def check_permissions_and_usage(
 
 
     # handle special cases for site and page
-    if resource == 'site' or resource == 'page':
+    if (resource == 'site' or resource == 'page') and account.user.username != 'admin':
         # check existance
         if url:
             if eval(f'{resource.capitalize()}.objects.filter(account__id="{account.id}", {resource}_url="{url}").exists()'):
@@ -339,7 +339,7 @@ def check_permissions_and_usage(
             
 
     # check for cloud / enterprise plan
-    if (account.type == 'enterprise' or account.type == 'cloud') and resource == 'site':
+    if (account.type == 'enterprise' or account.type == 'cloud') and resource == 'site' and account.user.username != 'admin' :
         
         # add to sites_allowed only for enterprise and cloud plans
         if action == 'add' and account.usage['sites_allowed'] == Site.objects.filter(account=account).count():
@@ -353,7 +353,7 @@ def check_permissions_and_usage(
 
 
     # check usage if action is 'add'
-    if action == 'add' and resource in usage_list:
+    if action == 'add' and resource in usage_list and account.user.username != 'admin':
 
         # check if usage allows for 'add'
         if (int(account.usage[f'{resource}s']) >= int(account.usage[f'{resource}s_allowed'])):
