@@ -13,7 +13,7 @@
 </h1>
 
 <p align="center">
-    <a href="LICENSE" target="_blank">
+    <a href="LICENSE.md" target="_blank">
       <img src='https://img.shields.io/badge/license-GNU-green?style=for-the-badge'/>
     </a>
     <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
