@@ -1,24 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app-deployment
+  name: beat-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app
+      app: beat
   template:
     metadata:
       labels:
-        app: app
+        app: beat
     spec:
       containers:
-        - name: app
+        - name: beat
           image: cursiondev/server:latest
           imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 8000
-          command: ["/entrypoint.sh", "server", "remote"]
+          command: ["/entrypoint.sh", "beat"]
           envFrom:
             - configMapRef:
                 name: app-configs
@@ -30,17 +28,3 @@ spec:
               cpu: "500m"
               memory: "500Mi"
 
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: app-service
-spec:
-  selector:
-    app: app
-  ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
-  type: NodePort

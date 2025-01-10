@@ -14,11 +14,11 @@
 
 <p align="center">
     <a href="LICENSE" target="_blank">
-        <img src='https://img.shields.io/badge/license-GNU-green?style=for-the-badge' />
-    </a>&nbsp;
-    <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge' />&nbsp;
+      <img src='https://img.shields.io/badge/license-GNU-green?style=for-the-badge'/>
+    </a>
+    <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
     <a href='https://github.com/cursion-dev/server/actions'>
-        <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=BUILD STATUS">
+      <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=BUILD STATUS">
     </a>
 </p>
 
