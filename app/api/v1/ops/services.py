@@ -76,7 +76,7 @@ def decrement_resource(account: object, resource: str) -> None:
         'resource' : <str> 'site', 'page', 'schedule'
     }
 
-    Returns: Non
+    Returns: None
     """
 
     # remove 1 from account.usage[{resource}]
@@ -346,21 +346,27 @@ def check_permissions_and_usage(
             account.usage['sites_allowed'] += 1
             account.usage['schedules_allowed'] += 1
             account.save()
-            # update price for sub
-            update_sub_price.delay(account.id)
+            
+            # update price for sub if enterprise
+            if account.type == 'enterprise':
+                update_sub_price.delay(account.id)
 
 
     # check usage if action is 'add'
     if action == 'add' and resource in usage_list:
 
-        # check if usage allows for add
-        if int(account.usage[f'{resource}s']) >= int(account.usage[f'{resource}s_allowed']):
-            return {
-                'allowed': False,
-                'error': f'max {resource}s reached',
-                'code': '426',
-                'status': status.HTTP_426_UPGRADE_REQUIRED
-            }
+        # check if usage allows for 'add'
+        if (int(account.usage[f'{resource}s']) >= int(account.usage[f'{resource}s_allowed'])):
+            
+            # return UPGRADE_REQUIRED if not cloud
+            if account.type != 'cloud':
+                return {
+                    'allowed': False,
+                    'error': f'max {resource}s reached',
+                    'code': '426',
+                    'status': status.HTTP_426_UPGRADE_REQUIRED
+                }
+
         
     # return True
     return {
@@ -1536,6 +1542,9 @@ def create_scan(request: object=None, **kwargs) -> object:
         account.usage['scans'] += 1
         account.save() 
 
+        # Meter new resource with stripe
+        meter_resource.delay(account.id, 1)
+
         # creating scan obj
         created_scan = Scan.objects.create(
             site=p.site,
@@ -2293,6 +2302,9 @@ def create_test(request: object=None, **kwargs) -> object:
         # update account.usage.tests
         account.usage['tests'] += 1
         account.save()
+
+        # Meter new resource with stripe
+        meter_resource.delay(account.id, 1)
 
         # running test in background
         create_test_bg.delay(
@@ -5407,6 +5419,9 @@ def create_caserun(request: object=None) -> object:
     account.usage['caseruns'] += 1
     account.save()
 
+    # Meter new resource with stripe
+    meter_resource.delay(account.id, 1)
+
     # create new tescase 
     caserun = CaseRun.objects.create(
         case = case,
@@ -6150,6 +6165,9 @@ def create_flowrun(request: object=None) -> object:
     # increment account.usage.runs
     account.usage['flowruns'] += 1
     account.save()
+
+    # Meter new resource with stripe
+    meter_resource.delay(account.id, 1)
 
     # set flowrun_id
     flowrun_id = uuid.uuid4()

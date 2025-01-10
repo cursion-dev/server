@@ -5,7 +5,7 @@ from django.core import serializers
 from datetime import date, datetime, timedelta
 from ...models import (
     Account, Member, Card, Site, Issue, Schedule, Flow,
-    get_meta_default, get_usage_default
+    get_meta_default, get_usage_default, Coupon
 )
 from ..ops.services import delete_site
 from ..auth.services import create_or_update_account
@@ -32,11 +32,12 @@ def stripe_setup(request: object) -> object:
         'name'                  : <str> 'free', 'cloud', 'selfhost', 'enterprise' (REQUIRED)
         'interval'              : <str> 'month' or 'year' (REQUIRED)
         'price_amount'          : <int> 1000 == $10 (REQUIRED)
+        'task_amount'           : <int> 1000 == $10 (REQUIRED)
         'sites_allowed'         : <int> total # `Sites` per `Account` (REQUIRED)
         'pages_allowed'         : <int> total # `Pages` per `Site` (REQUIRED)
         'schedules_allowed'     : <int> total # `Schedules` per `Account` (REQUIRED)
         'retention_days'        : <int> total # days to keep data (REQUIRED)
-        'caseruns'              : <str> 'true' or 'false' (OPTIONAL)
+        'caseruns_allowed'      : <int> total # of CaseRuns per `Account` per month (OPTIONAL)
         'scans_allowed'         : <int> total # of `Scans` per `Account` per month (OPTIONAL)
         'tests_allowed'         : <int> total # of `Tests` per `Account` per month (OPTIONAL)
         'caseruns_allowed'      : <int> total # of `CaseRuns` per `Account` per month (OPTIONAL)
@@ -57,8 +58,9 @@ def stripe_setup(request: object) -> object:
     
     # get request data
     name = request.data.get('name')
-    interval = request.data.get('interval') # month or year
+    interval = request.data.get('interval', 'month') # month or year
     price_amount = int(request.data.get('price_amount'))
+    task_amount = int(request.data.get('task_amount'))
     sites_allowed = int(request.data.get('sites_allowed'))
     pages_allowed = int(request.data.get('pages_allowed'))
     schedules_allowed = int(request.data.get('schedules_allowed'))
@@ -77,65 +79,126 @@ def stripe_setup(request: object) -> object:
     # set defaults
     initial_call = True
     client_secret = None
+    default_product = None
+    default_price = None
+    task_product = None
+    task_price = None
+    prices = []
 
-    # build Stripe Product name
-    product_name = f'{name.capitalize()}'
+    # build Stripe Default Product name
+    default_product_name = f'{name.capitalize()}'
 
     # get account 
     account = Account.objects.get(user=user)
+
+    # get cursion task meter
+    meters = stripe.billing.Meter.list()
+    meter = meters['data'][0]
     
     # create new Stripe Customer & Product
     if account.cust_id is None:
-        product = stripe.Product.create(name=product_name)
+        default_product = stripe.Product.create(name=default_product_name)
         customer = stripe.Customer.create(
-            email=request.user.email,
-            name=f'{user.first_name} {user.last_name}'
+            email = request.user.email,
+            name  = f'{user.first_name} {user.last_name}'
         )
 
     # update existing Stripe Customer & Product
     if account.cust_id is not None:
         initial_call = False
-        product = stripe.Product.modify(account.product_id, name=product_name)
+        default_product = stripe.Product.modify(account.product_id, name=default_product_name)
         customer = stripe.Customer.retrieve(account.cust_id)
 
-    # create new Stripe Price 
-    price = stripe.Price.create(
-        product=product.id,
-        unit_amount=price_amount,
-        currency='usd',
-        recurring={'interval': interval,},
+    # create new Stripe Default Price for 
+    default_price = stripe.Price.create(
+        product     = default_product.id,
+        unit_amount = price_amount,
+        currency    = 'usd',
+        recurring   = {'interval': interval,},
     )
+
+    # add to prices
+    prices.append(default_price)
+    
+    # create new Stripe Task Product & Price for CLOUD
+    if name == 'cloud':
+
+        # create task product
+        task_product = stripe.Product.create(name='Tasks')
+
+        # create task price
+        task_price = stripe.Price.create(
+            product        = task_product.id,
+            unit_amount    = task_amount,
+            currency       = 'usd',
+            billing_scheme = 'per_unit',
+            recurring      = {
+                'usage_type' : 'metered', 
+                'interval'   : 'month', 
+                'meter'      : meter['id']
+            },
+        )
+
+        # add to prices
+        prices.append(task_price)
 
     # create new Stripe Subscription if none exists
     if account.sub_id is None:
+
+        # build items
+        items = []
+        for price in prices:
+            items.append({
+                'price': price.id
+            })
+
+        # create subscription
         subscription = stripe.Subscription.create(
-            customer=customer.id,
-            items=[{
-                'price': price.id,
-            }],
-            payment_behavior='default_incomplete',
-            expand=['latest_invoice.payment_intent'],
-            # trial_period_days=7,
+            customer            = customer.id,
+            items               = items,
+            payment_behavior    = 'default_incomplete',
+            expand              = ['latest_invoice.payment_intent'],
+            # trial_period_days   = 7,
         )
 
     # update existing Stripe Subscription
     if account.sub_id is not None:
+
+        # get subscription
         sub = stripe.Subscription.retrieve(account.sub_id)
+
+        # build items
+        items = []
+        i = 0
+        for price in prices:
+            items.append({
+                'id'    : sub['items']['data'][i].id,
+                'price' : price.id
+            })
+            i += 1
+    
+        # updating price defaults and archiving old default_price
+        stripe.Product.modify(default_product.id, default_price=default_price,)
+        stripe.Price.modify(account.price_id, active=False)
+
+        # get old task_price if available
+        if not task_price:
+            for item in sub['items']['data']:
+                if item['price']['recurring']['usage_type'] == 'metered':
+                    task_price_id = item['price']['id']
+                    
+                    # archive old task price
+                    stripe.Price.modify(task_price_id, active=False)
+        
+        # update subscription
         subscription = stripe.Subscription.modify(
             sub.id,
-            cancel_at_period_end=False,
-            pause_collection='',
-            proration_behavior='create_prorations',
-            items=[{
-                'id': sub['items']['data'][0].id,
-                'price': price.id,
-            }],
-            expand=['latest_invoice.payment_intent'],
+            cancel_at_period_end    = False,
+            pause_collection        = '',
+            proration_behavior      = 'create_prorations',
+            items                   = items,
+            expand                  = ['latest_invoice.payment_intent'],
         )
-    
-        # updating price defaults and archiving old price
-        stripe.Product.modify(product.id, default_price=price,)
-        stripe.Price.modify(account.price_id, active=False)
 
     # update `Account` with new Stripe info
     create_or_update_account(
@@ -144,8 +207,8 @@ def stripe_setup(request: object) -> object:
         type                = name,
         cust_id             = customer.id,
         sub_id              = subscription.id,
-        product_id          = product.id,
-        price_id            = price.id,
+        product_id          = default_product.id,
+        price_id            = default_price.id,
         price_amount        = price_amount,
         interval            = interval,
         sites_allowed       = sites_allowed,
@@ -168,8 +231,8 @@ def stripe_setup(request: object) -> object:
     
     # format and return
     data = {
-        'subscription_id' : subscription.id,
-        'client_secret' : client_secret,
+        'subscription_id'   : subscription.id,
+        'client_secret'     : client_secret,
     }
     return Response(data, status=status.HTTP_200_OK)
 
@@ -507,8 +570,29 @@ def get_billing_info(request: object) -> object:
     member = Member.objects.get(user=user)
     account = member.account
 
-    # set default
+    # set defaults
     card = None
+    estimated_cost = None
+
+    # get current task usage overages if cloud
+    if account.type == 'cloud':
+        
+        task_count = 0
+        task_items = ['caseruns', 'flowruns', 'scans', 'tests']
+        
+        for item in task_items:
+            overage = int(account.usage[item]) - int(account.usage[f'{item}_allowed'])
+            if overage > 0:
+                task_count += overage
+        
+        # calc current estimated costs
+        estimated_cost = round(
+            (account.price_amount) + 
+            (
+                (10 - (10 * account.meta['coupon']['discount'])) 
+                * task_count
+            )
+        )
 
     # build plan
     plan = {
@@ -518,6 +602,7 @@ def get_billing_info(request: object) -> object:
         'interval': account.interval,
         'usage': account.usage,
         'meta': account.meta,
+        'estimated_cost': estimated_cost
     }
         
     # get `Card` info if exists
@@ -706,9 +791,12 @@ def get_stripe_invoices(request: object) -> object:
         invoice_body = stripe.Invoice.list(
             customer=account.cust_id,
         )
-        
+
+        # add to invoices list
+        invoices = [i for i in invoice_body.data]
+
         # build list of Stripe Invice objects
-        for invoice in invoice_body.data:
+        for invoice in invoices:
 
             # setting defaults
             items = []
@@ -725,7 +813,8 @@ def get_stripe_invoices(request: object) -> object:
                     'period_start': item['period']['start'],
                     'period_end': item['period']['end'],
                     'quantity': item['quantity'],
-                    'proration': item['proration']
+                    'proration': item['proration'],
+                    'unit_amount': item['price']['unit_amount']
                 })
 
                 # getting product name and interval if item 
@@ -772,5 +861,62 @@ def get_stripe_invoices(request: object) -> object:
     
     # return response
     return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+### ------ Begin Coupon Services ------ ###
+
+
+
+
+def check_coupon(request: object) -> object:
+    """ 
+    Checks the passed 'query' against any existing
+    `Coupon.codes`. If found, returns "success=True" 
+    and the whole `Coupon` object
+
+    Expects: {
+        'request' : <object> (REQUIRED)
+    }
+    
+    Returns -> HTTP Response of serialized `Coupon` objects
+    """
+
+    # get request data
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # get code
+    code = request.query_params.get('code')
+
+    # defaults
+    coupon = None
+    success = False
+
+    # check code against Coupons
+    if Coupon.objects.filter(code=code, status='active').exists():
+        
+        # get coupon object
+        coup = Coupon.objects.get(code=code)
+        success = True
+        coupon = {
+            'id': str(coup.id),
+            'code': str(coup.code),
+            'discount': float(coup.discount),
+        }
+
+    # return
+    data = {
+        'success': success,
+        'coupon': coupon
+    }
+
+    # return response
+    return Response(data, status=status.HTTP_200_OK) 
+
+
+
 
 

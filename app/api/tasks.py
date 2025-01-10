@@ -83,7 +83,8 @@ def s3():
 def check_and_increment_resource(account: object, resource: str) -> bool:
     """ 
     Adds 1 to the Account.usage.{resource} if 
-    {resource}_allowed has not been reached.
+    {resource}_allowed has not been reached or 
+    if account.type is 'cloud'.
 
     Expcets: {
         'account'  : <object>,
@@ -95,14 +96,47 @@ def check_and_increment_resource(account: object, resource: str) -> bool:
 
     # define defaults
     success = False
+    charge_list = ['caseruns', 'flowruns', 'scans', 'tests']
 
-    # check allowance
-    if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+    # handle non-paid, cloud accounts
+    if account.type != 'cloud':
+
+        # check allowance
+        if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+            
+            # increment and update success
+            account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
+            account.save()
+            success = True
+    
+    # handle paid, cloud accounts
+    if account.type == 'cloud':
+
+        # increment chargable resources
+        if resource in charge_list:
+
+            # check chargablility
+            if (int(account.usage[f'{resource}'])) >= int(account.usage[f'{resource}_allowed']):
+
+                # meter resource
+                meter_resource(account.id, 1)
+            
+            # increment and update success
+            account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
+            account.save()
+            success = True
+
         
-        # increment and update success
-        account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
-        account.save()
-        success = True
+        # increment non-chargable resources
+        if resource not in charge_list:
+            
+            # check allowance
+            if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
+                
+                # increment and update success
+                account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
+                account.save()
+                success = True
 
     # return response
     return success
@@ -2502,6 +2536,7 @@ def reset_account_usage(account_id: str=None) -> None:
 
 
 
+
 @shared_task
 def temp_account_reset() -> None:
 
@@ -2513,6 +2548,7 @@ def temp_account_reset() -> None:
         account.save()
 
     return None
+
 
 
 
@@ -2602,6 +2638,41 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     print(f'new price -> {price_amount}')
     
     # return 
+    return None
+
+
+
+
+@shared_task
+def meter_resource(account_id: str=None, count: int=1) -> None:
+    """ 
+    Sends a `MeterEvent` request to Stripe to 
+    track account usage
+
+    Expects: {
+        'account_id' : <str> (REQUIRED)   
+        'count'      : <int> (OPTIONAL)   
+    }
+
+    Returns: None
+    """
+
+    # init Stripe client
+    stripe.api_key = settings.STRIPE_PRIVATE
+
+    # get account
+    account = Account.objects.get(id=account_id)
+
+    # send stripe request
+    stripe.billing.MeterEvent.create(
+        event_name  = 'tasks',
+        payload     = {
+            'stripe_customer_id': account.cust_id, 
+            "value": count
+        },
+    )
+
+    # return
     return None
 
 

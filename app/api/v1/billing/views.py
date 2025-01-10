@@ -109,3 +109,14 @@ class StripeInvoice(APIView):
 
 
 
+class Coupon(APIView):
+    permission_classes = (IsAuthenticated,)
+    https_method_names = ['get',]
+
+    def get(self, request):
+        response = check_coupon(request)
+        return response
+
+
+
+

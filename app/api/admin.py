@@ -241,7 +241,6 @@ class FlowAdmin(admin.ModelAdmin):
 
 
 
-
 @admin.register(FlowRun)
 class FlowRunAdmin(admin.ModelAdmin):
     list_display = ('title', 'account', 'site', 'time_created', 'time_completed', 'status')
@@ -253,6 +252,15 @@ class FlowRunAdmin(admin.ModelAdmin):
 @admin.register(Secret)
 class SecretAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'account', 'time_created',)
+
+
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'discount', 'time_created', 'status',)
+    search_fields = ('code',)
+
 
 
 
