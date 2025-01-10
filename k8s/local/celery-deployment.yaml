@@ -12,20 +12,18 @@ spec:
       labels:
         app: celery
     spec:
-      imagePullSecrets:
-        - name: regcred
       containers:
         - name: celery
-          image: cursion/server:latest
+          image: cursiondev/server:latest
           imagePullPolicy: IfNotPresent
-          command: ["celery", "-A", "cursion", "worker", "--beat", "--scheduler", "django", "--loglevel=info"]
+          command: ["/entrypoint.sh", "celery"]
           envFrom:
             - configMapRef:
                 name: app-configs
           resources:
             limits:
               cpu: "1"
-              memory: "1Gi"
+              memory: "2Gi"
             requests:
               cpu: "500m"
               memory: "500Mi"

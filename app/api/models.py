@@ -369,16 +369,11 @@ class Account(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True)
-    # phone = models.CharField(max_length=50, serialize=True, null=True, blank=True) ## -> REMOVING !!!!
     active = models.BooleanField(default=False, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     type = models.CharField(max_length=1000, serialize=True, null=True, blank=True, default='free')
     code = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
-    license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True, default=get_license_key) ## -> NEW!!!!!
-    # max_sites = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
-    # max_pages = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
-    # max_schedules = models.IntegerField(serialize=True, null=True, blank=True, default=1) ## -> REMOVING!!!!
-    # retention_days = models.IntegerField(serialize=True, null=True, blank=True, default=3) ## -> REMOVING!!!!
+    license_key = models.CharField(max_length=100, serialize=True, null=True, blank=True, default=get_license_key)
     cust_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     sub_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     product_id = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
@@ -388,7 +383,7 @@ class Account(models.Model):
     usage = models.JSONField(serialize=True, null=True, blank=True, default=get_usage_default)
     slack = models.JSONField(serialize=True, null=True, blank=True, default=get_slack_default)
     configs = models.JSONField(serialize=True, null=True, blank=True, default=get_default_configs)
-    info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default) ## -> NEW!!!!!
+    info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default)
     meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
    
 
@@ -419,10 +414,10 @@ class Member(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     email = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # created by Account admin
-    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True) ## NEW !!!
-    status = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # pending, active
-    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  # admin, contributor, client
-    permissions = models.JSONField(serialize=True, null=True, blank=True, default=get_permissions_default) ## NEW !!!!!!!!
+    phone = models.CharField(max_length=50, serialize=True, null=True, blank=True) 
+    status = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # pending, active
+    type = models.CharField(max_length=1000, serialize=True, null=True, blank=True) # admin, contributor, client
+    permissions = models.JSONField(serialize=True, null=True, blank=True, default=get_permissions_default)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
 
     def __str__(self):
@@ -532,7 +527,7 @@ class Test(models.Model):
 
 class Case(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)  ## RENAMED !!!! from name to title
+    title = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -544,17 +539,17 @@ class Case(models.Model):
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
 
     def __str__(self):
-        return f'{self.title}' if self.title else str(id)  ### REMANED from self.name to self.title
+        return f'{self.title}' if self.title else str(id)
 
 
 
 
-class CaseRun(models.Model):  ## -> RENAME from Testcase to CaseRun !!!!!!!
+class CaseRun(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     case = models.ForeignKey(Case, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    title = models.CharField(max_length=500, null=True, blank=True, serialize=True)  ## RENAMED !!!! from case_name to title
+    title = models.CharField(max_length=500, null=True, blank=True, serialize=True)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(null=True, blank=True, serialize=True)
@@ -563,7 +558,7 @@ class CaseRun(models.Model):  ## -> RENAME from Testcase to CaseRun !!!!!!!
     configs = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.title}_caserun' ## RENAMED !!! from case.name to title
+        return f'{self.title}_caserun'
 
 
 
@@ -603,7 +598,7 @@ class Issue(models.Model):
 
 
 
-class Flow(models.Model): ## -> NEW !!!!!!!
+class Flow(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_last_run = models.DateTimeField(serialize=True, null=True, blank=True)
@@ -619,7 +614,7 @@ class Flow(models.Model): ## -> NEW !!!!!!!
 
 
 
-class FlowRun(models.Model): ## -> NEW !!!!!!!
+class FlowRun(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     time_completed = models.DateTimeField(serialize=True, null=True, blank=True)
@@ -646,8 +641,7 @@ class Schedule(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
-    alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert') ## NEW !!!!
-    # automation = models.ForeignKey('Automation', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_auto')  ## REMOVE !!!!
+    alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
     time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
     task_type = models.CharField(max_length=100, default='test', serialize=True)
@@ -667,7 +661,7 @@ class Schedule(models.Model):
 
 
 
-class Alert(models.Model):  ## -> RENAME from Automation to alert !!!!!!!
+class Alert(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=1000, serialize=True, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
@@ -727,6 +721,19 @@ class Log(models.Model):
 
     def __str__(self):
         return f'{self.status}_{self.request_type}_{self.path}'
+
+
+
+
+class Coupon(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    code = models.CharField(max_length=100, serialize=True, null=True, blank=True)
+    discount = models.FloatField(serialize=True, null=True, blank=True)
+    status = models.CharField(max_length=100, serialize=True, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.code}'
 
 
 

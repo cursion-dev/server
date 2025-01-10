@@ -14,12 +14,12 @@ spec:
     spec:
       containers:
         - name: db
-          image: postgres:10-alpine
+          image: postgres:14-alpine
           ports:
             - containerPort: 5432
           envFrom:
             - configMapRef:
-                name: db-configs
+                name: app-configs
           volumeMounts:
             - name: pgdata-volume
               mountPath: /var/lib/postgresql/data

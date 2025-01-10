@@ -1,4 +1,4 @@
-Copyright (c) 2024 Cursion
+Copyright (C) 2025 Cursion
 
 
 Cursion Commercial Software License Terms
