@@ -1538,12 +1538,8 @@ def create_scan(request: object=None, **kwargs) -> object:
                 return Response(data, status=check_data['status'])
             return data
 
-        # increment account.usage.scans
-        account.usage['scans'] += 1
-        account.save() 
-
-        # Meter new resource with stripe
-        meter_resource.delay(account.id, 1)
+        # update usage and meter resource
+        check_and_increment_resource(account.id, 'scans')
 
         # creating scan obj
         created_scan = Scan.objects.create(
@@ -2299,12 +2295,8 @@ def create_test(request: object=None, **kwargs) -> object:
         # add test.id to list
         created_tests.append(str(test.id))
 
-        # update account.usage.tests
-        account.usage['tests'] += 1
-        account.save()
-
-        # Meter new resource with stripe
-        meter_resource.delay(account.id, 1)
+        # update usage and meter resource
+        check_and_increment_resource(account.id, 'tests')
 
         # running test in background
         create_test_bg.delay(
@@ -5415,12 +5407,8 @@ def create_caserun(request: object=None) -> object:
         for update in updates:
             steps[int(update['index'])]['action']['value'] = update['value']
 
-    # increment account.usage.caserun
-    account.usage['caseruns'] += 1
-    account.save()
-
-    # Meter new resource with stripe
-    meter_resource.delay(account.id, 1)
+    # update usage and meter resource
+    check_and_increment_resource(account.id, 'caseruns')
 
     # create new tescase 
     caserun = CaseRun.objects.create(
@@ -6162,12 +6150,8 @@ def create_flowrun(request: object=None) -> object:
     # get site if checks passed
     site = Site.objects.get(id=site_id)
 
-    # increment account.usage.runs
-    account.usage['flowruns'] += 1
-    account.save()
-
-    # Meter new resource with stripe
-    meter_resource.delay(account.id, 1)
+    # update usage and meter resource
+    check_and_increment_resource(account.id, 'flowruns')
 
     # set flowrun_id
     flowrun_id = uuid.uuid4()
@@ -6842,6 +6826,53 @@ def get_process(request: object=None, id: str=None) -> object:
     serializer_context = {'request': request,}
     serialized = ProcessSerializer(process, context=serializer_context)
     data = serialized.data
+    record_api_call(request, data, '200')
+    return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_process(request: object=None, id: str=None) -> object:
+    """
+    Get single `Process` from the passed "id"
+
+    Expects: {
+        'request' : object,
+        'id'      : str 
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='process', 
+        action='delete', id=id, id_type='process'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error'],}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get process if checks passed
+    process = Process.objects.get(id=id)
+
+    # try to revoke celery task
+    try:
+        revoke(process.info.get('task_id'), terminate=True)
+    except Exception as e:
+        print(e)
+
+    # delete process
+    process.delete()
+        
+    # return response
+    data = {'message': 'Process has been deleted'}
     record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
 
