@@ -6864,7 +6864,11 @@ def delete_process(request: object=None, id: str=None) -> object:
 
     # try to revoke celery task
     try:
-        revoke(process.info.get('task_id'), terminate=True)
+        celery.app.control.revoke(
+            process.info.get('task_id'), 
+            terminate=True, 
+            signal='SIGKILL'
+        )
     except Exception as e:
         print(e)
 

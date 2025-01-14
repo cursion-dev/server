@@ -1818,6 +1818,11 @@ def create_auto_cases_bg(
     site = Site.objects.get(id=site_id)
     process = Process.objects.get(id=process_id)
 
+    # get current task and save to process
+    task_id = str(self.request.id)
+    process.info = {'task_id': task_id}
+    process.save()
+
     # init AutoCaser
     AC = AutoCaser(
         site=site,
