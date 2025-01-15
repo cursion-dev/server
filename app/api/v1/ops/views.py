@@ -890,10 +890,14 @@ class Processes(APIView):
 
 class ProcessDetail(APIView):
     permission_classes = (IsAuthenticated,)
-    http_method_names = ['get',]
+    http_method_names = ['get', 'delete']
 
     def get(self, request, id):
         response = get_process(request, id)
+        return response
+    
+    def delete(self, request, id):
+        response = delete_process(request, id)
         return response
 
 

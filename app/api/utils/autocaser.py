@@ -54,6 +54,7 @@ class AutoCaser():
 
         # starting driver
         self.driver = driver_init(
+            browser=self.configs.get('browser'),
             window_size=self.configs.get('window_size'),
             device=self.configs.get('device'),
         )
@@ -292,7 +293,7 @@ class AutoCaser():
     def get_current_elements(self) -> list:
         # returns a list of interactable 
         # elements on the current page and 
-        # removes and duplicates before returning
+        # removes any duplicates before returning
         buttons = self.driver.find_elements(By.TAG_NAME, 'button')
         links = self.driver.find_elements(By.TAG_NAME, 'a')
         forms = self.driver.find_elements(By.TAG_NAME, 'form')
@@ -424,6 +425,7 @@ class AutoCaser():
         # get sub element info
         elem_selector = self.driver.execute_script(self.selector_script, elem)
         elem_xpath = self.driver.execute_script(self.xpath_script, elem)
+        elem_text = self.get_elem_text(selector=elem_selector)
         elem_img = self.get_element_image(element=elem)
         relative_url = self.get_relative_url(self.driver.current_url)
         
@@ -435,6 +437,7 @@ class AutoCaser():
                 'selector': elem_selector,
                 'xpath': elem_xpath,
                 'elem_type': elem.tag_name,
+                'elem_text': elem_text,
                 'placeholder': None,
                 'value': None,
                 'type': None,
@@ -471,6 +474,7 @@ class AutoCaser():
                 'selector': elem_selector,
                 'xpath': elem_xpath,
                 'elem_type': elem.tag_name,
+                'elem_text': elem_text,
                 'placeholder': elem.get_attribute('placeholder'),
                 'value': value,
                 'type': type,
@@ -705,11 +709,11 @@ class AutoCaser():
                 'path': relative_url,
                 'img': form_img,
                 'elements': sub_elements,
-
             })
         
         # return elements array 
         return elements
+
 
 
 

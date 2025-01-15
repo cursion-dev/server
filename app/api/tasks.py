@@ -80,19 +80,22 @@ def s3():
 
 
 
-def check_and_increment_resource(account: object, resource: str) -> bool:
+def check_and_increment_resource(account_id: str, resource: str) -> bool:
     """ 
     Adds 1 to the Account.usage.{resource} if 
     {resource}_allowed has not been reached or 
     if account.type is 'cloud'.
 
     Expcets: {
-        'account'  : <object>,
-        'resource' : <str> 'scan', 'test', 'caserun', etc
+        'account_id'  : <str>,
+        'resource'    : <str> 'scan', 'test', 'caserun', etc
     }
 
     Returns: Bool, True if resource was incremented.
     """
+
+    # get account
+    account = Account.objects.get(id=account_id)
 
     # define defaults
     success = False
@@ -119,7 +122,7 @@ def check_and_increment_resource(account: object, resource: str) -> bool:
             if (int(account.usage[f'{resource}'])) >= int(account.usage[f'{resource}_allowed']):
 
                 # meter resource
-                meter_resource(account.id, 1)
+                meter_resource.delay(account.id, 1)
             
             # increment and update success
             account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
@@ -334,7 +337,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
             )
 
             # check resouce allowance
-            if check_and_increment_resource(site.account, 'scans'):
+            if check_and_increment_resource(site.account.id, 'scans'):
 
                 # create initial scan
                 scan = Scan.objects.create(
@@ -418,7 +421,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
             )
 
             # check resouce allowance
-            if check_and_increment_resource(site.account, 'scans'):
+            if check_and_increment_resource(site.account.id, 'scans'):
 
                 # create initial scan
                 scan = Scan.objects.create(
@@ -859,7 +862,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
         for page in pages:
             
             # check resource 
-            if check_and_increment_resource(page.account, 'scans'):
+            if check_and_increment_resource(page.account.id, 'scans'):
 
                 # create Scan obj
                 scan = Scan.objects.create(
@@ -1308,7 +1311,7 @@ def create_test(
             ).order_by('-time_completed')[0]
 
         # check and increment resources
-        if not check_and_increment_resource(page.account, 'scans'):
+        if not check_and_increment_resource(page.account.id, 'scans'):
             
             # update obects
             objects[-1]['status'] = 'failed'
@@ -1497,7 +1500,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                 })
 
                 # check resource 
-                if check_and_increment_resource(page.account, 'tests'):
+                if check_and_increment_resource(page.account.id, 'tests'):
 
                     # updating latest_test info for page
                     page.info['latest_test']['id'] = 'placeholder'
@@ -1815,6 +1818,11 @@ def create_auto_cases_bg(
     site = Site.objects.get(id=site_id)
     process = Process.objects.get(id=process_id)
 
+    # get current task and save to process
+    task_id = str(self.request.id)
+    process.info = {'task_id': task_id}
+    process.save()
+
     # init AutoCaser
     AC = AutoCaser(
         site=site,
@@ -2017,7 +2025,7 @@ def create_caserun_bg(*args, **kwargs) -> None:
             for site in sites:
 
                 # check and increment resource
-                if check_and_increment_resource(site.account, 'caseruns'):
+                if check_and_increment_resource(site.account.id, 'caseruns'):
         
                     # create new caserun
                     caserun = CaseRun.objects.create(
@@ -2155,7 +2163,7 @@ def create_flowrun_bg(*args, **kwargs) -> None:
         for site in sites:
 
             # check and increment resource
-            if check_and_increment_resource(site.account, 'flowruns'):
+            if check_and_increment_resource(site.account.id, 'flowruns'):
 
                 # set flowrun_id
                 flowrun_id = uuid.uuid4()
