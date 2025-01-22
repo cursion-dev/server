@@ -422,9 +422,21 @@ class Imager():
 
                 # build two new images with differences highlighted
                 def highlight_diffs(pre_img_path, post_img_path, index):
-                    '''
-                    Returns -> two new images with highlights & float(ssim_score)
-                    '''
+                    """
+                    Runs SSIM comparision and highlights 
+                    differences between two passed images
+
+                    Expects: {
+                        pre_img_path  : str,
+                        post_img_path : str,
+                        index         : int,
+                    }
+
+                    Returns: {
+                        'img_objs'   : dict,
+                        'ssim_score' : float
+                    }
+                    """
                     # Load the images
                     image1 = cv2.imread(pre_img_path)
                     image2 = cv2.imread(post_img_path)
@@ -468,6 +480,17 @@ class Imager():
 
                 # saving old images to new test.id path
                 def save_images(pre_img_id, post_img_id, index):
+                    """ 
+                    Saves two images to test.id path in S3 bucket
+
+                    Expects: {
+                        pre_img_id  : uuid,
+                        post_img_id : uuid,
+                        index       : int, 
+                    }
+
+                    Returns: img_objs <list>
+                    """
                     image_ids = [pre_img_id, post_img_id]
                     img_objs = []
                     for img_id in image_ids:
@@ -496,6 +519,17 @@ class Imager():
 
                 # test images with PIL
                 def pil_score(pre_img, post_img):
+                    """ 
+                    Runs pixel ratio comparison on the two 
+                    passed images and returns a score.
+
+                    Expects: {
+                        pre_img  : uuid,
+                        post_img : uuid,
+                    }
+
+                    Returns: pil_img_score <float>
+                    """
                     try:
                         if (pre_img.mode != post_img.mode) \
                                 or (pre_img.size != post_img.size) \
@@ -518,6 +552,17 @@ class Imager():
 
                 # test with cv2
                 def cv2_score(pre_img, post_img):
+                    """ 
+                    Runs cv2 ORB Brute-force comparison on the two 
+                    passed images and returns a score.
+
+                    Expects: {
+                        pre_img  : uuid,
+                        post_img : uuid,
+                    }
+
+                    Returns: cv2_img_score <float>
+                    """
                     try:
                         orb = cv2.ORB_create()
 
