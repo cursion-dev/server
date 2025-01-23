@@ -86,7 +86,7 @@ def check_and_increment_resource(account_id: str, resource: str) -> bool:
     {resource}_allowed has not been reached or 
     if account.type is 'cloud'.
 
-    Expcets: {
+    Expects: {
         'account_id'  : <str>,
         'resource'    : <str> 'scan', 'test', 'caserun', etc
     }
@@ -304,7 +304,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
     Takes a newly created `Site`, initiates a Crawl and 
     initial `Scan` for each crawled page
 
-    Expcets: {
+    Expects: {
         site_id: str, 
         configs: dict
     }
@@ -374,7 +374,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     Takes an existing `Site`, initiates a new Crawl and 
     initial `Scan` for each newly added page
 
-    Expcets: {
+    Expects: {
         site_id: str, 
         configs: dict
     }
@@ -1604,7 +1604,7 @@ def create_report(
     Generates a new PDF `Report` of the requested `Page`
     and runs the associated `Alert` if requested
 
-    Expcets: {
+    Expects: {
         page_id       : str, 
         alert_id      : str,
         flowrun_id    : str
@@ -2452,7 +2452,7 @@ def reset_account_usage(account_id: str=None) -> None:
     if timezone.today() is the start of the 
     next billing cycle, and resets `Account.usage`
 
-    Expcets: {
+    Expects: {
         'account_id': <str> (OPTIONAL)
     }
 

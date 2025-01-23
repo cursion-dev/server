@@ -1214,7 +1214,7 @@ def t7e(request: object) -> None:
     """
     Helper function for validation & verification
     
-    Expcets: {
+    Expects: {
         'request': object
     }
 

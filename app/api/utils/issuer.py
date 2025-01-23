@@ -200,7 +200,7 @@ class Issuer():
         Using OpenAI's Chat GPT, composes a personalized 
         `recommendation` for the primary `Issue` being created. 
 
-        Expcets: {
+        Expects: {
             'details' : str,
         }
 
