@@ -1849,7 +1849,7 @@ def case_pre_run_bg(
         process_id: str=None,
     ) -> None:
     """ 
-    Runs
+    Runs Caser.pre_run() for the passed case_id
 
     Expects: {
         case_id    : str,
