@@ -6,7 +6,7 @@ from PIL import Image as I, ImageChops, ImageStat
 from datetime import datetime
 from asgiref.sync import sync_to_async
 import time, os, sys, json, uuid, boto3, \
-    statistics, shutil, numpy, cv2
+    statistics, shutil, numpy, cv2, requests
 
 
 
@@ -15,28 +15,38 @@ import time, os, sys, json, uuid, boto3, \
 
 class Imager():
     """
-    High level Image handler used to compare screenshots of
-    a website.
+    High level Image handler used to compare screenshots 
+    of a website.
 
     Also known as VRT or Visual Regression Testing.
-    Contains two methods scan() & test():
+    Contains three methods scan_vrt(), test_vrt(), 
+    & caserun_vrt():
 
         def scan_vrt(driver=None) -> using selenium
-            grabs multiple screenshots of the website 
+            grabs screenshots of the website 
             and uploads them to s3.
 
-        def test_vrt(test=<test:object>) -> compares each 
-            screenshot in the two scans and records 
-            a score out of 100%
+        def test_vrt() -> compares each 
+            screenshot in the Test
+
+        def caserun_vrt() -> compares the 
+            screenshot in each step of a CaseRun
     """
 
 
 
 
-    def __init__(self, scan: object=None):
+    def __init__(
+            self, 
+            scan    : object=None, 
+            test    : object=None,
+            caserun : object=None
+        ):
 
-        # main scan object
-        self.scan = scan
+        # primary objects
+        self.scan       = scan
+        self.test       = test
+        self.caserun    = caserun
         
         # main image_array for scans
         self.image_array = []
@@ -140,6 +150,257 @@ class Imager():
         os.remove(image)
 
         return None
+
+
+
+
+    def save_images(
+            self, 
+            pre_img_id: id=None, 
+            post_img_id: id=None, 
+            index: int=0
+        ) -> dict:
+        """ 
+        Saves two images to test.id path in S3 bucket
+
+        Expects: {
+            pre_img_id  : uuid,
+            post_img_id : uuid,
+            index       : int, 
+        }
+
+        Returns: img_objs <list>
+        """
+
+        # build paths based test
+        if self.test:
+            remote_root = f'static/sites/{self.test.page.site.id}/{self.test.page.id}/{self.test.id}/'
+            temp_root = os.path.join(settings.BASE_DIR, f'temp/{self.test.id}')
+        
+        # build paths based caserun
+        if self.caserun:
+            remote_root = f'static/caseruns/{self.caserun.id}/'
+            temp_root = os.path.join(settings.BASE_DIR, f'temp/{self.caserun.id}')
+
+        image_ids = [pre_img_id, post_img_id]
+        img_objs = []
+        for img_id in image_ids:
+            image = os.path.join(temp_root, f'{img_id}.png')
+            remote_path = f'{remote_root}{img_id}.png'
+            root_path = settings.AWS_S3_URL_PATH
+            image_url = f'{root_path}/{remote_path}'
+        
+            # upload to s3
+            with open(image, 'rb') as data:
+                self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                    remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                )
+            
+            # building img obj
+            img_objs.append({
+                "id": str(img_id),
+                "url": image_url,
+                "path": remote_path,
+                "index": index,
+            })
+            
+        return img_objs
+
+
+
+
+    def download_image(
+            self, 
+            url: str=None, 
+            temp_root: str=None
+        ) -> dict:
+        """ 
+        Parses image info and downloads image to local temp_root
+
+        Expects: {
+            'url'       : str, image url,
+            'temp_root' : str, local temp dir
+        }
+
+        Returns: {
+            'name'          : str, image name,
+            'id'            : str, image id,
+            'remote_path'   : str, remote path,
+            'local_path'    : str, local path
+        }
+        """
+        image_name = url.split('/')[-1]
+        image_id = image_name.split('.')[0]
+        remote_path = f'static{url.split('static')[1]}'
+        local_path = os.path.join(temp_root, image_name)
+
+        with open(local_path, 'wb') as data:
+            self.s3.download_fileobj(
+                settings.AWS_STORAGE_BUCKET_NAME, 
+                remote_path, 
+                data
+            )
+
+        # return data
+        return {
+            'name': image_name,
+            'id': image_id,
+            'remote_path': remote_path,
+            'local_path': local_path
+        }
+
+
+
+
+    def highlight_diffs(
+            self, 
+            temp_root: str=None,
+            pre_img_path: str=None, 
+            post_img_path: str=None, 
+            index: int=None
+        ) -> dict:
+        """
+        Runs SSIM comparision and highlights 
+        differences between two passed images
+
+        Expects: {
+            temp_root     : str,
+            pre_img_path  : str,
+            post_img_path : str,
+            index         : int,
+        }
+
+        Returns: {
+            'img_objs'   : dict,
+            'ssim_score' : float
+        }
+        """
+        # Load the images
+        image1 = cv2.imread(pre_img_path)
+        image2 = cv2.imread(post_img_path)
+
+        # Convert the images to grayscale
+        gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+        gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+        # Compute the SSIM map
+        (ssim_score, diff) = structural_similarity(gray1, gray2, full=True)
+
+        # Highlight the differences
+        diff = (diff * 255).astype("uint8")
+
+        # Threshold the difference map
+        _, thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+
+        # Find contours of the differences
+        contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Draw rectangles around the differences
+        for contour in contours:
+            (x, y, w, h) = cv2.boundingRect(contour)
+            cv2.rectangle(image1, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.rectangle(image2, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        # Save the output images
+        img_1_id = uuid.uuid4()
+        img_2_id = uuid.uuid4()
+        cv2.imwrite(temp_root + f"/{img_1_id}.png", image1)
+        cv2.imwrite(temp_root + f"/{img_2_id}.png", image2)                    
+        img_objs = self.save_images(img_1_id, img_2_id, index)
+        
+        data = {
+            "img_objs": img_objs,
+            "ssim_score": ssim_score
+        }
+
+        return data
+
+
+
+
+    def pil_score(
+            self, 
+            pre_img: object=None, 
+            post_img: object=None
+        ) -> float:
+        """ 
+        Runs pixel ratio comparison on the two 
+        passed images and returns a score.
+
+        Expects: {
+            pre_img  : object,
+            post_img : object,
+        }
+
+        Returns: pil_img_score <float>
+        """
+        try:
+            if (pre_img.mode != post_img.mode) \
+                    or (pre_img.size != post_img.size) \
+                    or (pre_img.getbands() != post_img.getbands()):
+                raise Exception('images are not comparable')
+
+            # Generate diff image in memory.
+            diff_img = ImageChops.difference(pre_img, post_img)
+
+            # Calculate difference as a ratio.
+            stat = ImageStat.Stat(diff_img)
+            diff_ratio = (sum(stat.mean) / (len(stat.mean) * 255)) * 100
+            pil_img_score = (100 - diff_ratio)
+            # print(f'PIL score -> {pil_img_score}')
+            return pil_img_score
+        
+        except Exception as e:
+            print(e)
+
+
+
+    
+    def cv2_score(
+            self, 
+            pre_img: object=None, 
+            post_img: object=None
+        ) -> float:
+        """ 
+        Runs cv2 ORB Brute-force comparison on the two 
+        passed images and returns a score.
+
+        Expects: {
+            pre_img  : object,
+            post_img : object,
+        }
+
+        Returns: cv2_img_score <float>
+        """
+        try:
+            orb = cv2.ORB_create()
+
+            # convert to array
+            pre_img_array = numpy.array(pre_img)
+            post_img_array = numpy.array(post_img)
+
+            # detect keypoints and descriptors
+            kp_a, desc_a = orb.detectAndCompute(pre_img_array, None)
+            kp_b, desc_b = orb.detectAndCompute(post_img_array, None)
+
+            # define the bruteforce matcher object
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+                
+            # perform matches. 
+            matches = bf.match(desc_a, desc_b)
+
+            # Look for similar regions with distance < 20. (from 0 to 100)
+            similar_regions = [i for i in matches if i.distance < 20]  
+            if len(matches) == 0:
+                cv2_img_score = 100
+            else:
+                cv2_img_score = (len(similar_regions) / len(matches)) * 100
+                # print(f'cv2 -> {cv2_img_score}')
+                
+            return cv2_img_score
+
+        except Exception as e:
+            print(e)
 
 
 
@@ -332,7 +593,7 @@ class Imager():
 
 
 
-    def test_vrt(self, test: object, index: int=None) -> dict:
+    def test_vrt(self) -> dict:
         """
         Compares each screenshot between the two scans and records 
         a score out of 100%.
@@ -342,9 +603,133 @@ class Imager():
             - PIL ImageChop Differences, Ratio
             - cv2 ORB Brute-force Matcher, Ratio
 
+        Expects: None
+
+        Returns -> data: {
+            'average_score' : float(0-100),
+            'images'        : dict,
+        }
+        """
+
+        # defaults
+        i = 0
+        images_delta = {
+            "average_score": None,
+            "images": None,
+        }
+
+        # setup temp dirs
+        if not os.path.exists(os.path.join(settings.BASE_DIR, f'temp/{self.test.id}')):
+            os.makedirs(os.path.join(settings.BASE_DIR, f'temp/{self.test.id}'))
+        
+        # temp root
+        temp_root = os.path.join(settings.BASE_DIR, f'temp/{self.test.id}')
+    
+        # catching user error
+        if self.test.pre_scan.images is None or self.test.post_scan.images is None:
+            shutil.rmtree(temp_root)
+            return images_delta
+
+        # download images
+        pre_img_info = self.download_image(self.test.pre_scan.images[0].get('url'), temp_root)
+        post_img_info = self.download_image(self.test.post_scan.images[0].get('url'), temp_root)
+
+        # open images with PIL Image library
+        pre_img = I.open(pre_img_info.get('local_path'))
+        post_img = I.open(post_img_info.get('local_path'))
+        
+        # check and reformat image sizes if necessary
+        pre_img_w, pre_img_h = pre_img.size
+        post_img_w, post_img_h = post_img.size
+
+        # pre_img is longer
+        if pre_img_h > post_img_h:
+            print(f'pre_img is larger, adjusting...')
+            new_pre_img = pre_img.crop((0, 0, pre_img_w, post_img_h)).convert(mode=post_img.mode)
+            new_pre_img.save(pre_img_info.get('local_path'), quality=100)
+            pre_img = I.open(pre_img_info.get('local_path'))
+        # post_img is longer
+        if post_img_h > pre_img_h:
+            print(f'post_img is larger, adjusting...')
+            new_post_img = post_img.crop((0, 0, post_img_w, pre_img_h)).convert(mode=pre_img.mode)
+            new_post_img.save(post_img_info.get('local_path'), quality=100)
+            post_img = I.open(post_img_info.get('local_path'))
+
+        # test images
+        try:
+            # generating new highlighted images and score via ssim
+            ssim_results = self.highlight_diffs(
+                temp_root, 
+                pre_img_info.get('local_path'), 
+                post_img_info.get('local_path'), 
+                i
+            )
+            pre_img_diff = ssim_results['img_objs'][0]
+            post_img_diff = ssim_results['img_objs'][1]
+            
+            # ssim scoring
+            ssim_img_score =  ssim_results['ssim_score'] * 100
+
+            # pillow scoring
+            pil_img_score = self.pil_score(pre_img, post_img)
+            
+            # pixel perfect scoring
+            cv2_img_score = self.cv2_score(pre_img, post_img)
+
+            # weighted average
+            img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
+
+            # saving old images to test.id path
+            old_imgs = self.save_images(pre_img_info.get('id'), post_img_info.get('id'), i)
+            pre_img = old_imgs[0]
+            post_img = old_imgs[1]
+
+        except Exception as e:
+            print(e)
+            img_score = None
+            pre_img = None
+            post_img = None
+            pre_img_diff = None
+            post_img_diff = None
+
+        # create img test obj and add to array
+        img_test_obj = [{
+            "index": 0, 
+            "pre_img": pre_img,
+            "post_img": post_img,
+            "pre_img_diff": pre_img_diff, 
+            "post_img_diff": post_img_diff, 
+            "score": img_score,
+        }]
+
+        # remove temp dir
+        shutil.rmtree(temp_root)
+
+        # formatting response
+        images_delta = {
+            "average_score": img_score,
+            "images": img_test_obj,
+        }
+
+        # returning response
+        return images_delta
+
+
+
+
+    def caserun_vrt(self, step: int=None, type: str=None) -> dict:
+        """
+        Compares the passed step.screenshot to the case.step.screenshot
+        and records a score out of 100%.
+
+        Compairsons used : 
+            - Structral Similarity Index (ssim)
+            - PIL ImageChop Differences, Ratio
+            - cv2 ORB Brute-force Matcher, Ratio
+
         Expects: {
-            'test': object, 
-            'index': int,
+            step : int, current step to test
+            type : str, "action" or "assertion"
         }
 
         Returns -> data: {
@@ -353,323 +738,102 @@ class Imager():
         }
         """
 
+        # default 
+        images_delta = {
+            "average_score": None,
+            "images": [{
+                "index": step, 
+                "pre_img": None,
+                "post_img": None,
+                "pre_img_diff": None, 
+                "post_img_diff": None, 
+                "score": None,
+            }],
+        }
+
         # setup temp dirs
-        if not os.path.exists(os.path.join(settings.BASE_DIR, f'temp/{test.id}')):
-            os.makedirs(os.path.join(settings.BASE_DIR, f'temp/{test.id}'))
+        if not os.path.exists(os.path.join(settings.BASE_DIR, f'temp/{self.caserun.id}')):
+            os.makedirs(os.path.join(settings.BASE_DIR, f'temp/{self.caserun.id}'))
         
         # temp root
-        temp_root = os.path.join(settings.BASE_DIR, f'temp/{test.id}')
+        temp_root = os.path.join(settings.BASE_DIR, f'temp/{self.caserun.id}')
         
-        # loop through and download each img in scan and compare it.
-        pre_scan_images = test.pre_scan.images
-        img_test_results = []
-        scores = []
-        i = 0
+        # get image urls
+        case_image_url = requests.get(self.caserun.case.steps['url']).json()[step][type].get('image')
+        caserun_image_url = self.caserun.steps[step][type].get('image')
 
-        if index is not None:
-            pre_scan_images = [test.pre_scan.images[index]]
-            i = index
-
-        # catching user error when scan_type 
-        # did not include 'vrt'
-        if pre_scan_images is None:
-            images_delta = {
-                "average_score": None,
-                "images": None,
-            }
+        # catch null urls and return early
+        if case_image_url is None or caserun_image_url is None:
+            shutil.rmtree(temp_root)
             return images_delta
 
+        # download images
+        case_img_info = self.download_image(case_image_url, temp_root)
+        caserun_img_info = self.download_image(caserun_image_url, temp_root)
 
-        for pre_img_obj in pre_scan_images:
+        # open images with PIL Image library
+        pre_img = I.open(case_img_info.get('local_path'))
+        post_img = I.open(caserun_img_info.get('local_path'))
+
+        # test images
+        try:
+            # generating new highlighted images and score via ssim
+            ssim_results = self.highlight_diffs(
+                temp_root, 
+                case_img_info.get('local_path'), 
+                caserun_img_info.get('local_path'), 
+                step
+            )
+            pre_img_diff = ssim_results['img_objs'][0]
+            post_img_diff = ssim_results['img_objs'][1]
             
-            # getting pre_scan image
-            pre_img_path = os.path.join(temp_root, f'{pre_img_obj["id"]}.png')
-            with open(pre_img_path, 'wb') as data:
-                self.s3.download_fileobj(str(settings.AWS_STORAGE_BUCKET_NAME), pre_img_obj["path"], data)
+            # ssim scoring
+            ssim_img_score =  ssim_results['ssim_score'] * 100
+
+            # pillow scoring
+            pil_img_score = self.pil_score(pre_img, post_img)
             
-            # getting post_scan image
-            try:
-                post_img_obj = test.post_scan.images[i]
-            except:
-                post_img_obj = None
-            
-            if post_img_obj is not None:
-                post_img_path = os.path.join(temp_root, f'{post_img_obj["id"]}.png')
-                with open(post_img_path, 'wb') as data:
-                    self.s3.download_fileobj(str(settings.AWS_STORAGE_BUCKET_NAME), post_img_obj["path"], data)
-                
-                # open images with PIL Image library
-                post_img = I.open(post_img_path)
-                pre_img = I.open(pre_img_path)
-                
-                # check and reformat image sizes if necessary
-                pre_img_w, pre_img_h = pre_img.size
-                post_img_w, post_img_h = post_img.size
+            # pixel perfect scoring
+            cv2_img_score = self.cv2_score(pre_img, post_img)
 
-                # pre_img is longer
-                if pre_img_h > post_img_h:
-                    print(f'pre_img is larger, adjusting...')
-                    new_pre_img = pre_img.crop((0, 0, pre_img_w, post_img_h)).convert(mode=post_img.mode)
-                    new_pre_img.save(pre_img_path, quality=100)
-                    pre_img = I.open(pre_img_path)
-                # post_img is longer
-                if post_img_h > pre_img_h:
-                    print(f'post_img is larger, adjusting...')
-                    new_post_img = post_img.crop((0, 0, post_img_w, pre_img_h)).convert(mode=pre_img.mode)
-                    new_post_img.save(post_img_path, quality=100)
-                    post_img = I.open(post_img_path)
+            # weighted average
+            img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
 
+            # saving old images to caserun.id path
+            old_imgs = self.save_images(case_img_info.get('id'), caserun_img_info.get('id'), step)
+            pre_img = old_imgs[0]
+            post_img = old_imgs[1]
 
-                # build two new images with differences highlighted
-                def highlight_diffs(pre_img_path, post_img_path, index):
-                    """
-                    Runs SSIM comparision and highlights 
-                    differences between two passed images
+        except Exception as e:
+            print(e)
+            img_score = None
+            pre_img = None
+            post_img = None
+            pre_img_diff = None
+            post_img_diff = None
 
-                    Expects: {
-                        pre_img_path  : str,
-                        post_img_path : str,
-                        index         : int,
-                    }
-
-                    Returns: {
-                        'img_objs'   : dict,
-                        'ssim_score' : float
-                    }
-                    """
-                    # Load the images
-                    image1 = cv2.imread(pre_img_path)
-                    image2 = cv2.imread(post_img_path)
-
-                    # Convert the images to grayscale
-                    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-                    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-
-                    # Compute the SSIM map
-                    (ssim_score, diff) = structural_similarity(gray1, gray2, full=True)
-
-                    # Highlight the differences
-                    diff = (diff * 255).astype("uint8")
-
-                    # Threshold the difference map
-                    _, thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-
-                    # Find contours of the differences
-                    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-                    # Draw rectangles around the differences
-                    for contour in contours:
-                        (x, y, w, h) = cv2.boundingRect(contour)
-                        cv2.rectangle(image1, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                        cv2.rectangle(image2, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-                    # Save the output images
-                    img_1_id = uuid.uuid4()
-                    img_2_id = uuid.uuid4()
-                    cv2.imwrite(temp_root + f"/{img_1_id}.png", image1)
-                    cv2.imwrite(temp_root + f"/{img_2_id}.png", image2)                    
-                    img_objs = save_images(img_1_id, img_2_id, index)
-                    
-                    data = {
-                        "img_objs": img_objs,
-                        "ssim_score": ssim_score
-                    }
-
-                    return data
-
-
-                # saving old images to new test.id path
-                def save_images(pre_img_id, post_img_id, index):
-                    """ 
-                    Saves two images to test.id path in S3 bucket
-
-                    Expects: {
-                        pre_img_id  : uuid,
-                        post_img_id : uuid,
-                        index       : int, 
-                    }
-
-                    Returns: img_objs <list>
-                    """
-                    image_ids = [pre_img_id, post_img_id]
-                    img_objs = []
-                    for img_id in image_ids:
-                        image = os.path.join(temp_root, f'{img_id}.png')
-                        remote_path = f'static/sites/{test.page.site.id}/{test.page.id}/{test.id}/{img_id}.png'
-                        root_path = settings.AWS_S3_URL_PATH
-                        image_url = f'{root_path}/{remote_path}'
-                    
-                        # upload to s3
-                        with open(image, 'rb') as data:
-                            self.s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
-                            )
-                        
-                        # building img obj
-                        obj = {
-                            "id": str(img_id),
-                            "url": image_url,
-                            "path": remote_path,
-                            "index": index,
-                        }
-                        img_objs.append(obj)
-                        
-                    return img_objs
-
-
-                # test images with PIL
-                def pil_score(pre_img, post_img):
-                    """ 
-                    Runs pixel ratio comparison on the two 
-                    passed images and returns a score.
-
-                    Expects: {
-                        pre_img  : uuid,
-                        post_img : uuid,
-                    }
-
-                    Returns: pil_img_score <float>
-                    """
-                    try:
-                        if (pre_img.mode != post_img.mode) \
-                                or (pre_img.size != post_img.size) \
-                                or (pre_img.getbands() != post_img.getbands()):
-                            raise Exception('images are not comparable')
-
-                        # Generate diff image in memory.
-                        diff_img = ImageChops.difference(pre_img, post_img)
-
-                        # Calculate difference as a ratio.
-                        stat = ImageStat.Stat(diff_img)
-                        diff_ratio = (sum(stat.mean) / (len(stat.mean) * 255)) * 100
-                        pil_img_score = (100 - diff_ratio)
-                        # print(f'PIL score -> {pil_img_score}')
-                        return pil_img_score
-                    
-                    except Exception as e:
-                        print(e)
-
-
-                # test with cv2
-                def cv2_score(pre_img, post_img):
-                    """ 
-                    Runs cv2 ORB Brute-force comparison on the two 
-                    passed images and returns a score.
-
-                    Expects: {
-                        pre_img  : uuid,
-                        post_img : uuid,
-                    }
-
-                    Returns: cv2_img_score <float>
-                    """
-                    try:
-                        orb = cv2.ORB_create()
-
-                        # convert to array
-                        pre_img_array = numpy.array(pre_img)
-                        post_img_array = numpy.array(post_img)
-
-                        # detect keypoints and descriptors
-                        kp_a, desc_a = orb.detectAndCompute(pre_img_array, None)
-                        kp_b, desc_b = orb.detectAndCompute(post_img_array, None)
-
-                        # define the bruteforce matcher object
-                        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-                            
-                        # perform matches. 
-                        matches = bf.match(desc_a, desc_b)
-
-                        # Look for similar regions with distance < 20. (from 0 to 100)
-                        similar_regions = [i for i in matches if i.distance < 20]  
-                        if len(matches) == 0:
-                            cv2_img_score = 100
-                        else:
-                            cv2_img_score = (len(similar_regions) / len(matches)) * 100
-                            # print(f'cv2 -> {cv2_img_score}')
-                            
-                        return cv2_img_score
-
-                    except Exception as e:
-                        print(e)
-
-
-
-                # test images
-                try:
-                    # generating new highlighted images and score via ssim
-                    ssim_results = highlight_diffs(pre_img_path, post_img_path, i)
-                    pre_img_diff = ssim_results['img_objs'][0]
-                    post_img_diff = ssim_results['img_objs'][1]
-                    
-                    # ssim scoring
-                    ssim_img_score =  ssim_results['ssim_score'] * 100
-
-                    # pillow scoring
-                    pil_img_score = pil_score(pre_img, post_img)
-                    
-                    # pixel perfect scoring
-                    cv2_img_score = cv2_score(pre_img, post_img)
-
-                    # weighted average
-                    img_score = ((ssim_img_score * 2) + (pil_img_score * 1) + (cv2_img_score * 5)) / 8
-
-                    # saving old images to test.id path
-                    old_imgs = save_images(pre_img_obj['id'], post_img_obj['id'], i)
-                    pre_img = old_imgs[0]
-                    post_img = old_imgs[1]
-
-                except Exception as e:
-                    print(e)
-                    img_score = None
-                    pre_img = None
-                    post_img = None
-                    pre_img_diff = None
-                    post_img_diff = None
-
-                # create img test obj and add to array
-                img_test_obj = {
-                    "index": i, 
-                    "pre_img": pre_img,
-                    "post_img": post_img,
-                    "pre_img_diff": pre_img_diff, 
-                    "post_img_diff": post_img_diff, 
-                    "score": img_score,
-                }
-
-                img_test_results.append(img_test_obj)
-                scores.append(img_score)
-
-            # remove local copies
-            if post_img_obj is not None:
-                try:
-                    os.remove(post_img_path)
-                except Exception as e:
-                    print(e)
-            try:        
-                os.remove(pre_img_path)
-            except Exception as e:
-                print(e)
-
-            i += 1
+        # create img obj and add to array
+        img_obj = [{
+            "index": step, 
+            "pre_img": pre_img,
+            "post_img": post_img,
+            "pre_img_diff": pre_img_diff, 
+            "post_img_diff": post_img_diff, 
+            "score": img_score,
+        }]
 
         # remove temp dir
         shutil.rmtree(temp_root)
 
-        # averaging scores and storing in images_delta obj
-        try:
-            avg_score = statistics.fmean(scores)
-        except:
-            avg_score = None
-
         # formatting response
         images_delta = {
-            "average_score": avg_score,
-            "images": img_test_results,
+            "average_score": img_score,
+            "images": img_obj,
         }
 
         # returning response
         return images_delta
+
 
 
 
