@@ -4751,21 +4751,9 @@ def create_or_update_case(request: object=None) -> object:
             
         )
 
-        # create process obj
-        process = Process.objects.create(
-            site=site,
-            type='case.pre_run',
-            object_id=str(case.id),
-            account=account,
-            progress=1
-        )
-
-        # start pre_run for new Case
-        case_pre_run_bg.delay(
-            case_id=str(case.id),
-            process_id=str(process.id)
-        )
-
+        # signals.py will pickup 'created' instance
+        # and run Caser().pre_run() in background
+        
     # serialize and return
     serializer_context = {'request': request,}
     data = CaseSerializer(case, context=serializer_context).data
