@@ -5,6 +5,7 @@ from selenium.webdriver.common.keys import Keys
 from .driver import driver_init, driver_wait, quit_driver
 from .issuer import Issuer
 from .updater import update_flowrun
+from .imager import Imager
 from ..models import * 
 from cursion import settings
 from datetime import datetime, timezone
@@ -156,9 +157,17 @@ class Caser():
 
 
     def update_caserun(
-            self, index: str=None, type: str=None, start_time: str=None, end_time: str=None, 
-            status: str=None, exception: str=None, time_completed: str=None, image: str=None,
+            self, 
+            index: str=None, 
+            type: str=None, 
+            start_time: str=None, 
+            end_time: str=None, 
+            status: str=None, 
+            exception: str=None, 
+            time_completed: str=None, 
+            image: str=None,
         ) -> None:
+
         # updates Tescase for a selenium run (async) 
         if start_time != None:
             self.caserun.steps[index][type]['time_created'] = str(start_time)
@@ -180,8 +189,38 @@ class Caser():
                     run_status = 'failed'
             self.caserun.status = run_status
         
+        # save caserun
         self.caserun.save()
-        return
+
+        # compare image if image was passed
+        if image is not None:
+            self.compare_images(index=index, type=type)
+
+        return None
+
+
+    
+
+    def compare_images(self, index: int=None, type: str=None) -> None:
+        """ 
+        Using Imager.caserun_vrt compare the step.screeshot 
+        to the Case baseline.
+
+        Expects: {
+            'index' : int, step index
+            'type'  : str, 'action' or 'assertion'
+        }
+
+        Returns: None
+        """
+        # run Imager
+        image_delta_obj = Imager(caserun=self.caserun).caserun_vrt(step=index, type=type)
+
+        # update caserun
+        self.caserun.steps[index][type]['image_delta'] = image_delta_obj
+        self.caserun.save()
+
+        return None
 
 
 
@@ -198,7 +237,7 @@ class Caser():
         number of steps expected - then updates self.process
         with the info.
 
-        Expcets: {
+        Expects: {
             current     : int, 
             total       : int, 
             complete    : bool=False, 
@@ -233,10 +272,14 @@ class Caser():
 
 
 
-    def save_screenshot(self) -> str:
+    def save_screenshot(self, run_type: str=None) -> str:
         """
-        Grabs & uploads a screenshot of the `page` 
-        passed in the params. 
+        Grabs & uploads a screenshot of the active `page` 
+        self.driver is working on. 
+
+        Expects: {
+            run_type: str, 'run' or 'pre_run'
+        }
 
         Returns -> `image_url` <str:remote path to image>
         """
@@ -257,7 +300,12 @@ class Caser():
 
         # seting up paths
         image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
-        remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
+        
+        if run_type == 'run':
+            remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
+        if run_type == 'pre_run':
+            remote_path = f'static/case/{self.case.id}/{pic_id}.png'
+
         root_path = settings.AWS_S3_URL_PATH
         image_url = f'{root_path}/{remote_path}'
     
@@ -506,10 +554,10 @@ class Caser():
                     )
                     self.driver.get(f'{self.site_url}{step["action"]["path"]}')
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     msg = excaption
                     status = 'failed'
@@ -561,10 +609,10 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get image
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
 
@@ -629,10 +677,10 @@ class Caser():
                     # clicking element
                     element.click()
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
 
@@ -698,10 +746,10 @@ class Caser():
                     value = self.transpose_data(step["action"]["value"])
                     element.send_keys(value)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
                 
@@ -776,10 +824,10 @@ class Caser():
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
 
@@ -852,10 +900,10 @@ class Caser():
                         raise AssertionError(f'innerText of element "{selector}" does match expected')
                     
                     # save screenshot
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
 
@@ -917,10 +965,10 @@ class Caser():
                     
                     # scrolling to element using plain JavaScript
                     self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
 
                 except Exception as e:
-                    image = self.save_screenshot()
+                    image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
                     status = 'failed'
 
@@ -981,7 +1029,7 @@ class Caser():
     def pre_run(self) -> None:
         """
         Runs the self.case using selenium as the driver
-        and tries to collect element img data.
+        and tries to collect element img & screenshot data.
 
         Returns -> None
         """
@@ -1019,6 +1067,11 @@ class Caser():
                 except Exception as e:
                     print(e)
 
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
+
+
             
             if step['action']['type'] == 'scroll':
                 try:
@@ -1029,6 +1082,10 @@ class Caser():
                 
                 except Exception as e:
                     print(e)
+                
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
         
             
             if step['action']['type'] == 'click':
@@ -1051,8 +1108,9 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
-                    img = self.get_element_image(element)
-                    self.steps[i]['action']['img'] = img
+                    if not self.steps[i]['action'].get('img'):
+                        img = self.get_element_image(element)
+                        self.steps[i]['action']['img'] = img
 
                     # clicking element
                     element.click()
@@ -1060,6 +1118,10 @@ class Caser():
                 
                 except Exception as e:
                     print(e)
+
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
         
         
             if step['action']['type'] == 'change':
@@ -1082,8 +1144,9 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
-                    img = self.get_element_image(element)
-                    self.steps[i]['action']['img'] = img
+                    if not self.steps[i]['action'].get('img'):
+                        img = self.get_element_image(element)
+                        self.steps[i]['action']['img'] = img
 
                     # changing value of element
                     value = step["action"]["value"]
@@ -1092,6 +1155,10 @@ class Caser():
 
                 except Exception as e:
                     print(e)
+
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
 
 
             if step['action']['type'] == 'keyDown':
@@ -1124,8 +1191,9 @@ class Caser():
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
-                    img = self.get_element_image(element)
-                    self.steps[i]['action']['img'] = img
+                    if not self.steps[i]['action'].get('img'):
+                        img = self.get_element_image(element)
+                        self.steps[i]['action']['img'] = img
 
                     # using selenium, press the selected key
                     element.send_keys(self.s_keys.get(step["action"]["key"], step["action"]["key"]))
@@ -1134,6 +1202,22 @@ class Caser():
                 except Exception as e:
                     print(e)
 
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
+
+
+            if step['assertion']['type'] == 'match':
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['assertion']['image'] = img_url
+
+            
+            if step['assertion']['type'] == 'exists':
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['assertion']['image'] = img_url
+            
 
             # increment step
             i += 1  
