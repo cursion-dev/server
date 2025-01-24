@@ -5,6 +5,8 @@ from cursion import settings
 from PIL import Image as I, ImageChops, ImageStat
 from datetime import datetime
 from asgiref.sync import sync_to_async
+from openai import OpenAI
+from pydantic import BaseModel
 import time, os, sys, json, uuid, boto3, \
     statistics, shutil, numpy, cv2, requests
 
@@ -405,6 +407,91 @@ class Imager():
 
 
 
+    def ai_compare(
+            self, 
+            pre_img_url: str=None, 
+            post_img_url: str=None,
+            score: float=None
+        ) -> dict:
+        """ 
+        Using OpenAI, compares the two images and 
+        provides a summary and boolean for 'broken'
+
+        Expects: {
+            pre_img_url     : str,
+            post_img_url    : str,
+            score           : float
+        }
+
+        Returns: {
+            'summary': str,
+            'broken': bool
+        }
+        """
+
+        # define output as object (JSON)
+        class Result(BaseModel):
+            summary: str
+            broken: bool
+
+        # init client
+        gpt_client = OpenAI(api_key=settings.GPT_API_KEY,)
+        
+        # send request
+        response = gpt_client.beta.chat.completions.parse(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Attached are two screenshots of the same website. \
+                            I've added green boxes arround the areas that have changed between the two images. \
+                            The green boxes may not be present if there are no changes. \
+                            I've calculated the Visual Regression Similararity Score to be {score}% similar. \
+                            Please perform a Visual Regression Analysis of the two images. \
+                            Respond with a few sentance summary about what has changed (images, buttons, text, ect)  \
+                            and a boolean that is TRUE if the page should be considered broken. \
+                            Omit any reference to the green boxes in your response. \
+                            Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": pre_img_url,
+                            },
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": pre_img_url,
+                            },
+                        },
+                    ],
+                }
+            ],
+            response_format=Result
+        )
+
+        try:
+            result = response.choices[0].message.parsed
+            result = {
+                'summary': result.summary, 
+                'broken': result.broken
+            }
+        except:
+            result = {
+                'summary': None, 
+                'broken': None
+            }
+
+        print(result)
+        return result
+
+
+
+
     def scan_vrt(self, driver: object=None) -> list:
         """
         Grabs full length screenshots of the website and uploads 
@@ -684,6 +771,15 @@ class Imager():
             pre_img = old_imgs[0]
             post_img = old_imgs[1]
 
+            # running AI comparison
+            resp = self.ai_compare(
+                pre_img_diff.get('url'), 
+                post_img_diff.get('url'), 
+                ssim_img_score
+            )
+            ai_summary = resp.get('summary')
+            broken = resp.get('broken')
+
         except Exception as e:
             print(e)
             img_score = None
@@ -691,6 +787,8 @@ class Imager():
             post_img = None
             pre_img_diff = None
             post_img_diff = None
+            ai_summary = None
+            broken = None
 
         # create img test obj and add to array
         img_test_obj = [{
@@ -709,6 +807,8 @@ class Imager():
         images_delta = {
             "average_score": img_score,
             "images": img_test_obj,
+            "ai_summary": ai_summary,
+            "broken": broken
         }
 
         # returning response
