@@ -717,7 +717,6 @@ class AutoCaser():
 
 
 
-
     def get_elements(self) -> list:
 
         # get site page
@@ -1129,7 +1128,7 @@ class AutoCaser():
                 account     = self.site.account,
                 title       = element['elem_text'] if len(element['elem_text']) > 0 else f'Case {str(case_id)[0:5]}',
                 type        = "generated",
-                processed   = True,
+                processed   = False,
                 steps       = {
                     'url':  steps_url,
                     'num_steps': len(steps)

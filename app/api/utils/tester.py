@@ -715,14 +715,12 @@ class Tester():
 
 
 
-    def run_test(self, index: int=None) -> object:
+    def run_test(self) -> object:
         """ 
         Runs all the test components specified in the `Test`
         and returns the updated `Test`
 
-        Expects: {
-            'index': int
-        }
+        Expects: None
 
         Returns -> `Test` object
         """
@@ -877,7 +875,7 @@ class Tester():
         if 'vrt' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
-                images_data = Imager().test_vrt(test=self.test, index=index)
+                images_data = Imager(test=self.test).test_vrt()
                 if images_data['average_score'] != None:
                     images_score = images_data['average_score'] / 100
 

@@ -71,7 +71,7 @@ def decrement_resource(account: object, resource: str) -> None:
     """ 
     Removes '1' from the resource total 
 
-    Expcets: {
+    Expects: {
         'account'  : <object>,
         'resource' : <str> 'site', 'page', 'schedule'
     }
@@ -94,7 +94,7 @@ def check_location(request: None, local: None) -> dict:
     Reroutes a request to a geo-specific 
     instance of Cursion Server. 
 
-    Expcets: {
+    Expects: {
         'request': obj,
         'local'  : str,
     }
@@ -682,7 +682,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Site` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user'    : object,
@@ -756,7 +756,7 @@ def delete_many_sites(request: object=None) -> object:
     Deletes one or more `Sites` associated
     with the passed "request.ids" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -896,7 +896,7 @@ def create_page(request: object=None) -> object:
     """ 
     Creates one or more pages.
 
-    Expcets: {
+    Expects: {
         'requests': object
     }
     
@@ -988,7 +988,7 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     """ 
     Bulk creates `Pages` for each url passed in "page_urls"
 
-    Expcets: {
+    Expects: {
         'request'       : object,
         'http_response'  : bool
     }
@@ -1229,7 +1229,7 @@ def delete_page(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Page` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str
     }
@@ -1287,7 +1287,7 @@ def delete_many_pages(request: object=None) -> object:
     Deletes one or more `Pages` associated
     with the passed "request.ids" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -1601,7 +1601,7 @@ def create_many_scans(request: object=None) -> object:
     Bulk creates `Scans` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -1867,7 +1867,7 @@ def delete_scan(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Scan` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'account' : object,
@@ -1926,7 +1926,7 @@ def delete_many_scans(request: object=None) -> object:
     Deletes one or more `Scans` associated
     with the passed "request.ids" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -2330,7 +2330,7 @@ def create_many_tests(request: object=None) -> object:
     Bulk creates `Tests` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -2606,7 +2606,7 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Test` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'account' : object,
@@ -2664,7 +2664,7 @@ def delete_many_tests(request: object=None) -> object:
     Deletes one or more `Tests` associated
     with the passed "request.ids" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
     }
 
@@ -3205,7 +3205,7 @@ def delete_issue(request: object=None, id: str=None, user: object=None) -> objec
     """ 
     Deletes the `Issue` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str
     }
@@ -3940,7 +3940,7 @@ def delete_schedule(request: object=None, id: str=None, user: object=None) -> ob
     """ 
     Deletes the `Schedule` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user'    : object
@@ -4306,7 +4306,7 @@ def delete_alert(request: object=None, id: str=None) -> object:
     """ 
     Deletes the `Alert` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str
     }
@@ -4569,7 +4569,7 @@ def delete_report(request: object=None, id: str=None) -> object:
     """ 
     Deletes the `Report` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str
     }
@@ -4751,21 +4751,9 @@ def create_or_update_case(request: object=None) -> object:
             
         )
 
-        # create process obj
-        process = Process.objects.create(
-            site=site,
-            type='case.pre_run',
-            object_id=str(case.id),
-            account=account,
-            progress=1
-        )
-
-        # start pre_run for new Case
-        case_pre_run_bg.delay(
-            case_id=str(case.id),
-            process_id=str(process.id)
-        )
-
+        # signals.py will pickup 'created' instance
+        # and run Caser().pre_run() in background
+        
     # serialize and return
     serializer_context = {'request': request,}
     data = CaseSerializer(case, context=serializer_context).data
@@ -5152,7 +5140,7 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Case` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user'    : object,
@@ -5553,7 +5541,7 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
     """ 
     Deletes the `CaseRun` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user' : object
@@ -5944,7 +5932,7 @@ def delete_flow(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Flow` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user'    : object,
@@ -6333,7 +6321,7 @@ def delete_flowrun(request: object=None, id: str=None, user: object=None) -> obj
     """ 
     Deletes the `FlowRun` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'account' : object
@@ -6664,7 +6652,7 @@ def delete_secret(request: object=None, id: str=None, user: object=None) -> obje
     """ 
     Deletes the `Secret` associated with the passed "id" 
 
-    Expcets: {
+    Expects: {
         'request' : object,
         'id'      : str,
         'user'    : object
