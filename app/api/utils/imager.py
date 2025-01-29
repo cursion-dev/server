@@ -449,12 +449,13 @@ class Imager():
                             "text": f"Attached are two screenshots of the same website. \
                             I've added green boxes arround the areas that have changed between the two images. \
                             The green boxes may not be present if there are no changes. \
-                            I've calculated the Visual Regression Similararity Score to be {score}% similar. \
+                            I've calculated the Visual Regression SSIM score to be {score}% similar. \
                             Please perform a Visual Regression Analysis of the two images. \
                             Respond with a few sentance summary about what has changed (images, buttons, text, ect)  \
                             and a boolean that is TRUE if the page should be considered broken. \
                             Please be fairly strict with the analysis. \
-                            Also consider any emerging text that could be considered raw code (html) to be a 'breaking change' \
+                            Also consider any emerging text (not present in the first image, but shows in the second image) \
+                            that looks like raw code (html) to be a 'breaking change' \
                             Omit any reference to the green boxes in your response. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
                         },
