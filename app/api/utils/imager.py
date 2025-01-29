@@ -454,8 +454,8 @@ class Imager():
                             Respond with a few sentance summary about what has changed (images, buttons, text, ect)  \
                             and a boolean that is TRUE if the page should be considered broken. \
                             Please be fairly strict with the analysis. \
-                            Also consider any emerging text (not present in the first image, but shows in the second image) \
-                            that looks like raw code (html) to be a 'breaking change' \
+                            Also consider any emerging text that looks like raw code (html) to be a 'breaking change'. \
+                            If the same text or code is present in both images, then DO NOT consider it a 'breaking change'. \
                             Omit any reference to the green boxes in your response. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
                         },
