@@ -453,6 +453,8 @@ class Imager():
                             Please perform a Visual Regression Analysis of the two images. \
                             Respond with a few sentance summary about what has changed (images, buttons, text, ect)  \
                             and a boolean that is TRUE if the page should be considered broken. \
+                            Please be fairly strict with the analysis. \
+                            Also consider any emerging text that could be considered raw code (html) to be a 'breaking change' \
                             Omit any reference to the green boxes in your response. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
                         },
