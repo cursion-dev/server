@@ -15,7 +15,7 @@ definitions = [
     {
         'name': 'Health',
         'key': 'current_health',
-        'value': 'float(obj.post_scan.score)'
+        'value': 'obj.post_scan.score'
     },
     {
         'name': 'Avg Image Score',
@@ -37,7 +37,7 @@ definitions = [
     {
         'name': 'Health',
         'key': 'health',
-        'value': 'float(obj.score)'
+        'value': 'obj.score'
     },
     {
         'name': 'Error Logs',
