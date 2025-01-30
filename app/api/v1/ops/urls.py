@@ -44,6 +44,7 @@ urlpatterns = [
     path('flowrun/<uuid:id>', views.FlowRunDetail.as_view(), name='flowruns-detail'),
     path('flowruns/zapier', views.FlowRunsZapier.as_view(), name='flowruns-zapier'),
     path('issue', views.Issues.as_view(), name='issue'),
+    path('issue/generate', views.IssueGenerate.as_view(), name='issue-generate'),
     path('issue/search', views.IssuesSearch.as_view(), name='issue-search'),
     path('issue/<uuid:id>', views.IssueDetail.as_view(), name='issue-detail'),
     path('issues/update', views.IssuesUpdate.as_view(), name='issues-update'),

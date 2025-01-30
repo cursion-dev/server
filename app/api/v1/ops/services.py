@@ -15,6 +15,7 @@ from ...tasks import *
 from ...models import *
 from ...utils.reporter import Reporter as R
 from ...utils.devices import devices
+from ...utils.issuer import Issuer
 from datetime import datetime, timedelta, timezone as timezone
 import json, boto3, asyncio, os, requests, uuid, secrets
 
@@ -425,7 +426,7 @@ def create_site(request: object=None) -> object:
     if site_url.endswith('/'):
         site_url = site_url.rstrip('/')
     if site_url is None or site_url == '':
-        data = {'reason': 'the site_url cannot be empty',}
+        data = {'reason': 'the site_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
@@ -435,7 +436,7 @@ def create_site(request: object=None) -> object:
         url=site_url
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -510,7 +511,7 @@ def create_site(request: object=None) -> object:
             )
             
     # serialize response and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SiteSerializer(site, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '201')
@@ -550,7 +551,7 @@ def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
         id=id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -566,7 +567,7 @@ def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
 
     # serializing and returning
     if request:
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = SiteSerializer(site, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '201')
@@ -604,7 +605,7 @@ def get_sites(request: object=None) -> object:
             member=member, resource='site', action='get', id=site_id, id_type='site'
         )
         if not check_data['allowed']:
-            data = {'reason': check_data['error'],}
+            data = {'reason': check_data['error']}
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
         
@@ -612,7 +613,7 @@ def get_sites(request: object=None) -> object:
         site = Site.objects.get(id=site_id)
 
         # serialize single site response and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = SiteSerializer(site, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -629,7 +630,7 @@ def get_sites(request: object=None) -> object:
     # serialize response and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(sites, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SiteSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -661,7 +662,7 @@ def get_site(request: object=None, id: str=None) -> object:
         id=id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -669,7 +670,7 @@ def get_site(request: object=None, id: str=None) -> object:
     site = Site.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SiteSerializer(site, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -703,7 +704,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
         action='delete', id=id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -741,7 +742,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
         update_sub_price.delay(account_id=account.id)
 
     # returning response
-    data = {'message': 'site deleted',}
+    data = {'message': 'site deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -854,7 +855,7 @@ def get_sites_zapier(request: object=None) -> object:
         member=member, resource=resource, action='get',
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated sites
@@ -933,7 +934,7 @@ def create_page(request: object=None) -> object:
     if page_url.endswith('/'):
         page_url = page_url.rstrip('/')
     if page_url is None or page_url == '':
-        data = {'reason': 'the page_url cannot be empty',}
+        data = {'reason': 'the page_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
@@ -943,7 +944,7 @@ def create_page(request: object=None) -> object:
         id=site_id, id_type='site', url=page_url,
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -974,7 +975,7 @@ def create_page(request: object=None) -> object:
         scan_page_bg.delay(scan_id=scan.id, configs=configs)
       
     # serialize response and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = PageSerializer(page, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '201')
@@ -1021,7 +1022,7 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
         id=site_id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         if http_response:
             return Response(data, status=check_data['status'])
@@ -1030,7 +1031,7 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     # pre check for max_pages
     if (pages.count() + len(page_urls)) > account.usage['pages_allowed']:
         print('max pages reached')
-        data = {'reason': 'max pages reached',}
+        data = {'reason': 'max pages reached'}
         record_api_call(request, data, '402')
         if http_response:
             return Response(data, status=status.HTTP_402_PAYMENT_REQUIRED)
@@ -1152,7 +1153,7 @@ def get_pages(request: object=None) -> object:
         id_type=('site' if site_id else 'page')
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -1163,7 +1164,7 @@ def get_pages(request: object=None) -> object:
         page = Page.objects.get(id=page_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = PageSerializer(page, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -1176,7 +1177,7 @@ def get_pages(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(pages, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = PageSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -1208,7 +1209,7 @@ def get_page(request: object=None, id: str=None) -> object:
         id=id, id_type='page'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -1216,7 +1217,7 @@ def get_page(request: object=None, id: str=None) -> object:
     page = Page.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = PageSerializer(page, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -1249,7 +1250,7 @@ def delete_page(request: object=None, id: str=None, user: object=None) -> object
         action='delete', id=id, id_type='page'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         print(data)
         if request:
             record_api_call(request, data, check_data['code'])
@@ -1272,7 +1273,7 @@ def delete_page(request: object=None, id: str=None, user: object=None) -> object
     page.delete()
 
     # format and return
-    data = {'message': 'Page has been deleted',}
+    data = {'message': 'Page deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -1385,7 +1386,7 @@ def get_pages_zapier(request: object=None) -> object:
         id=site_id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all site associated pages
@@ -1732,7 +1733,7 @@ def get_scans(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -1743,7 +1744,7 @@ def get_scans(request: object=None) -> object:
         scan = Scan.objects.get(id=scan_id)
         
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = ScanSerializer(scan, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -1756,7 +1757,7 @@ def get_scans(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(scans, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ScanSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
         serialized = SmallScanSerializer(result_page, many=True, context=serializer_context)
@@ -1790,7 +1791,7 @@ def get_scan(request: object=None, id: str=None) -> object:
         id=id, id_type='scan'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -1798,7 +1799,7 @@ def get_scan(request: object=None, id: str=None) -> object:
     scan = Scan.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ScanSerializer(scan, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -1830,7 +1831,7 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
         id=id, id_type='scan'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -1889,7 +1890,7 @@ def delete_scan(request: object=None, id: str=None, user: object=None) -> object
         id=id, id_type='scan'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -1901,17 +1902,18 @@ def delete_scan(request: object=None, id: str=None, user: object=None) -> object
     # remove s3 objects
     delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
 
+    # delete scan
+    page_id = str(scan.page.id)
+    scan.delete()
+
     # update page and site
     update_site_and_page_info.delay(
         resource='scan',
-        page_id=str(scan.page.id)
+        page_id=page_id
     )
 
-    # delete scan
-    scan.delete()
-
     # return response
-    data = {'message': 'Scan has been deleted',}
+    data = {'message': 'Scan deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -2027,7 +2029,7 @@ def get_scans_zapier(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all page associated scans
@@ -2213,7 +2215,7 @@ def create_test(request: object=None, **kwargs) -> object:
 
         # checking for scan completion
         if not Scan.objects.filter(page=p).exists():
-            data = {'reason': 'Page not yet onboarded', 'success': False,}
+            data = {'reason': 'Page not yet onboarded', 'success': False}
             print(data)
             record_api_call(request, data, '400')
             return Response(data, status=status.HTTP_400_BAD_REQUEST)
@@ -2223,7 +2225,7 @@ def create_test(request: object=None, **kwargs) -> object:
             try:
                 pre_scan = Scan.objects.get(id=pre_scan_id)
             except:
-                data = {'reason': 'cannot find a Scan with that id - pre_scan', 'success': False,}
+                data = {'reason': 'cannot find a Scan with that id - pre_scan', 'success': False}
                 print(data)
                 if request is not None:
                     record_api_call(request, data, '404')
@@ -2233,7 +2235,7 @@ def create_test(request: object=None, **kwargs) -> object:
             try:
                 post_scan = Scan.objects.get(id=post_scan_id)
             except:
-                data = {'reason': 'cannot find a Scan with that id - post_scan', 'success': False,}
+                data = {'reason': 'cannot find a Scan with that id - post_scan', 'success': False}
                 print(data)
                 if request is not None:
                     record_api_call(request, data, '404')
@@ -2247,7 +2249,7 @@ def create_test(request: object=None, **kwargs) -> object:
         # verifying pre_ and post_ scans completion
         if pre_scan:
             if pre_scan.time_completed == None:
-                data = {'reason': 'pre_scan still running', 'success': False,}
+                data = {'reason': 'pre_scan still running', 'success': False}
                 print(data)
                 if request is not None:
                     record_api_call(request, data, '400')
@@ -2255,7 +2257,7 @@ def create_test(request: object=None, **kwargs) -> object:
                 return data
         if post_scan:
             if post_scan.time_completed == None:
-                data = {'reason': 'post_scan still running', 'success': False,}
+                data = {'reason': 'post_scan still running', 'success': False}
                 print(data)
                 if request is not None:
                     record_api_call(request, data, '400')
@@ -2464,7 +2466,7 @@ def get_tests(request: object=None) -> object:
         action='add',id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -2475,7 +2477,7 @@ def get_tests(request: object=None) -> object:
         test = Test.objects.get(id=test_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = TestSerializer(test, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -2488,7 +2490,7 @@ def get_tests(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(tests, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = TestSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
         serialized = SmallTestSerializer(result_page, many=True, context=serializer_context)
@@ -2522,7 +2524,7 @@ def get_test(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='test'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -2530,7 +2532,7 @@ def get_test(request: object=None, id: str=None) -> object:
     test = Test.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = TestSerializer(test, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -2562,7 +2564,7 @@ def get_test_lean(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='test'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -2627,7 +2629,7 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
         action='delete', id=id, id_type='test'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -2639,17 +2641,18 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
     # remove s3 objects
     delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
 
+    # delete test
+    page_id = str(test.page.id)
+    test.delete()
+
     # update site and page with most recent data
     update_site_and_page_info.delay(
         resource='test',
-        page_id=str(test.page.id)
+        page_id=page_id
     )
 
-    # delete test
-    test.delete()
-    
     # return response
-    data = {'message': 'Test has been deleted',}
+    data = {'message': 'Test deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -2766,7 +2769,7 @@ def get_tests_zapier(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all page associated tests
@@ -2935,7 +2938,130 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
     # decide on response type
     if request is not None:
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
+        serialized = IssueSerializer(issue, context=serializer_context)
+        data = serialized.data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    # return object response
+    data = {
+        'success': True, 
+        'issue': issue,
+    }
+    return data
+
+
+
+
+def generate_issue(request: object=None, **kwargs) -> object:
+    """ 
+    Generates a new `Issue` based on the data
+    passed in the request or kwargs
+
+    Expects: {
+        'request': object
+        'kwargs': dict
+    }
+    
+    Returns -> HTTP Response object
+    """
+
+    # get request data
+    if request is not None:
+        id = request.data.get('id')
+        trigger = request.data.get('trigger')
+        user = request.user
+        member = Member.objects.get(user=user)
+        account = member.account
+    
+    # get kwargs data
+    if request is None:
+        id = kwargs.get('id')
+        trigger = kwargs.get('trigger')
+        account_id = kwargs.get('account_id')
+        user_id = kwargs.get('user_id')
+        user = User.objects.get(id=user_id)
+        member = Member.objects.get(user=user)
+        account = Account.objects.get(id=account_id)
+
+    # decide on action
+    action = 'add'
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='issue', 
+        action=action, id_type='issue'
+    )
+    if not check_data['allowed']:
+        data = {
+            'reason': check_data['error'], 
+            'success': False, 
+            'code': check_data['code'], 
+            'status': check_data['status']
+        }
+        if request is not None:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+    
+    # decide on which Issue type 
+    # based on trigger
+    if trigger == 'scan':
+        if Scan.objects.filter(id=id, site__account=account).exists():
+            scan = Scan.objects.get(id=id)
+            I = Issuer(scan=scan)
+        else:
+            data = {
+                'reason': 'Scan not found', 
+                'success': False, 
+                'code': 404, 
+                'status': status.HTTP_404_NOT_FOUND
+            }
+            if request is not None:
+                record_api_call(request, data, 404)
+                return Response(data, status=status.HTTP_404_NOT_FOUND)
+            return data
+    
+    if trigger == 'test':
+        if Test.objects.filter(id=id, site__account=account).exists():
+            test = Test.objects.get(id=id)
+            I = Issuer(test=test)
+        else:
+            data = {
+                'reason': 'Test not found', 
+                'success': False, 
+                'code': 404, 
+                'status': status.HTTP_404_NOT_FOUND
+            }
+            if request is not None:
+                record_api_call(request, data, 404)
+                return Response(data, status=status.HTTP_404_NOT_FOUND)
+            return data
+
+    if trigger == 'caserun':
+        if CaseRun.objects.filter(id=id, site__account=account).exists():
+            caserun = CaseRun.objects.get(id=id)
+            I = Issuer(caserun=caserun)
+        else:
+            data = {
+                'reason': 'CaseRun not found', 
+                'success': False, 
+                'code': 404, 
+                'status': status.HTTP_404_NOT_FOUND
+            }
+            if request is not None:
+                record_api_call(request, data, 404)
+                return Response(data, status=status.HTTP_404_NOT_FOUND)
+            return data
+
+    # create new Issue
+    issue = I.build_issue()
+    
+    # decide on response type
+    if request is not None:
+        # serialize and return
+        serializer_context = {'request': request}
         serialized = IssueSerializer(issue, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -3048,7 +3174,7 @@ def get_issues(request: object=None) -> object:
         id=id, id_type=id_type,
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3059,7 +3185,7 @@ def get_issues(request: object=None) -> object:
         issue = Issue.objects.get(id=issue_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = IssueSerializer(issue, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -3096,7 +3222,7 @@ def get_issues(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(issues, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = IssueSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -3128,7 +3254,7 @@ def get_issue(request: object=None, id: str=None) -> object:
         id=id, id_type='issue'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3136,7 +3262,7 @@ def get_issue(request: object=None, id: str=None) -> object:
     issue = Issue.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = IssueSerializer(issue, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -3168,7 +3294,7 @@ def search_issues(request: object=None) -> object:
         member=member, resource='issue', action='get'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3192,7 +3318,7 @@ def search_issues(request: object=None) -> object:
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(issues, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = IssueSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -3225,7 +3351,7 @@ def delete_issue(request: object=None, id: str=None, user: object=None) -> objec
         id=id, id_type='issue',
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -3238,7 +3364,7 @@ def delete_issue(request: object=None, id: str=None, user: object=None) -> objec
     issue.delete()
 
     # return response
-    data = {'message': 'Issue has been deleted',}
+    data = {'message': 'Issue deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -3335,7 +3461,7 @@ def get_issues_zapier(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
     
     # get all page associated issues
@@ -3463,7 +3589,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         action=action, id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -3528,7 +3654,11 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         hour = time[0:2]
 
         # building cron expression freq
-        if freq == 'daily':
+        if freq == 'hourly':
+            hour = '*/1'
+            day_of_week = '*'
+            day_of_month = '*'
+        elif freq == 'daily':
             day_of_week = '*'
             day_of_month = '*'
         elif freq == 'weekly':
@@ -3549,7 +3679,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             timezone=timezone, 
             minute=minute, 
             hour=hour,
-            day_of_week=day_of_week, 
+            day_of_week=day_of_week,
             day_of_month=day_of_month,
         )
 
@@ -3659,7 +3789,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
     # deciding on response type
     if request:
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         data = ScheduleSerializer(schedule, context=serializer_context).data
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -3764,7 +3894,7 @@ def run_schedule(request: object=None) -> object:
         action='get', id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3808,7 +3938,7 @@ def run_schedule(request: object=None) -> object:
         )
 
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = ScheduleSerializer(schedule, context=serializer_context).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -3845,7 +3975,7 @@ def get_schedules(request: object=None) -> object:
         action='get', id=schedule_id, id_type='schedule'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3856,7 +3986,7 @@ def get_schedules(request: object=None) -> object:
         schedule = Schedule.objects.get(id=schedule_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = ScheduleSerializer(schedule, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -3887,7 +4017,7 @@ def get_schedules(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(schedules, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ScheduleSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -3919,7 +4049,7 @@ def get_schedule(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='schedule'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -3927,7 +4057,7 @@ def get_schedule(request: object=None, id: str=None) -> object:
     schedule = Schedule.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ScheduleSerializer(schedule, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -3961,7 +4091,7 @@ def delete_schedule(request: object=None, id: str=None, user: object=None) -> ob
         action='delete', id=id, id_type='schedule'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -3981,7 +4111,7 @@ def delete_schedule(request: object=None, id: str=None, user: object=None) -> ob
     decrement_resource(account=account, resource='schedules')
 
     # return response
-    data = {'message': 'Schedule has been deleted',}
+    data = {'message': 'Schedule deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -4133,7 +4263,7 @@ def create_or_update_alert(request: object=None) -> object:
         action=action, id=id, id_type=id_type,
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4196,7 +4326,7 @@ def create_or_update_alert(request: object=None) -> object:
         task.save()
 
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = AlertSerializer(alert, context=serializer_context).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
@@ -4230,7 +4360,7 @@ def get_alerts(request: object=None) -> object:
         action='get', id=alert_id, id_type='alert'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4241,7 +4371,7 @@ def get_alerts(request: object=None) -> object:
         alert = Alert.objects.get(id=alert_id)
         
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = AlertSerializer(alert, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -4253,7 +4383,7 @@ def get_alerts(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(alerts, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = AlertSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -4285,7 +4415,7 @@ def get_alert(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='alert'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4293,7 +4423,7 @@ def get_alert(request: object=None, id: str=None) -> object:
     alert = Alert.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = AlertSerializer(alert, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -4325,7 +4455,7 @@ def delete_alert(request: object=None, id: str=None) -> object:
         action='delete', id=id, id_type='alert'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4336,7 +4466,7 @@ def delete_alert(request: object=None, id: str=None) -> object:
     alert.delete()
 
     # return response
-    data = {'message': 'Alert has been deleted',}
+    data = {'message': 'Alert deleted'}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4387,7 +4517,7 @@ def create_or_update_report(request: object=None) -> object:
         action=action, id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4432,7 +4562,7 @@ def create_or_update_report(request: object=None) -> object:
     report_data = R(report=un_cached_report).generate_report()
 
     # serialize report
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     new_report = ReportSerializer(
         report_data['report'], 
         context=serializer_context
@@ -4482,7 +4612,7 @@ def get_reports(request: object=None) -> object:
         action='add', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4493,7 +4623,7 @@ def get_reports(request: object=None) -> object:
         report = Report.objects.get(id=report_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = ReportSerializer(report, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -4516,7 +4646,7 @@ def get_reports(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(reports, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ReportSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -4548,7 +4678,7 @@ def get_report(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='report'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4556,7 +4686,7 @@ def get_report(request: object=None, id: str=None) -> object:
     report = Report.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ReportSerializer(report, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -4588,7 +4718,7 @@ def delete_report(request: object=None, id: str=None) -> object:
         action='delete', id=id, id_type='report'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4602,7 +4732,7 @@ def delete_report(request: object=None, id: str=None) -> object:
     report.delete()
 
     # return reponse
-    data = {'message': 'Report has been deleted',}
+    data = {'message': 'Report deleted'}
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4688,7 +4818,7 @@ def create_or_update_case(request: object=None) -> object:
         action=action, id=case_id, id_type='case'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -4755,7 +4885,7 @@ def create_or_update_case(request: object=None) -> object:
         # and run Caser().pre_run() in background
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = CaseSerializer(case, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
@@ -4854,7 +4984,7 @@ def get_cases(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4865,7 +4995,7 @@ def get_cases(request: object=None) -> object:
         case = Case.objects.get(id=case_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = CaseSerializer(case, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -4891,7 +5021,7 @@ def get_cases(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = CaseSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -4923,7 +5053,7 @@ def get_case(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='case'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -4931,7 +5061,7 @@ def get_case(request: object=None, id: str=None) -> object:
     case = Case.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = CaseSerializer(case, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -4963,7 +5093,7 @@ def search_cases(request: object=None) -> object:
         member=member, resource='case', action='get'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -4981,7 +5111,7 @@ def search_cases(request: object=None) -> object:
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = CaseSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -5034,7 +5164,7 @@ def create_auto_cases(request: object=None) -> object:
         action='add', id=site_id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5097,7 +5227,7 @@ def copy_case(request: object=None) -> object:
         action='add', id=case_id, id_type='case'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5127,7 +5257,7 @@ def copy_case(request: object=None) -> object:
     )
 
     # return response
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = CaseSerializer(new_case, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
@@ -5161,7 +5291,7 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
         action='delete', id=id, id_type='case'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -5177,7 +5307,7 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
     case.delete()
 
     # return response
-    data = {'message': 'Case has been deleted',}
+    data = {'message': 'Case deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -5272,7 +5402,7 @@ def get_cases_zapier(request: object=None) -> object:
         action='get', id=site_id, id_type='site'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all site_id associated cases
@@ -5363,7 +5493,7 @@ def create_caserun(request: object=None) -> object:
         action='add', id=case_id, id_type='case'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5457,7 +5587,7 @@ def get_caseruns(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5468,7 +5598,7 @@ def get_caseruns(request: object=None) -> object:
         caserun = CaseRun.objects.get(id=caserun_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = CaseRunSerializer(caserun, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -5486,7 +5616,7 @@ def get_caseruns(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(caseruns, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = CaseRunSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
         serialized = SmallCaseRunSerializer(result_page, many=True, context=serializer_context)
@@ -5520,7 +5650,7 @@ def get_caserun(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='caserun'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5528,7 +5658,7 @@ def get_caserun(request: object=None, id: str=None) -> object:
     caserun = CaseRun.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = CaseRunSerializer(caserun, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -5562,7 +5692,7 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
         action='delete', id=id, id_type='caserun'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -5578,7 +5708,7 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
     caserun.delete()
 
     # return response
-    data = {'message': 'CaseRun has been deleted',}
+    data = {'message': 'CaseRun deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -5615,7 +5745,7 @@ def get_caseruns_zapier(request: object=None) -> object:
         action='get',
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated caseruns
@@ -5694,7 +5824,7 @@ def create_or_update_flow(request: object=None) -> object:
         action=action, id=flow_id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5724,7 +5854,7 @@ def create_or_update_flow(request: object=None) -> object:
         )
 
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = FlowSerializer(flow, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
@@ -5759,7 +5889,7 @@ def get_flows(request: object=None) -> object:
         action='get', id=flow_id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5770,7 +5900,7 @@ def get_flows(request: object=None) -> object:
         flow = Flow.objects.get(id=flow_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = FlowSerializer(flow, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -5782,7 +5912,7 @@ def get_flows(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flows, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = FlowSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -5814,7 +5944,7 @@ def get_flow(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5822,7 +5952,7 @@ def get_flow(request: object=None, id: str=None) -> object:
     flow = Flow.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = FlowSerializer(flow, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -5855,7 +5985,7 @@ def search_flows(request: object=None) -> object:
         action='get'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -5867,7 +5997,7 @@ def search_flows(request: object=None) -> object:
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flows, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = FlowSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -5901,7 +6031,7 @@ def copy_flow(request: object=None) -> object:
         action='add', id=flow_id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -5919,7 +6049,7 @@ def copy_flow(request: object=None) -> object:
     )
 
     # return response
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = FlowSerializer(new_flow, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
@@ -5953,7 +6083,7 @@ def delete_flow(request: object=None, id: str=None, user: object=None) -> object
         action='delete', id=id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -5966,7 +6096,7 @@ def delete_flow(request: object=None, id: str=None, user: object=None) -> object
     flow.delete()
 
     # return response
-    data = {'message': 'Flow has been deleted',}
+    data = {'message': 'Flow deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -6060,7 +6190,7 @@ def get_flows_zapier(request: object=None) -> object:
         action='get',
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated flows
@@ -6128,7 +6258,7 @@ def create_flowrun(request: object=None) -> object:
         action='add', id=flow_id, id_type='flow'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6233,7 +6363,7 @@ def get_flowruns(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6244,7 +6374,7 @@ def get_flowruns(request: object=None) -> object:
         flowrun = FlowRun.objects.get(id=flowrun_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = FlowRunSerializer(flowrun, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -6266,7 +6396,7 @@ def get_flowruns(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flowruns, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = FlowRunSerializer(result_page, many=True, context=serializer_context)
     if str(lean).lower() == 'true':
         serialized = SmallFlowRunSerializer(result_page, many=True, context=serializer_context)
@@ -6300,7 +6430,7 @@ def get_flowrun(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='flowrun'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6308,7 +6438,7 @@ def get_flowrun(request: object=None, id: str=None) -> object:
     flowruns = FlowRun.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = FlowRunSerializer(flowruns, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -6342,7 +6472,7 @@ def delete_flowrun(request: object=None, id: str=None, user: object=None) -> obj
         action='delete', id=id, id_type='flowrun'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -6355,7 +6485,7 @@ def delete_flowrun(request: object=None, id: str=None, user: object=None) -> obj
     flowrun.delete()
 
     # return response
-    data = {'message': 'FlowRun has been deleted',}
+    data = {'message': 'FlowRun deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -6391,7 +6521,7 @@ def get_flowruns_zapier(request: object=None) -> object:
         action='get',
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         return Response(data, status=check_data['status'])
 
     # get all account assocoiated flowruns
@@ -6466,7 +6596,7 @@ def create_or_update_secret(request: object=None) -> object:
         action=action, id=secret_id, id_type='secret'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6495,7 +6625,7 @@ def create_or_update_secret(request: object=None) -> object:
         )
 
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SecretSerializer(secret, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -6530,7 +6660,7 @@ def get_secrets(request: object=None) -> object:
         action='get', id=secret_id, id_type='secret'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6541,7 +6671,7 @@ def get_secrets(request: object=None) -> object:
         secret = Secret.objects.get(id=secret_id)
 
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = SecretSerializer(secret, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -6553,7 +6683,7 @@ def get_secrets(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(secrets, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SecretSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -6585,7 +6715,7 @@ def get_secret(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='secret'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6593,7 +6723,7 @@ def get_secret(request: object=None, id: str=None) -> object:
     secrets = Secret.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = SecretSerializer(secrets, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -6625,7 +6755,7 @@ def get_secrets_all(request: object=None) -> object:
         action='get'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6673,7 +6803,7 @@ def delete_secret(request: object=None, id: str=None, user: object=None) -> obje
         action='delete', id=id, id_type='secret'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         if request:
             record_api_call(request, data, check_data['code'])
             return Response(data, status=check_data['status'])
@@ -6686,7 +6816,7 @@ def delete_secret(request: object=None, id: str=None, user: object=None) -> obje
     secret.delete()
 
     # return response
-    data = {'message': 'Secret has been deleted',}
+    data = {'message': 'Secret deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -6732,7 +6862,7 @@ def get_processes(request: object=None) -> object:
         action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6743,7 +6873,7 @@ def get_processes(request: object=None) -> object:
         process = Process.objects.get(id=process_id)
         
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         data = ProcessSerializer(process, context=serializer_context).data
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
@@ -6771,7 +6901,7 @@ def get_processes(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(processes, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
@@ -6803,7 +6933,7 @@ def get_process(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='process'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6811,7 +6941,7 @@ def get_process(request: object=None, id: str=None) -> object:
     process = Process.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = ProcessSerializer(process, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -6843,7 +6973,7 @@ def delete_process(request: object=None, id: str=None) -> object:
         action='delete', id=id, id_type='process'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6864,7 +6994,7 @@ def delete_process(request: object=None, id: str=None) -> object:
     process.delete()
         
     # return response
-    data = {'message': 'Process has been deleted'}
+    data = {'message': 'Process deleted'}
     record_api_call(request, data, '200')
     return Response(data, status=status.HTTP_200_OK)
 
@@ -6903,7 +7033,7 @@ def get_logs(request: object=None) -> object:
         action='get', id=log_id, id_type='log'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6914,7 +7044,7 @@ def get_logs(request: object=None) -> object:
         log = Log.objects.get(id=log_id)
         
         # serialize and return
-        serializer_context = {'request': request,}
+        serializer_context = {'request': request}
         serialized = LogSerializer(log, context=serializer_context)
         data = serialized.data
         record_api_call(request, data, '200')
@@ -6933,7 +7063,7 @@ def get_logs(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(logs, request)
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = LogSerializer(result_page, many=True, context=serializer_context)
     response = paginator.get_paginated_response(serialized.data)
     return response
@@ -6964,7 +7094,7 @@ def get_log(request: object=None, id: str=None) -> object:
         action='get', id=id, id_type='log'
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
@@ -6972,7 +7102,7 @@ def get_log(request: object=None, id: str=None) -> object:
     log = Log.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     serialized = LogSerializer(log, context=serializer_context)
     data = serialized.data
     record_api_call(request, data, '200')
@@ -7024,7 +7154,7 @@ def search_resources(request: object=None) -> object:
 
     # check action permissons
     if 'get' not in actions:
-        data = {'reason': 'not allowed',}
+        data = {'reason': 'not allowed'}
         record_api_call(request, data, '403')
         return Response(data, status=status.HTTP_403_FORBIDDEN)
 
@@ -7446,7 +7576,7 @@ def migrate_site(request: object=None) -> object:
         site_id=site_id
     )
     if not check_data['allowed']:
-        data = {'reason': check_data['error'],}
+        data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
@@ -7478,7 +7608,7 @@ def migrate_site(request: object=None) -> object:
     )
     
     # serialize and return
-    serializer_context = {'request': request,}
+    serializer_context = {'request': request}
     data = ProcessSerializer(process, context=serializer_context).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)

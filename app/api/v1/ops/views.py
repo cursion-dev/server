@@ -738,6 +738,17 @@ class Issues(APIView):
 
 
 
+class IssueGenerate(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post',]
+
+    def post(self, request):
+        response = generate_issue(request)        
+        return response
+
+
+
+
 class IssuesSearch(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
