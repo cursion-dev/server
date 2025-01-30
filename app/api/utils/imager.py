@@ -411,7 +411,8 @@ class Imager():
             self, 
             pre_img_url: str=None, 
             post_img_url: str=None,
-            score: float=None
+            score: float=None,
+            highlighted: bool=False
         ) -> dict:
         """ 
         Using OpenAI, compares the two images and 
@@ -436,6 +437,13 @@ class Imager():
 
         # init client
         gpt_client = OpenAI(api_key=settings.GPT_API_KEY,)
+
+
+        marked_up_images = str(
+            "I've added green boxes arround the areas that have changed between the two images. \
+            The green boxes may not be present if there are no changes. \
+            Omit any reference to the green boxes in your response." 
+        )
         
         # send request
         response = gpt_client.beta.chat.completions.parse(
@@ -447,16 +455,17 @@ class Imager():
                         {
                             "type": "text",
                             "text": f"Attached are two screenshots of the same website. \
-                            I've added green boxes arround the areas that have changed between the two images. \
-                            The green boxes may not be present if there are no changes. \
                             I've calculated the Visual Regression SSIM score to be {score}% similar. \
                             Please perform a Visual Regression Analysis of the two images. \
-                            Respond with a few sentance summary about what has changed (images, buttons, text, ect)  \
-                            and a boolean that is TRUE if the page should be considered broken. \
-                            Please be fairly strict with the analysis. \
-                            Also consider any emerging text that looks like raw code (html) to be a 'breaking change'. \
-                            If the same text or code is present in both images, then DO NOT consider it a 'breaking change'. \
-                            Omit any reference to the green boxes in your response. \
+                            {marked_up_images if highlighted else ''} \
+                            Respond with a few sentance summary about what has changed. \
+                            Look for changes in pictures, buttons, forms, vertial shifts, etc. \
+                            Respond also with a boolean that is TRUE if the page should be considered broken. \
+                            Consider any emerging text or pictures that appear to be unrendered HTML \
+                            (contains angle brackets like '<' '>' or square brackets like '[wp-form-12]') to be a 'breaking change'. \
+                            If the same text is present in both images, then DO NOT consider it a 'breaking change'. \
+                            DO NOT consider text changes within images or pictures on the webpage. \
+                            Please be somewhat strict with the analysis. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
                         },
                         {
@@ -776,31 +785,32 @@ class Imager():
 
             # running AI comparison
             resp = self.ai_compare(
-                pre_img_diff.get('url'), 
-                post_img_diff.get('url'), 
-                ssim_img_score
+                pre_img_url   = self.test.pre_scan.images[0].get('url'), 
+                post_img_url  = self.test.post_scan.images[0].get('url'), 
+                score         = ssim_img_score,
+                highlighted   = False
             )
             ai_summary = resp.get('summary')
             broken = resp.get('broken')
 
         except Exception as e:
             print(e)
-            img_score = None
-            pre_img = None
-            post_img = None
-            pre_img_diff = None
-            post_img_diff = None
-            ai_summary = None
-            broken = None
+            img_score       = None
+            pre_img         = None
+            post_img        = None
+            pre_img_diff    = None
+            post_img_diff   = None
+            ai_summary      = None
+            broken          = None
 
         # create img test obj and add to array
         img_test_obj = [{
             "index": 0, 
-            "pre_img": pre_img,
-            "post_img": post_img,
-            "pre_img_diff": pre_img_diff, 
-            "post_img_diff": post_img_diff, 
-            "score": img_score,
+            "pre_img"       : pre_img,
+            "post_img"      : post_img,
+            "pre_img_diff"  : pre_img_diff, 
+            "post_img_diff" : post_img_diff, 
+            "score"         : img_score,
         }]
 
         # remove temp dir
@@ -808,10 +818,10 @@ class Imager():
 
         # formatting response
         images_delta = {
-            "average_score": img_score,
-            "images": img_test_obj,
-            "ai_summary": ai_summary,
-            "broken": broken
+            "average_score" : img_score,
+            "images"        : img_test_obj,
+            "ai_summary"    : ai_summary,
+            "broken"        : broken
         }
 
         # returning response
