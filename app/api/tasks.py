@@ -9,6 +9,7 @@ from .utils.wordpress import Wordpress as W
 from .utils.alerter import Alerter
 from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
+from .utils.issuer import Issuer
 from .utils.exporter import create_and_send_report_export
 from .utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
@@ -478,8 +479,6 @@ def update_site_and_page_info(
     pages = []
     scans = []
     tests = []
-    latest_test = None
-    latest_scan = None
 
     # get associated site
     if site_id:
@@ -495,6 +494,10 @@ def update_site_and_page_info(
     # get latest tests & scans of pages
     for p in pages:
 
+        # set defaults
+        latest_scan = None
+        latest_test = None
+
         if Test.objects.filter(page=p).exists() and \
             (resource == 'test' or resource == 'all'):
             _test = Test.objects.filter(page=p).exclude(
@@ -507,7 +510,7 @@ def update_site_and_page_info(
                     # update latest_test
                     latest_test = _test[0]
         
-        if Scan.objects.filter(page=p).exists()and \
+        if Scan.objects.filter(page=p).exists() and \
             (resource == 'scan' or resource == 'all'):
             _scan = Scan.objects.filter(page=p).exclude(
                 time_completed=None
@@ -521,9 +524,9 @@ def update_site_and_page_info(
         
         # update single page if passed
         if page:
-            
+
             # checking if current p is page
-            if page == p:
+            if page.id == p.id:
 
                 # latest_scan info
                 if latest_scan:
@@ -533,6 +536,7 @@ def update_site_and_page_info(
                     page.info['latest_scan']['score'] = latest_scan.score
                     page.info['lighthouse'] = latest_scan.lighthouse.get('scores')
                     page.info['yellowlab'] = latest_scan.yellowlab.get('scores')
+                    print(f'updating {page.page_url} with scan.score -> {latest_scan.score}')
                 if latest_scan is None and (resource == 'scan' or resource == 'all'):
                     page.info['latest_scan']['id'] = None
                     page.info['latest_scan']['time_created'] = None
@@ -540,6 +544,7 @@ def update_site_and_page_info(
                     page.info['latest_scan']['score'] = None
                     page.info['lighthouse'] = None
                     page.info['yellowlab'] = None
+                    print(f'updating {page.page_url} with scan.score -> {None}')
 
                 # latest_test info
                 if latest_test:
@@ -548,12 +553,14 @@ def update_site_and_page_info(
                     page.info['latest_test']['time_completed'] = str(latest_test.time_completed)
                     page.info['latest_test']['score'] = (round(latest_test.score * 100) / 100)
                     page.info['latest_test']['status'] = latest_test.status
+                    print(f'updating {p.page_url} with test.score -> {latest_test.score}')
                 if latest_test is None and (resource == 'test' or resource == 'all'):
                     page.info['latest_test']['id'] = None
                     page.info['latest_test']['time_created'] = None
                     page.info['latest_test']['time_completed'] = None
                     page.info['latest_test']['score'] = None
                     page.info['latest_test']['status'] = None
+                    print(f'updating {p.page_url} with test.score -> {None}')
 
                 # save page
                 page.save()
