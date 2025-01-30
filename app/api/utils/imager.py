@@ -464,6 +464,7 @@ class Imager():
                             Consider any emerging text or pictures that appear to be unrendered HTML \
                             (contains angle brackets like '<' '>' or square brackets like '[wp-form-12]') to be a 'breaking change'. \
                             If the same text is present in both images, then DO NOT consider it a 'breaking change'. \
+                            Only consider 'breaking changes' on the second image. \
                             DO NOT consider text changes within images or pictures on the webpage. \
                             Please be somewhat strict with the analysis. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
@@ -477,7 +478,7 @@ class Imager():
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": pre_img_url,
+                                "url": post_img_url,
                             },
                         },
                     ],
