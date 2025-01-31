@@ -266,7 +266,7 @@ class Issuer():
 
         # build intro
         intro = str(
-            f'### This [Scan]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) ' +
+            f'## This [Scan]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) ' +
             f'contains {' '.join(comps)} issues.\n' +
             f'\n\n> Affected Page ' + 
             f'[{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]}) \n\n' 
@@ -469,7 +469,7 @@ class Issuer():
 
         # build intro
         intro = str(
-            f'### Case Run [{self.caserun.title}]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]})' + 
+            f'## Case Run [{self.caserun.title}]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]})' + 
             f' failed on **Step {step_index}**, `{failed_step[step_type]["type"]}`.\n\n\n' +
             f' > Affected Site: [{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]})\n\n\n'
         )
