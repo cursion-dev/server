@@ -40,6 +40,9 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     driver.get(f'{settings.LANDING_URL_ROOT}/report/{report_id}')
     time.sleep(5)
 
+    # wait for page to load
+    driver_wait(driver=driver)
+
     # setting screensize
     full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
     driver.set_window_size(1512, int(full_page_height))
