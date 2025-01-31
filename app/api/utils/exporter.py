@@ -110,7 +110,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     }
 
     # sending email to prospect
-    data = sendgrid_email(message_obj)
+    data = sendgrid_email(message_obj=message_obj)
 
     # returning data
     return data
