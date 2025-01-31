@@ -266,9 +266,10 @@ class Issuer():
 
         # build intro
         intro = str(
-            f'[Scan]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) for the page ' + 
-            f'[{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]}) ' + 
-            f'contains {' '.join(comps)} issues.\n\n\n'
+            f'### This [Scan]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) ' +
+            f'contains {' '.join(comps)} issues.\n' +
+            f'\n\n> Affected Page ' + 
+            f'[{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]}) \n\n' 
         )
 
         # build components str
@@ -394,9 +395,10 @@ class Issuer():
 
         # build intro
         intro = str(
-            f'[Test]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) failed for the page ' + 
-            f'[{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]}) ' + 
-            f'based on the set threshold of **{round(self.test.threshold, 2)}%**.\n\n\n'
+            f'## This [Test]({settings.CLIENT_URL_ROOT}/{self.trigger["type"]}/{self.trigger["id"]}) failed ' +  
+            f'based on the set threshold of **{round(self.test.threshold, 2)}%**.\n' +
+            f'\n\n> Affected Page ' + 
+            f'[{self.affected["str"]}]({settings.CLIENT_URL_ROOT}/{self.affected["type"]}/{self.affected["id"]})\n\n'
         )
 
         # build main_issue
