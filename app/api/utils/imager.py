@@ -461,10 +461,11 @@ class Imager():
                             Respond with a few sentance summary about what has changed. \
                             Look for changes in pictures, buttons, forms, vertial shifts, etc. \
                             Respond also with a boolean that is TRUE if the page should be considered broken. \
-                            Consider any emerging text or pictures that appear to be unrendered HTML \
+                            Consider any emerging portions that appear to be unrendered HTML \
                             (contains angle brackets like '<' '>' or square brackets like '[wp-form-12]') to be a 'breaking change'. \
                             If the same text is present in both images, then DO NOT consider it a 'breaking change'. \
                             Only consider 'breaking changes' on the second image. \
+                            DO NOT consider new or altered text to a 'breaking change'. \
                             DO NOT consider text changes within images or pictures on the webpage. \
                             Please be somewhat strict with the analysis. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
