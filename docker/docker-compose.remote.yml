@@ -107,6 +107,7 @@ services:
     hostname: nginx-proxy-letsencrypt
     image: nginxproxy/acme-companion
     platform: linux/amd64
+    privileged: true
     env_file:
       - ./env/.env.remote
     volumes:
