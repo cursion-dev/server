@@ -22,6 +22,9 @@ ENV SECRET_KEY="abcdefghijklmno123456789"
 # create the app user
 RUN addgroup --system app && adduser --system app
 
+# Clean cache to avoid issues
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # installing system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql \
