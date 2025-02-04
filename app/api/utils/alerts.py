@@ -847,13 +847,15 @@ def sendgrid_email(
 
     # send message 
     try:
+        print(f'sending email using API key {settings.SENDGRID_API_KEY}')
         sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
         response = sg.send(message)
+        print(response)
         status = True
         msg = 'email sent successfully'
     except Exception as e:
         status = False
-        msg = e.message
+        msg = str(e)
 
     # formatting resposne
     data = {
