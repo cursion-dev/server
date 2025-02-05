@@ -58,33 +58,33 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     pdf = os.path.join(settings.BASE_DIR, f'{report_id}.pdf')
 
     # resizing image to remove excess | expected height => 2353
-    img = I.open(image)
-    width, height = img.size
-    left = 0
-    top = 85
-    right = width
-    bottom = height - (330)
-    new_img_1 = img.crop((left, top, right, bottom))
-    new_img_1.save(image, quality=95)
+    # img = I.open(image)
+    # width, height = img.size
+    # left = 0
+    # top = 85
+    # right = width
+    # bottom = height - (330)
+    # new_img_1 = img.crop((left, top, right, bottom))
+    # new_img_1.save(image, quality=95)
 
-    # convert to pdf
-    img = I.open(image)
-    new_img_2 = img.convert('RGB')
-    new_img_2.save(pdf, quality=95)
+    # # convert to pdf
+    # img = I.open(image)
+    # new_img_2 = img.convert('RGB')
+    # new_img_2.save(pdf, quality=95)
 
     # uploading to s3
-    remote_path = f'static/landing/reports/{report_id}.pdf'
+    remote_path = f'static/landing/reports/{report_id}.png' # -> .pdf
     report_url = f'{settings.AWS_S3_URL_PATH}/{remote_path}'
 
     # upload to s3
-    with open(pdf, 'rb') as data:
+    with open(image, 'rb') as data: # -> image
         s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
             remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': 'application/pdf'}
         )
 
     # removing local copies
     os.remove(image)
-    os.remove(pdf)
+    # os.remove(pdf)
     
     # setting up email to prospect
     pre_content = 'The Cursion performance report you requested has finished processing. \
