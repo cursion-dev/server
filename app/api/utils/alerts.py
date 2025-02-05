@@ -866,6 +866,7 @@ def sendgrid_email(
     except Exception as e:
         status = False
         msg = str(e)
+        print(f'Error sending -> {e}')
 
     # formatting resposne
     data = {
