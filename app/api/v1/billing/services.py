@@ -565,6 +565,11 @@ def get_billing_info(request: object) -> object:
     # init Stripe client
     stripe.api_key = settings.STRIPE_PRIVATE
 
+    # check is member exists
+    if not Member.objects.filter(user=request.user).exists():
+        data = {'reason': 'member not found'}
+        return Response(data, status=status.HTTP_404_NOT_FOUND)
+    
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
