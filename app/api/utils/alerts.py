@@ -858,7 +858,7 @@ def sendgrid_email(
     # send message 
     try:
         print(f'sending email using API key {settings.SENDGRID_API_KEY}')
-        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        sg = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
         response = sg.send(message)
         print(response)
         status = True
