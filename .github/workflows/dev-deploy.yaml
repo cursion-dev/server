@@ -32,3 +32,4 @@ jobs:
           docker volume rm app_server app_beat app_celery
           docker image rm cursiondev/client
           docker compose -f docker-compose.dev.yml up -d --build
+          docker system prune -f
