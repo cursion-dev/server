@@ -19,7 +19,6 @@ env/.env.client.prod
 
 app/data*
 app/static*
-app/api/migrations/*_*.py
 app/chromedriver*
 app/.cache*
 app/.config*
