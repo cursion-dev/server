@@ -826,7 +826,7 @@ def sendgrid_email(
 
     # init SendGrid message
     message = Mail(
-        from_email=From(settings.EMAIL_HOST_USER, 'Cursion'),
+        from_email=From(settings.SENDGRID_EMAIL, 'Cursion'),
         to_emails=email,  
     )
 
