@@ -51,8 +51,9 @@ data:
   # twilio credentials
   TWILIO_SID : "<your-own-key>" 
   TWILIO_AUTH_TOKEN : "<your-own-key>" 
-  TWILIO_NUMBER : "+<your-own-number>"
+  TWILIO_NUMBER : "<your-own-number>"
   # sendgrid configs
+  SENDGRID_EMAIL: your@email.com
   SENDGRID_API_KEY : "<your-own-key>" 
   DEFAULT_TEMPLATE : "<your-own-key>" 
   DEFAULT_TEMPLATE_NO_BUTTON : "<your-own-key>" 
