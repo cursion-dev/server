@@ -68,7 +68,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     bottom = max(0, height - 330)
 
     cropped_img = img.crop((left, top, right, bottom))
-    cropped_img.save(image_path, quality=95)
+    cropped_img.save(image, quality=95)
 
     # Convert to PDF
     img = I.open(image)
