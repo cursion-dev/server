@@ -237,6 +237,29 @@ def record_task(
 
 
 
+def update_schedule(task_id: str=None) -> None:
+    """
+    Helper function to update Schedule.time_last_run
+
+    Expcets: {
+        task_id: str
+    }
+
+    Returns: None
+    """
+    if task_id:
+        try:
+            last_run = datetime.now(timezone.utc)
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
+    return None
+
+
+
+
 @shared_task()
 def redeliver_failed_tasks() -> None:
     """ 
@@ -921,14 +944,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
             })
         
         # update schedule if task_id is not None
-        if task_id:
-            try:
-                last_run = datetime.now(timezone.utc)
-                Schedule.objects.filter(periodic_task_id=task_id).update(
-                    time_last_run=last_run
-                )
-            except Exception as e:
-                print(e)
+        update_schedule(task_id=task_id)
         
         logger.info('created new Scans')
         return None
@@ -1555,6 +1571,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                     failed += 1
                     objects[-1]['status'] = 'failed'
                     logger.info('maxed tests reached')
+                    update_schedule(task_id=task_id)
                     return None
 
             # update flowrun
@@ -1585,14 +1602,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
             )
 
         # update schedule if task_id is not None
-        if task_id:
-            try:
-                last_run = datetime.now(timezone.utc)
-                Schedule.objects.filter(periodic_task_id=task_id).update(
-                    time_last_run=last_run
-                )
-            except Exception as e:
-                print(e)
+        update_schedule(task_id=task_id)
 
         logger.info('Created new Tests')
         return None
@@ -1776,14 +1786,7 @@ def create_report_bg(*args, **kwargs) -> None:
             )
         
         # update schedule if task_id is not None
-        if task_id:
-            try:
-                last_run = datetime.now(timezone.utc)
-                Schedule.objects.filter(periodic_task_id=task_id).update(
-                    time_last_run=last_run
-                )
-            except Exception as e:
-                print(e)
+        update_schedule(task_id=task_id)
         
         logger.info('Created new Reports')
         return None
@@ -2087,14 +2090,7 @@ def create_caserun_bg(*args, **kwargs) -> None:
             )
 
         # update schedule if task_id is not None
-        if task_id:
-            try:
-                last_run = datetime.now(timezone.utc)
-                Schedule.objects.filter(periodic_task_id=task_id).update(
-                    time_last_run=last_run
-                )
-            except Exception as e:
-                print(e)
+        update_schedule(task_id=task_id)
 
         logger.info('Created CaseRuns')
         return None
@@ -2220,15 +2216,8 @@ def create_flowrun_bg(*args, **kwargs) -> None:
             else:
                 logger.info('max flowruns reached')
 
-        # update schedule if task_id is not None
-        if task_id:
-            try:
-                last_run = datetime.now(timezone.utc)
-                Schedule.objects.filter(periodic_task_id=task_id).update(
-                    time_last_run=last_run
-                )
-            except Exception as e:
-                print(e)
+        # update schedule
+        update_schedule(task_id=task_id)
 
         logger.info('Created FlowRuns')
         return None
