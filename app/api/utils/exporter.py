@@ -45,7 +45,7 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
 
     # setting screensize
     full_page_height = driver.execute_script("return document.scrollingElement.scrollHeight;")
-    driver.set_window_size(1512, int(full_page_height))
+    driver.set_window_size(1260, int(full_page_height)) # 1512 x full_page
 
     # taking screenshot
     driver.save_screenshot(f'{report_id}.png')
@@ -58,33 +58,36 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
     pdf = os.path.join(settings.BASE_DIR, f'{report_id}.pdf')
 
     # resizing image to remove excess | expected height => 2353
-    # img = I.open(image)
-    # width, height = img.size
-    # left = 0
-    # top = 85
-    # right = width
-    # bottom = height - (330)
-    # new_img_1 = img.crop((left, top, right, bottom))
-    # new_img_1.save(image, quality=95)
+    img = I.open(image)
+    width, height = img.size
 
-    # # convert to pdf
-    # img = I.open(image)
-    # new_img_2 = img.convert('RGB')
-    # new_img_2.save(pdf, quality=95)
+    # Validate crop bounds
+    left = 0
+    top = 85
+    right = width
+    bottom = max(0, height - 330)
+
+    cropped_img = img.crop((left, top, right, bottom))
+    cropped_img.save(image_path, quality=95)
+
+    # Convert to PDF
+    img = I.open(image)
+    pdf_img = img.convert('RGB')
+    pdf_img.save(pdf)
 
     # uploading to s3
-    remote_path = f'static/landing/reports/{report_id}.png' # -> .pdf
+    remote_path = f'static/landing/reports/{report_id}.pdf' # -> .png
     report_url = f'{settings.AWS_S3_URL_PATH}/{remote_path}'
 
     # upload to s3
-    with open(image, 'rb') as data: # -> image
+    with open(pdf, 'rb') as data: # -> image
         s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
             remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': 'application/pdf'}
         )
 
     # removing local copies
     os.remove(image)
-    # os.remove(pdf)
+    os.remove(pdf)
     
     # setting up email to prospect
     pre_content = 'The Cursion performance report you requested has finished processing. \
