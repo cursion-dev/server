@@ -289,6 +289,48 @@ definitions = [
         'value': 'str(obj.id)'
     },
 
+    # issue
+    {
+        'name': 'Issue Title',
+        'key': 'issue_title',
+        'value': 'obj.title'
+    },
+    {
+        'name': 'Issue Details',
+        'key': 'issue_details',
+        'value': 'obj.details'
+    },
+    {
+        'name': 'Issue ID',
+        'key': 'issue_id',
+        'value': 'str(obj.id)'
+    },
+    {
+        'name': 'Issue Affected ID',
+        'key': 'issue_affected_id',
+        'value': 'str(obj.affected.get("id"))'
+    },
+    {
+        'name': 'Issue Affected',
+        'key': 'issue_affected',
+        'value': 'str(obj.affected.get("str"))'
+    },
+    {
+        'name': 'Issue Affected Type',
+        'key': 'issue_affected_type',
+        'value': 'str(obj.affected.get("type"))'
+    },
+    {
+        'name': 'Issue Trigger Type',
+        'key': 'issue_trigger_type',
+        'value': 'str(obj.trigger.get("type"))'
+    },
+    {
+        'name': 'Issue Trigger ID',
+        'key': 'issue_trigger_id',
+        'value': 'str(obj.trigger.get("id"))'
+    },
+
     # test
     {
         'name': 'Test ID',

@@ -281,7 +281,7 @@ def transpose_data(string: str=None, obj: object=None, secrets: list=[]) -> dict
 
     Expects: {
         'string'    : str (to be transposed)
-        'obj'       : object (Scan, Test, CaseRun, Report),
+        'obj'       : object (Scan, Test, CaseRun, Report, Issue),
         'secrets'   : list (account secrets)
     }
 
@@ -337,13 +337,14 @@ def transpose_data(string: str=None, obj: object=None, secrets: list=[]) -> dict
 def get_obj(object_id: str=None) -> dict:
     """ 
     Tries to find an object that matches theh passed 'object_id'.
+    (Scan, Test, CaseRun, FlowRun, Report, Issue)
 
     Expects: {
         'object_id':  str,
     }
 
     Returns -> data: {
-        'obj'      : object (Scan, Test, CaseRun, FlowRun, Report),
+        'obj'      : object,
         'obj_type' : str,
         'success'  : bool
     }
@@ -387,6 +388,13 @@ def get_obj(object_id: str=None) -> dict:
         try:
             obj = Report.objects.get(id=uuid.UUID(object_id))
             obj_type = 'Report'
+            success = True
+        except:
+            pass
+    if not obj:
+        try:
+            obj = Issue.objects.get(id=uuid.UUID(object_id))
+            obj_type = 'Issue'
             success = True
         except:
             pass

@@ -96,7 +96,7 @@ class Issuer():
         """ 
         Replaces URLs with correct URLs
 
-        Expcets: {
+        Expects: {
             'recommendation': str
         }
 
@@ -126,9 +126,6 @@ class Issuer():
 
         Returns -> `Issue` <obj>
         """
-
-        # defining top level attrs
-        
 
         # deciding on type
         self.obj = self.scan or self.test or self.caserun
@@ -197,7 +194,7 @@ class Issuer():
         """ 
         Handles data collection for a scan
 
-        Expcets: None
+        Expects: None
 
         Returns: None
         """
@@ -214,14 +211,15 @@ class Issuer():
         yl_audits = requests.get(self.scan.yellowlab.get('audits')).json() if self.scan.yellowlab.get('audits') else ''
 
         # include logs
-        if len(self.scan.logs) > 0:
-            cats.append({
-                'key'   : 'logs',
-                'name'  : 'Console Issues',
-                'value' : str(len(self.scan.logs))
-            })
-            comps.append('Console')
-            logs = self.scan.logs
+        if self.scan.logs:
+            if len(self.scan.logs) > 0:
+                cats.append({
+                    'key'   : 'logs',
+                    'name'  : 'Console Issues',
+                    'value' : str(len(self.scan.logs))
+                })
+                comps.append('Console')
+                logs = self.scan.logs
 
         # include lighthouse 
         if self.scan.lighthouse.get('audits'):
@@ -315,7 +313,7 @@ class Issuer():
         """ 
         Handles data collection for a test
 
-        Expcets: None
+        Expects: None
 
         Returns: None
         """
@@ -445,7 +443,7 @@ class Issuer():
         """ 
         Handles data collection for a caserun
 
-        Expcets: None
+        Expects: None
 
         Returns: None
         """
