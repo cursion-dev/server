@@ -241,7 +241,7 @@ def update_schedule(task_id: str=None) -> None:
     """
     Helper function to update Schedule.time_last_run
 
-    Expcets: {
+    Expects: {
         task_id: str
     }
 
@@ -1720,6 +1720,8 @@ def create_report_bg(*args, **kwargs) -> None:
         # get account if account_id exists
         if account_id:
             account = Account.objects.get(id=account_id)
+
+        print(f'passed resources => {resources}')
             
         # iterating through resources 
         # and adding to sites or pages
@@ -2221,6 +2223,178 @@ def create_flowrun_bg(*args, **kwargs) -> None:
 
         logger.info('Created FlowRuns')
         return None
+
+
+
+
+def create_issue( 
+        account_id  : str=None, 
+        object_id   : str=None, 
+        title       : str=None, 
+        details     : str=None,
+        generate    : bool=False
+    ) -> dict:
+    """ 
+    Creates and `Issue` for each passed obj, using either 
+    passed data or Issuer.build_issue()
+
+    Expects: {
+        'account_id'    : str, 
+        'object_id'     : str,
+        'title'         : str,
+        'details'       : str,
+        'generate'      : bool
+    }
+
+    Returns: {
+        'message' : str,
+        'success' : bool
+    }
+    """
+
+    # set defaults
+    message = ''
+    success = True
+    affected = {}
+    trigger = {}
+    issue = None
+
+    # get object from object_id
+    obj = get_obj(object_id=object_id)
+
+    # check for success
+    if not obj.get('success'):
+        message = f'❌ object not found - unable to create issue for {object_id}'
+        success = False
+        return {'message': message, 'success': success, 'issue': issue}
+
+    # check for 'generate'
+    if generate:
+
+        # build Issue using Issuer().build_issue()
+        try:
+            issue = Issuer(
+                scan        = obj.get('obj') if obj.get('obj_type') == 'Scan' else None,
+                test        = obj.get('obj') if obj.get('obj_type') == 'Test' else None,
+                caserun     = obj.get('obj') if obj.get('obj_type') == 'CaseRun' else None,
+                threshold   = obj.get('obj').threshold if obj.get('obj_type') == 'Test' else 75
+            ).build_issue()
+
+            # build messge
+            message = f'✅ created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
+            success = True
+            
+        except Exception as e:
+            print(e)
+            # build messge
+            message = f'❌ generation failed - unable to create issue for {object_id}'
+            success = False
+
+    # check for manual creation
+    if not generate:
+        
+        # create trigger
+        trigger = {
+            'type'  : obj.get('obj_type').lower(), 
+            'id'    : str(obj.get('obj').id)
+        }
+
+        # create affected
+        affected = {
+            'type'  : 'site' if obj.get('obj_type') == 'CaseRun' else 'page',
+            'id'    : str(obj.get('obj').site.id) if obj.get('obj_type') == 'CaseRun' else str(obj.get('obj').page.id),
+            'str'   : obj.get('obj').site.site_url if obj.get('obj_type') == 'CaseRun' else obj.get('obj').page.page_url
+        }
+
+        # get account & secrets
+        account = Account.objects.get(id=account_id)
+        secrets = Secret.objects.filter(account=account)
+
+        # transpose data
+        title = transpose_data(title, obj.get('obj'), secrets)
+        details = transpose_data(details, obj.get('obj'), secrets)
+
+        # build Issue
+        issue = Issue.objects.create(
+            account  = account,
+            title    = title,
+            details  = details,
+            labels   = [], 
+            trigger  = trigger,
+            affected = affected
+        )
+
+        # build messge
+        message = f'✅ created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
+        success = True
+
+    # return data
+    data = {
+        'message'   : message,
+        'success'   : success,
+        'issue'     : issue
+    }
+    return data
+
+
+
+
+@shared_task
+def create_issue_bg(
+        account_id: str=None, 
+        objects: list=None,
+        title: str=None, 
+        details: str=None,
+        generate: bool=True,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> None:
+    """ 
+    Runs create_issue for each passed `object`
+
+    Expects: {
+        'account_id'    : str, 
+        'objects'       : list,
+        'title'         : str,
+        'details'       : str,
+        'generate'      : bool,
+        'flowrun_id'    : str,
+        'node_index'    : str,
+    }
+
+    Returns: None
+    """
+
+    # interating through objects
+    for obj in objects:
+
+        # sleeping random for DB 
+        time.sleep(random.uniform(2, 6))
+
+        # run create_issue
+        resp = create_issue( 
+            account_id=account_id, 
+            object_id=obj['id'], 
+            title=title, 
+            details=details,
+            generate=generate
+        )
+        
+        if flowrun_id and flowrun_id != 'None':
+            # update flowrun
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': resp.get('message'),
+                'objects': [{
+                    'parent': obj['id'],
+                    'id': str(resp.get('issue').id) if resp.get('success') else None, 
+                    'status': 'passed' if resp.get('success') else 'failed'
+                }]
+            })
+
+    logger.info('created issues')
+    return None
 
 
 
@@ -2979,7 +3153,7 @@ def send_phone_bg(
 
     Expects: { 
         'account_id'    : str, 
-        'objects'       : str,
+        'objects'       : list,
         'phone_number'  : str,
         'body'          : str,
         'flowrun_id'    : str,

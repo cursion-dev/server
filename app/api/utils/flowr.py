@@ -3,6 +3,7 @@ from .alerter import Alerter
 from ..tasks import (
     create_caserun_bg, create_report_bg,
     create_scan_bg, create_test_bg, 
+    create_issue_bg,
     send_phone_bg, send_email_bg, 
     send_slack_bg, send_webhook_bg
 )
@@ -39,7 +40,9 @@ class Flowr():
         self.flowrun = FlowRun.objects.get(id=flowrun_id)
 
         # constants for tasks that require 'object_id'
-        self.alert_types = ['webhook', 'email', 'phone', 'slack']
+        self.alert_types = [
+            'webhook', 'email', 'phone', 'slack', 'report', 'issue'
+        ]
 
 
 
@@ -696,7 +699,9 @@ class Flowr():
         # update current node
         nodes[step_data['index']]['data']['status'] = 'working' 
         nodes[step_data['index']]['data']['time_started'] = self.build_timestamp()
-        nodes[step_data['index']]['data']['objects'] = objects
+
+        # update node objects only if task_type is not 'issue' or 'report'
+        nodes[step_data['index']]['data']['objects'] = objects if (task_type != 'issue' and task_type != 'report') else []
 
         # update current edge if not first step
         if step_data['index'] != 0:
@@ -727,9 +732,9 @@ class Flowr():
         account_id = str(self.flowrun.account.id)
         types = node_data.get('type')
         resources = [{
-            'str': self.flowrun.site.site_url,
-            'id': str(self.flowrun.site.id),
-            'type': 'site'
+            'str'   : self.flowrun.site.site_url,
+            'id'    : str(self.flowrun.site.id),
+            'type'  : 'site'
         },]
     
 
@@ -767,6 +772,18 @@ class Flowr():
                 case_id       = node_data['case_id'],
                 updates       = node_data['updates'],
                 configs       = configs,
+                flowrun_id    = flowrun_id,
+                node_index    = node_index
+            )
+
+        # create new issue
+        if task_type == 'issue':
+            create_issue_bg.delay(
+                account_id    = account_id,
+                objects       = objects,
+                title         = node_data['title'],
+                details       = node_data['details'],
+                generate      = node_data['generate'],
                 flowrun_id    = flowrun_id,
                 node_index    = node_index
             )
