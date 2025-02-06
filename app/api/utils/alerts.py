@@ -875,7 +875,7 @@ def send_phone(
     ) -> dict:
     """ 
     Using Twilio, sends an SMS with the passed 'body'
-    top the passed 'phone_number'
+    to the passed 'phone_number'
 
     Expects: { 
         'account_id'    : str, 
@@ -941,7 +941,7 @@ def send_slack(
     ) -> dict:
     """ 
     Using Slack, sends an message with the passed 'body'
-    top the passed 'account'.channel
+    to the passed 'account'.channel
 
     Expects: { 
         'account_id' : str, 
