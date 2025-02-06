@@ -2281,7 +2281,7 @@ def create_issue(
             ).build_issue()
 
             # build messge
-            message = f'✅ created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
+            message = f'created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
             success = True
             
         except Exception as e:
@@ -2325,7 +2325,7 @@ def create_issue(
         )
 
         # build messge
-        message = f'✅ created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
+        message = f'created new issue for {obj.get('obj_type').lower()} | issue_id {issue.id}'
         success = True
 
     # return data
@@ -2364,6 +2364,25 @@ def create_issue_bg(
 
     Returns: None
     """
+
+    # create objects list for flowrun
+    obj_list = []
+    for o in objects:
+        obj_list.append({
+            'parent': o['id'],
+            'id': None, 
+            'status': 'working'
+        })
+    
+    # update flowrun if requested
+    if flowrun_id and flowrun_id != 'None':
+        # update flowrun
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'building {len(obj_list)} Issues | run_id: {flowrun_id}',
+            'objects': obj_list
+        })
 
     # interating through objects
     for obj in objects:

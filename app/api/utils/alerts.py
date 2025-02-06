@@ -10,7 +10,7 @@ from cursion import settings
 from .definitions import get_definition, definitions
 from datetime import date
 from cryptography.fernet import Fernet
-import os, json, requests, uuid
+import os, json, requests, uuid, re
 
 
 
@@ -1045,10 +1045,18 @@ def send_webhook(
     # get object
     obj = get_obj(object_id)['obj']
 
-    # cleaning data
+    # transpose data
     cleaned_headers = transpose_data(headers, obj, secrets)
     cleaned_payload = transpose_data(payload, obj, secrets)
     cleaned_url = transpose_data(url, obj, secrets)
+
+    # sanitize data
+    cleaned_headers = re.sub(r'[\x00-\x1f\x7f]', '', cleaned_headers)
+    cleaned_payload = re.sub(r'[\x00-\x1f\x7f]', '', cleaned_payload)
+
+    # reformatting
+    cleaned_headers = re.sub(r'(["}])\s*(?=["{])', r'\1,', cleaned_headers)
+    cleaned_payload = re.sub(r'(["}])\s*(?=["{])', r'\1,', cleaned_payload)
     
     # building json
     json_payload = json.loads(cleaned_payload) if request_type == 'POST' else {}
