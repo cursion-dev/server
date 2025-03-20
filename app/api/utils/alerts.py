@@ -808,7 +808,7 @@ def sendgrid_email(
 
         # replacing '\n' with <br>
         content = content.replace('\n', '<br>')
-        pre_content = content.replace('\n', '<br>')
+        pre_content = pre_content.replace('\n', '<br>')
 
     # build template data
     template_data = {

@@ -2611,7 +2611,7 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
     Expects: {
         'request' : object,
         'id'      : str,
-        'account' : object,
+        'user'    : object,
     }
 
     Returns -> HTTP Response object
