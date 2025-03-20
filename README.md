@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-   Compicated Web Testing on Easy Mode
+  Complicated Web Testing on Easy Mode
 </p>
 
 <p align="center">
