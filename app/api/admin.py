@@ -49,7 +49,6 @@ class CardAdmin(admin.ModelAdmin):
 
 
 
-
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_url', 'account', 'time_created')
@@ -127,7 +126,7 @@ class TestAdmin(admin.ModelAdmin):
         for test in queryset:
             delete_test(
                 id=test.id,
-                account=test.page.account
+                user=test.page.account.user
             )
 
 
@@ -142,7 +141,7 @@ class ScanAdmin(admin.ModelAdmin):
         for scan in queryset:
             delete_scan(
                 id=scan.id,
-                account=scan.page.account
+                user=scan.page.account.user
             )
     
     def add_scan_score(self, request, queryset):
