@@ -263,7 +263,8 @@ CONFIGS = {
     'disable_animations': True,
     'auto_height': True,
     'create_issue': True,
-    'end_on_fail': True
+    'end_on_fail': True,
+    'ai_analysis': False,
 }
 
 

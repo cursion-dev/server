@@ -462,11 +462,11 @@ class Imager():
                             Look for changes in pictures, buttons, forms, vertial shifts, etc. \
                             Respond also with a boolean that is TRUE if the page should be considered broken. \
                             Consider any emerging portions that appear to be unrendered HTML \
-                            (contains angle brackets like '<' '>' or square brackets like '[wp-form-12]') to be a 'breaking change'. \
                             If the same text is present in both images, then DO NOT consider it a 'breaking change'. \
                             Only consider 'breaking changes' on the second image. \
                             DO NOT consider new or altered text to a 'breaking change'. \
                             DO NOT consider text changes within images or pictures on the webpage. \
+                            Ignore portions that appear to be advertizements. \
                             Please be somewhat strict with the analysis. \
                             Format response as a JSON object with 'summary': <string>, 'broken': <bool>"         
                         },
@@ -713,8 +713,15 @@ class Imager():
         """
 
         # defaults
-        i = 0
-        images_delta = {
+        i               = 0
+        img_score       = None
+        pre_img         = None
+        post_img        = None
+        pre_img_diff    = None
+        post_img_diff   = None
+        ai_summary      = None
+        broken          = None
+        images_delta    = {
             "average_score": None,
             "images": None,
         }
@@ -786,24 +793,18 @@ class Imager():
             post_img = old_imgs[1]
 
             # running AI comparison
-            resp = self.ai_compare(
-                pre_img_url   = self.test.pre_scan.images[0].get('url'), 
-                post_img_url  = self.test.post_scan.images[0].get('url'), 
-                score         = ssim_img_score,
-                highlighted   = False
-            )
-            ai_summary = resp.get('summary')
-            broken = resp.get('broken')
+            if self.test.post_scan.configs.get('ai_analysis') == True:
+                resp = self.ai_compare(
+                    pre_img_url   = self.test.pre_scan.images[0].get('url'), 
+                    post_img_url  = self.test.post_scan.images[0].get('url'), 
+                    score         = ssim_img_score,
+                    highlighted   = False
+                )
+                ai_summary = resp.get('summary')
+                broken = resp.get('broken')
 
         except Exception as e:
             print(e)
-            img_score       = None
-            pre_img         = None
-            post_img        = None
-            pre_img_diff    = None
-            post_img_diff   = None
-            ai_summary      = None
-            broken          = None
 
         # create img test obj and add to array
         img_test_obj = [{
@@ -847,7 +848,7 @@ class Imager():
             type : str, "action" or "assertion"
         }
 
-        Returns -> data: {
+        Returns: {
             'average_score' : float(0-100),
             'images'        : dict,
         }
