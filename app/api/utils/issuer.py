@@ -1,6 +1,7 @@
 from ..models import *
 from cursion import settings
 from openai import OpenAI
+from .meter import meter_account
 import time, os, json, uuid, \
     random, boto3, re, requests
 
@@ -183,6 +184,10 @@ class Issuer():
             trigger  = self.trigger,
             affected = self.affected
         )
+
+        # meter account if necessary
+        if self.account.type == 'cloud' and self.account.cust_id:
+            meter_account(str(self.account.id), 1)
         
         # new Issue
         return issue

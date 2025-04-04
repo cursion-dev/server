@@ -7,6 +7,7 @@ from datetime import datetime
 from asgiref.sync import sync_to_async
 from openai import OpenAI
 from pydantic import BaseModel
+from .meter import meter_account
 import time, os, sys, json, uuid, boto3, \
     statistics, shutil, numpy, cv2, requests
 
@@ -499,6 +500,10 @@ class Imager():
                 'summary': None, 
                 'broken': None
             }
+
+        # meter account if necessary
+        if self.test.page.account.type == 'cloud' and self.test.page.account.cust_id:
+            meter_account(str(self.test.page.account.id), 1)
 
         print(result)
         return result

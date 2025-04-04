@@ -17,6 +17,7 @@ from .utils.scanner import (
 )
 from .utils.alerts import *
 from .utils.updater import update_flowrun
+from .utils.meter import meter_account
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -123,7 +124,7 @@ def check_and_increment_resource(account_id: str, resource: str) -> bool:
             if (int(account.usage[f'{resource}'])) >= int(account.usage[f'{resource}_allowed']):
 
                 # meter resource
-                meter_resource.delay(account.id, 1)
+                meter_account(account.id, 1)
             
             # increment and update success
             account.usage[f'{resource}'] = 1 + int(account.usage[f'{resource}'])
@@ -2835,41 +2836,6 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     print(f'new price -> {price_amount}')
     
     # return 
-    return None
-
-
-
-
-@shared_task
-def meter_resource(account_id: str=None, count: int=1) -> None:
-    """ 
-    Sends a `MeterEvent` request to Stripe to 
-    track account usage
-
-    Expects: {
-        'account_id' : <str> (REQUIRED)   
-        'count'      : <int> (OPTIONAL)   
-    }
-
-    Returns: None
-    """
-
-    # init Stripe client
-    stripe.api_key = settings.STRIPE_PRIVATE
-
-    # get account
-    account = Account.objects.get(id=account_id)
-
-    # send stripe request
-    stripe.billing.MeterEvent.create(
-        event_name  = 'tasks',
-        payload     = {
-            'stripe_customer_id': account.cust_id, 
-            "value": count
-        },
-    )
-
-    # return
     return None
 
 
