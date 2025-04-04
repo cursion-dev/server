@@ -176,7 +176,7 @@ def record_task(
         task_id: str=None, 
         task_method: str=None, 
         **kwargs,
-    ) -> None:
+    ) -> bool:
 
     """ 
     Records task information in the `resource.system` 
@@ -190,8 +190,11 @@ def record_task(
         'kwargs'        : dict
     }
     
-    Returns: None
+    Returns: max_attempts_reached <bool>
     """
+
+    # set default 
+    max_atttempts_reached = False
 
     # get resource 
     if resource_type == 'scan':
@@ -215,6 +218,7 @@ def record_task(
             # update existing task
             tasks[i]['task_id'] = str(task_id)
             tasks[i]['attempts'] += 1
+            max_atttempts_reached = True if (tasks[i]['attempts'] > settings.MAX_ATTEMPTS) else False
             exists = True
         i += 1
 
@@ -233,7 +237,7 @@ def record_task(
     resource.save()
 
     # return
-    return None
+    return max_atttempts_reached
 
 
 
@@ -989,8 +993,8 @@ def run_html_and_logs_bg(
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
    
-    # save sys data
-    record_task(
+    # save & check sys data
+    max_reached = record_task(
         resource_type='scan',
         resource_id=str(scan_id),
         task_id=str(self.request.id),
@@ -1003,6 +1007,11 @@ def run_html_and_logs_bg(
             'node_index': str(node_index) if node_index is not None else None
         }
     )
+
+    # return early if max_attempts reached
+    if max_reached:
+        print('max attempts reach for html & logs component')
+        return None
     
     # run html and logs component
     _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
@@ -1050,7 +1059,7 @@ def run_vrt_bg(
         node_index = kwargs.get('node_index')
    
     # save sys data
-    record_task(
+    max_reached = record_task(
         resource_type='scan',
         resource_id=str(scan_id),
         task_id=str(self.request.id),
@@ -1063,6 +1072,11 @@ def run_vrt_bg(
             'node_index': str(node_index) if node_index is not None else None
         }
     )
+
+    # return early if max_attempts reached
+    if max_reached:
+        print('max attempts reach for vrt component')
+        return None
 
     # run VRT component
     _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
@@ -1110,7 +1124,7 @@ def run_lighthouse_bg(
         node_index = kwargs.get('node_index')
    
     # save sys data
-    record_task(
+    max_reached = record_task(
         resource_type='scan',
         resource_id=str(scan_id),
         task_id=str(self.request.id),
@@ -1123,6 +1137,11 @@ def run_lighthouse_bg(
             'node_index': str(node_index) if node_index is not None else None
         }
     )
+
+    # return early if max_attempts reached
+    if max_reached:
+        print('max attempts reach for lighthouse component')
+        return None
 
     # run lighthouse component
     _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
@@ -1170,7 +1189,7 @@ def run_yellowlab_bg(
         node_index = kwargs.get('node_index')
    
     # save sys data
-    record_task(
+    max_reached = record_task(
         resource_type='scan',
         resource_id=str(scan_id),
         task_id=str(self.request.id),
@@ -1183,6 +1202,11 @@ def run_yellowlab_bg(
             'node_index': str(node_index) if node_index is not None else None
         }
     )
+
+    # return early if max_attempts reached
+    if max_reached:
+        print('max attempts reach for yellowlab component')
+        return None
 
     # run yellowlab component
     _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)

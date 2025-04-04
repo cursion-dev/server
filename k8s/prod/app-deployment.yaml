@@ -19,7 +19,7 @@ spec:
       containers:
         - name: cursion-server
           image: <IMAGE> # cursiondev/server:cd77834 #
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           command: ["/entrypoint.sh", "server", "remote"]
