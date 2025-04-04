@@ -1,4 +1,6 @@
 #!/bin/bash
+# /entrypoint.sh
+
 
 # spin up server in local, remote, or stage env
 if [[ $1 == *"server"* ]]
@@ -36,7 +38,7 @@ if [[ $1 == *"celery"* ]]
   then
     python3 manage.py wait_for_db && 
     echo "pausing for migrations to complete..." && sleep 7s &&
-    celery -A cursion worker -E --loglevel=info -O fair
+    celery -A cursion worker -E --loglevel=info -O fair --hostname=celery@$(hostname)
 fi
 
 # spin up celery beat
