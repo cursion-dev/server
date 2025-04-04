@@ -14,7 +14,6 @@ class Crawler():
     Expects: {
         'url'       : str,
         'sitemap'   : str,
-        'start_url' : str,
         'max_urls'  : int,
     }
 
@@ -133,7 +132,7 @@ class Crawler():
                         if str(self.driver.current_url) == str(url):
                             if url.endswith('/'):
                                 url = url.rstrip('/')
-                            if not (url in follow_urls):
+                            if url not in follow_urls:
                                 follow_urls.append(url)
                                 depth += 1
                                 print(f'{depth} urls saved of {max_depth} allowed')
@@ -148,8 +147,8 @@ class Crawler():
             # iterate through existing follow_urls
             for url in follow_urls:
                 # pass if already crawled
-                if not url in crawled_urls:
-                    if not url in saved_urls:
+                if url not in crawled_urls:
+                    if url not in saved_urls:
                         saved_urls.append(url)
                         print(f'saving -> {url}')
                     if len(saved_urls) >= self.max_urls:
@@ -173,7 +172,7 @@ class Crawler():
                     break
                 
                 # crawl new url if not in crawled_urls
-                if not url in crawled_urls:
+                if url not in crawled_urls:
                     crawl_url(url, max_depth=self.max_urls)
 
 

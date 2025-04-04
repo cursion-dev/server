@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # cursiondev/server:latest # 
+          image: <IMAGE> # cursiondev/server:af04732 # 
           imagePullPolicy: Always
           command: ["/entrypoint.sh", "celery"]
           envFrom:
@@ -38,11 +38,23 @@ spec:
           resources:
             limits:
               cpu: "1"
-              memory: "3.5Gi"
+              memory: "2.5Gi"
             requests:
-              cpu: "1"
-              memory: "2Gi"
+              cpu: ".75"
+              memory: "1.5Gi"
           lifecycle:
             preStop:
               exec:
                 command: ["python3", "manage.py", "terminate_worker"]
+          livenessProbe:
+            exec:
+              command: ["/bin/bash", "/healthcheck.sh", "celery"]
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command: ["/bin/bash", "/healthcheck.sh", "celery"]
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            failureThreshold: 3
