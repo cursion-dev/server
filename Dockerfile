@@ -110,6 +110,9 @@ RUN apt-get clean && rm -rf \
 # setting final user
 USER app
 
+# copy healthcheck.sh
+COPY ./setup/scripts/healthcheck.sh "/healthcheck.sh"
+
 # staring up services
 COPY ./setup/scripts/entrypoint.sh "/entrypoint.sh"
 ENTRYPOINT [ "/entrypoint.sh" ]
