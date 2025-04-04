@@ -112,9 +112,11 @@ USER app
 
 # copy healthcheck.sh
 COPY ./setup/scripts/healthcheck.sh "/healthcheck.sh"
+RUN chmod +x /healthcheck.sh
 
 # staring up services
 COPY ./setup/scripts/entrypoint.sh "/entrypoint.sh"
+RUN chmod +x /entrypoint.sh
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 

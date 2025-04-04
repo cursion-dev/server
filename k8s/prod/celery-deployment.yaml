@@ -48,13 +48,13 @@ spec:
                 command: ["python3", "manage.py", "terminate_worker"]
           livenessProbe:
             exec:
-              command: ["/bin/bash", "/healthcheck.sh", "celery"]
+              command: ["/healthcheck.sh", "celery"]
             initialDelaySeconds: 120
             periodSeconds: 30
             failureThreshold: 5
           readinessProbe:
             exec:
-              command: ["/bin/bash", "/healthcheck.sh", "celery"]
+              command: ["/healthcheck.sh", "celery"]
             initialDelaySeconds: 120
             periodSeconds: 20
             failureThreshold: 3
