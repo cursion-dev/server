@@ -228,6 +228,17 @@ class ScansZapier(APIView):
 
 
 
+class ScansRetry(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = retry_failed_scans(request)
+        return response
+
+
+
+
 ### ------ Begin Test Views ------ ###
 
 

@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
         tasks = [
             {
-                'every': 2,
+                'every': 10,
                 'period': IntervalSchedule.MINUTES,
                 'name': 'Redeliver Failed Tasks',
                 'task': 'api.tasks.redeliver_failed_tasks'

@@ -1,0 +1,18 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tasks-cronjob
+spec:
+  schedule: "*/5 * * * *"  # every 5 minutes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: retry-tasks
+            image: curlimages/curl:latest
+            args:
+            - /bin/sh
+            - -c
+            - curl -X GET https://api.cursion.dev/v1/ops/scans/retry
+          restartPolicy: OnFailure

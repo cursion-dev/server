@@ -18,6 +18,7 @@ urlpatterns = [
     path('scans/delete', views.ScansDelete.as_view(), name='scans-delete'),
     path('scans/create', views.ScansCreate.as_view(), name='scans-create'),
     path('scans/zapier', views.ScansZapier.as_view(), name='scans-zapier'),
+    path('scans/retry', views.ScansRetry.as_view(), name='scans-retry'),
     path('test', views.Tests.as_view(), name='test'),
     path('test/<uuid:id>', views.TestDetail.as_view(), name='test-detail'),
     path('test/<uuid:id>/lean', views.TestLean.as_view(), name='test-lean'),
