@@ -992,29 +992,33 @@ def run_html_and_logs_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-   
-    # save & check sys data
-    max_reached = record_task(
-        resource_type='scan',
-        resource_id=str(scan_id),
-        task_id=str(self.request.id),
-        task_method=str(inspect.stack()[0][3]),
-        kwargs={
-            'scan_id': str(scan_id) if scan_id is not None else None,
-            'test_id': str(test_id) if test_id is not None else None, 
-            'alert_id': str(alert_id) if alert_id is not None else None,
-            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-            'node_index': str(node_index) if node_index is not None else None
-        }
-    )
-
-    # return early if max_attempts reached
-    if max_reached:
-        print('max attempts reach for html & logs component')
-        return None
     
-    # run html and logs component
-    _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
+    # check redis task lock
+    lock_name = f"lock:html_and_logs_bg_{scan_id}"
+    with task_lock(lock_name) as lock_acquired:
+
+        # save & check sys data
+        max_reached = record_task(
+            resource_type='scan',
+            resource_id=str(scan_id),
+            task_id=str(self.request.id),
+            task_method=str(inspect.stack()[0][3]),
+            kwargs={
+                'scan_id': str(scan_id) if scan_id is not None else None,
+                'test_id': str(test_id) if test_id is not None else None, 
+                'alert_id': str(alert_id) if alert_id is not None else None,
+                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                'node_index': str(node_index) if node_index is not None else None
+            }
+        )
+
+        # return early if max_attempts reached
+        if max_reached:
+            print('max attempts reach for html & logs component')
+            return None
+        
+        # run html and logs component
+        _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran html & logs component')
     return None
@@ -1057,29 +1061,33 @@ def run_vrt_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
+
+    # check redis task lock
+    lock_name = f"lock:vrt_bg_{scan_id}"
+    with task_lock(lock_name) as lock_acquired:
    
-    # save sys data
-    max_reached = record_task(
-        resource_type='scan',
-        resource_id=str(scan_id),
-        task_id=str(self.request.id),
-        task_method=str(inspect.stack()[0][3]),
-        kwargs={
-            'scan_id': str(scan_id) if scan_id is not None else None,
-            'test_id': str(test_id) if test_id is not None else None, 
-            'alert_id': str(alert_id) if alert_id is not None else None,
-            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-            'node_index': str(node_index) if node_index is not None else None
-        }
-    )
+        # save sys data
+        max_reached = record_task(
+            resource_type='scan',
+            resource_id=str(scan_id),
+            task_id=str(self.request.id),
+            task_method=str(inspect.stack()[0][3]),
+            kwargs={
+                'scan_id': str(scan_id) if scan_id is not None else None,
+                'test_id': str(test_id) if test_id is not None else None, 
+                'alert_id': str(alert_id) if alert_id is not None else None,
+                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                'node_index': str(node_index) if node_index is not None else None
+            }
+        )
 
-    # return early if max_attempts reached
-    if max_reached:
-        print('max attempts reach for vrt component')
-        return None
+        # return early if max_attempts reached
+        if max_reached:
+            print('max attempts reach for vrt component')
+            return None
 
-    # run VRT component
-    _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
+        # run VRT component
+        _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran vrt component')
     return None
@@ -1123,28 +1131,32 @@ def run_lighthouse_bg(
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
    
-    # save sys data
-    max_reached = record_task(
-        resource_type='scan',
-        resource_id=str(scan_id),
-        task_id=str(self.request.id),
-        task_method=str(inspect.stack()[0][3]),
-        kwargs={
-            'scan_id': str(scan_id) if scan_id is not None else None,
-            'test_id': str(test_id) if test_id is not None else None, 
-            'alert_id': str(alert_id) if alert_id is not None else None,
-            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-            'node_index': str(node_index) if node_index is not None else None
-        }
-    )
+    # check redis task lock
+    lock_name = f"lock:lighthouse_bg_{scan_id}"
+    with task_lock(lock_name) as lock_acquired:
 
-    # return early if max_attempts reached
-    if max_reached:
-        print('max attempts reach for lighthouse component')
-        return None
+        # save sys data
+        max_reached = record_task(
+            resource_type='scan',
+            resource_id=str(scan_id),
+            task_id=str(self.request.id),
+            task_method=str(inspect.stack()[0][3]),
+            kwargs={
+                'scan_id': str(scan_id) if scan_id is not None else None,
+                'test_id': str(test_id) if test_id is not None else None, 
+                'alert_id': str(alert_id) if alert_id is not None else None,
+                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                'node_index': str(node_index) if node_index is not None else None
+            }
+        )
 
-    # run lighthouse component
-    _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
+        # return early if max_attempts reached
+        if max_reached:
+            print('max attempts reach for lighthouse component')
+            return None
+
+        # run lighthouse component
+        _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran lighthouse component')
     return None
@@ -1187,29 +1199,33 @@ def run_yellowlab_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-   
-    # save sys data
-    max_reached = record_task(
-        resource_type='scan',
-        resource_id=str(scan_id),
-        task_id=str(self.request.id),
-        task_method=str(inspect.stack()[0][3]),
-        kwargs={
-            'scan_id': str(scan_id) if scan_id is not None else None,
-            'test_id': str(test_id) if test_id is not None else None, 
-            'alert_id': str(alert_id) if alert_id is not None else None,
-            'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-            'node_index': str(node_index) if node_index is not None else None
-        }
-    )
+    
+    # check redis task lock
+    lock_name = f"lock:yellowlab_bg_{scan_id}"
+    with task_lock(lock_name) as lock_acquired:
+    
+        # save sys data
+        max_reached = record_task(
+            resource_type='scan',
+            resource_id=str(scan_id),
+            task_id=str(self.request.id),
+            task_method=str(inspect.stack()[0][3]),
+            kwargs={
+                'scan_id': str(scan_id) if scan_id is not None else None,
+                'test_id': str(test_id) if test_id is not None else None, 
+                'alert_id': str(alert_id) if alert_id is not None else None,
+                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                'node_index': str(node_index) if node_index is not None else None
+            }
+        )
 
-    # return early if max_attempts reached
-    if max_reached:
-        print('max attempts reach for yellowlab component')
-        return None
+        # return early if max_attempts reached
+        if max_reached:
+            print('max attempts reach for yellowlab component')
+            return None
 
-    # run yellowlab component
-    _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
+        # run yellowlab component
+        _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran yellowlab component')
     return None
