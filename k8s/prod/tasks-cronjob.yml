@@ -4,6 +4,8 @@ metadata:
   name: tasks-cronjob
 spec:
   schedule: "*/5 * * * *"  # every 5 minutes
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:
