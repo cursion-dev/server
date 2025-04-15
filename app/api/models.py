@@ -518,6 +518,8 @@ class Test(models.Model):
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
     pre_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
     post_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
+    system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
+
 
     def __str__(self):
         return f'{self.id}_test'

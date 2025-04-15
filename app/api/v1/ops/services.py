@@ -380,6 +380,29 @@ def check_permissions_and_usage(
 
 
 
+def retry_failed_tasks(request: object=None) -> object:
+    """ 
+    Using `tasks.redeliver_failed_tasks()`, retries any
+    "failed" task that has not reached MAX_ATTEMPTS.
+
+    Expects: {
+        'request': object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # init rety 
+    redeliver_failed_tasks()
+
+    # return response
+    data = {'message': 'redelivered failed tasks'}
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
 ### ------ Begin Site Services ------ ###
 
 
@@ -2083,30 +2106,6 @@ def get_scans_zapier(request: object=None) -> object:
         })
 
     # serialize and return
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
-
-
-
-
-def retry_failed_scans(request: object=None) -> object:
-    """ 
-    Using `tasks.redeliver_failed_tasks()`, retries any
-    `Scan` component that has "failed" and has not reached
-    MAX_ATTEMPTS.
-
-    Expects: {
-        'request': object
-    }
-
-    Returns -> HTTP Response object
-    """
-
-    # init rety 
-    redeliver_failed_tasks()
-
-    # return response
-    data = {'message': 'redelivered failed tasks'}
     response = Response(data, status=status.HTTP_200_OK)
     return response
 

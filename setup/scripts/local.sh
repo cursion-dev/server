@@ -6,10 +6,10 @@
 cd $CURSION_ROOT &&
 {   
     docker compose -f docker-compose.yml down &&
-    docker volume rm server_server server_beat server_celery &&
+    docker volume rm cursion_server cursion_beat cursion_celery &&
     docker compose -f docker-compose.yml up --build
 } || {
-    docker volume rm server_server server_beat server_celery &&
+    docker volume rm cursion_server cursion_beat cursion_celery &&
     docker compose -f docker-compose.yml up --build
 } || {
     docker compose -f docker-compose.yml up --build

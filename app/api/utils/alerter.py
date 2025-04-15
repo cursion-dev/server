@@ -33,7 +33,7 @@ class Alerter():
             task_type: str=None
         ):
     
-        self.alert = Alert.objects.get(id=alert_id) if alert_id else None
+        self.alert = Alert.objects.get(id=alert_id) if (alert_id and alert_id != 'None') else None
         self.expressions = self.alert.expressions if self.alert else expressions
         self.task_type = self.alert.schedule.task_type if self.alert else task_type
         self.object_id = object_id

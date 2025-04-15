@@ -20,6 +20,22 @@ from .services import *
 
 
 
+### ------ Begin Task Views ------ ###
+
+
+
+
+class TasksRetry(APIView):
+    permission_classes = (AllowAny,)
+    http_method_names = ['get']
+
+    def get(self, request):
+        response = retry_failed_tasks(request)
+        return response
+
+
+
+
 ### ------ Begin Site Views ------ ###
 
 
@@ -223,17 +239,6 @@ class ScansZapier(APIView):
 
     def get(self, request):
         response = get_scans_zapier(request)
-        return response
-
-
-
-
-class ScansRetry(APIView):
-    permission_classes = (AllowAny,)
-    http_method_names = ['get']
-
-    def get(self, request):
-        response = retry_failed_scans(request)
         return response
 
 

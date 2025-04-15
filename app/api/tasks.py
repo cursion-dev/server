@@ -170,6 +170,29 @@ def check_location(location: str) -> bool:
 
 
 
+def update_schedule(task_id: str=None) -> None:
+    """
+    Helper function to update Schedule.time_last_run
+
+    Expects: {
+        task_id: str
+    }
+
+    Returns: None
+    """
+    if task_id:
+        try:
+            last_run = datetime.now(timezone.utc)
+            Schedule.objects.filter(periodic_task_id=task_id).update(
+                time_last_run=last_run
+            )
+        except Exception as e:
+            print(e)
+    return None
+
+
+
+
 def record_task(
         resource_type: str=None, 
         resource_id: str=None, 
@@ -242,33 +265,10 @@ def record_task(
 
 
 
-def update_schedule(task_id: str=None) -> None:
-    """
-    Helper function to update Schedule.time_last_run
-
-    Expects: {
-        task_id: str
-    }
-
-    Returns: None
-    """
-    if task_id:
-        try:
-            last_run = datetime.now(timezone.utc)
-            Schedule.objects.filter(periodic_task_id=task_id).update(
-                time_last_run=last_run
-            )
-        except Exception as e:
-            print(e)
-    return None
-
-
-
-
 @shared_task()
 def redeliver_failed_tasks() -> None:
     """ 
-    Check each un-completed resource (mainly scans for now) 
+    Check each un-completed resource (Scans & Tests) 
     for any celery tasks which are no longer executing & 
     associated resource.component is null. Once found, 
     re-run those specific tasks with saved kwargs.
@@ -278,8 +278,9 @@ def redeliver_failed_tasks() -> None:
     Returns: None
     """
 
-    # get uncompleted Scans
+    # get uncompleted Scans & Tests
     scans = Scan.objects.filter(time_completed=None)
+    tests = Test.objects.filter(time_completed=None)
 
     # get executing_tasks
     i = celery.app.control.inspect()
@@ -316,6 +317,24 @@ def redeliver_failed_tasks() -> None:
             # re-run task if not in executing_tasks &
             # scan.{component} is None
             if task['task_id'] not in executing_tasks and component is None:
+                
+                # check for max attempts
+                if task['attempts'] < settings.MAX_ATTEMPTS:
+                    print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
+                    eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+        
+     # iterate through each test and re-run if failed
+    for test in tests:
+
+        # check for localization
+        if settings.LOCATION != 'us':
+            continue
+
+        # check each task in system['tasks']
+        for task in test.system.get('tasks', []):
+            
+            # re-run task if not in executing_tasks
+            if task['task_id'] not in executing_tasks:
                 
                 # check for max attempts
                 if task['attempts'] < settings.MAX_ATTEMPTS:
@@ -793,9 +812,9 @@ def create_scan(
 
     # run scan and alert if necessary
     scan = S(scan=created_scan).build_scan()
-    if alert_id:
+    if alert_id and alert_id != 'None':
         print('running alert from `task.create_scan`')
-        Alerter(alert_id, scan.id).run_alert()
+        Alerter(alert_id=alert_id, object_id=scan.id).run_alert()
     
     logger.info('Created new scan of site')
     return None
@@ -997,6 +1016,11 @@ def run_html_and_logs_bg(
     lock_name = f"lock:html_and_logs_bg_{scan_id}"
     with task_lock(lock_name) as lock_acquired:
 
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
+
         # save & check sys data
         max_reached = record_task(
             resource_type='scan',
@@ -1065,6 +1089,11 @@ def run_vrt_bg(
     # check redis task lock
     lock_name = f"lock:vrt_bg_{scan_id}"
     with task_lock(lock_name) as lock_acquired:
+
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
    
         # save sys data
         max_reached = record_task(
@@ -1135,6 +1164,11 @@ def run_lighthouse_bg(
     lock_name = f"lock:lighthouse_bg_{scan_id}"
     with task_lock(lock_name) as lock_acquired:
 
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
+
         # save sys data
         max_reached = record_task(
             resource_type='scan',
@@ -1203,6 +1237,11 @@ def run_yellowlab_bg(
     # check redis task lock
     lock_name = f"lock:yellowlab_bg_{scan_id}"
     with task_lock(lock_name) as lock_acquired:
+
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
     
         # save sys data
         max_reached = record_task(
@@ -1234,26 +1273,107 @@ def run_yellowlab_bg(
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def run_test(self, test_id: str, alert_id: str=None) -> None:
+def run_test(
+        self, 
+        test_id: str,
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None ,
+        **kwargs
+    ) -> None:
     """ 
-    Helper function to shorted the code base 
-    when creating a `Test`.
+    Primary executor for running a `Test`.
+    Compatible with `FlowRuns`
 
     Expects: {
-        test_id    : str, 
-        alert_id   : str
+        test_id     : str, 
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
+        **kwargs
     }
     
     Returns -> None
     """
-    # get test 
-    test = Test.objects.get(id=test_id)
+    # sleeping random for DB 
+    time.sleep(random.uniform(2, 6))
 
-    # execute test
-    test = T(test=test).run_test()
-    if alert_id:
-        print('running alert from `task.run_test`')
-        Alerter(alert_id, test.id).run_alert()
+    # get kwargs data if no test_id
+    if test_id is None:
+        test_id = kwargs.get('test_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
+    
+    # check redis task lock
+    lock_name = f"lock:run_test_{test_id}"
+    with task_lock(lock_name) as lock_acquired:
+
+        # checking if task is already running
+        if not lock_acquired:
+            logger.info('task is already running, skipping execution.')
+            return None
+
+        # save sys data
+        max_reached = record_task(
+            resource_type='test',
+            resource_id=str(test_id),
+            task_id=str(self.request.id),
+            task_method=str(inspect.stack()[0][3]),
+            kwargs={
+                'test_id': str(test_id), 
+                'alert_id': str(alert_id) if alert_id is not None else None,
+                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                'node_index': str(node_index) if node_index is not None else None
+            }
+        )
+
+        # return early if max_attempts reached
+        if max_reached:
+            print('max attempts reach for Tester')
+            return None
+
+        # get test 
+        test = Test.objects.get(id=test_id)
+
+        # define objects for flowrun
+        objects = [{
+            'parent': str(test.page.id),
+            'id': str(test_id),
+            'status': 'working'
+        }]
+
+        # update flowrun
+        if flowrun_id and flowrun_id != 'None':
+            time.sleep(random.uniform(0.1, 5))
+            update_flowrun(**{
+                'flowrun_id': str(flowrun_id),
+                'node_index': node_index,
+                'message': f'starting test comparison algorithm for {test.page.page_url} | test_id: {str(test_id)}',
+                'objects': objects
+            })
+
+        # execute test
+        print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
+        test = T(test=test).run_test()
+
+        # update FlowRun if passed
+        if flowrun_id and flowrun_id != 'None':
+            objects[-1]['status'] = test.status
+            update_flowrun(**{
+                'flowrun_id': str(flowrun_id),
+                'node_index': node_index,
+                'message': (
+                    f'test for {test.page.page_url} completed with status: '+
+                    f'{"❌ FAILED" if test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
+                ),
+                'objects': objects
+            })
+
+        # execute Alert if passed
+        if alert_id and alert_id != 'None':
+            print('running alert from `task.run_test`')
+            Alerter(alert_id=alert_id, object_id=str(test.id)).run_alert()
 
     logger.info('Test completed')
     return None
@@ -1269,7 +1389,6 @@ def create_test(
         alert_id: str=None, 
         configs: dict=settings.CONFIGS, 
         type: list=settings.TYPES,
-        index: int=None,
         pre_scan: str=None,
         post_scan: str=None,
         tags: list=None,
@@ -1287,7 +1406,6 @@ def create_test(
         alert_id    : str, 
         configs     : dict, 
         type        : list,
-        index       : int,
         pre_scan    : str,
         post_scan   : str,
         tags        : list,
@@ -1444,7 +1562,12 @@ def create_test(
 
     # check if pre and post scan are complete and start test if True
     if pre_scan.time_completed is not None and post_scan.time_completed is not None:
-        run_test.delay(test_id=created_test.id, alert_id=alert_id)
+        run_test.delay(
+            test_id=created_test.id, 
+            alert_id=alert_id,
+            flowrun_id=flowrun_id,
+            node_index=node_index
+        )
     
     logger.info('Began Scan/Test process')
     return None
@@ -1694,7 +1817,7 @@ def create_report(
     resp = R(report=report).generate_report()
     
     # run alert
-    if alert_id:
+    if alert_id and alert_id != 'None':
         Alerter(alert_id, str(report.id)).run_alert()
 
     # update flowrun 
@@ -1962,8 +2085,8 @@ def run_case(
     ).run()
 
     # run alert if requested
-    if alert_id:
-        Alerter(alert_id, str(caserun.id)).run_alert()
+    if alert_id and alert_id != 'None':
+        Alerter(alert_id=alert_id, object_id=str(caserun.id)).run_alert()
 
     logger.info('Ran CaseRun')
     return None
