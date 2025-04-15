@@ -21,7 +21,7 @@ class Tester():
         'test' : object,
     }
 
-    Use self.run_test() to create a new Test
+    Use self.run_test() to run all Test components
 
     Returns -> `Test` object
     """

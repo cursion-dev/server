@@ -4,7 +4,6 @@ from .driver import (
 )
 from ..models import *
 from .alerter import Alerter
-from .tester import Tester
 from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .imager import Imager
@@ -294,7 +293,7 @@ def check_scan_completion(
     """
     Method that checks if the scan has finished all 
     components. If so, method also updates Scan, Site, 
-    & Page info. If test_id is present, initiates a run_test()
+    & Page info.
 
     Expects: {
         scan: object, 
@@ -360,40 +359,9 @@ def check_scan_completion(
                 'objects': objects
             })
 
-        # start Test if test_id present
-        if test_id is not None:
-
-            # update flowrun
-            if flowrun_id and flowrun_id != 'None':
-                time.sleep(random.uniform(0.1, 5))
-                update_flowrun(**{
-                    'flowrun_id': str(flowrun_id),
-                    'node_index': node_index,
-                    'message': f'starting test comparison algorithm for {scan.page.page_url} | test_id: {str(test_id)}',
-                    'objects': objects
-                })
-            
-            print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
-            test = Test.objects.get(id=test_id)
-            updated_test = Tester(test=test).run_test()
-
-            # update flowrun
-            if flowrun_id and flowrun_id != 'None':
-                objects[-1]['status'] = updated_test.status
-                update_flowrun(**{
-                    'flowrun_id': str(flowrun_id),
-                    'node_index': node_index,
-                    'message': (
-                        f'test for {scan.page.page_url} completed with status: '+
-                        f'{"❌ FAILED" if updated_test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
-                    ),
-                    'objects': objects
-                })
-            
         if alert_id is not None and alert_id != 'None':
             print('running alert from `cursion.check_scan_completion`')
-            obj_id = test_id if test_id else str(scan.id)
-            Alerter(alert_id=alert_id, object_id=obj_id).run_alert()
+            Alerter(alert_id=alert_id, object_id=str(scan.id)).run_alert()
 
     # returning scan
     return scan

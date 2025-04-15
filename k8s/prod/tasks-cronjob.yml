@@ -16,5 +16,5 @@ spec:
             args:
             - /bin/sh
             - -c
-            - curl -X GET https://api.cursion.dev/v1/ops/scans/retry
+            - curl -X GET https://api.cursion.dev/v1/ops/tasks/retry
           restartPolicy: OnFailure
