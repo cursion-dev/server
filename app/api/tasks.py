@@ -2832,19 +2832,22 @@ def reset_account_usage(account_id: str=None) -> None:
 
     # reset account.usage
     def reset_usage(account) -> None:
+        
         # update usage
         account.usage['scans'] = 0
         account.usage['tests'] = 0
         account.usage['caseruns'] = 0
         account.usage['flowruns'] = 0
-        account.usage['flowruns_allowed'] = 5 # TODO: remove after manual update
+
         # update meta
         meta = account.meta
         meta['last_usage_reset'] = today.strftime(f)
         account.meta = meta
         account.save()
-        return None
 
+        # log action
+        print(f'reset account "{account.name}" usage')
+        return None
 
     # loop through each
     for account in accounts:
@@ -2866,7 +2869,7 @@ def reset_account_usage(account_id: str=None) -> None:
             # reset accout usage if today is 
             # begining of sub payment peroid
             # OR if a specific account was requested
-            if today == sub_date or account_id is not None:
+            if today_str == sub_date or account_id is not None:
 
                 # reset usage
                 reset_usage(account)
