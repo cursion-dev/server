@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # cursiondev/server:397d14c #
+          image: <IMAGE> # cursiondev/server:6799236 #
           imagePullPolicy: IfNotPresent
           command: ["/entrypoint.sh", "celery"]
           envFrom:
@@ -57,11 +57,11 @@ spec:
             exec:
               command: ["/healthcheck.sh", "celery"]
             initialDelaySeconds: 120
-            periodSeconds: 30
-            failureThreshold: 5
+            periodSeconds: 60
+            failureThreshold: 12
           readinessProbe:
             exec:
               command: ["/healthcheck.sh", "celery"]
             initialDelaySeconds: 120
-            periodSeconds: 30
-            failureThreshold: 3
+            periodSeconds: 60
+            failureThreshold: 12

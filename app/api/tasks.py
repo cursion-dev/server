@@ -18,6 +18,7 @@ from .utils.scanner import (
 from .utils.alerts import *
 from .utils.updater import update_flowrun
 from .utils.meter import meter_account
+from .utils.manager import record_task
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -193,85 +194,15 @@ def update_schedule(task_id: str=None) -> None:
 
 
 
-def record_task(
-        resource_type: str=None, 
-        resource_id: str=None, 
-        task_id: str=None, 
-        task_method: str=None, 
-        **kwargs,
-    ) -> bool:
-
-    """ 
-    Records task information in the `resource.system` 
-    attribute.
-
-    Expects: {
-        'resource_type' : str (scan, test, caserun)
-        'resource_id'   : str 
-        'task_id'       : str 
-        'task_method'   : str
-        'kwargs'        : dict
-    }
-    
-    Returns: max_attempts_reached <bool>
-    """
-
-    # set default 
-    max_atttempts_reached = False
-
-    # get resource 
-    if resource_type == 'scan':
-        resource = Scan.objects.get(id=resource_id)
-    if resource_type == 'test':
-        resource = Test.objects.get(id=resource_id)
-    if resource_type == 'caserun':
-        resource = CaseRun.objects.get(id=resource_id)
-
-    # get current resoruce.system.tasks data
-    tasks = resource.system.get('tasks', [])
-
-    # get component based on task_name
-    component = task_method.replace('run_', '').replace('_bg', '').replace('_and_logs', '')
-
-    # check if task exists
-    i = 0
-    exists = False
-    for task in tasks:
-        if task['component'] == component:
-            # update existing task
-            tasks[i]['task_id'] = str(task_id)
-            tasks[i]['attempts'] += 1
-            max_atttempts_reached = True if (tasks[i]['attempts'] > settings.MAX_ATTEMPTS) else False
-            exists = True
-        i += 1
-
-    # append new task data
-    if not exists:
-        tasks.append({
-            'attempts': int(1),
-            'task_id': str(task_id),
-            'task_method': str(task_method),
-            'component': str(component),
-            'kwargs': kwargs.get('kwargs'),
-        })
-
-    # update resource with new system data
-    resource.system['tasks'] =  tasks
-    resource.save()
-
-    # return
-    return max_atttempts_reached
-
-
-
-
 @shared_task()
 def redeliver_failed_tasks() -> None:
     """ 
     Check each un-completed resource (Scans & Tests) 
     for any celery tasks which are no longer executing & 
     associated resource.component is null. Once found, 
-    re-run those specific tasks with saved kwargs.
+    re-run those specific tasks with saved kwargs. If 
+    resource appears complete but is not marked as such, 
+    update `.time_completed` with `datetime.now()`
 
     Expects: None
     
@@ -302,6 +233,12 @@ def redeliver_failed_tasks() -> None:
             continue
 
         # check each task in system['tasks']
+        task_count  = 0
+        test_id     = None
+        alert_id    = None
+        flowrun_id  = None
+        node_index  = None
+        components  = []
         for task in scan.system.get('tasks', []):
 
             # get scan.{component} data
@@ -314,6 +251,15 @@ def redeliver_failed_tasks() -> None:
             if task['component'] == 'html':
                 component = scan.html
             
+            # record components
+            components.append(task['component'])
+
+            # try to get args
+            test_id     = task['kwargs'].get('test_id')
+            alert_id    = task['kwargs'].get('alert_id')
+            flowrun_id  = task['kwargs'].get('flowrun_id')
+            node_index  = task['kwargs'].get('node_index')
+            
             # re-run task if not in executing_tasks &
             # scan.{component} is None
             if task['task_id'] not in executing_tasks and component is None:
@@ -322,8 +268,46 @@ def redeliver_failed_tasks() -> None:
                 if task['attempts'] < settings.MAX_ATTEMPTS:
                     print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
                     eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+                    task_count += 1
+
+        # try to get test_id
+        if not test_id and Test.objects.filter(post_scan=scan, time_completed=None).exists():
+            test_id = Test.objects.filter(post_scan=scan, time_completed=None)[0].id
+
+        # check for requested, and not recorded, components:
+        for comp in scan.type:
+            if comp not in components and comp != 'logs':
+                # building args
+                task = f"run_{comp.replace('html', 'html_and_logs')}_bg"
+                kwargs = {
+                    "scan_id": str(scan.id),
+                    "test_id": str(test_id),
+                    "alert_id": alert_id,
+                    "flowrun_id": flowrun_id,
+                    "node_index": node_index
+                }
+                # run task
+                print(f'running -> {task}.delay(**{kwargs})')
+                eval(f'{task}.delay(**{kwargs})')
+                task_count += 1
         
-     # iterate through each test and re-run if failed
+        # mark scan complete if no tasks were re-run
+        if task_count == 0 and len(scan.system.get('tasks', [])) > 0:
+            print(f'marking scan as complete')
+            scan.time_completed = datetime.now()
+            scan.save()
+
+            # execute `run_test()` if test_id present
+            if test_id:
+                print(f'executing run_test() from `post_scan` in `retry_tasks`')
+                run_test.delay(
+                    test_id=str(test_id),
+                    alert_id=alert_id,
+                    flowrun_id=flowrun_id,
+                    node_index=node_index
+                )  
+        
+    # iterate through each test and re-run if failed
     for test in tests:
 
         # check for localization
@@ -331,15 +315,27 @@ def redeliver_failed_tasks() -> None:
             continue
 
         # check each task in system['tasks']
+        task_count = 0
         for task in test.system.get('tasks', []):
             
             # re-run task if not in executing_tasks
             if task['task_id'] not in executing_tasks:
+
+                # check for post_scan completion
+                if not test.post_scan.time_completed:
+                    print('post_scan not complete skipping test re-run...')
+                    continue
                 
                 # check for max attempts
                 if task['attempts'] < settings.MAX_ATTEMPTS:
                     print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
                     eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+                    task_count += 1
+        
+        # mark test complete if no tasks were re-run
+        if task_count == 0 and len(test.system.get('tasks', [])) > 0:
+            test.time_completed = datetime.now()
+            test.save()
 
     return None
 
@@ -703,12 +699,11 @@ def update_scan_score(self, scan_id: str) -> None:
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def scan_page_bg(
         self, 
-        scan_id: str=None, 
-        test_id: str=None, 
-        alert_id: str=None, 
-        configs: dict=settings.CONFIGS,
-        flowrun_id: str=None,
-        node_index: str=None,
+        scan_id     : str=None, 
+        test_id     : str=None, 
+        alert_id    : str=None, 
+        flowrun_id  : str=None,
+        node_index  : str=None,
     ) -> None:
     """ 
     Runs all the requested `Scan` components 
@@ -763,7 +758,7 @@ def scan_page_bg(
             node_index=node_index,
         )
 
-    logger.info('created new Scan of Page')
+    logger.info('started scan component tasks')
     return None
 
 
@@ -952,7 +947,6 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                 scan_page_bg.delay(
                     scan_id=str(scan.id),
                     alert_id=alert_id,
-                    configs=configs,
                     flowrun_id=flowrun_id,
                     node_index=node_index
                 )
@@ -1354,7 +1348,7 @@ def run_test(
             })
 
         # execute test
-        print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
+        print('\n---------------\nStarting Test...\n---------------\n')
         test = T(test=test).run_test()
 
         # update FlowRun if passed
@@ -1462,8 +1456,7 @@ def create_test(
                     configs=configs,
                 )
                 scan_page_bg.delay(
-                    scan_id=new_scan.id, 
-                    configs=configs,
+                    scan_id=new_scan.id,
                 )
 
                 # update flowrun
@@ -1531,7 +1524,6 @@ def create_test(
             scan_id=post_scan.id, 
             test_id=created_test.id,
             alert_id=alert_id,
-            configs=configs,
             flowrun_id=flowrun_id,
             node_index=node_index
         )
