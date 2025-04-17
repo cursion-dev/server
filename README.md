@@ -18,7 +18,7 @@
     </a>
     <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
     <a href='https://github.com/cursion-dev/server/actions'>
-      <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=BUILD STATUS">
+     <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=build%20status"/>
     </a>
 </p>
 
