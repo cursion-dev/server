@@ -61,32 +61,3 @@ def case_created(sender, instance, created, **kwargs):
 
 
 
-@receiver(post_save, sender=Scan)
-def post_scan_completed(sender, instance, created, **kwargs):
-    
-    # defing instance as Scan
-    scan = instance
-    
-    # check location & created
-    if settings.LOCATION == 'us' and not created:
-
-        # check scan.time_completed & Test association
-        if scan.time_completed and Test.objects.filter(post_scan=scan).exists():
-
-            # build args from scan.system data
-            alert_id    = scan.system['tasks'][0]['kwargs'].get('alert_id')
-            flowrun_id  = scan.system['tasks'][0]['kwargs'].get('flowrun_id')
-            node_index  = scan.system['tasks'][0]['kwargs'].get('node_index')
-            
-            # start new Test run
-            test = Test.objects.filter(post_scan=scan)[0]
-            run_test.delay(
-                test_id     = str(test.id),
-                alert_id    = alert_id,
-                flowrun_id  = flowrun_id,
-                node_index  = node_index
-            )
-        
-
-    # return None
-    return None    
