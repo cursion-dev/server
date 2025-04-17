@@ -8,6 +8,8 @@ from .lighthouse import Lighthouse
 from .yellowlab import Yellowlab
 from .imager import Imager
 from .updater import update_flowrun
+from .manager import record_task
+from .tester import Tester
 from datetime import datetime
 from cursion import settings
 import os, asyncio, uuid, boto3, random, time
@@ -284,7 +286,8 @@ def save_html(html: str, scan: object) -> object:
 
 
 def check_scan_completion(
-        scan: object, 
+        scan: object,
+        sender: str=None, 
         test_id: str=None, 
         alert_id: str=None,
         flowrun_id: str=None, 
@@ -296,9 +299,12 @@ def check_scan_completion(
     & Page info.
 
     Expects: {
-        scan: object, 
+        scan: object,
+        sender: str,
         test_id: str,
         alert_id: str
+        flowrun_id: str, 
+        node_index: str
     }
 
     Returns -> `Scan` <obj>
@@ -333,8 +339,7 @@ def check_scan_completion(
 
     # deciding if done
     if finished is True:
-        time_completed = datetime.now()
-        scan.time_completed = time_completed
+        scan.time_completed = datetime.now()
         scan.save()
 
         # update assoc site, page, & scan score
@@ -359,9 +364,60 @@ def check_scan_completion(
                 'objects': objects
             })
 
+        # start Test if test_id present
+        if test_id is not None:
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                time.sleep(random.uniform(0.1, 5))
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': f'starting test comparison algorithm for {scan.page.page_url} | test_id: {str(test_id)}',
+                    'objects': objects
+                })
+ 
+            # get task_id from scan.system
+            task_id = None
+            for task in scan.system['tasks']:
+                if task.get('component') == sender:
+                    task_id = task.get('task_id')
+
+            # record task data in test
+            record_task(
+                resource_type='test',
+                resource_id=str(test_id),
+                task_id=str(task_id),
+                task_method='run_test',
+                kwargs={
+                    'test_id': str(test_id), 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
+            
+            print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
+            test = Test.objects.get(id=test_id)
+            updated_test = Tester(test=test).run_test()
+
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                objects[-1]['status'] = updated_test.status
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': (
+                        f'test for {scan.page.page_url} completed with status: '+
+                        f'{"❌ FAILED" if updated_test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
+                    ),
+                    'objects': objects
+                })
+            
         if alert_id is not None and alert_id != 'None':
             print('running alert from `cursion.check_scan_completion`')
-            Alerter(alert_id=alert_id, object_id=str(scan.id)).run_alert()
+            obj_id = test_id if test_id else str(scan.id)
+            Alerter(alert_id=alert_id, object_id=obj_id).run_alert()
 
     # returning scan
     return scan
@@ -456,7 +512,7 @@ def _html_and_logs(
         })
 
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'html', test_id, alert_id, flowrun_id, node_index)
 
     # return udpated scan
     return scan
@@ -533,7 +589,7 @@ def _vrt(
         })
 
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'vrt', test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
@@ -607,7 +663,7 @@ def _lighthouse(
         })
 
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'lighthouse', test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
@@ -681,7 +737,7 @@ def _yellowlab(
         })
 
     # checking if scan is done
-    scan = check_scan_completion(scan, test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'yellowlab', test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
