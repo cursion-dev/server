@@ -73,7 +73,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
     n lts
 
 # installing lighthouse & lighthouse-plugin-crux
-RUN npm install -g lighthouse lighthouse-plugin-crux
+RUN npm install -g lighthouse@12.5.0 lighthouse-plugin-crux
 
 # installing lodash & yellowlabtools
 RUN npm install -g lodash yellowlabtools
