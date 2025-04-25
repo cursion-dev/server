@@ -781,18 +781,18 @@ def sendgrid_email(
     """
 
     # defining data
-    plain_text = message_obj.get('plain_text', False)
-    pre_content = message_obj.get('pre_content')
-    content = message_obj.get('content')
-    subject = message_obj.get('subject', 'Alert from Cursion')
-    title = message_obj.get('title')
-    pre_header = message_obj.get('pre_header')
-    button_text = message_obj.get('button_text')
-    email = message_obj.get('email')
-    exp_list = message_obj.get('exp_list')
-    object_url = message_obj.get('object_url')
-    signature = message_obj.get('signature', '- Cheers!')
-    greeting = message_obj.get('greeting', 'Hi there,')
+    plain_text      = message_obj.get('plain_text', False)
+    pre_content     = message_obj.get('pre_content', '')
+    content         = message_obj.get('content', '')
+    subject         = message_obj.get('subject', 'Alert from Cursion')
+    title           = message_obj.get('title', '')
+    pre_header      = message_obj.get('pre_header', '')
+    button_text     = message_obj.get('button_text')
+    email           = message_obj.get('email')
+    exp_list        = message_obj.get('exp_list')
+    object_url      = message_obj.get('object_url')
+    signature       = message_obj.get('signature', '- Cheers!')
+    greeting        = message_obj.get('greeting', 'Hi there,')
 
     if account_id:
         # get account & secrets
@@ -807,22 +807,22 @@ def sendgrid_email(
         subject = transpose_data(subject, obj, secrets)
 
         # replacing '\n' with <br>
-        content = content.replace('\n', '<br>')
+        content     = content.replace('\n', '<br>')
         pre_content = pre_content.replace('\n', '<br>')
 
     # build template data
     template_data = {
-        'greeting': greeting,
-        'title' : title,
-        'pre_header' : pre_header,
-        'pre_content' : pre_content,
-        'object_url' : object_url,
-        'exp_list': exp_list,
-        'home_page' : settings.LANDING_URL_ROOT,
-        'button_text' : button_text,
-        'content' : content,
-        'signature' : signature,
-        'subject': subject,
+        'greeting'      : greeting,
+        'title'         : title,
+        'pre_header'    : pre_header,
+        'pre_content'   : pre_content,
+        'object_url'    : object_url,
+        'exp_list'      : exp_list,
+        'home_page'     : settings.LANDING_URL_ROOT,
+        'button_text'   : button_text,
+        'content'       : content,
+        'signature'     : signature,
+        'subject'       : subject,
     }
 
     # decide which template to use based on data
