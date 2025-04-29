@@ -35,6 +35,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            # remove below if not using NAT gateway
             - name: HTTP_PROXY
               value: "http://10.124.0.27:8888"
             - name: HTTPS_PROXY
