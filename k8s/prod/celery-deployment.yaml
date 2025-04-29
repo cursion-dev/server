@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: celery
-          image: <IMAGE> # cursiondev/server:6799236 #
+          image: <IMAGE> # cursiondev/server:250d545 # 
           imagePullPolicy: IfNotPresent
           command: ["/entrypoint.sh", "celery"]
           envFrom:
@@ -35,6 +35,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: HTTP_PROXY
+              value: "http://10.124.0.27:8888"
+            - name: HTTPS_PROXY
+              value: "http://10.124.0.27:8888"
+            - name: NO_PROXY
+              value: "10.0.0.0/8,localhost,127.0.0.1"
           # resources:  # -> large node pool (4vcpu & 8Gi)
           #   limits:
           #     cpu: "2"
