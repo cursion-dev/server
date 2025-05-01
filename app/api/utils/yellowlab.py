@@ -94,68 +94,72 @@ class Yellowlab():
         Returns --> raw YL data (Dict)
         """
 
-        # defaults
         headers = {
-            "content-type": "application/json",
+            "Content-Type": "application/json",
+            "Connection": "close"
         }
-        data = {
+        payload = {
             "url": self.page.page_url,
             "waitForResponse": True,
             "device": self.device_type
         }
 
-        print(data) # -> temp  test
+        def curl_post(url, data):
+            cmd = [
+                "curl", "-s", "-X", "POST",
+                "-H", f"Content-Type: {headers['Content-Type']}",
+                "-H", f"Connection: {headers['Connection']}",
+                "--data", json.dumps(data),
+                url
+            ]
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(result.stdout)
+
+        def curl_get(url):
+            cmd = [
+                "curl", "-s", "-X", "GET",
+                "-H", f"Connection: {headers['Connection']}",
+                url
+            ]
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            return json.loads(result.stdout)
 
         # setting up initial request
-        res = requests.post(
-            url=f'{settings.YELLOWLAB_ROOT}/api/runs',
-            data=json.dumps(data),
-            headers=headers
-        ).json()
-
-        print(res) # -> temp  test
+        root = settings.YELLOWLAB_ROOT
+        res = curl_post(f"{root}/api/runs", payload)
 
         # retrieve runId & pod_ip if present
-        run_id = res['runId']
-        pod_ip = res.get('pod_ip')
-        NEW_ROOT = f'http://{pod_ip}:8383' if pod_ip != None else settings.YELLOWLAB_ROOT
-        
+        run_id = res["runId"]
+        pod_ip = res.get("pod_ip")
+        new_root = f"http://{pod_ip}:8383" if pod_ip else root
+
         wait_time = 0
         max_wait = 1200
         done = False
-
+         
         # waiting for run to complete
         while not done and wait_time < max_wait:
-
+            
             # sending run request check
-            res = requests.get(
-                url=f'{NEW_ROOT}/api/runs/{run_id}',
-                headers=headers
-            ).json()
+            status_res = curl_get(f"{new_root}/api/runs/{run_id}")
+            status = status_res["run"]["status"]["statusCode"]
+            position = status_res["run"]["status"].get("position")
 
             # checking status
-            status = res['run']['status']['statusCode']
-            position = res['run']['status'].get('position')
-            if status == 'awaiting':
-                max_wait = (120 * position)
-            if status == 'complete':
+            if status == "awaiting" and position:
+                max_wait = max(max_wait, 120 * position)
+            elif status == "complete":
                 done = True
-            if status == 'failed':
-                raise RuntimeError
-                break
+            elif status == "failed":
+                raise RuntimeError("YellowLab run failed")
 
             # incrementing time
             time.sleep(5)
             wait_time += 5
 
-
-        # getting run results
-        res = requests.get(
-            url=f'{NEW_ROOT}/api/results/{run_id}',
-            headers=headers
-        ).json()
-    
-        return res
+        # Step 3: Retrieve results
+        result = curl_get(f"{new_root}/api/results/{run_id}")
+        return result
 
 
 
@@ -242,7 +246,7 @@ class Yellowlab():
             try:
                 # CLI on first attempt
                 if attempts < 1:
-                    raw_data = self.yellowlab_api() # -> temp test
+                    raw_data = self.yellowlab_cli()
                     self.process_data(stdout_json=raw_data)
                 
                 # API after first attempt
