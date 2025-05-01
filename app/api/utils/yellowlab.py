@@ -26,7 +26,7 @@ class Yellowlab():
         self.device_type = get_device(
             scan.configs['browser'], 
             scan.configs['device']
-        )
+        )['type']
 
         # initial audits object
         self.audits = {
