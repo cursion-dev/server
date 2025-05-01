@@ -27,7 +27,7 @@ class Lighthouse():
         self.device_type = get_device(
             scan.configs['browser'], 
             scan.configs['device']
-        )
+        )['type']
 
         # initial scores object
         self.scores = {
@@ -114,7 +114,7 @@ class Lighthouse():
         }
         params = {
             "url": self.page.page_url,
-            "strategy": self.configs["device"],
+            "strategy": self.device_type,
             "key": settings.GOOGLE_CRUX_KEY
         }
 
