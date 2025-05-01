@@ -111,6 +111,8 @@ class Yellowlab():
             headers=headers
         ).json()
 
+        print(res) # -> temp  test
+
         # retrieve runId & pod_ip if present
         run_id = res['runId']
         pod_ip = res.get('pod_ip')
@@ -238,7 +240,7 @@ class Yellowlab():
             try:
                 # CLI on first attempt
                 if attempts < 1:
-                    raw_data = self.yellowlab_cli()
+                    raw_data = self.yellowlab_api() # -> temp test
                     self.process_data(stdout_json=raw_data)
                 
                 # API after first attempt
