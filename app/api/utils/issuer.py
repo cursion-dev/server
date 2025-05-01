@@ -3,7 +3,8 @@ from cursion import settings
 from openai import OpenAI
 from .meter import meter_account
 import time, os, json, uuid, \
-    random, boto3, re, requests
+    random, boto3, re, requests, \
+    tiktoken
 
 
 
@@ -46,14 +47,16 @@ class Issuer():
         self.threshold  = test.threshold if test else threshold
 
         # top level vars
-        self.title     = None
-        self.details   = None
-        self.data      = None
-        self.labels    = None
-        self.account   = None
-        self.trigger   = { 'type': None, 'id': None }
-        self.affected  = { 'type': None, 'id': None, 'str': None}
-        self.max_len   = 200
+        self.title      = None
+        self.details    = None
+        self.data       = None
+        self.labels     = None
+        self.account    = None
+        self.trigger    = { 'type': None, 'id': None }
+        self.affected   = { 'type': None, 'id': None, 'str': None}
+        self.max_len    = 200
+        self.max_tokens = 5000
+        self.gpt_model  = "gpt-4o-mini"
         
         # init GPT client
         self.gpt_client = OpenAI(
@@ -506,13 +509,20 @@ class Issuer():
         # initializing
         recommendation = ''
 
+        # truncate self.data
+        encoding = tiktoken.encoding_for_model(self.gpt_model)
+        tokens = encoding.encode(self.data)
+        if len(tokens) > self.max_tokens:
+            tokens = tokens[:self.max_tokens]
+        self.data = encoding.decode(tokens)
+
         # building recommendation
         # for self.scan
         if self.scan:
             
             # send the initial request
             recommendation = self.gpt_client.chat.completions.create(
-                model="gpt-4o-mini", # old model -> gpt-3.5-turbo
+                model=self.gpt_model, # old model -> gpt-3.5-turbo
                 messages=[
                     {
                         "role": "user", 
@@ -541,7 +551,7 @@ class Issuer():
             
             # send the initial request
             recommendation = self.gpt_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.gpt_model,
                 messages=[
                     {
                         "role": "user",
@@ -572,7 +582,7 @@ class Issuer():
 
             # send the initial request
             recommendation = self.gpt_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.gpt_model,
                 messages=[
                     {
                         "role": "user", 
