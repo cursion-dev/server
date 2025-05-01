@@ -55,7 +55,7 @@ class Issuer():
         self.trigger    = { 'type': None, 'id': None }
         self.affected   = { 'type': None, 'id': None, 'str': None}
         self.max_len    = 200
-        self.max_tokens = 3000
+        self.max_tokens = 5000
         self.gpt_model  = "gpt-4o-mini"
         
         # init GPT client
