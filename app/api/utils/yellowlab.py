@@ -104,6 +104,8 @@ class Yellowlab():
             "device": self.device_type
         }
 
+        print(data) # -> temp  test
+
         # setting up initial request
         res = requests.post(
             url=f'{settings.YELLOWLAB_ROOT}/api/runs',
