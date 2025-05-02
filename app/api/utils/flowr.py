@@ -240,7 +240,7 @@ class Flowr():
 
 
     
-    
+   
     def objects_are_complete(self, object_list: list=[]) -> bool:
         """ 
         Iterates through the object_list of a given node
@@ -382,6 +382,81 @@ class Flowr():
 
 
 
+    def complete_flowrun(self, current_data: dict=None) -> None:
+        """ 
+        Checks for run completion and updates final 
+        run status.
+
+        Expects: {
+            'current_data': dict
+        }
+
+        Returns: `FlowRun` object
+        """
+        
+        # defaults
+        status  = 'passed'
+        nodes   = self.flowrun.nodes
+        logs    = self.flowrun.logs
+
+        # mark current current node as finalized 
+        # and update status
+        if current_data:
+            index           = current_data['index']
+            current_status  = nodes[int(index)]['data']['status']
+            
+            nodes[int(index)]['data']['finalized'] = True
+            nodes[int(index)]['data']['status'] = 'passed' if current_status == 'working' else current_status
+
+        # check all nodes statuses
+        for node in FlowRun.objects.get(id=self.flowrun_id).nodes:
+            
+            # check for non-current 'working' nodes
+            if node['data']['status'] == 'working':
+                if current_data:
+                    if node['id'] != current_data['node']['id']:
+                        return self.flowrun
+                else:
+                    return self.flowrun
+            
+            # check for any 'failed' nodes
+            if node['data']['status'] == 'failed':
+                status = 'failed'
+            
+        # check for current node failure
+        if current_data:
+            current_status = nodes[int(current_data['index'])]['data']['status']
+            status = current_status if current_status == 'failed' else status
+        
+        # build log data
+        logs.append({
+            'timestamp' : self.build_timestamp(),
+            'step'      : current_data['node']['id'] if current_data else self.get_last_node_id(),
+            'message'   : (
+                f'flowrun completed with status: {"✅ PASSED" if status == "passed" else "❌ FAILED"}'
+            ),
+        })
+        # sort logs
+        logs = sorted(logs, key=lambda l: int(l['step']),)
+
+        # update flowrun
+        self.flowrun.time_completed = self.build_timestamp()
+        self.flowrun.status         = status
+        self.flowrun.logs           = logs
+        self.flowrun.nodes          = nodes
+        self.flowrun.save()
+
+        # run alert if requested
+        alert_id = current_data['node']['data'].get('alert_id') if current_data else None
+        if alert_id:
+            Alerter(alert_id=alert_id, object_id=str(self.flowrun_id)).run_alert()
+
+        # return flowrun
+        return self.flowrun
+
+
+
+
     def run_next(self) -> None:
         """ 
         Checks for the next step and executes 
@@ -421,12 +496,17 @@ class Flowr():
             }
             objs = [alert_obj,] if step_data['node']['data']['task_type'] in self.alert_types else []
 
+            # catch empty task_type
+            if not step_data['node']['data']['task_type']:
+                self.complete_flowrun(current_data=step_data)
+                return self.flowrun
+
             # run first step
             print('running first step')
             self.execute_step(step_data=step_data, objects=objs)
             return self.flowrun
 
-        
+
         # catch updates without a current_node 
         if current_data['node'] is None:
             return self.flowrun
@@ -443,11 +523,11 @@ class Flowr():
             self.finalize_node(index=current_data['index'])
 
             # set defaults
-            true_outcomes = []
-            false_outcomes = []
-            run_as_cumulative = False
-            false_child_ran = False
-            true_child_ran = False
+            true_outcomes       = []
+            false_outcomes      = []
+            run_as_cumulative   = False
+            false_child_ran     = False
+            true_child_ran      = False
 
             # iterate through the objects and run conditions for each
             for obj_data in current_data['node']['data'].get('objects', []):
@@ -472,15 +552,15 @@ class Flowr():
                 # sorting
                 if outcome == True:
                     true_outcomes.append({
-                        'parent': str(parentID),
-                        'id': obj_data['id'],
-                        'status': 'working'
+                        'parent'    : str(parentID),
+                        'id'        : obj_data['id'],
+                        'status'    : 'working'
                     })
                 if outcome == False:
                     false_outcomes.append({
-                        'parent': str(parentID),
-                        'id': obj_data['id'],
-                        'status': 'working'
+                        'parent'    : str(parentID),
+                        'id'        : obj_data['id'],
+                        'status'    : 'working'
                     })
 
             # get child edges
@@ -535,42 +615,17 @@ class Flowr():
             if len(children) == 1:
                 if children[0] is not None:
                     next_step = children[0]
-                    print('running next step after "PASSED" non-conditional step')
-                    objs = []
-                    if next_step['node']['data']['task_type'] in self.alert_types:
-                        objs = current_data['node']['data'].get('objects', [])
-                    self.execute_step(step_data=next_step, objects=objs)
-                    return self.flowrun
+                    if next_step['node']['data']['task_type']:
+                        print('running next step after "PASSED" non-conditional step')
+                        objs = []
+                        if next_step['node']['data']['task_type'] in self.alert_types:
+                            objs = current_data['node']['data'].get('objects', [])
+                        self.execute_step(step_data=next_step, objects=objs)
+                        return self.flowrun
 
-            # check for other working nodes
-            for node in FlowRun.objects.get(id=self.flowrun_id).nodes:
-                if node['data']['status'] == 'working':
-                    return self.flowrun
-                
-            # if no children and no node is 'working' 
-            # then end flowrun as 'passed' and update logs
-            logs = self.flowrun.logs
-            logs.append({
-                'timestamp':self.build_timestamp(),
-                'message': (
-                    f'flowrun completed with status: ✅ PASSED'
-                ),
-                'step': self.get_last_node_id()
-            })
-            # sort logs
-            logs = sorted(logs, key=lambda l: int(l['step']),)
-
-            # update flowrun
-            self.flowrun.time_completed = self.build_timestamp()
-            self.flowrun.status = 'passed'
-            self.flowrun.logs = logs
-            self.flowrun.save()
-
-            # run alert if requested
-            alert_id = current_data['node']['data'].get('alert_id')
-            if alert_id:
-                Alerter(alert_id=alert_id, object_id=str(self.flowrun_id)).run_alert()
-
+            # if no children, end flowrun and update logs
+            self.complete_flowrun(current_data=current_data)
+            
             # return flowrun
             return self.flowrun
             
@@ -582,36 +637,11 @@ class Flowr():
             # finialize node
             self.finalize_node(index=current_data['index'])
 
-            # define failed log
-            failed_log = {
-                'timestamp':self.build_timestamp(),
-                'message': (
-                    f'flowrun completed with status: ❌ FAILED'
-                ),
-                'step': self.get_last_node_id()
-            }
-
             # end flowrun if requested
             if self.flowrun.configs.get('end_on_fail', True):
 
                 print('--- ending run early due to failure ---')
-                
-                # update logs
-                logs = self.flowrun.logs
-                logs.append(failed_log)
-                # sort logs
-                logs = sorted(logs, key=lambda l: (int(l['step'])),)
-
-                # update & end flowrun
-                self.flowrun.time_completed = self.build_timestamp()
-                self.flowrun.status = 'failed'
-                self.flowrun.logs = logs
-                self.flowrun.save()
-
-                # run alert if requested
-                alert_id = current_data['node']['data'].get('alert_id')
-                if alert_id:
-                    Alerter(alert_id=alert_id, object_id=str(self.flowrun_id)).run_alert()
+                self.complete_flowrun(current_data=current_data)
 
                 # return flowrun
                 return self.flowrun
@@ -625,35 +655,17 @@ class Flowr():
             if len(children) == 1:
                 if children[0] is not None:
                     next_step = children[0]
-                    print('running next step after "FAILED" non-conditional step')
-                    objs = []
-                    if next_step['node']['data']['task_type'] in self.alert_types:
-                        objs = current_data['node']['data'].get('objects', [])
-                    self.execute_step(step_data=next_step, objects=objs)
-                    return self.flowrun
+                    # check for data in next_step
+                    if next_step['node']['data']['task_type']:
+                        print('running next step after "FAILED" non-conditional step')
+                        objs = []
+                        if next_step['node']['data']['task_type'] in self.alert_types:
+                            objs = current_data['node']['data'].get('objects', [])
+                        self.execute_step(step_data=next_step, objects=objs)
+                        return self.flowrun
 
-            # check for other working nodes
-            for node in FlowRun.objects.get(id=self.flowrun_id).nodes:
-                if node['data']['status'] == 'working':
-                    return self.flowrun
-
-            # if no children and no node is 'working' 
-            # then end flowrun as 'failed' and update logs
-            logs = self.flowrun.logs
-            logs.append(failed_log)
-            # sort logs
-            logs = sorted(logs, key=lambda l: int(l['step']),)
-
-            # update & end flowrun
-            self.flowrun.time_completed = self.build_timestamp()
-            self.flowrun.status = 'failed'
-            self.flowrun.logs = logs
-            self.flowrun.save()
-            
-            # run alert if requested
-            alert_id = current_data['node']['data'].get('alert_id')
-            if alert_id:
-                Alerter(alert_id=alert_id, object_id=str(self.flowrun_id)).run_alert()
+            # if no children, end flowrun as 'failed' and update logs
+            self.complete_flowrun(current_data=current_data)
 
             # return flowrun
             return self.flowrun
@@ -677,28 +689,34 @@ class Flowr():
         """
 
         if step_data is None:
-            print('no step_data provided - returning early')
+            print('no step_data provided - attempting to end run...')
+            self.complete_flowrun(current_data=step_data)
+            return 
+
+        if not step_data['node']['data']['task_type']:
+            print('no task_type provided - attempting to end run...')
+            self.complete_flowrun(current_data=step_data)
             return 
 
         # get step/node data & task_type
-        node_data = step_data['node']['data']
-        task_type = node_data['task_type']
-        node_index = step_data['index']
+        node_data   = step_data['node']['data']
+        task_type   = node_data['task_type']
+        node_index  = step_data['index']
         parent_data = None if node_index == 0 else self.get_node_by_id(node_data['parentId'])
-        message = (
+        message     = (
             f'starting job ID: {node_data["id"]} ' + 
             f'| job type is [ {task_type.upper()} ]'
         )
 
         # update self.flowrun logs, nodes, & edges
-        self.flowrun = FlowRun.objects.get(id=self.flowrun_id)
-        nodes = self.flowrun.nodes
-        edges = self.flowrun.edges
-        logs = self.flowrun.logs
+        self.flowrun    = FlowRun.objects.get(id=self.flowrun_id)
+        nodes           = self.flowrun.nodes
+        edges           = self.flowrun.edges
+        logs            = self.flowrun.logs
 
         # update current node
-        nodes[step_data['index']]['data']['status'] = 'working' 
-        nodes[step_data['index']]['data']['time_started'] = self.build_timestamp()
+        nodes[step_data['index']]['data']['status']         = 'working' 
+        nodes[step_data['index']]['data']['time_started']   = self.build_timestamp()
 
         # update node objects only if task_type is not 'issue' or 'report'
         nodes[step_data['index']]['data']['objects'] = objects if (task_type != 'issue' and task_type != 'report') else []
@@ -711,27 +729,27 @@ class Flowr():
 
         # update current logs
         logs.append({
-            'timestamp':self.build_timestamp(),
-            'message': message,
-            'step': node_data['id']
+            'timestamp' : self.build_timestamp(),
+            'message'   : message,
+            'step'      : node_data['id']
         })
 
         # sort logs
         logs = sorted(logs, key=lambda l: int(l['step']),)
         
         # save updates
-        self.flowrun.nodes = nodes
-        self.flowrun.edges = edges
-        self.flowrun.logs = logs
+        self.flowrun.nodes  = nodes
+        self.flowrun.edges  = edges
+        self.flowrun.logs   = logs
         self.flowrun.save()
 
         # build common data
-        scope = 'account'
-        configs = node_data['configs']
-        flowrun_id = str(self.flowrun.id)
-        account_id = str(self.flowrun.account.id)
-        types = node_data.get('type')
-        resources = [{
+        scope       = 'account'
+        configs     = node_data['configs']
+        flowrun_id  = str(self.flowrun.id)
+        account_id  = str(self.flowrun.account.id)
+        types       = node_data.get('type')
+        resources   = [{
             'str'   : self.flowrun.site.site_url,
             'id'    : str(self.flowrun.site.id),
             'type'  : 'site'
