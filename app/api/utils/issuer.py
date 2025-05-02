@@ -510,11 +510,12 @@ class Issuer():
         recommendation = ''
 
         # truncate self.data
-        encoding = tiktoken.encoding_for_model(self.gpt_model)
-        tokens = encoding.encode(self.data)
-        if len(tokens) > self.max_tokens:
-            tokens = tokens[:self.max_tokens]
-        self.data = encoding.decode(tokens)
+        if self.data:
+            encoding = tiktoken.encoding_for_model(self.gpt_model)
+            tokens = encoding.encode(self.data)
+            if len(tokens) > self.max_tokens:
+                tokens = tokens[:self.max_tokens]
+            self.data = encoding.decode(tokens)
 
         # building recommendation
         # for self.scan
