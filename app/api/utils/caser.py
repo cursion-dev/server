@@ -103,6 +103,20 @@ class Caser():
             'Tab':          Keys.TAB
         }
 
+        # common scripts 
+        self.scroll_to_center = (
+            """
+            const scrollToCenter = (elem) => {
+                const rect = elem.getBoundingClientRect();
+                const absoluteElementTop = rect.top + window.pageYOffset;
+                const middle = absoluteElementTop - (window.innerHeight / 2) + (rect.height / 2);
+                window.scrollTo({top: middle, behavior: 'instant'});
+                setTimeout(function() {return null}, 300);
+            }
+            return scrollToCenter(arguments[0])
+            """
+        )
+
         # update flowrun
         if self.flowrun_id:
             update_flowrun(**{
@@ -669,9 +683,7 @@ class Caser():
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
                                     
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # clicking element
@@ -736,10 +748,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # changing value of element
@@ -815,10 +825,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # using selenium, press the selected key
@@ -883,9 +891,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
@@ -959,12 +966,10 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element
+                    self.driver.execute_script(self.scroll_to_center, element)
                     
-                    # scrolling to element using plain JavaScript
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    # get step screenshot
                     image = self.save_screenshot(run_type='run')
 
                 except Exception as e:
@@ -1102,9 +1107,7 @@ class Caser():
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
                                     
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
@@ -1137,10 +1140,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
@@ -1184,10 +1185,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
