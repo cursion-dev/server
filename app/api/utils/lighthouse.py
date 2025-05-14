@@ -66,6 +66,7 @@ class Lighthouse():
                 '--quiet',
                 self.page.page_url, 
                 '--plugins=lighthouse-plugin-crux',
+                '--extra-headers'
                 '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
                 f'--screenEmulation.width={self.sizes[0]}',
                 f'--screenEmulation.height={self.sizes[1]}',
