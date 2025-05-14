@@ -56,7 +56,7 @@ redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
 
 # setting locking manager to prevent duplicate tasks
 @contextmanager
-def task_lock(lock_name, timeout=300):
+def task_lock(lock_name, timeout=600):
     lock = redis_client.lock(lock_name, timeout=timeout)
     acquired = lock.acquire(blocking=False)
     print(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
