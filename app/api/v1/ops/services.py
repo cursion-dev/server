@@ -307,13 +307,14 @@ def check_permissions_and_usage(
 
         # check associated site in permissions.sites
         else:
-            if not site_in_sites(str(objs[0].site.id)):
-                return {
-                    'allowed': False,
-                    'error': error,
-                    'code': code,
-                    'status': _status
-                }
+            if objs[0].site:
+                if not site_in_sites(str(objs[0].site.id)):
+                    return {
+                        'allowed': False,
+                        'error': error,
+                        'code': code,
+                        'status': _status
+                    }
 
 
     # handle special cases for site and page
@@ -995,7 +996,7 @@ def create_page(request: object=None) -> object:
         page.save()
 
         # running scan in background
-        scan_page_bg.delay(scan_id=scan.id, configs=configs)
+        scan_page_bg.delay(scan_id=scan.id)
       
     # serialize response and return
     serializer_context = {'request': request}
@@ -4910,6 +4911,7 @@ def create_or_update_case(request: object=None) -> object:
     # serialize and return
     serializer_context = {'request': request}
     data = CaseSerializer(case, context=serializer_context).data
+    data['client'] = settings.CLIENT_URL_ROOT
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -4973,6 +4975,67 @@ def save_case_steps(steps: dict, case_id: str) -> dict:
 
     # return response
     return data
+
+
+
+
+def case_pre_run(request: object=None, **kwargs) -> object:
+    """ 
+    Inits case_pre_run_bg for the passed 'case_id'
+    
+    Expects:
+        case_id: str,
+        user_id: str,
+
+    Returns: HTTP or Case object
+    """
+
+    # decide on data source
+    source = request.data if request else kwargs
+
+    # get data
+    case_id = source.get('case_id')
+    user_id = source.get('user_id') if not request else request.user.id
+    
+    # get member, and account
+    member = Member.objects.get(user__id=user_id)
+    account = member.id
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='case', 
+        action='update', id=case_id, id_type='case'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+    
+    # get case
+    case = Case.objects.get(id=case_id)
+    
+    # create process obj
+    process = Process.objects.create(
+        site=case.site,
+        type='case.pre_run',
+        object_id=str(case.id),
+        account=case.account,
+        progress=1
+    )
+
+    # start pre_run for new Case
+    case_pre_run_bg.delay(
+        case_id=str(case.id),
+        process_id=str(process.id)
+    )
+
+    # return dynamic
+    if request:
+        serializer_context = {'request': request}
+        data = CaseSerializer(case, context=serializer_context).data
+        record_api_call(request, data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    return case
 
 
 
@@ -5130,12 +5193,11 @@ def search_cases(request: object=None) -> object:
     if len(member.permissions.get('sites',[])) != 0:
         id_list = [item['id'] for item in member.permissions.get('sites')]
         cases = cases.filter(site__id__in=id_list).order_by('-time_created')
-    
+
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
-    serializer_context = {'request': request}
-    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+    serialized = CaseSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response 

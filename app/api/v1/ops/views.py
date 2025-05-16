@@ -504,6 +504,16 @@ class CasesSearch(APIView):
 
 
 
+class CasePreRun(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post']
+
+    def post(self, request):
+        response = case_pre_run(request)  
+        return response
+
+
+
 class CaseDetail(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get', 'delete']
