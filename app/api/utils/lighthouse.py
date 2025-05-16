@@ -1,7 +1,8 @@
-import subprocess, json, uuid, boto3, os, requests
+from pathlib import Path
 from ..models import Site, Scan
 from .devices import get_device
 from cursion import settings
+import subprocess, json, uuid, boto3, os, requests
 
 
 
@@ -23,11 +24,14 @@ class Lighthouse():
         self.page = self.scan.page
         self.configs = scan.configs
         self.sizes = scan.configs['window_size'].split(',')
+        self.cpu_slowdown = 30
+        self.scale_factor = 2
         self.audits_url = ''
-        self.device_type = get_device(
+        self.device = get_device(
             scan.configs['browser'], 
             scan.configs['device']
-        )['type']
+        )
+        self.is_mobile = str(self.device['type'] == 'mobile').lower()
 
         # initial scores object
         self.scores = {
@@ -50,6 +54,44 @@ class Lighthouse():
             "crux": []
         }
 
+
+
+    def create_configs(self):
+    
+        # custom Lighthouse config
+        config_js = f"""
+            module.exports = {{
+                extends: 'lighthouse:default',
+                plugins: ['lighthouse-plugin-crux'],
+                settings: {{
+                    cruxToken: "{settings.GOOGLE_CRUX_KEY}",
+                    skipAudits: [
+                        "full-page-screenshot"
+                    ],
+                    screenEmulation: {{
+                        mobile: {self.is_mobile},
+                        width: {self.sizes[0]},
+                        height: {self.sizes[1]},
+                        deviceScaleFactor: {self.scale_factor},
+                        disabled: false
+                    }},
+                    throttling: {{
+                        cpuSlowdownMultiplier: {self.cpu_slowdown}
+                    }},
+                    emulatedUserAgent: {json.dumps(self.device['user_agent'])}
+                }}
+            }};
+        """
+
+        # define output path
+        config_path = Path("api/utils/configs/custom-config.js")
+        config_path.write_text(config_js)
+        
+        # return path for use in subprocess
+        return config_path.as_posix()  
+
+
+
     
     def lighthouse_cli(self):
         """ 
@@ -62,17 +104,20 @@ class Lighthouse():
         # initiating subprocess for LH CLI
         proc = subprocess.Popen([
                 'lighthouse', 
-                '--config-path=api/utils/custom-config.js',
+                f'--config-path=api/utils/configs/default-config.js',
                 '--quiet',
                 self.page.page_url, 
                 '--plugins=lighthouse-plugin-crux',
-                '--extra-headers'
-                '--chrome-flags="--no-sandbox --headless --disable-dev-shm-usage"', 
+                '--extra-headers=api/utils/configs/extra-headers.json',
+                f'--chrome-flags=--no-sandbox --headless --disable-dev-shm-usage', 
+                f'--form-factor={self.device["type"]}',
                 f'--screenEmulation.width={self.sizes[0]}',
                 f'--screenEmulation.height={self.sizes[1]}',
-                f'--screenEmulation.{self.device_type}',
+                f'--screenEmulation.mobile={self.is_mobile}',
+                f'--emulatedUserAgent={self.device["user_agent"]}',
+                f'--throttling.cpuSlowdownMultiplier={self.cpu_slowdown}',
                 '--output',
-                'json', 
+                'json',
             ], 
             stdout=subprocess.PIPE,
             user='app',
@@ -115,7 +160,7 @@ class Lighthouse():
         }
         params = {
             "url": self.page.page_url,
-            "strategy": self.device_type,
+            "strategy": self.device['type'],
             "key": settings.GOOGLE_CRUX_KEY
         }
 
@@ -161,6 +206,12 @@ class Lighthouse():
         self.audits['best-practices'] = self.audits.pop('best_practices')
         self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
 
+        # allow_list of 0 weighted audits
+        allow_list = [
+            'server-response-time', 'cache-insight',
+            'interactive',
+        ]
+
         # iterating through categories to get relevant lh_audits 
         # and store them in their respective `audits = {}` obj
         for cat in self.audits:
@@ -170,7 +221,7 @@ class Lighthouse():
             cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
             if cat_audits is not None:
                 for a in cat_audits:
-                    if int(a["weight"]) > 0:
+                    if int(a["weight"]) > 0 or a["id"] in allow_list:
                         audit = stdout_json["audits"][a["id"]]
                         self.audits[cat].append(audit)
        

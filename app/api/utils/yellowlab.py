@@ -66,6 +66,8 @@ class Yellowlab():
         Returns --> raw YL data (Dict)
         """
 
+        print(f'starting YL with device type -> {self.device_type}')
+
         # initiating subprocess for YLT CLI
         proc = subprocess.Popen([
                 'yellowlabtools',
