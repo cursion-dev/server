@@ -6,7 +6,7 @@ from .v1.ops.services import (
     delete_site, delete_page, 
     delete_scan, delete_test,
     delete_case, delete_caserun,
-    crawl_site
+    crawl_site, case_pre_run,
 )
 from .tasks import (
     reset_account_usage, 
@@ -195,7 +195,7 @@ class ProcessAdmin(admin.ModelAdmin):
 class CaseAdmin(admin.ModelAdmin):
     list_display = ('title', 'user', 'site', 'time_created',)
     search_fields = ('title', 'site__site_url')
-    actions = ['delete_cases',]
+    actions = ['delete_cases', 'start_pre_run']
 
     def delete_cases(self, request, queryset):
         for case in queryset:
@@ -203,6 +203,13 @@ class CaseAdmin(admin.ModelAdmin):
                 id=case.id,
                 user=case.user
             )
+    
+    def start_pre_run(self, request, queryset):
+        for case in queryset:
+            case_pre_run(**{
+                'case_id': str(case.id),
+                'user_id': str(case.user.id)
+            })
 
 
 

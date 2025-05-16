@@ -103,6 +103,20 @@ class Caser():
             'Tab':          Keys.TAB
         }
 
+        # common scripts 
+        self.scroll_to_center = (
+            """
+            const scrollToCenter = (elem) => {
+                const rect = elem.getBoundingClientRect();
+                const absoluteElementTop = rect.top + window.pageYOffset;
+                const middle = absoluteElementTop - (window.innerHeight / 2) + (rect.height / 2);
+                window.scrollTo({top: middle, behavior: 'instant'});
+                setTimeout(function() {return null}, 300);
+            }
+            return scrollToCenter(arguments[0])
+            """
+        )
+
         # update flowrun
         if self.flowrun_id:
             update_flowrun(**{
@@ -284,6 +298,9 @@ class Caser():
         Returns -> `image_url` <str:remote path to image>
         """
 
+        # default
+        image_url = None
+
         # setup boto3 configurations
         s3 = boto3.client(
             's3', aws_access_key_id=str(settings.AWS_ACCESS_KEY_ID),
@@ -294,28 +311,34 @@ class Caser():
 
         # setting id for image
         pic_id = uuid.uuid4()
-        
-        # get screenshot
-        self.driver.save_screenshot(f'{pic_id}.png')
 
-        # seting up paths
-        image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+        # catch any timeout/detachment errors
+        try:
         
-        if run_type == 'run':
-            remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
-        if run_type == 'pre_run':
-            remote_path = f'static/case/{self.case.id}/{pic_id}.png'
+            # get screenshot
+            self.driver.save_screenshot(f'{pic_id}.png')
 
-        root_path = settings.AWS_S3_URL_PATH
-        image_url = f'{root_path}/{remote_path}'
-    
-        # upload to s3
-        with open(image, 'rb') as data:
-            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
-            )
-        # remove local copy
-        os.remove(image)
+            # seting up paths
+            image = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+            
+            if run_type == 'run':
+                remote_path = f'static/caseruns/{self.caserun.id}/{pic_id}.png'
+            if run_type == 'pre_run':
+                remote_path = f'static/case/{self.case.id}/{pic_id}.png'
+
+            root_path = settings.AWS_S3_URL_PATH
+            image_url = f'{root_path}/{remote_path}'
+        
+            # upload to s3
+            with open(image, 'rb') as data:
+                s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                    remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "image/png"}
+                )
+            # remove local copy
+            os.remove(image)
+        
+        except Exception as e:
+            print(e)
 
         # returning image url
         return image_url
@@ -669,9 +692,7 @@ class Caser():
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
                                     
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # clicking element
@@ -736,10 +757,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # changing value of element
@@ -815,10 +834,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # using selenium, press the selected key
@@ -883,17 +900,16 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # gettintg elem text
                     elementText = element.get_attribute('innerText')
                     elementText = element.text if len(elementText) == 0 else elementText
                     elementText = elementText.strip()
-                    print(f'elementText -> {elementText}')
-                    print(f'value -> {step["assertion"]["value"]}')
+                    print(f'elementText -> "{elementText}"')
+                    print(f'value -> "{step["assertion"]["value"]}"')
 
                     # assert text
                     if elementText != self.transpose_data(step["assertion"]["value"]):
@@ -959,12 +975,10 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element
+                    self.driver.execute_script(self.scroll_to_center, element)
                     
-                    # scrolling to element using plain JavaScript
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
+                    # get step screenshot
                     image = self.save_screenshot(run_type='run')
 
                 except Exception as e:
@@ -1102,9 +1116,7 @@ class Caser():
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
                                     
                     # scrolling to element using plain JavaScript
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
@@ -1137,10 +1149,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps
@@ -1184,10 +1194,8 @@ class Caser():
                     if element_data['failed']:
                         raise Exception(f'Unable to locate element with the given Selector and xPath')
 
-                    # scrolling to element and back down a bit
-                    self.driver.execute_script(f'document.querySelector("{selector}").scrollIntoView()')
-                    self.driver.execute_script("arguments[0].scrollIntoView();", element)
-                    self.driver.execute_script("window.scrollBy(0, -100);")
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
                     # get elem img & update self.steps

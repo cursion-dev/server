@@ -27,6 +27,7 @@ urlpatterns = [
     path('tests/zapier', views.TestsZapier.as_view(), name='tests-zapier'),
     path('case', views.Cases.as_view(), name='case'),
     path('case/<uuid:id>', views.CaseDetail.as_view(), name='case-detail'),
+    path('case/pre-run', views.CasePreRun.as_view(), name='case-pre-run'),
     path('case/search', views.CasesSearch.as_view(), name='case-search'),
     path('case/auto', views.AutoCases.as_view(), name='case-auto'),
     path('case/copy', views.CopyCases.as_view(), name='case-copy'),
