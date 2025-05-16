@@ -514,7 +514,7 @@ class Flowr():
 
         # check for node conditions given not 'queued' or 'working'
         if current_data['node']['data']['conditions'] and \
-            current_data['node']['data']['status'] != 'failed':
+            (current_data['node']['data']['status'] != 'failed' or not self.flowrun.configs.get('end_on_fail')):
             
             # starting conditons buliding & execution
             print('building conditons')
@@ -539,12 +539,12 @@ class Flowr():
                 ).get_object()
                 
                 # build and execute conditions
-                conditons = Alerter(
+                conditions = Alerter(
                     expressions=current_data['node']['data']['conditions']
                 ).build_expressions()
-
+                
                 # evaluate conditons
-                outcome = eval(f'True if ({conditons}) else False')
+                outcome = eval(f'True if ({conditions}) else False')
 
                 # create new fake parent ID
                 parentID = uuid.uuid4()
@@ -578,6 +578,7 @@ class Flowr():
 
             # run true_child if true_outcomes exists
             if len(true_outcomes) > 0:
+                print('RUNNING TRUE CHILD')
                 true_task = true_child['node']['data']['task_type'] if true_child else None
                 # sleeping random for DB 
                 time.sleep(random.uniform(1, 5))
@@ -588,6 +589,7 @@ class Flowr():
             
             # run false_child if false_outcomes exists
             if len(false_outcomes) > 0:
+                print('RUNNING FALSE CHILD')
                 false_task = false_child['node']['data']['task_type'] if false_child else None
                 # sleeping random for DB 
                 time.sleep(random.uniform(1, 5))
