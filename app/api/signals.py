@@ -40,6 +40,12 @@ def case_created(sender, instance, created, **kwargs):
         # check if Case has processed
         if not case.processed:
 
+            # return early if no site association
+            if not case.site:
+                case.processed = True
+                case.save()
+                return None
+
             # create process obj
             process = Process.objects.create(
                 site=case.site,
