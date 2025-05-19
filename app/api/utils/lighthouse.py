@@ -24,8 +24,11 @@ class Lighthouse():
         self.page = self.scan.page
         self.configs = scan.configs
         self.sizes = scan.configs['window_size'].split(',')
-        self.cpu_slowdown = 30
+        self.cpu_slowdown = 4
         self.scale_factor = 2
+        self.download_speed = 1600
+        self.upload_speed = 768
+        self.rttMs = 150
         self.audits_url = ''
         self.device = get_device(
             scan.configs['browser'], 
@@ -101,6 +104,17 @@ class Lighthouse():
         Returns --> raw LH data (Dict)
         """
 
+        # warm up the page by curl'ing site
+        try:
+            subprocess.run(
+                ['curl', '-sS', '--max-time', '5', self.page.page_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+        except subprocess.CalledProcessError:
+            pass
+
         # initiating subprocess for LH CLI
         proc = subprocess.Popen([
                 'lighthouse', 
@@ -116,6 +130,10 @@ class Lighthouse():
                 f'--screenEmulation.mobile={self.is_mobile}',
                 f'--emulatedUserAgent={self.device["user_agent"]}',
                 f'--throttling.cpuSlowdownMultiplier={self.cpu_slowdown}',
+                f'--throttling.downloadThroughputKbps={self.download_speed}',
+                f'--throttling.uploadThroughputKbps={self.upload_speed}',
+                f'--throttling.rttMs={self.rttMs}',
+                f'--throttling-method=simulate',
                 '--output',
                 'json',
             ], 
