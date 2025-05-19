@@ -13,7 +13,6 @@ def record_task(
         task_method: str=None, 
         **kwargs,
     ) -> bool:
-
     """ 
     Records task information in the `resource.system` 
     attribute.
@@ -30,7 +29,7 @@ def record_task(
     """
 
     # set default 
-    max_atttempts_reached = False
+    max_attempts_reached = False
 
     # get resource 
     if resource_type == 'scan':
@@ -52,10 +51,11 @@ def record_task(
     for task in tasks:
         if task['component'] == component:
             # update existing task
-            tasks[i]['task_id']     = str(task_id)
-            tasks[i]['attempts']    += 1
-            max_atttempts_reached   = True if (tasks[i]['attempts'] >= settings.MAX_ATTEMPTS) else False
-            exists                  = True
+            max_attempts_reached   = True if (tasks[i]['attempts'] >= settings.MAX_ATTEMPTS) else False
+            tasks[i]['task_id']    = str(task_id)
+            tasks[i]['attempts']   += 1 if not max_attempts_reached else tasks[i]['attempts']
+            tasks[i]['kwargs']     = kwargs.get('kwargs')
+            exists                 = True
         i += 1
 
     # append new task data
@@ -73,4 +73,4 @@ def record_task(
     resource.save()
 
     # return
-    return max_atttempts_reached
+    return max_attempts_reached
