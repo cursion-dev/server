@@ -30,7 +30,7 @@ def record_task(
     """
 
     # set default 
-    max_attempts_reached = False
+    max_atttempts_reached = False
 
     # get resource 
     if resource_type == 'scan':
@@ -52,10 +52,10 @@ def record_task(
     for task in tasks:
         if task['component'] == component:
             # update existing task
-            max_attempts_reached   = True if (tasks[i]['attempts'] >= settings.MAX_ATTEMPTS) else False
-            tasks[i]['task_id']    = str(task_id)
-            tasks[i]['attempts']   += int(max_attempts_reached)
-            exists                 = True
+            tasks[i]['task_id']     = str(task_id)
+            tasks[i]['attempts']    += 1
+            max_atttempts_reached   = True if (tasks[i]['attempts'] >= settings.MAX_ATTEMPTS) else False
+            exists                  = True
         i += 1
 
     # append new task data
@@ -73,10 +73,4 @@ def record_task(
     resource.save()
 
     # return
-    return max_attempts_reached
-
-
-
-
-
-
+    return max_atttempts_reached
