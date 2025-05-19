@@ -122,6 +122,16 @@ class TestAdmin(admin.ModelAdmin):
     search_fields = ('page__page_url',)
     actions = ['delete_tests',]
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        # Avoid streaming cursors by evaluating related objects early
+        obj = self.get_object(request, object_id)
+        if obj is not None:
+            # Force evaluation of any heavy reverse relationships
+            _ = obj.pre_scan
+            _ = obj.post_scan
+
+        return super().change_view(request, object_id, form_url, extra_context)
+
     def delete_tests(self, request, queryset):
         for test in queryset:
             delete_test(
