@@ -2855,91 +2855,72 @@ def reset_account_usage(account_id: str=None) -> None:
     Returns: None
     """
 
-    # init Stripe client
+    # set defaults
     stripe.api_key = settings.STRIPE_PRIVATE
+    today = datetime.utcnow()
 
-    # check for account_id
-    if account_id is not None:
+    # get accounts
+    if account_id:
         accounts = [Account.objects.get(id=account_id)]
     else:
-        # get all active accounts
         accounts = Account.objects.filter(active=True)
 
-    # get current date
-    today = datetime.today()
-    today_str = today.strftime('%Y-%m-%d')
-    print(f'today -> {today_str}')
-
-    # setting format for today
-    f = '%Y-%m-%d %H:%M:%S.%f'
-
-    # reset account.usage
-    def reset_usage(account) -> None:
-        
-        # update usage
-        account.usage['scans'] = 0
-        account.usage['tests'] = 0
-        account.usage['caseruns'] = 0
-        account.usage['flowruns'] = 0
-
-        # update meta
-        meta = account.meta
-        meta['last_usage_reset'] = today.strftime(f)
-        account.meta = meta
+    # helper reset method
+    def reset_usage(account):
+        account.usage.update({
+            'scans': 0,
+            'tests': 0,
+            'caseruns': 0,
+            'flowruns': 0
+        })
+        account.meta = account.meta or {}
+        account.meta['last_usage_reset'] = today.isoformat()
         account.save()
+        print(f'Reset usage for account: {account.name}')
 
-        # log action
-        print(f'reset account "{account.name}" usage')
-        return None
-
-    # loop through each
     for account in accounts:
 
-        # check if account is active and not free
-        if account.active and account.type != 'free' and account.sub_id != None:
-                
-            # get stripe sub
-            sub = stripe.Subscription.retrieve(
-                account.sub_id
-            )
+        # defaults
+        needs_reset = False
 
-            # get and formate sub.current_period_end
-            sub_date = datetime.fromtimestamp(
-                sub.current_period_end
-            ).strftime('%Y-%m-%d')
-            print(f'sub_date -> {sub_date}')
+        # skip non active
+        if not account.active:
+            continue
+        
+        # get last reset data
+        last_reset_str = (account.meta or {}).get('last_usage_reset')
+        last_reset = None
 
-            # reset accout usage if today is 
-            # begining of sub payment peroid
-            # OR if a specific account was requested
-            if today_str == sub_date or account_id is not None:
+        # format last reset date
+        try:
+            last_reset = datetime.fromisoformat(last_reset_str.replace("Z", ""))
+        except ValueError:
+            pass
+        
+        # check stripe sub if paying account
+        if account.type != 'free' and account.sub_id:
+            try:
+                sub = stripe.Subscription.retrieve(account.sub_id)
+                sub_reset_date = datetime.fromtimestamp(sub.current_period_start)
+                if (today - sub_reset_date).days >= 30 or today.date() == sub_reset_date.date():
+                    needs_reset = True
+            except stripe.error.StripeError as e:
+                print(f"Stripe error for account {account.id}: {e}")
 
-                # reset usage
-                reset_usage(account)
+        # reset free account
+        elif account.type == 'free':
+            if not last_reset or (today - last_reset).days >= 30:
+                needs_reset = True
 
-        # check if accout is free
-        if account.type == 'free':
+        # reset passed account_id
+        if account_id:
+            needs_reset = True
 
-            # get last usage reset date from meta
-            last_usage_date_str = account.meta.get('last_usage_reset') if account.meta else None
-            if last_usage_date_str is not None:
-                
-                # clean date_str
-                last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
+        # trigger reset
+        if needs_reset:
+            reset_usage(account)
 
-                # format date str as datetime obj
-                last_usage_date = datetime.strptime(last_usage_date_str, f)
-
-                print(f'days since last reset -> {abs((today - last_usage_date).days)}')
-
-                # check if over 30 days
-                if abs((today - last_usage_date).days) >= 30:
-                    
-                    # reset usage
-                    reset_usage(account)
-
-            
-    return None
+        return None
 
 
 
