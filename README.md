@@ -16,7 +16,9 @@
     <a href="LICENSE.md" target="_blank">
       <img src='https://img.shields.io/badge/license-GNU-green?style=for-the-badge'/>
     </a>
-    <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
+    <a href="https://github.com/cursion-dev/server/graphs/commit-activity" target="_blank"> 
+      <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
+    </a>
     <a href='https://github.com/cursion-dev/server/actions'>
      <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=build%20status"/>
     </a>
@@ -58,12 +60,14 @@ API-first, open-source, and beginner friendly. Cursion is built for the busy dev
 
 
 # 🛒 What's Included
-- [x] Advanced Visual Regression Testing
+- [x] Advanced, 3-Step Visual Regression Testing
 - [x] Page Source Regression Testing   
 - [x] [Lighthouse](https://github.com/GoogleChrome/lighthouse) Performance Testing
 - [x] [YellowLab](https://github.com/YellowLabTools/YellowLabTools) Performance Testing
 - [x] Selenium-based Functional Testing
+- [x] Functional Test Genmerator
 - [x] A.I. Generated Issues (via OpenAI)
+- [x] A.I. VRT Analysis & Review (via OpenAI)
 
 <br>
 <br>
