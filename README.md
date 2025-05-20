@@ -13,13 +13,13 @@
 </h1>
 
 <p align="center">
-    <a href="LICENSE.md" target="_blank">
+    <a href="LICENSE.md" target="_blank" style="text-decoration: none">
       <img src='https://img.shields.io/badge/license-GNU-green?style=for-the-badge'/>
     </a>
-    <a href="https://github.com/cursion-dev/server/graphs/commit-activity" target="_blank"> 
+    <a href="https://github.com/cursion-dev/server/graphs/commit-activity" target="_blank" style="text-decoration: none"> 
       <img src='https://img.shields.io/github/commit-activity/m/cursion-dev/server/main?style=for-the-badge'/>
     </a>
-    <a href='https://github.com/cursion-dev/server/actions'>
+    <a href="https://github.com/cursion-dev/server/actions" style="text-decoration: none">
      <img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/cursion-dev/server/k8s-deploy.yaml?style=for-the-badge&label=build%20status"/>
     </a>
 </p>
