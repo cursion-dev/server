@@ -1576,7 +1576,15 @@ def create_scan(request: object=None, **kwargs) -> object:
         )
 
         # adding system data
-        add_scan_system_data(scan=created_scan)
+        add_scan_system_data(
+            scan=created_scan,
+            kwargs={
+                'scan_id': str(created_scan.id),
+                'alert_id': None,
+                'flowrun_id': None,
+                'node_index': None
+            }
+        )
 
         # adding scan to array
         created_scans.append(str(created_scan.id))
