@@ -25,6 +25,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta, timezone
 from redis import Redis
 from contextlib import contextmanager
+from kombu.utils.encoding import bytes_to_str
 from cursion import settings
 import asyncio, boto3, time, requests, \
 json, stripe, inspect, random, secrets
@@ -59,13 +60,13 @@ redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
 def task_lock(lock_name, timeout=10000):
     lock = redis_client.lock(lock_name, timeout=timeout)
     acquired = lock.acquire(blocking=False)
-    print(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
+    logger.info(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
     try:
         yield acquired
     finally:
         if acquired:
             lock.release()
-            print(f"Lock released for {lock_name}")
+            logger.info(f"Lock released for {lock_name}")
 
 
 
@@ -188,8 +189,65 @@ def update_schedule(task_id: str=None) -> None:
                 time_last_run=last_run
             )
         except Exception as e:
-            print(e)
+            logger.info(e)
     return None
+
+
+
+
+def add_scan_system_data(scan: object=None) -> dict:
+    """
+    Helper function to build system for passed `Scan`.
+
+    Expects: {
+        'scan': obj
+    }
+
+    Returns: `Scan`
+    """
+
+    # build system data
+    system = {
+        "tasks": [
+            {
+                "kwargs": {},
+                "task_id": f"lock:html_and_logs_bg_{scan.id}" if t == 'html' else f"lock:{t}_bg_{scan.id}",
+                "attempts": 0,
+                "component": t,
+                "task_method": "run_html_and_logs_bg" if t == 'html' else f"run_{t}_bg"
+            }
+            for t in scan.type if t != 'logs'
+        ]
+    }
+
+    # save to scan
+    scan.system = system
+    scan.save()
+    return scan
+
+
+
+
+def call_local_task_by_name(
+        task_name   : str=None, 
+        kwargs      : dict={}, 
+        task_id     : str=None
+    ) -> None:
+    """ 
+    Helper method to dynamically re-execute local tasks.
+
+    Expects: {
+        'task_name' : str,
+        'kwargs'    : dict,
+        'task_id'   : str
+    }
+
+    Returns `task_name.apply_async(...)`
+    """
+
+    task_func = globals()[task_name]
+    print(f'calling -> task_func.apply_async(kwargs={kwargs}, task_id={task_id})')
+    return task_func.apply_async(kwargs=kwargs, task_id=task_id)
 
 
 
@@ -211,25 +269,34 @@ def redeliver_failed_tasks() -> None:
 
     # get uncompleted Scans & Tests
     scans = Scan.objects.filter(time_completed=None)
-    tests = Test.objects.filter(time_completed=None)
+    tests = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
 
     # inspect Celery workers
     i = celery.app.control.inspect()
 
-    # fetch active and reserved tasks
-    reserved = i.reserved() or {}
-    active = i.active() or {}
-    executing_tasks = []
+    # fetch active, reserved, & queues tasks
+    reserved    = i.reserved() or {}
+    active      = i.active() or {}
+    queued      = redis_client.lrange('celery', 0, -1)
+    all_tasks   = []
 
     # gather task IDs from reserved queue
     for replica, tasks in reserved.items():
         for task in tasks:
-            executing_tasks.append(task['id'])
+            all_tasks.append(task['id'])
 
     # gather task IDs from active tasks
     for replica, tasks in active.items():
         for task in tasks:
-            executing_tasks.append(task['id'])
+            all_tasks.append(task['id'])
+
+    # gather redis_ids from queued tasks
+    for item in queued:
+        try:
+            decoded = json.loads(bytes_to_str(item))
+            all_tasks.append(decoded['headers']['id'])
+        except Exception as e:
+            print(f"Failed to decode task: {e}")
 
     # iterate through each scan and re-run 
     # any failed, non-pending jobs
@@ -242,7 +309,6 @@ def redeliver_failed_tasks() -> None:
         # check each task in system['tasks']
         retried_tasks   = 0
         pending_tasks   = 0 
-        running_tasks   = 0 
         test_id         = None
         alert_id        = None
         flowrun_id      = None
@@ -276,18 +342,14 @@ def redeliver_failed_tasks() -> None:
             # or reached "max_attempts".
             if component is None:
 
-                # check if task is "running" (has task_id in queue)
-                if task_id in executing_tasks:
-                    running_tasks += 1
-
-                # check if task is "pending" (in queue with no task_id yet)
-                elif task_id == None:
+                # check if task is "pending" (has task_id in queue)
+                if task_id in all_tasks:
                     pending_tasks += 1
-                
+
                 # check for max attempts
                 elif task.get('attempts', 0) < settings.MAX_ATTEMPTS:
-                    print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
-                    eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+                    task_id = f'lock:{task["task_method"].replace('run_','')}_{scan.id}'
+                    call_local_task_by_name(task["task_method"], task["kwargs"], task_id)
                     retried_tasks += 1
 
         # try to get test_id
@@ -295,14 +357,14 @@ def redeliver_failed_tasks() -> None:
             test_id = Test.objects.filter(post_scan=scan, time_completed=None)[0].id
         
         # mark scan complete if checks pass
-        if retried_tasks == 0 and pending_tasks == 0 and running_tasks == 0:
-            print(f'marking scan as complete')
+        if retried_tasks == 0 and pending_tasks == 0:
+            logger.info(f'marking scan as complete')
             scan.time_completed = datetime.now()
             scan.save()
 
             # execute `run_test()` if test_id present
             if test_id:
-                print(f'executing run_test() from `post_scan` in `retry_tasks`')
+                logger.info(f'executing run_test() from `post_scan` in `retry_tasks`')
                 run_test.delay(
                     test_id=str(test_id),
                     alert_id=alert_id,
@@ -314,34 +376,29 @@ def redeliver_failed_tasks() -> None:
     for test in tests:
 
         # check for localization
-        if settings.LOCATION != 'us':
+        if test.post_scan.configs.get('location', 'us') != settings.LOCATION:
             continue
 
         # check each task in system['tasks']
         retried_tasks = 0
-        running_tasks = 0
         pending_tasks = 0
         for task in test.system.get('tasks', []):
 
             # define task_id
             task_id = task.get('task_id')
 
-            # check if task is "running" (has task_id in queue)
-            if task_id in executing_tasks:
-                running_tasks += 1
-
-            # check if task is "pending" (in queue with no task_id yet)
-            elif task_id == None:
+            # check if task is "pending" (has task_id in queue)
+            if task_id in all_tasks:
                 pending_tasks += 1
             
             # check for max attempts
             elif task.get('attempts', 0) < settings.MAX_ATTEMPTS:
-                print(f're-running -> {task["task_method"]}.delay(**{task["kwargs"]})')
-                eval(f'{task["task_method"]}.delay(**{task["kwargs"]})')
+                task_id = f'lock:run_test_{test.id}'
+                call_local_task_by_name(task["task_method"], task["kwargs"], task_id)
                 retried_tasks += 1
         
         # mark test complete if checks pass
-        if retried_tasks == 0 and pending_tasks == 0 and running_tasks == 0:
+        if retried_tasks == 0 and pending_tasks == 0:
             test.time_completed = datetime.now()
             test.save()
 
@@ -587,7 +644,7 @@ def update_site_and_page_info(
                     page.info['latest_scan']['score'] = latest_scan.score
                     page.info['lighthouse'] = latest_scan.lighthouse.get('scores')
                     page.info['yellowlab'] = latest_scan.yellowlab.get('scores')
-                    print(f'updating {page.page_url} with scan.score -> {latest_scan.score}')
+                    logger.info(f'updating {page.page_url} with scan.score -> {latest_scan.score}')
                 if latest_scan is None and (resource == 'scan' or resource == 'all'):
                     page.info['latest_scan']['id'] = None
                     page.info['latest_scan']['time_created'] = None
@@ -595,7 +652,7 @@ def update_site_and_page_info(
                     page.info['latest_scan']['score'] = None
                     page.info['lighthouse'] = None
                     page.info['yellowlab'] = None
-                    print(f'updating {page.page_url} with scan.score -> {None}')
+                    logger.info(f'updating {page.page_url} with scan.score -> {None}')
 
                 # latest_test info
                 if latest_test:
@@ -604,14 +661,14 @@ def update_site_and_page_info(
                     page.info['latest_test']['time_completed'] = str(latest_test.time_completed)
                     page.info['latest_test']['score'] = (round(latest_test.score * 100) / 100)
                     page.info['latest_test']['status'] = latest_test.status
-                    print(f'updating {p.page_url} with test.score -> {latest_test.score}')
+                    logger.info(f'updating {p.page_url} with test.score -> {latest_test.score}')
                 if latest_test is None and (resource == 'test' or resource == 'all'):
                     page.info['latest_test']['id'] = None
                     page.info['latest_test']['time_created'] = None
                     page.info['latest_test']['time_completed'] = None
                     page.info['latest_test']['score'] = None
                     page.info['latest_test']['status'] = None
-                    print(f'updating {p.page_url} with test.score -> {None}')
+                    logger.info(f'updating {p.page_url} with test.score -> {None}')
 
                 # save page
                 page.save()
@@ -620,7 +677,7 @@ def update_site_and_page_info(
     if len(scans) > 0:
         # calc site average of latest_scan.score
         site_avg_scan_score = round((sum(scans)/len(scans)) * 100) / 100
-        print(f'updating site with new scan score -> {site_avg_scan_score}')
+        logger.info(f'updating site with new scan score -> {site_avg_scan_score}')
 
     # latest_scan info
     if latest_scan:
@@ -642,7 +699,7 @@ def update_site_and_page_info(
     if len(tests) > 0:
         # calc site average of latest_test.score
         site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
-        print(f'updating site with new test score -> {site_avg_test_score}')
+        logger.info(f'updating site with new test score -> {site_avg_test_score}')
         
     # update site info
     if latest_test:
@@ -734,36 +791,48 @@ def scan_page_bg(
     
     # run each scan component in parallel
     if 'html' in scan.type or 'logs' in scan.type or 'full' in scan.type:
-        run_html_and_logs_bg.delay(
-            scan_id=scan.id, 
-            test_id=test_id, 
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index,
+        run_html_and_logs_bg.apply_async(
+            kwargs={
+                'scan_id'   : scan_id,
+                'test_id'   : test_id,
+                'alert_id'  : alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+            },
+            task_id=f'lock:html_and_logs_bg_{scan_id}'
         )
     if 'lighthouse' in scan.type or 'full' in scan.type:
-        run_lighthouse_bg.delay(
-            scan_id=scan.id, 
-            test_id=test_id, 
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index,
+        run_lighthouse_bg.apply_async(
+             kwargs={
+                'scan_id'   : scan_id,
+                'test_id'   : test_id,
+                'alert_id'  : alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+            },
+            task_id=f'lock:lighthouse_bg_{scan_id}'
         )
     if 'yellowlab' in scan.type or 'full' in scan.type:
-        run_yellowlab_bg.delay(
-            scan_id=scan.id, 
-            test_id=test_id, 
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index,
+        run_yellowlab_bg.apply_async(
+             kwargs={
+                'scan_id'   : scan_id,
+                'test_id'   : test_id,
+                'alert_id'  : alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+            },
+            task_id=f'lock:yellowlab_bg_{scan_id}'
         )
     if 'vrt' in scan.type or 'full' in scan.type:
-        run_vrt_bg.delay(
-            scan_id=scan.id, 
-            test_id=test_id, 
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index,
+        run_vrt_bg.apply_async(
+            kwargs={
+                'scan_id'   : scan_id,
+                'test_id'   : test_id,
+                'alert_id'  : alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+            },
+            task_id=f'lock:vrt_bg_{scan_id}'
         )
 
     logger.info('started scan component tasks')
@@ -816,7 +885,7 @@ def create_scan(
     # run scan and alert if necessary
     scan = S(scan=created_scan).build_scan()
     if alert_id and alert_id != 'None':
-        print('running alert from `task.create_scan`')
+        logger.info('running alert from `task.create_scan`')
         Alerter(alert_id=alert_id, object_id=scan.id).run_alert()
     
     logger.info('Created new scan of site')
@@ -895,7 +964,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                             Page.objects.get(id=item['id'])
                         )
                     except Exception as e:
-                        print(e)
+                        logger.warning(e)
                 
                 # adding to sites
                 if item['type'] == 'site':
@@ -904,7 +973,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                             Site.objects.get(id=item['id'])
                         ) 
                     except Exception as e:
-                        print(e)
+                        logger.warning(e)
         
         # grabbing all sites because no 
         # resources were specified and scope is "account"
@@ -921,29 +990,17 @@ def create_scan_bg(self, *args, **kwargs) -> None:
             # check resource 
             if check_and_increment_resource(page.account.id, 'scans'):
 
-                # create system data for new Scan
-                scan_system = {
-                    "tasks": [
-                        {
-                            "kwargs": {},
-                            "task_id": None,
-                            "attempts": 0,
-                            "component": t,
-                            "task_method": "run_html_and_logs_bg" if t == 'html' else f"run_{t}_bg"
-                        }
-                        for t in type if t != 'logs'
-                    ]
-                }
-
                 # create Scan obj
                 scan = Scan.objects.create(
                     site=page.site,
                     page=page,
                     type=type,
                     tags=tags,
-                    configs=configs,
-                    system=scan_system
+                    configs=configs
                 )
+
+                # update scan with system data
+                add_scan_system_data(scan=scan)
 
                 # updating latest_scan info for page
                 page.info['latest_scan']['id'] = str(scan.id)
@@ -1055,7 +1112,7 @@ def run_html_and_logs_bg(
 
         # return early if max_attempts reached
         if max_reached:
-            print('max attempts reach for html & logs component')
+            logger.info('max attempts reach for html & logs component')
             return None
         
         # run html and logs component
@@ -1129,7 +1186,7 @@ def run_vrt_bg(
 
         # return early if max_attempts reached
         if max_reached:
-            print('max attempts reach for vrt component')
+            logger.info('max attempts reach for vrt component')
             return None
 
         # run VRT component
@@ -1203,7 +1260,7 @@ def run_lighthouse_bg(
 
         # return early if max_attempts reached
         if max_reached:
-            print('max attempts reach for lighthouse component')
+            logger.info('max attempts reach for lighthouse component')
             return None
 
         # run lighthouse component
@@ -1277,7 +1334,7 @@ def run_yellowlab_bg(
 
         # return early if max_attempts reached
         if max_reached:
-            print('max attempts reach for yellowlab component')
+            logger.info('max attempts reach for yellowlab component')
             return None
 
         # run yellowlab component
@@ -1347,7 +1404,7 @@ def run_test(
 
         # return early if max_attempts reached
         if max_reached:
-            print('max attempts reach for Tester')
+            logger.info('max attempts reach for Tester')
             return None
 
         # get test 
@@ -1371,7 +1428,7 @@ def run_test(
             })
 
         # execute test
-        print('\n---------------\nStarting Test...\n---------------\n')
+        logger.info('\n---------------\nStarting Test...\n---------------\n')
         test = T(test=test).run_test()
 
         # update FlowRun if passed
@@ -1389,7 +1446,7 @@ def run_test(
 
         # execute Alert if passed
         if alert_id and alert_id != 'None':
-            print('running alert from `task.run_test`')
+            logger.info('running alert from `task.run_test`')
             Alerter(alert_id=alert_id, object_id=str(test.id)).run_alert()
 
     logger.info('Test completed')
@@ -1461,23 +1518,11 @@ def create_test(
     })
 
     # create system data for new Scan & Test (may not be used)
-    scan_system = {
-        "tasks": [
-            {
-                "kwargs": {},
-                "task_id": None,
-                "attempts": 0,
-                "component": t,
-                "task_method": "run_html_and_logs_bg" if t == 'html' else f"run_{t}_bg"
-            }
-            for t in type if t != 'logs'
-        ]
-    }
     test_system = {
         "tasks": [
             {
                 "kwargs": {}, 
-                "task_id": None, 
+                "task_id": f"lock:run_test_{created_test.id}", 
                 "attempts": 0, 
                 "component": "test", 
                 "task_method": "run_test"
@@ -1501,10 +1546,14 @@ def create_test(
                     page=page,
                     tags=tags, 
                     type=type,
-                    configs=configs,
-                    system=scan_system
+                    configs=configs
                 )
-                scan_page_bg.delay(
+
+                # update scan with system data
+                add_scan_system_data(scan=new_scan)
+
+                # init Scan process
+                scan_page_bg(
                     scan_id=new_scan.id,
                 )
 
@@ -1565,12 +1614,14 @@ def create_test(
             page=page,
             tags=tags, 
             type=type,
-            configs=configs,
-            system=scan_system
+            configs=configs
         )
 
+        # update scan with system data
+        add_scan_system_data(scan=post_scan)
+
         # run Scan & Test tasks 
-        scan_page_bg.delay(
+        scan_page_bg(
             scan_id=post_scan.id, 
             test_id=created_test.id,
             alert_id=alert_id,
@@ -1591,16 +1642,16 @@ def create_test(
             })
         
     # updating parired scans
-    pre_scan.paired_scan = post_scan
-    post_scan.paried_scan = pre_scan
+    pre_scan.paired_scan    = post_scan
+    post_scan.paried_scan   = pre_scan
     pre_scan.save()
     post_scan.save()
 
     # updating test object
-    created_test.type = type
-    created_test.pre_scan = pre_scan
-    created_test.post_scan = post_scan
-    created_test.system = test_system
+    created_test.type       = type
+    created_test.pre_scan   = pre_scan
+    created_test.post_scan  = post_scan
+    created_test.system     = test_system
     created_test.save()
 
     # check if pre and post scan are complete and start test if True
@@ -1700,7 +1751,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                                 Page.objects.get(id=item['id'])
                             ) 
                         except Exception as e:
-                            print(e)
+                            logger.info(e)
                     
                     # adding to sites
                     if item['type'] == 'site':
@@ -1709,7 +1760,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                                 Site.objects.get(id=item['id'])
                             ) 
                         except Exception as e:
-                            print(e)
+                            logger.info(e)
             
             # grabbing all sites because no 
             # resources were specified and scope is "account"
@@ -1749,7 +1800,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
                     page.site.save()
 
                     # create test
-                    create_test.delay(
+                    create_test(
                         page_id=str(page.id),
                         type=type,
                         configs=configs,
@@ -1928,7 +1979,7 @@ def create_report_bg(*args, **kwargs) -> None:
         if account_id:
             account = Account.objects.get(id=account_id)
 
-        print(f'passed resources => {resources}')
+        logger.info(f'passed resources => {resources}')
             
         # iterating through resources 
         # and adding to sites or pages
@@ -1942,7 +1993,7 @@ def create_report_bg(*args, **kwargs) -> None:
                             Page.objects.get(id=item['id'])
                         ) 
                     except Exception as e:
-                        print(e)
+                        logger.warning(e)
                 
                 # adding to sites
                 if item['type'] == 'site':
@@ -1951,7 +2002,7 @@ def create_report_bg(*args, **kwargs) -> None:
                             Site.objects.get(id=item['id'])
                         ) 
                     except Exception as e:
-                        print(e)
+                        logger.warning(e)
         
         # grabbing all sites because no 
         # resources were specified and scope is "account"
@@ -2234,7 +2285,7 @@ def create_caserun_bg(*args, **kwargs) -> None:
                             Site.objects.get(id=item['id'])
                         )
                     except Exception as e:
-                        print(e)
+                        logger.warning(e)
             
             # add all sites in account if scope == 'account'
             if scope == 'account' and len(resources) == 0:
@@ -2365,7 +2416,7 @@ def create_flowrun_bg(*args, **kwargs) -> None:
                         Site.objects.get(id=item['id'])
                     )
                 except Exception as e:
-                    print(e)
+                    logger.info(e)
         
         # add all sites in account if scope == 'account'
         if scope == 'account' and len(resources) == 0:
@@ -2492,7 +2543,7 @@ def create_issue(
             success = True
             
         except Exception as e:
-            print(e)
+            logger.info(e)
             # build messge
             message = f'❌ generation failed - unable to create issue for {object_id}'
             success = False
@@ -2876,7 +2927,7 @@ def reset_account_usage(account_id: str=None) -> None:
         account.meta = account.meta or {}
         account.meta['last_usage_reset'] = today.isoformat()
         account.save()
-        print(f'Reset usage for account: {account.name}')
+        logger.info(f'Reset usage for account: {account.name}')
 
     for account in accounts:
 
@@ -2905,7 +2956,7 @@ def reset_account_usage(account_id: str=None) -> None:
                 if (today - sub_reset_date).days >= 30 or today.date() == sub_reset_date.date():
                     needs_reset = True
             except stripe.error.StripeError as e:
-                print(f"Stripe error for account {account.id}: {e}")
+                logger.info(f"Stripe error for account {account.id}: {e}")
 
         # reset free account
         elif account.type == 'free':
@@ -3023,7 +3074,7 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     account.usage['flowruns_allowed'] = (sites_allowed * 10)
     account.save()
 
-    print(f'new price -> {price_amount}')
+    logger.info(f'new price -> {price_amount}')
     
     # return 
     return None
@@ -3166,7 +3217,7 @@ def create_prospect(user_email: str=None) -> None:
     """
 
     if settings.MODE == 'selfhost':
-        print('not running because of selfhost mode')
+        logger.info('not running because of selfhost mode')
         return None
 
     # get user by id
