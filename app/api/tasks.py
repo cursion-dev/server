@@ -57,7 +57,7 @@ redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
 
 # setting locking manager to prevent duplicate tasks
 @contextmanager
-def task_lock(lock_name, timeout=10000):
+def task_lock(lock_name, timeout=21600):
     lock = redis_client.lock(lock_name, timeout=timeout)
     acquired = lock.acquire(blocking=False)
     logger.info(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
@@ -195,7 +195,7 @@ def update_schedule(task_id: str=None) -> None:
 
 
 
-def add_scan_system_data(scan: object=None) -> dict:
+def add_scan_system_data(scan: object=None, kwargs: dict={}) -> dict:
     """
     Helper function to build system for passed `Scan`.
 
@@ -210,7 +210,7 @@ def add_scan_system_data(scan: object=None) -> dict:
     system = {
         "tasks": [
             {
-                "kwargs": {},
+                "kwargs": kwargs,
                 "task_id": f"lock:html_and_logs_bg_{scan.id}" if t == 'html' else f"lock:{t}_bg_{scan.id}",
                 "attempts": 0,
                 "component": t,
@@ -270,6 +270,7 @@ def redeliver_failed_tasks() -> None:
     # get uncompleted Scans & Tests
     scans = Scan.objects.filter(time_completed=None)
     tests = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
+    types = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg']
 
     # inspect Celery workers
     i = celery.app.control.inspect()
@@ -389,6 +390,10 @@ def redeliver_failed_tasks() -> None:
 
             # check if task is "pending" (has task_id in queue)
             if task_id in all_tasks:
+                pending_tasks += 1
+
+            # check for post_scan related task_ids in all_tasks
+            elif any(f'lock:{t}_{test.post_scan.id}' in all_tasks for t in types):
                 pending_tasks += 1
             
             # check for max attempts
@@ -803,7 +808,7 @@ def scan_page_bg(
         )
     if 'lighthouse' in scan.type or 'full' in scan.type:
         run_lighthouse_bg.apply_async(
-             kwargs={
+            kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
@@ -814,7 +819,7 @@ def scan_page_bg(
         )
     if 'yellowlab' in scan.type or 'full' in scan.type:
         run_yellowlab_bg.apply_async(
-             kwargs={
+            kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
@@ -1000,7 +1005,15 @@ def create_scan_bg(self, *args, **kwargs) -> None:
                 )
 
                 # update scan with system data
-                add_scan_system_data(scan=scan)
+                add_scan_system_data(
+                    scan=scan,
+                    kwargs={
+                        'scan_id': str(scan.id),
+                        'alert_id': alert_id,
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index
+                    }
+                )
 
                 # updating latest_scan info for page
                 page.info['latest_scan']['id'] = str(scan.id)
@@ -1521,7 +1534,12 @@ def create_test(
     test_system = {
         "tasks": [
             {
-                "kwargs": {}, 
+                "kwargs": {
+                    "test_id": str(created_test.id), 
+                    "alert_id": alert_id, 
+                    "flowrun_id": flowrun_id, 
+                    "node_index": node_index
+                }, 
                 "task_id": f"lock:run_test_{created_test.id}", 
                 "attempts": 0, 
                 "component": "test", 
@@ -1550,7 +1568,15 @@ def create_test(
                 )
 
                 # update scan with system data
-                add_scan_system_data(scan=new_scan)
+                add_scan_system_data(
+                    scan=new_scan,
+                    kwargs={
+                        'scan_id': str(new_scan.id),
+                        'alert_id': None,
+                        'flowrun_id': None,
+                        'node_index': None
+                    }
+                )
 
                 # init Scan process
                 scan_page_bg(
@@ -1618,7 +1644,16 @@ def create_test(
         )
 
         # update scan with system data
-        add_scan_system_data(scan=post_scan)
+        add_scan_system_data(
+            scan=post_scan,
+            kwargs={
+                'scan_id': str(post_scan.id),
+                'test_id': str(created_test.id),
+                'alert_id': alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index
+            }
+        )
 
         # run Scan & Test tasks 
         scan_page_bg(
