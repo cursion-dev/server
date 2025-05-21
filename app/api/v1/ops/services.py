@@ -1572,8 +1572,11 @@ def create_scan(request: object=None, **kwargs) -> object:
             page=p,
             tags=tags, 
             type=types,
-            configs=configs,
+            configs=configs
         )
+
+        # adding system data
+        add_scan_system_data(scan=created_scan)
 
         # adding scan to array
         created_scans.append(str(created_scan.id))
@@ -1599,13 +1602,20 @@ def create_scan(request: object=None, **kwargs) -> object:
 
         # running scans components in parallel 
         if 'html' in types or 'logs' in types or 'full' in types:
-            run_html_and_logs_bg.delay(scan_id=created_scan.id)
+            task_id = f'lock:html_and_logs_bg_{created_scan.id}'
+            run_html_and_logs_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+        
         if 'lighthouse' in types or 'full' in types:
-            run_lighthouse_bg.delay(scan_id=created_scan.id)
+            task_id = f'lock:lighthouse_bg_{created_scan.id}'
+            run_lighthouse_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+        
         if 'yellowlab' in types or 'full' in types:
-            run_yellowlab_bg.delay(scan_id=created_scan.id)
+            task_id = f'lock:yellowlab_bg_{created_scan.id}'
+            run_yellowlab_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+        
         if 'vrt' in types or 'full' in types:
-            run_vrt_bg.delay(scan_id=created_scan.id)
+            task_id = f'lock:vrt_bg_{created_scan.id}'
+            run_vrt_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
     
     # returning dynaminc response
     data = {
