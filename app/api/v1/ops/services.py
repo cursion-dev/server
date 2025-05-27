@@ -2342,6 +2342,28 @@ def create_test(request: object=None, **kwargs) -> object:
         # update usage and meter resource
         check_and_increment_resource(account.id, 'tests')
 
+        # creating test system data
+        test_system = {
+            "tasks": [
+                {
+                    "kwargs": {
+                        "test_id": str(test.id), 
+                        "alert_id": None, 
+                        "flowrun_id": None, 
+                        "node_index": None
+                    }, 
+                    "task_id": f"lock:run_test_{test.id}", 
+                    "attempts": 0, 
+                    "component": "test", 
+                    "task_method": "run_test"
+                }
+            ]
+        }
+
+        # update test
+        test.system = test_system
+        test.save()
+
         # running test in background
         create_test_bg.delay(
             test_id=test.id,
