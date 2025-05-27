@@ -402,9 +402,10 @@ def redeliver_failed_tasks() -> None:
                 call_local_task_by_name(task["task_method"], task["kwargs"], task_id)
                 retried_tasks += 1
         
-        # mark test complete if checks pass
+        # mark test incomplete if checks pass
         if retried_tasks == 0 and pending_tasks == 0:
             test.time_completed = datetime.now()
+            test.status         = 'incomplete'
             test.save()
 
     return None
