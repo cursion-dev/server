@@ -118,7 +118,7 @@ class SiteAdmin(admin.ModelAdmin):
 
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'page', 'time_created', 'time_completed', 'type')
+    list_display = ('id', 'page', 'time_created', 'time_completed', 'status', 'score')
     search_fields = ('page__page_url',)
     actions = ['delete_tests',]
 
