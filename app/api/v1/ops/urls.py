@@ -72,6 +72,7 @@ urlpatterns = [
     path('device', views.Device.as_view(), name='device'),
     path('metrics/home', views.HomeMetrics.as_view(), name='home-metrics'),
     path('metrics/site', views.SiteMetrics.as_view(), name='site-metrics'),
+    path('metrics/page', views.PageMetrics.as_view(), name='page-metrics'),
     path('metrics/celery', views.CeleryMetrics.as_view(), name='celery-metrics'),
     path('beta/wordpress/migrate', views.WordPressMigrateSite.as_view(), name='migrate-site'),
     path('beta/site/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'), 
