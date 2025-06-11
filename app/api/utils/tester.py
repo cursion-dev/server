@@ -152,7 +152,7 @@ class Tester():
         ).ratio()
 
         # return score
-        return html_raw_score
+        return html_raw_score if html_raw_score >= 0 else 0
 
 
 
@@ -170,7 +170,7 @@ class Tester():
         ).ratio()
 
         # return score
-        return logs_raw_score
+        return logs_raw_score if logs_raw_score >= 0 else 0
 
 
 
@@ -212,7 +212,7 @@ class Tester():
             "num_html_delta": num_html_delta,
             "delta_html_post": self.delta_html_post,
             "delta_html_pre": self.delta_html_pre,
-            "num_html_ratio": num_html_ratio,
+            "num_html_ratio": num_html_ratio if num_html_ratio >= 0 else 0,
             "pre_micro_delta": pre_micro_delta,
             "post_micro_delta": post_micro_delta,
         }
@@ -271,7 +271,7 @@ class Tester():
         diff_score = diff_length / len(pre_delta_parsed_diff)
 
         # return score
-        return diff_score
+        return diff_score if diff_score >= 0 else 0
 
     
 
@@ -330,7 +330,7 @@ class Tester():
             "num_logs_delta": num_logs_delta,
             "delta_logs_post": delta_logs_post,
             "delta_logs_pre": delta_logs_pre,
-            "num_logs_ratio": num_logs_ratio,
+            "num_logs_ratio": num_logs_ratio if num_logs_ratio >= 0 else 0
         }
 
         # returning data
