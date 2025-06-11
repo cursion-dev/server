@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework import status
@@ -16,7 +17,7 @@ from ...models import *
 from ...utils.reporter import Reporter as R
 from ...utils.devices import devices
 from ...utils.issuer import Issuer
-from datetime import datetime, timedelta, timezone as timezone
+from datetime import datetime, timedelta, timezone as tz
 import json, boto3, asyncio, os, requests, uuid, secrets
 
 
@@ -6714,7 +6715,6 @@ def create_or_update_secret(request: object=None) -> object:
     member = Member.objects.get(user=user)
     account = member.account
     
-
     # checking account and resource 
     check_data = check_permissions_and_usage(
         member=member, resource='secret', 
@@ -7591,6 +7591,78 @@ def get_site_metrics(request: object=None) -> object:
     response = Response(data, status=status.HTTP_200_OK)
     return response
 
+
+
+
+def get_page_metrics(request: object=None) -> object:
+    """ 
+    Builds `Scan` and `Test` metrics for 
+    "Page" view on Cursion.client
+
+    Expects: {
+        'request' : object
+    }
+
+    Returns -> HTTP Response object
+    """
+
+    # get user, account, member 
+    user    = request.user
+    member  = Member.objects.get(user=user)
+    account = member.account
+
+    # request data
+    page_id  = request.query_params.get('page_id')
+    weeks    = request.query_params.get('weeks')
+    
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='page', 
+        action='get', id=page_id, id_type='page'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get datetime, x-weeks ago
+    timeago = timezone.now() - timedelta(weeks=int(weeks))
+
+    # get scans
+    scans_raw = (
+        Scan.objects.filter(page_id=page_id, time_completed__gte=timeago)
+        .exclude(score=None)
+        .order_by('-time_created')
+    )
+    scans = [
+        {
+            'id'            : str(s.id), 
+            'score'         : s.score, 
+            'time_created'  : s.time_created
+        } 
+        for s in scans_raw
+    ]   
+
+    # get tests
+    tests_raw = (
+        Test.objects.filter(page_id=page_id, time_completed__gte=timeago)
+        .exclude(status='incomplete')
+        .exclude(post_scan=None)
+        .order_by('-time_created')
+    )
+    tests = [
+        {
+            'id'            : str(t.id), 
+            'score'         : t.score, 
+            'health'        : t.post_scan.score,
+            'time_created'  : t.time_created
+        } 
+        for t in tests_raw
+    ]
+
+    # return respose
+    return Response({'scans': scans, 'tests': tests}, status.HTTP_200_OK)
+    
 
 
 

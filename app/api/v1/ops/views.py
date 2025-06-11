@@ -994,6 +994,17 @@ class SiteMetrics(APIView):
 
 
 
+class PageMetrics(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = get_page_metrics(request)
+        return response
+
+
+
+
 class CeleryMetrics(APIView):
     authentication_classes = []
     permission_classes = (AllowAny,)
