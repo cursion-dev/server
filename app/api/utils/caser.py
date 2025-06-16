@@ -2,6 +2,7 @@ from asgiref.sync import sync_to_async
 from cryptography.fernet import Fernet
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from .driver import driver_init, driver_wait, quit_driver
 from .issuer import Issuer
 from .updater import update_flowrun
@@ -30,7 +31,7 @@ class Caser():
     }
 
     - Use `Caser.run()` to run Case as CaseRun
-    - Use `Caser.pre_run()` to run gather element info for a new Case 
+    - Use `Caser.pre_run()` to gather element info for a new Case 
 
     Returns -> None
     """
@@ -67,6 +68,9 @@ class Caser():
             window_size=self.configs.get('window_size'), 
             device=self.configs.get('device')
         )
+
+        # init actions
+        self.actions = ActionChains(self.driver)
 
         # Selenium Keys reference
         self.s_keys = {
@@ -518,13 +522,6 @@ class Caser():
                 }]
             })
         
-        # initate driver
-        self.driver = driver_init(
-            browser=self.configs.get('browser', 'chrome'),
-            window_size=self.configs['window_size'], 
-            device=self.configs['device']
-        )
-
         # setting implict wait_time for driver
         self.driver.implicitly_wait(self.configs['max_wait_time'])
 
@@ -582,7 +579,7 @@ class Caser():
                 except Exception as e:
                     image = self.save_screenshot(run_type='run')
                     exception = self.format_exception(e)
-                    msg = excaption
+                    msg = exception
                     status = 'failed'
 
                     # update flowrun
@@ -659,7 +656,73 @@ class Caser():
                 # exit early if configs.end_on_fail == True
                 if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
                     break
-        
+
+            
+            if step['action']['type'] == 'mouseover':
+                exception = None
+                status = 'passed'
+                self.update_caserun(
+                    index=i, type='action', 
+                    start_time=datetime.now(timezone.utc)
+                )
+
+                try:
+                    msg = f'mouseover element "{step["action"]["element"]["selector"]}" | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # updating flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message':msg
+                        })
+
+                    # using selenium, find and moving mouse to the 'element' 
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
+                                    
+                    # scrolling to element using plain JavaScript
+                    self.driver.execute_script(self.scroll_to_center, element)
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+
+                    # moving mouse to element
+                    self.actions.move_to_element(element).perform()
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+                    image = self.save_screenshot(run_type='run')
+                
+                except Exception as e:
+                    image = self.save_screenshot(run_type='run')
+                    exception = self.format_exception(e)
+                    status = 'failed'
+
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
+                    index=i, type='action', 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
+                    exception=exception,
+                    image=image
+                )
+
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
 
             if step['action']['type'] == 'click':
                 exception = None
@@ -1086,7 +1149,6 @@ class Caser():
                 self.steps[i]['action']['image'] = img_url
 
 
-            
             if step['action']['type'] == 'scroll':
                 try:
                     print(f'scrolling -> {step["action"]["value"]}')     
@@ -1135,7 +1197,41 @@ class Caser():
                 img_url = self.save_screenshot(run_type='pre_run')
                 self.steps[i]['action']['image'] = img_url
         
-        
+
+            if step['action']['type'] == 'mouseover':
+                try:
+                    print(f'moving mouse to element -> {step["action"]["element"]}')
+                    # using selenium, find and click on the 'element' 
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
+                                    
+                    # scrolling to element using plain JavaScript
+                    self.driver.execute_script(self.scroll_to_center, element)
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+
+                    # get elem img & update self.steps
+                    if not self.steps[i]['action'].get('img'):
+                        img = self.get_element_image(element)
+                        self.steps[i]['action']['img'] = img
+
+                    # moving mouse to element
+                    self.actions.move_to_element(element).perform()
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+                
+                except Exception as e:
+                    print(e)
+                
+                # get screenshot and save
+                img_url = self.save_screenshot(run_type='pre_run')
+                self.steps[i]['action']['image'] = img_url
+
+
             if step['action']['type'] == 'change':
                 try:
                     print(f'changing element to value -> {step["action"]["value"]}') 
