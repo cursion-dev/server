@@ -2169,6 +2169,11 @@ def case_pre_run_bg(
     case = Case.objects.get(id=case_id)
     process = Process.objects.get(id=process_id)
 
+    # get current task and save to process
+    task_id = str(self.request.id)
+    process.info = {'task_id': task_id}
+    process.save()
+
     # init Caser
     C = Caser(
         case=case,
