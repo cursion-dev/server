@@ -22,7 +22,7 @@ from .utils.manager import record_task
 from .models import *
 from django.contrib.auth.models import User
 from django.utils import timezone
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone as tz
 from redis import Redis
 from contextlib import contextmanager
 from kombu.utils.encoding import bytes_to_str
@@ -184,7 +184,7 @@ def update_schedule(task_id: str=None) -> None:
     """
     if task_id:
         try:
-            last_run = datetime.now(timezone.utc)
+            last_run = datetime.now(tz.utc)
             Schedule.objects.filter(periodic_task_id=task_id).update(
                 time_last_run=last_run
             )
@@ -429,7 +429,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
 
     # getting site and updating for time_crawl_start
     site = Site.objects.get(id=site_id)
-    site.time_crawl_started = datetime.now(timezone.utc)
+    site.time_crawl_started = datetime.now(tz.utc)
     site.time_crawl_completed = None
     site.save()
 
@@ -474,7 +474,7 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
                 page.save()
 
     # updating site status
-    site.time_crawl_completed = datetime.now(timezone.utc)
+    site.time_crawl_completed = timezone.now()
     site.save()
 
     logger.info('Added site and all pages')
@@ -499,7 +499,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     
     # getting site and updating for time_crawl_start
     site = Site.objects.get(id=site_id)
-    site.time_crawl_started = datetime.now(timezone.utc)
+    site.time_crawl_started = timezone.now()
     site.time_crawl_completed = None
     site.save()
 
@@ -558,7 +558,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
             current_count += 1
 
     # updating site status
-    site.time_crawl_completed = datetime.now(timezone.utc)
+    site.time_crawl_completed = timezone.now()
     site.save()
 
     logger.info('crawled site and added pages')
@@ -1018,7 +1018,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
                 # updating latest_scan info for page
                 page.info['latest_scan']['id'] = str(scan.id)
-                page.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
+                page.info['latest_scan']['time_created'] = str(timezone.now())
                 page.info['latest_scan']['time_completed'] = None
                 page.info['latest_scan']['score'] = None
                 page.info['latest_scan']['score'] = None
@@ -1026,7 +1026,7 @@ def create_scan_bg(self, *args, **kwargs) -> None:
 
                 # updating latest_scan info for site
                 page.site.info['latest_scan']['id'] = str(scan.id)
-                page.site.info['latest_scan']['time_created'] = str(datetime.now(timezone.utc))
+                page.site.info['latest_scan']['time_created'] = str(timezone.now())
                 page.site.info['latest_scan']['time_completed'] = None
                 page.site.save()
 
@@ -1821,7 +1821,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
                     # updating latest_test info for page
                     page.info['latest_test']['id'] = 'placeholder'
-                    page.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
+                    page.info['latest_test']['time_created'] = str(timezone.now())
                     page.info['latest_test']['time_completed'] = None
                     page.info['latest_test']['score'] = None
                     page.info['latest_test']['status'] = 'working'
@@ -1829,7 +1829,7 @@ def create_test_bg(self, *args, **kwargs) -> None:
 
                     # updating latest_test info for site
                     page.site.info['latest_test']['id'] = 'placeholder'
-                    page.site.info['latest_test']['time_created'] = str(datetime.now(timezone.utc))
+                    page.site.info['latest_test']['time_created'] = str(timezone.now())
                     page.site.info['latest_test']['time_completed'] = None
                     page.site.info['latest_test']['score'] = None
                     page.site.info['latest_test']['status'] = 'working'
@@ -2490,7 +2490,7 @@ def create_flowrun_bg(*args, **kwargs) -> None:
 
                 # create init log
                 logs = [{
-                    'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                    'timestamp': timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
                     'message': f'system starting up for run_id: {str(flowrun_id)}',
                     'step': '1'
                 },]
@@ -2511,7 +2511,7 @@ def create_flowrun_bg(*args, **kwargs) -> None:
 
                 # update flow with time_last_run
                 flow = Flow.objects.get(id=flow_id)
-                flow.time_last_run = datetime.now(timezone.utc)
+                flow.time_last_run = timezone.now()
                 flow.save()
             
             else:
@@ -2937,7 +2937,7 @@ def purge_logs(username: str=None) -> None:
 def reset_account_usage(account_id: str=None) -> None:
     """ 
     Loops through each active `Account`, checks to see
-    if timezone.today() is the start of the 
+    if timezone.now() is the start of the 
     next billing cycle, and resets `Account.usage`
 
     Expects: {
@@ -2949,7 +2949,7 @@ def reset_account_usage(account_id: str=None) -> None:
 
     # set defaults
     stripe.api_key = settings.STRIPE_PRIVATE
-    today = datetime.utcnow()
+    today = timezone.now()
 
     # get accounts
     if account_id:
@@ -2981,9 +2981,10 @@ def reset_account_usage(account_id: str=None) -> None:
 
         # format last reset date
         try:
-            last_reset = datetime.fromisoformat(last_reset_str.replace("Z", ""))
-        except ValueError:
-            pass
+            if last_reset_str:
+                last_reset = datetime.fromisoformat(last_reset_str.replace("Z", ""))
+        except:
+            last_reset = None
         
         # check stripe sub if paying account
         if account.type != 'free' and account.sub_id:
