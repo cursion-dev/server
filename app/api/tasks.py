@@ -2974,10 +2974,6 @@ def reset_account_usage(account_id: str=None) -> None:
 
         # defaults
         needs_reset = False
-
-        # skip non active
-        if not account.active:
-            continue
         
         # get last reset data
         last_reset_str = (account.meta or {}).get('last_usage_reset')
@@ -2994,9 +2990,11 @@ def reset_account_usage(account_id: str=None) -> None:
             try:
                 sub = stripe.Subscription.retrieve(account.sub_id)
                 sub_reset_date = datetime.fromtimestamp(sub.current_period_start)
-                print(f'days since reset: {(today - sub_reset_date).days}\ntoday: {today.date()}\nlast reset: {sub_reset_date.date()}')
-                if (today - sub_reset_date).days >= 30 or today.date() == sub_reset_date.date():
+                last_reset = sub_reset_date if not last_reset else last_reset    
+
+                if (today - sub_reset_date).days >= 30 or today.date() >= last_reset.date():
                     needs_reset = True
+
             except stripe.error.StripeError as e:
                 logger.info(f'Stripe error for account {account.id}: {e}')
 
@@ -3012,21 +3010,6 @@ def reset_account_usage(account_id: str=None) -> None:
         # trigger reset
         if needs_reset:
             reset_usage(account)
-
-        return None
-
-
-
-
-@shared_task
-def temp_account_reset() -> None:
-
-
-    for account in Account.objects.all():
-        usage = get_usage_default()
-        usage['sites'] = Site.objects.filter(account=account).count()
-        account.usage = usage
-        account.save()
 
     return None
 
@@ -3127,8 +3110,8 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
 @shared_task
 def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     """ 
-    Deletes all `Tests`, `Scans`, `CaseRuns`, 
-    `Logs`, and `Processes` that have reached expiry
+    Deletes all `Tests`, `Scans`, `CaseRuns`, `FlowRuns`,
+    `Logs`, `Issues`, and `Processes` that have reached expiry
 
     Expects: {
         account_id   : str, 
@@ -3149,6 +3132,7 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
         caseruns = CaseRun.objects.filter(account__id=account_id, time_created__lte=max_date)
         flowruns = FlowRun.objects.filter(account__id=account_id, time_created__lte=max_date)
         processes = Process.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
+        issues = Issue.objects.filter(account__id=account_id, time_created__lte=max_proc_date)
         
         # get all old Logs
         members = Member.objects.filter(account__id=account_id)
@@ -3164,6 +3148,7 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
         flowruns = FlowRun.objects.filter(time_created__lte=max_date)
         processes = Process.objects.filter(time_created__lte=max_proc_date)
         logs = Log.objects.filter(time_created__lte=max_proc_date)
+        issues = Issue.objects.filter(time_created__lte=max_proc_date)
 
     # delete each resource in each type
     for test in tests:
@@ -3179,6 +3164,8 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
         flowrun.delete()
     for process in processes:
         process.delete()
+    for issue in issues:
+        issue.delete()
     for log in logs:
         log.delete()
     
