@@ -2992,11 +2992,17 @@ def reset_account_usage(account_id: str=None) -> None:
         # check stripe sub if paying account
         if account.type != 'free' and account.sub_id:
             try:
+                # get last invoice date
                 sub = stripe.Subscription.retrieve(account.sub_id)
-                sub_reset_date = datetime.fromtimestamp(sub.current_period_start)
+                sub_reset_date = timezone.make_aware(
+                    datetime.fromtimestamp(sub.current_period_start)
+                )
+                
+                # make last_reset same as sub_reset day if none exists
                 last_reset = sub_reset_date if not last_reset else last_reset    
-
-                if (today - sub_reset_date).days >= 30 or today.date() >= last_reset.date():
+                
+                # check if invoice is 30 days or older || last_reset_date is 30 days or older
+                if (today - sub_reset_date).days >= 30 or (today - last_reset).days >= 30:
                     needs_reset = True
 
             except stripe.error.StripeError as e:
