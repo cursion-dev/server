@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.urls import reverse
 from django.contrib.auth.models import User
-from datetime import datetime, timezone as tz
+from datetime import datetime
 from django.contrib.postgres.fields import JSONField
 from cursion import settings
 import uuid, secrets
@@ -276,7 +276,7 @@ def get_usage_default():
 
 def get_meta_default():
     meta = {
-        'last_usage_reset': datetime.now(tz.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+        'last_usage_reset': str(timezone.now()),
         'coupon': {
             'code': '', 
             'discount': 0
@@ -644,11 +644,11 @@ class Schedule(models.Model):
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
     alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
-    time_created = models.DateTimeField(default=datetime.now, null=True, blank=True, serialize=True)
+    time_created = models.DateTimeField(default=timezone.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
     task_type = models.CharField(max_length=100, default='test', serialize=True)
+    begin_date = models.DateTimeField(default=timezone.now, serialize=True)
     timezone = models.CharField(max_length=100, null=True, blank=True, serialize=True)
-    begin_date = models.DateTimeField(default=datetime.now, serialize=True)
     time = models.CharField(max_length=100, null=True, blank=True, serialize=True)
     frequency = models.CharField(default="monthly", max_length=100, serialize=True)
     task = models.CharField(max_length=500, null=True, blank=True, serialize=True)

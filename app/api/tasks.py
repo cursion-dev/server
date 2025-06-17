@@ -2983,6 +2983,9 @@ def reset_account_usage(account_id: str=None) -> None:
         try:
             if last_reset_str:
                 last_reset = datetime.fromisoformat(last_reset_str.replace("Z", ""))
+                # if last_reset is naive, make it timezone-aware
+                if timezone.is_naive(last_reset):
+                    last_reset = timezone.make_aware(last_reset)
         except:
             last_reset = None
         
