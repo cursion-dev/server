@@ -26,8 +26,8 @@ class Command(BaseCommand):
                 'task': 'api.tasks.data_retention'
             },
             {
-                'every': 1,
-                'period': IntervalSchedule.DAYS,
+                'every': 12,
+                'period': IntervalSchedule.HOURS,
                 'name': 'Reset Account Usage',
                 'task': 'api.tasks.reset_account_usage'
             },
