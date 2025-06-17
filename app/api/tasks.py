@@ -2994,10 +2994,11 @@ def reset_account_usage(account_id: str=None) -> None:
             try:
                 sub = stripe.Subscription.retrieve(account.sub_id)
                 sub_reset_date = datetime.fromtimestamp(sub.current_period_start)
+                print(f'days since reset: {(today - sub_reset_date).days}\ntoday: {today.date()}\nlast reset: {sub_reset_date.date()}')
                 if (today - sub_reset_date).days >= 30 or today.date() == sub_reset_date.date():
                     needs_reset = True
             except stripe.error.StripeError as e:
-                logger.info(f"Stripe error for account {account.id}: {e}")
+                logger.info(f'Stripe error for account {account.id}: {e}')
 
         # reset free account
         elif account.type == 'free':
