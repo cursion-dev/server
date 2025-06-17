@@ -4,6 +4,7 @@
 # " echo 'export CURSION_ROOT=<your/path/to/cursion/server>' >> ~/.zshrc   (or ~/.bash_profile) " 
 
 cd $CURSION_ROOT &&
+docker system prune -f &&
 {   
     docker compose -f docker-compose.yml down &&
     docker volume rm cursion_server cursion_beat cursion_celery &&
