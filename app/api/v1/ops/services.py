@@ -7516,14 +7516,12 @@ def get_site_metrics(request: object=None) -> object:
     pages = Page.objects.filter(site=site)
 
     # get last reset day 
-    f = '%Y-%m-%d %H:%M:%S.%f'
     last_usage_date_str = account.meta.get('last_usage_reset')
     last_usage_date = None
-    if last_usage_date_str:  
-        last_usage_date_str = last_usage_date_str.replace('T', ' ').replace('Z', '')
-        last_usage_date = datetime.strptime(last_usage_date_str, f)
+    if last_usage_date_str:
+        last_usage_date = datetime.fromisoformat(last_usage_date_str.replace('Z', ''))
     else:
-        last_usage_date = datetime.now() - timedelta(30)
+        last_usage_date = timezone.now() - timedelta(30)
 
     # get scans
     scans = Scan.objects.filter(
