@@ -8,7 +8,8 @@ from ..tasks import (
     send_slack_bg, send_webhook_bg
 )
 from cursion import settings
-from datetime import datetime, timezone
+from django.utils import timezone
+from datetime import datetime
 import time, uuid, json, boto3, os, requests, uuid, random
 
 
@@ -49,7 +50,7 @@ class Flowr():
     
     def build_timestamp(self) -> object:
         # build timestamp
-        return datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')
+        return timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
 

@@ -6417,7 +6417,7 @@ def create_flowrun(request: object=None) -> object:
 
     # create init log
     logs = [{
-        'timestamp': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+        'timestamp': timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f'),
         'message': f'system starting up for run_id: {str(flowrun_id)}',
         'step': '1'
     },]
@@ -6438,7 +6438,7 @@ def create_flowrun(request: object=None) -> object:
 
     # update flow with time_last_run
     flow = Flow.objects.get(id=flow_id)
-    flow.time_last_run = datetime.now(timezone.utc)
+    flow.time_last_run = timezone.now()
     flow.save()
 
     # signals.py should pick up this `create()`

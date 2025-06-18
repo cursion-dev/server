@@ -1,5 +1,6 @@
 from ..models import *
-from datetime import datetime, timezone
+from django.utils import timezone
+from datetime import datetime
 
 
 
@@ -35,7 +36,7 @@ def update_flowrun(*args, **kwargs) -> object:
     flowrun = FlowRun.objects.get(id=flowrun_id)
 
     # set timestamp
-    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f')
+    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
     # find flowrun.edge by target
