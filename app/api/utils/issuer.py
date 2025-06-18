@@ -345,7 +345,7 @@ class Issuer():
 
         # record only audits from LH components
         # that had negative scores
-        if self.test.lighthouse_delta.get('audits'):
+        if (self.test.lighthouse_delta or {}).get('audits'):
             if self.test.component_scores.get('lighthouse') < self.threshold:
                 for key in self.test.lighthouse_delta.get('scores'):
                     if 'average' not in key and 'crux' not in key:
@@ -357,7 +357,7 @@ class Issuer():
         
         # record only audits from YL components
         # that had negative scores
-        if self.test.yellowlab_delta.get('audits'):
+        if (self.test.yellowlab_delta or {}).get('audits'):
             if self.test.component_scores.get('yellowlab') < self.threshold:
                 for key in self.test.yellowlab_delta.get('scores'):
                     if 'average' not in key:
