@@ -1564,7 +1564,7 @@ def create_test(
                     site=page.site,
                     page=page,
                     tags=tags, 
-                    type=type,
+                    type=settings.TYPES,
                     configs=configs
                 )
 
@@ -1640,7 +1640,7 @@ def create_test(
             site=page.site,
             page=page,
             tags=tags, 
-            type=type,
+            type=settings.TYPES,
             configs=configs
         )
 
