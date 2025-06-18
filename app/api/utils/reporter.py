@@ -388,7 +388,7 @@ class Reporter():
 
                 # creating global score
                 if c_count == 0:
-                    grade_obj = self.get_score_data(data['scores'][avg_score])
+                    grade_obj = self.get_score_data((data['scores'][avg_score] or 0))
                     self.c.setFillColor(HexColor(grade_obj['color'],))
                     self.c.roundRect(
                         2*inch, 
@@ -432,7 +432,7 @@ class Reporter():
                     begin_y = (self.y - .2)
 
                 # creating individual grade cards
-                grade_obj = self.get_score_data(data['scores'][cat])
+                grade_obj = self.get_score_data((data['scores'][cat] or 0))
                 self.c.setFillColor(HexColor(grade_obj['color'],))
                 self.c.roundRect(
                     .5*inch, 
@@ -491,7 +491,7 @@ class Reporter():
                         )
                         
                         # get grade tab
-                        grade_obj = self.get_score_data(policy['score'], is_binary=binary)
+                        grade_obj = self.get_score_data((policy['score'] or 0), is_binary=binary)
                         self.c.setFillColor(HexColor(grade_obj['color'],)) 
                         self.c.rect(
                             log_margin*inch, 
