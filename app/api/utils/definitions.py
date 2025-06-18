@@ -18,19 +18,34 @@ definitions = [
         'value': 'obj.post_scan.score'
     },
     {
-        'name': 'Avg Image Score',
-        'key': 'avg_image_score',
-        'value': 'obj.images_delta.get("average_score",0)'
-    },
-    {
-        'name': 'List of Image Scores',
-        'key': 'image_scores',
-        'value': 'str([i["score"] for i in obj.images_delta["images"]])'
-    },
-    {
         'name': 'Test Status',
         'key': 'test_status',
         'value': 'obj.status'
+    },
+    {
+        'name': 'VRT Score',
+        'key': 'vrt_score',
+        'value': 'obj.component_scores.get("vrt",0)'
+    },
+    {
+        'name': 'Logs Score',
+        'key': 'logs_score',
+        'value': 'obj.component_scores.get("logs",0)'
+    },
+    {
+        'name': 'HTML Score',
+        'key': 'html_score',
+        'value': 'obj.component_scores.get("html",0)'
+    },
+    {
+        'name': 'Yellowlab Score',
+        'key': 'yellowlab_score',
+        'value': 'obj.component_scores.get("yellowlab",0)'
+    },
+    {
+        'name': 'Lighthouse Score',
+        'key': 'lighthouse_score',
+        'value': 'obj.component_scores.get("lighthouse",0)'
     },
 
     # high-level scan score
