@@ -526,7 +526,6 @@ class Flowr():
             # set defaults
             true_outcomes       = []
             false_outcomes      = []
-            run_as_cumulative   = False
             false_child_ran     = False
             true_child_ran      = False
 
