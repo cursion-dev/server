@@ -547,6 +547,8 @@ class Flowr():
                 conditions = Alerter(
                     expressions=current_data['node']['data']['conditions']
                 ).build_expressions()
+
+                print(conditions)
                 
                 # evaluate conditons
                 outcome = eval(f'True if ({conditions}) else False')
