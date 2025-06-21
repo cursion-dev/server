@@ -526,7 +526,6 @@ class Flowr():
             # set defaults
             true_outcomes       = []
             false_outcomes      = []
-            run_as_cumulative   = False
             false_child_ran     = False
             true_child_ran      = False
 
@@ -538,6 +537,11 @@ class Flowr():
                     object_id=obj_data['id'],
                     task_type=current_data['node']['data']['task_type']
                 ).get_object()
+
+                # check if obj is Test and if status != 'incomplete' (skip if true)
+                if type(obj).__name__ == 'Test':
+                    if obj.status == 'incomplete':
+                        continue
                 
                 # build and execute conditions
                 conditions = Alerter(

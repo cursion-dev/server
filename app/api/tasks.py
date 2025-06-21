@@ -260,7 +260,7 @@ def redeliver_failed_tasks() -> None:
     associated resource.component is null. Once found, 
     re-run those specific tasks with saved kwargs. If 
     resource appears complete but is not marked as such, 
-    update `.time_completed` with `datetime.now()`
+    update `.time_completed` with `timezone.now()`
 
     Expects: None
     
@@ -360,7 +360,7 @@ def redeliver_failed_tasks() -> None:
         # mark scan complete if checks pass
         if retried_tasks == 0 and pending_tasks == 0:
             logger.info(f'marking scan as complete')
-            scan.time_completed = datetime.now()
+            scan.time_completed = timezone.now()
             scan.save()
 
             # execute `run_test()` if test_id present
@@ -386,7 +386,7 @@ def redeliver_failed_tasks() -> None:
         for task in test.system.get('tasks', []):
 
             # define task_id
-            task_id = task.get('task_id')
+            task_id = task.get('task_id') 
 
             # check if task is "pending" (has task_id in queue)
             if task_id in all_tasks:
@@ -404,9 +404,31 @@ def redeliver_failed_tasks() -> None:
         
         # mark test incomplete if checks pass
         if retried_tasks == 0 and pending_tasks == 0:
-            test.time_completed = datetime.now()
+            test.time_completed = timezone.now()
             test.status         = 'incomplete'
             test.save()
+
+            # get flowrun info
+            first_task  = test.system.get('tasks', [])[0] or {}
+            flowrun_id  = first_task['kwargs'].get('flowrun_id') or None
+            node_index  = first_task['kwargs'].get('node_index') or None
+            
+            # update FlowRun if present
+            if flowrun_id and flowrun_id != 'None':
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': (
+                        f'test for {test.page.page_url} completed with status: '+
+                        f'⏺️ INCOMPLETE | test_id: {str(test_id)}'
+                    ),
+                    'objects': [{
+                        'parent': str(test.page.id),
+                        'id': str(test_id),
+                        'status': 'incomplete'
+                    }]
+                })
+
 
     return None
 
@@ -3132,8 +3154,8 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     """
 
     # calculate max dates
-    max_date = datetime.now() - timedelta(days=days_to_live)
-    max_proc_date = datetime.now() - timedelta(days=1)
+    max_date = timezone.now() - timedelta(days=days_to_live)
+    max_proc_date = timezone.now() - timedelta(days=1)
 
     # scope resources to account if requested
     if account_id is not None:
@@ -3226,7 +3248,7 @@ def delete_admin_sites(days_to_live: int=1) -> None:
     """
 
     # calculate max date
-    max_date = datetime.now() - timedelta(days=days_to_live)
+    max_date = timezone.now() - timedelta(days=days_to_live)
 
     # filter sites by max_date and admin 
     sites = Site.objects.filter(time_created__lte=max_date, user__username='admin')
