@@ -52,7 +52,7 @@ class CardAdmin(admin.ModelAdmin):
 @admin.register(Site)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('site_url', 'account', 'time_created')
-    search_fields = ('site_url', 'account')
+    search_fields = ('site_url', 'account__name')
     actions = ['scan_sites', 'test_sites', 'delete_sites', 'crawl_sites']
 
     def crawl_sites(self, request, queryset):
@@ -89,7 +89,7 @@ class SiteAdmin(admin.ModelAdmin):
 @admin.register(Page)
 class SiteAdmin(admin.ModelAdmin):
     list_display = ('page_url', 'account', 'time_created')
-    search_fields = ('page_url', 'account')
+    search_fields = ('page_url', 'account__name')
     actions = ['scan_pages', 'test_pages', 'delete_pages',]
 
     def scan_pages(self, request, queryset):
