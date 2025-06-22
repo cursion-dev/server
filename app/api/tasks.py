@@ -1636,7 +1636,7 @@ def create_test(
         # check and increment resources
         if not check_and_increment_resource(page.account.id, 'scans'):
             
-            # update obects
+            # update objects
             objects[-1]['status'] = 'failed'
 
             # update flowrun
