@@ -315,7 +315,7 @@ def redeliver_failed_tasks() -> None:
         flowrun_id      = None
         node_index      = None
         components      = []
-        for task in scan.system.get('tasks', []):
+        for task in (scan.system or {}).get('tasks', []):
 
             # get task_id
             task_id = task.get('task_id')
@@ -383,7 +383,7 @@ def redeliver_failed_tasks() -> None:
         # check each task in system['tasks']
         retried_tasks = 0
         pending_tasks = 0
-        for task in test.system.get('tasks', []):
+        for task in (test.system or {}).get('tasks', []):
 
             # define task_id
             task_id = task.get('task_id') 
