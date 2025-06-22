@@ -7679,21 +7679,24 @@ def get_celery_metrics(request: object=None) -> object:
 
     
     # get redis queue len
-    redis_client = Redis.from_url(
-        settings.CELERY_BROKER_URL, 
-        socket_connect_timeout=3
-    )
-    redis_queue_len = redis_client.llen(
-        app.default_app.conf.task_default_queue
-    )
+    try:
+        redis_client = Redis.from_url(
+            settings.CELERY_BROKER_URL, 
+            socket_connect_timeout=3
+        )
+        redis_queue_len = redis_client.llen(
+            app.default_app.conf.task_default_queue
+        )
+    except RedisError:
+        redis_queue_len = 0
 
-    # Inspect all nodes.
+    # inspect all nodes.
     i = celery.app.control.inspect()
     
-    # Tasks received, but are still waiting to be executed.
+    # tasks received, but are still waiting to be executed.
     reserved = i.reserved() or []
 
-    # Active tasks
+    # active tasks
     active = i.active() or []
 
     # init task & replica counters & ratio 
@@ -7702,13 +7705,21 @@ def get_celery_metrics(request: object=None) -> object:
     ratio = 0
     working_len = 0
 
+    # inspect Celery workers
+    i = celery.app.control.inspect()
+
+    # fetch active, reserved, & queues tasks
+    reserved    = i.reserved() or {}
+    active      = i.active() or {}
+    queued      = redis_client.lrange('celery', 0, -1)
+
     # loop through all reserved & active tasks and
     # add length of array (tasks) to total
-    for replica in reserved:
-        num_tasks += len(reserved[replica])
+    for replica, tasks in reserved.items():
+        num_tasks += len(tasks)
         num_replicas += 1
-    for replica in active:
-        num_tasks += len(active[replica])
+    for replica, tasks in active.items():
+        num_tasks += len(tasks)
 
     # build metrics
     if num_replicas > 0:
@@ -7727,8 +7738,7 @@ def get_celery_metrics(request: object=None) -> object:
     }
 
     # return response
-    response = Response(data, status=status.HTTP_200_OK)
-    return response
+    return Response(data, status=status.HTTP_200_OK)
 
 
 
