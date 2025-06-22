@@ -7691,10 +7691,10 @@ def get_celery_metrics(request: object=None) -> object:
     i = celery.app.control.inspect()
     
     # Tasks received, but are still waiting to be executed.
-    reserved = i.reserved()
+    reserved = i.reserved() or []
 
     # Active tasks
-    active = i.active()
+    active = i.active() or []
 
     # init task & replica counters & ratio 
     num_tasks = 0
