@@ -69,6 +69,7 @@ def record_task(
         })
 
     # update resource with new system data
+    resource.system = resource.system or {}
     resource.system['tasks'] = tasks
     resource.save()
 
