@@ -409,9 +409,10 @@ def redeliver_failed_tasks() -> None:
             test.save()
 
             # get flowrun info
-            first_task  = test.system.get('tasks', [])[0] or {}
-            flowrun_id  = first_task['kwargs'].get('flowrun_id') or None
-            node_index  = first_task['kwargs'].get('node_index') or None
+            first_task  = ((test.system or {}).get('tasks') or [{}])[0]
+            kwargs      = first_task.get('kwargs') or {}
+            flowrun_id  = kwargs.get('flowrun_id')
+            node_index  = kwargs.get('node_index')
             
             # update FlowRun if present
             if flowrun_id and flowrun_id != 'None':
