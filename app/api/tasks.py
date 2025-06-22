@@ -421,11 +421,11 @@ def redeliver_failed_tasks() -> None:
                     'node_index': node_index,
                     'message': (
                         f'test for {test.page.page_url} completed with status: '+
-                        f'⏺️ INCOMPLETE | test_id: {str(test_id)}'
+                        f'⏺️ INCOMPLETE | test_id: {str(test.id)}'
                     ),
                     'objects': [{
                         'parent': str(test.page.id),
-                        'id': str(test_id),
+                        'id': str(test.id),
                         'status': 'incomplete'
                     }]
                 })
