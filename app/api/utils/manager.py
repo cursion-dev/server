@@ -40,7 +40,7 @@ def record_task(
         resource = CaseRun.objects.get(id=resource_id)
 
     # get current resoruce.system.tasks data
-    tasks = resource.system.get('tasks', [])
+    tasks = (resource.system or {}).get('tasks', [])
 
     # get component based on task_name
     component = task_method.replace('run_', '').replace('_bg', '').replace('_and_logs', '')
