@@ -805,7 +805,7 @@ class Flowr():
 
         # create new issue
         if task_type == 'issue':
-            create_issue_bg.delay(
+            create_issue_bg(
                 account_id    = account_id,
                 objects       = objects,
                 title         = node_data['title'],
@@ -817,7 +817,7 @@ class Flowr():
         
         # create new report
         if task_type == 'report':
-            create_report_bg.delay(
+            create_report_bg(
                 scope         = scope,
                 resources     = resources,
                 account_id    = account_id,
@@ -828,7 +828,7 @@ class Flowr():
 
         # send phone notification
         if task_type == 'phone':
-            send_phone_bg.delay(
+            send_phone_bg(
                 account_id    = account_id,
                 objects       = objects,
                 phone_number  = node_data['phone_number'],
@@ -839,7 +839,7 @@ class Flowr():
         
         # send slack notification
         if task_type == 'slack':
-            send_slack_bg.delay(
+            send_slack_bg(
                 account_id    = account_id,
                 objects       = objects,
                 body          = node_data['message'],
@@ -849,7 +849,7 @@ class Flowr():
 
         # send email notification
         if task_type == 'email':
-            send_email_bg.delay(
+            send_email_bg(
                 account_id    = account_id,
                 objects       = objects,
                 message_obj   = {
@@ -864,7 +864,7 @@ class Flowr():
 
         # send webhook notification
         if task_type == 'webhook':
-            send_webhook_bg.delay(
+            send_webhook_bg(
                 account_id    = account_id,
                 objects       = objects,
                 request_type  = node_data['request_type'],

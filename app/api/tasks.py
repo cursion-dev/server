@@ -268,9 +268,10 @@ def redeliver_failed_tasks() -> None:
     """
 
     # get uncompleted Scans & Tests
-    scans = Scan.objects.filter(time_completed=None)
-    tests = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
-    types = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg']
+    scans       = Scan.objects.filter(time_completed=None)
+    tests       = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
+    flowruns    = FlowRun.objects.filter(time_completed=None)
+    types       = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg']
 
     # inspect Celery workers
     i = celery.app.control.inspect()
@@ -429,6 +430,12 @@ def redeliver_failed_tasks() -> None:
                         'status': 'incomplete'
                     }]
                 })
+
+        # iterate through each FlowRun 
+        for flowrun in flowruns:
+
+            # get last recorded log
+            print(f'flowrun incomplete ID: {flowrun.id}')
 
 
     return None
