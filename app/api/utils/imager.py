@@ -811,6 +811,15 @@ class Imager():
 
         except Exception as e:
             print(e)
+            # reset values to None
+            img_score       = None
+            pre_img         = None
+            post_img        = None
+            pre_img_diff    = None
+            post_img_diff   = None
+            ai_summary      = None
+            broken          = None
+            
 
         # create img test obj and add to array
         img_test_obj = [{
