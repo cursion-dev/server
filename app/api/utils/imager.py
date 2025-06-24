@@ -84,6 +84,17 @@ class Imager():
             document.head.appendChild(styleElement);
             """
         )
+        self.pause_stretch = (
+            """
+            (() => {
+                const elements = [document.documentElement, document.body];
+                elements.forEach(el => {el.style.backgroundAttachment = 'fixed'; el.style.backgroundRepeat = 'no-repeat'; el.style.backgroundSize = 'auto';});
+                const fullHeightDivs = document.querySelectorAll('[style*="background"], [class*="background"]');
+                fullHeightDivs.forEach(el => {const style = window.getComputedStyle(el);if (style.backgroundImage!=='none') {el.style.backgroundAttachment='fixed'; el.style.backgroundSize='auto';}
+                });
+            })();
+            """
+        )
 
 
 
@@ -550,6 +561,9 @@ class Imager():
 
         # calculating and auto setting page height
         if self.scan.configs.get('auto_height', True):
+
+            # pausing image stretching
+            driver.execute_script(self.pause_stretch)
 
             # get scroll_height, client_height & set window_size
             scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
