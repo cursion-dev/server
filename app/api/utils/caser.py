@@ -932,6 +932,73 @@ class Caser():
                 if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
                     break
 
+            
+            if step['action']['type'] == 'switch':
+                exception = None
+                status = 'passed'
+                self.update_caserun(
+                    index=i, type='action', 
+                    start_time=datetime.now(timezone.utc)
+                )
+                
+                try:
+                    msg = f'switching to iframe element "{step["action"]["element"]["selector"]}" | run_id: {str(self.caserun.id)}'
+                    print(msg)
+
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': msg
+                        })
+
+                    
+                    # using selenium, find and change the 'element'.value
+                    selector = self.format_element(step["action"]["element"]["selector"])
+                    xpath = self.format_element(step["action"]["element"]["xpath"])
+                    element_data = self.get_element(selector, xpath)
+                    element = element_data['element']
+
+                    # checking if element was found
+                    if element_data['failed']:
+                        raise Exception(f'Unable to locate element with the given Selector and xPath')
+
+                    # scrolling to element using plain javascript
+                    self.driver.execute_script(self.scroll_to_center, element)
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+                    
+                    # switching to iframe
+                    self.driver.switch_to.frame(element)
+                    time.sleep(int(self.configs.get('min_wait_time', 3)))
+                    image = self.save_screenshot(run_type='run')
+                
+                except Exception as e:
+                    image = self.save_screenshot(run_type='run')
+                    exception = self.format_exception(e)
+                    status = 'failed'
+                
+                    # update flowrun
+                    if self.flowrun_id:
+                        update_flowrun(**{
+                            'flowrun_id': self.flowrun_id,
+                            'node_index': self.node_index,
+                            'message': f'❌ {exception} | run_id: {str(self.caserun.id)}'
+                        })
+
+                # update caserun
+                self.update_caserun(
+                    index=i, type='action', 
+                    end_time=datetime.now(timezone.utc), 
+                    status=status, 
+                    exception=exception,
+                    image=image
+                )
+
+                # exit early if configs.end_on_fail == True
+                if self.caserun.configs.get('end_on_fail', True) and status == 'failed':
+                    break
+
 
             if step['assertion']['type'] == 'match':
                 exception = None
