@@ -364,6 +364,12 @@ def redeliver_failed_tasks() -> None:
             scan.time_completed = timezone.now()
             scan.save()
 
+            # update site and page with most recent data
+            update_site_and_page_info(
+                resource='scan',
+                page_id=str(scan.page.id)
+            )
+
             # execute `run_test()` if test_id present
             if test_id:
                 logger.info(f'executing run_test() from `post_scan` in `retry_tasks`')
@@ -408,6 +414,12 @@ def redeliver_failed_tasks() -> None:
             test.time_completed = timezone.now()
             test.status         = 'incomplete'
             test.save()
+
+            # update site and page with most recent data
+            update_site_and_page_info(
+                resource='test',
+                page_id=str(test.page.id)
+            )
 
             # get flowrun info
             first_task  = ((test.system or {}).get('tasks') or [{}])[0]
@@ -648,11 +660,12 @@ def update_site_and_page_info(
                 time_completed=None
             ).order_by('-time_completed')
             if len(_test) > 0:
+                if _test[0].status:
+                    # update latest_test
+                    latest_test = _test[0]
                 if _test[0].score:
                     # add to tests[]
                     tests.append(_test[0].score)
-                    # update latest_test
-                    latest_test = _test[0]
         
         if Scan.objects.filter(page=p).exists() and \
             (resource == 'scan' or resource == 'all'):
@@ -695,7 +708,7 @@ def update_site_and_page_info(
                     page.info['latest_test']['id'] = str(latest_test.id)
                     page.info['latest_test']['time_created'] = str(latest_test.time_created)
                     page.info['latest_test']['time_completed'] = str(latest_test.time_completed)
-                    page.info['latest_test']['score'] = (round(latest_test.score * 100) / 100)
+                    page.info['latest_test']['score'] = (round(latest_test.score * 100) / 100) if latest_test.score else None
                     page.info['latest_test']['status'] = latest_test.status
                     logger.info(f'updating {p.page_url} with test.score -> {latest_test.score}')
                 if latest_test is None and (resource == 'test' or resource == 'all'):
