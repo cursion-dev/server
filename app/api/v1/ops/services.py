@@ -3,6 +3,7 @@ from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
+from django.core.cache import cache
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework import status
