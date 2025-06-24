@@ -6,12 +6,13 @@ spec:
   scaleTargetRef:
     name: celery-deployment
   cooldownPeriod:  300
-  pollingInterval: 15
+  pollingInterval: 30
   minReplicaCount: 2
   maxReplicaCount: 15
   triggers:
     - type: metrics-api
       metadata:
-        targetValue: "5"
+        targetValue: "10"
         url: "https://api.cursion.dev/v1/ops/metrics/celery"
         valueLocation: "working_len"
+        timeout: "20000"
