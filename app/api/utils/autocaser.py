@@ -661,7 +661,7 @@ class AutoCaser():
                     'value': None,
                     'type': None,
                     'data': None,
-                    'action': 'switch_to_frame',
+                    'action': 'switch',
                     'path': relative_url,
                     'img': iframe_img,
                     'elements': iframe_elements,
