@@ -967,8 +967,8 @@ class Caser():
                     # scrolling to element using plain javascript
                     self.driver.execute_script(self.scroll_to_center, element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
+                    
                     # switching to iframe
-
                     self.driver.switch_to.frame(element)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
                     image = self.save_screenshot(run_type='run')
