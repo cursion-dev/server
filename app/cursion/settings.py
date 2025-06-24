@@ -195,6 +195,15 @@ CELERY_BROKER_URL = 'redis://redis:6379'
 # CELERY_BROKER_URL = 'amqp://rabbitmq'
 
 
+# Django Caching framework with Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://redis:6379',
+    }
+}
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
