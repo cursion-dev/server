@@ -9,6 +9,7 @@ from rest_framework import status
 from cryptography.fernet import Fernet
 from cursion import celery
 from redis import Redis
+from redis.exceptions import RedisError
 from cursion import settings
 from celery import app
 from .serializers import *
@@ -7677,58 +7678,39 @@ def get_celery_metrics(request: object=None) -> object:
     Returns -> HTTP Response object
     """
 
-    
-    # get redis queue len
+    cached = cache.get("celery_metrics")
+    if cached:
+        return Response(cached, status=status.HTTP_200_OK)
+
     try:
         redis_client = Redis.from_url(
-            settings.CELERY_BROKER_URL, 
-            socket_connect_timeout=3
+            settings.CELERY_BROKER_URL,
+            socket_connect_timeout=2
         )
-        redis_queue_len = redis_client.llen(
-            app.default_app.conf.task_default_queue
-        )
+        redis_queue_len = redis_client.llen('celery')
     except RedisError:
         redis_queue_len = 0
 
-    # inspect all nodes.
-    i = celery.app.control.inspect()
+    try:
+        i = celery.app.control.inspect()
+        reserved = i.reserved() or {}
+        active = i.active() or {}
+    except Exception:
+        reserved, active = {}, {}
+
+    # calc tasks
+    num_tasks = (
+            sum(len(tasks) for tasks in reserved.values()) +
+            sum(len(tasks) for tasks in active.values())
+        )
     
-    # tasks received, but are still waiting to be executed.
-    reserved = i.reserved() or []
+    # calc replicas
+    num_replicas = len(reserved)
 
-    # active tasks
-    active = i.active() or []
-
-    # init task & replica counters & ratio 
-    num_tasks = 0
-    num_replicas = 0
-    ratio = 0
-    working_len = 0
-
-    # inspect Celery workers
-    i = celery.app.control.inspect()
-
-    # fetch active, reserved, & queues tasks
-    reserved    = i.reserved() or {}
-    active      = i.active() or {}
-    queued      = redis_client.lrange('celery', 0, -1)
-
-    # loop through all reserved & active tasks and
-    # add length of array (tasks) to total
-    for replica, tasks in reserved.items():
-        num_tasks += len(tasks)
-        num_replicas += 1
-    for replica, tasks in active.items():
-        num_tasks += len(tasks)
-
-    # build metrics
-    if num_replicas > 0:
-        ratio = num_tasks / num_replicas
-
-    # get working length 
+    # calc ratio & working_len
+    ratio = num_tasks / num_replicas if num_replicas else 0
     working_len = redis_queue_len + num_tasks
 
-    # format data
     data = {
         "num_tasks": num_tasks,
         "num_replicas": num_replicas,
@@ -7737,7 +7719,7 @@ def get_celery_metrics(request: object=None) -> object:
         "working_len": working_len
     }
 
-    # return response
+    cache.set("celery_metrics", data, timeout=5)
     return Response(data, status=status.HTTP_200_OK)
 
 
