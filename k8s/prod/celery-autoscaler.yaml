@@ -6,7 +6,7 @@ spec:
   scaleTargetRef:
     name: celery-deployment
   cooldownPeriod:  300
-  pollingInterval: 30
+  pollingInterval: 15
   minReplicaCount: 2
   maxReplicaCount: 15
   triggers:
