@@ -7720,7 +7720,7 @@ def get_celery_metrics(request: object=None) -> object:
         "working_len": working_len
     }
 
-    cache.set("celery_metrics", data, timeout=5)
+    cache.set("celery_metrics", data, timeout=10)
     return Response(data, status=status.HTTP_200_OK)
 
 
