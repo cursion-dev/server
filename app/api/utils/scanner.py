@@ -224,8 +224,6 @@ def update_page_info(scan: object) -> object:
     scan.page.info['latest_scan']['time_created'] = str(scan.time_created)
     scan.page.info['latest_scan']['time_completed'] = str(scan.time_completed)
     scan.page.info['latest_scan']['score'] = scan.score
-    scan.page.info['lighthouse'] = scan.lighthouse.get('scores')
-    scan.page.info['yellowlab'] = scan.yellowlab.get('scores')
     scan.page.save()
 
     # returning page
@@ -662,6 +660,9 @@ def _lighthouse(
             'message': message
         })
 
+    # update scan score
+    update_scan_score(scan)
+
     # checking if scan is done
     scan = check_scan_completion(scan, 'lighthouse', test_id, alert_id, flowrun_id, node_index)
 
@@ -735,6 +736,9 @@ def _yellowlab(
             'node_index': node_index,
             'message': message
         })
+    
+    # update scan score
+    update_scan_score(scan)
 
     # checking if scan is done
     scan = check_scan_completion(scan, 'yellowlab', test_id, alert_id, flowrun_id, node_index)
