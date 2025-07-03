@@ -18,7 +18,7 @@ spec:
         - name: regcred
       containers:
         - name: cursion-server
-          image: <IMAGE> # cursiondev/server:cd77834 #
+          image: <IMAGE> # cursiondev/server:8e56596 #
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
