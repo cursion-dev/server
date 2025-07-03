@@ -449,6 +449,9 @@ def redeliver_failed_tasks() -> None:
             # get last recorded log
             print(f'flowrun incomplete ID: {flowrun.id}')
 
+            # check the objects of the current working node and confirm their status.
+            
+
 
     return None
 
@@ -691,16 +694,12 @@ def update_site_and_page_info(
                     page.info['latest_scan']['time_created'] = str(latest_scan.time_created)
                     page.info['latest_scan']['time_completed'] = str(latest_scan.time_completed)
                     page.info['latest_scan']['score'] = latest_scan.score
-                    page.info['lighthouse'] = latest_scan.lighthouse.get('scores')
-                    page.info['yellowlab'] = latest_scan.yellowlab.get('scores')
                     logger.info(f'updating {page.page_url} with scan.score -> {latest_scan.score}')
                 if latest_scan is None and (resource == 'scan' or resource == 'all'):
                     page.info['latest_scan']['id'] = None
                     page.info['latest_scan']['time_created'] = None
                     page.info['latest_scan']['time_completed'] = None
                     page.info['latest_scan']['score'] = None
-                    page.info['lighthouse'] = None
-                    page.info['yellowlab'] = None
                     logger.info(f'updating {page.page_url} with scan.score -> {None}')
 
                 # latest_test info
@@ -734,15 +733,11 @@ def update_site_and_page_info(
         site.info['latest_scan']['time_created'] = str(latest_scan.time_created)
         site.info['latest_scan']['time_completed'] = str(latest_scan.time_completed)
         site.info['latest_scan']['score'] = latest_scan.score
-        site.info['lighthouse'] = latest_scan.lighthouse.get('scores')
-        site.info['yellowlab'] = latest_scan.yellowlab.get('scores')
     if latest_scan is None and (resource == 'scan' or resource == 'all'):
         site.info['latest_scan']['id'] = None
         site.info['latest_scan']['time_created'] = None
         site.info['latest_scan']['time_completed'] = None
         site.info['latest_scan']['score'] = None
-        site.info['lighthouse'] = None
-        site.info['yellowlab'] = None
 
     # update site with new test info
     if len(tests) > 0:
