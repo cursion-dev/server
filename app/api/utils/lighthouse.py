@@ -24,7 +24,7 @@ class Lighthouse():
         self.page = self.scan.page
         self.configs = scan.configs
         self.sizes = scan.configs['window_size'].split(',')
-        self.cpu_slowdown = 4
+        self.cpu_slowdown = 1
         self.scale_factor = 2
         self.download_speed = 1600
         self.upload_speed = 768
@@ -133,7 +133,7 @@ class Lighthouse():
                 f'--throttling.downloadThroughputKbps={self.download_speed}',
                 f'--throttling.uploadThroughputKbps={self.upload_speed}',
                 f'--throttling.rttMs={self.rttMs}',
-                f'--throttling-method=simulate',
+                f'--throttling-method=devtools',
                 '--output',
                 'json',
             ], 
