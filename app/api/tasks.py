@@ -654,8 +654,9 @@ def update_site_and_page_info(
     for p in pages:
 
         # set defaults
-        latest_scan = None
-        latest_test = None
+        latest_scan         = None
+        latest_test         = None
+        site_avg_scan_score = None
 
         if Test.objects.filter(page=p).exists() and \
             (resource == 'test' or resource == 'all'):
@@ -732,25 +733,19 @@ def update_site_and_page_info(
         site.info['latest_scan']['id'] = str(latest_scan.id)
         site.info['latest_scan']['time_created'] = str(latest_scan.time_created)
         site.info['latest_scan']['time_completed'] = str(latest_scan.time_completed)
-        site.info['latest_scan']['score'] = latest_scan.score
+        site.info['latest_scan']['score'] = site_avg_scan_score
     if latest_scan is None and (resource == 'scan' or resource == 'all'):
         site.info['latest_scan']['id'] = None
         site.info['latest_scan']['time_created'] = None
         site.info['latest_scan']['time_completed'] = None
         site.info['latest_scan']['score'] = None
-
-    # update site with new test info
-    if len(tests) > 0:
-        # calc site average of latest_test.score
-        site_avg_test_score = round((sum(tests)/len(tests)) * 100) / 100
-        logger.info(f'updating site with new test score -> {site_avg_test_score}')
         
     # update site info
     if latest_test:
         site.info['latest_test']['id'] = str(latest_test.id)
         site.info['latest_test']['time_created'] = str(latest_test.time_created)
         site.info['latest_test']['time_completed'] = str(latest_test.time_completed)
-        site.info['latest_test']['score'] = site_avg_test_score
+        site.info['latest_test']['score'] = latest_test.score
         site.info['latest_test']['status'] = latest_test.status
     if latest_test is None and (resource == 'test' or resource == 'all'):
         site.info['latest_test']['id'] = None
