@@ -26,15 +26,31 @@ class Lighthouse():
         self.sizes = scan.configs['window_size'].split(',')
         self.cpu_slowdown = 1
         self.scale_factor = 2
-        self.download_speed = 1600
-        self.upload_speed = 768
-        self.rttMs = 150
         self.audits_url = ''
         self.device = get_device(
             scan.configs['browser'], 
             scan.configs['device']
         )
-        self.is_mobile = str(self.device['type'] == 'mobile').lower()
+        self.is_mobile = str(self.device['type'] == 'mobile' or self.device['type'] == 'tablet').lower()
+
+        # device specific network speeds
+        self.speed = {
+            'mobile': {
+                'download': 4000,
+                'upload': 1000,
+                'rttMs': 40
+            },
+            'tablet': {
+                'download': 4000,
+                'upload': 1000,
+                'rttMs': 40
+            },
+            'desktop': {
+                'download': 12000,
+                'upload': 5500,
+                'rttMs': 10
+            }
+        }
 
         # initial scores object
         self.scores = {
@@ -130,9 +146,9 @@ class Lighthouse():
                 f'--screenEmulation.mobile={self.is_mobile}',
                 f'--emulatedUserAgent={self.device["user_agent"]}',
                 f'--throttling.cpuSlowdownMultiplier={self.cpu_slowdown}',
-                f'--throttling.downloadThroughputKbps={self.download_speed}',
-                f'--throttling.uploadThroughputKbps={self.upload_speed}',
-                f'--throttling.rttMs={self.rttMs}',
+                f'--throttling.downloadThroughputKbps={self.speed[self.device["type"]]["download"]}',
+                f'--throttling.uploadThroughputKbps={self.speed[self.device["type"]]["upload"]}',
+                f'--throttling.rttMs={self.speed[self.device["type"]]["rttMs"]}',
                 f'--throttling-method=devtools',
                 '--output',
                 'json',
