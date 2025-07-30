@@ -8,8 +8,8 @@ from .issuer import Issuer
 from .updater import update_flowrun
 from .imager import Imager
 from ..models import * 
+from django.utils import timezone
 from cursion import settings
-from datetime import datetime, timezone
 import time, uuid, json, boto3, os, requests
 
 
@@ -550,7 +550,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -593,7 +593,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -609,7 +609,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -647,7 +647,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -663,7 +663,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -713,7 +713,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -729,7 +729,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -779,7 +779,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -795,7 +795,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
                 
                 try:
@@ -846,7 +846,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -862,7 +862,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
                 
                 try:
@@ -922,7 +922,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -938,7 +938,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='action', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
                 
                 try:
@@ -989,7 +989,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='action', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -1005,7 +1005,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='assertion', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -1064,7 +1064,7 @@ class Caser():
                 # update caserun
                 self.update_caserun(
                     index=i, type='assertion', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -1080,7 +1080,7 @@ class Caser():
                 status = 'passed'
                 self.update_caserun(
                     index=i, type='assertion', 
-                    start_time=datetime.now(timezone.utc)
+                    start_time=timezone.now()
                 )
 
                 try:
@@ -1126,7 +1126,7 @@ class Caser():
 
                 self.update_caserun(
                     index=i, type='assertion', 
-                    end_time=datetime.now(timezone.utc), 
+                    end_time=timezone.now(), 
                     status=status, 
                     exception=exception,
                     image=image
@@ -1139,7 +1139,7 @@ class Caser():
             i += 1  
 
         self.update_caserun(
-            time_completed=datetime.now(timezone.utc)
+            time_completed=timezone.now()
         )
         quit_driver(driver=self.driver)
         print('-- caserun run complete --')
