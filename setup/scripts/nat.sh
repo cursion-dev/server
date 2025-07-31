@@ -1,4 +1,6 @@
 #!/bin/bash
+# If using k8s, the VP_CIDR is likely specific to the cluster
+
 
 set -e
 
@@ -67,9 +69,6 @@ MaxRequestsPerChild 0
 ViaProxyName "tinyproxy"
 
 Allow $VPC_CIDR
-
-ConnectPort 443
-ConnectPort 563
 EOF
 
 echo "[3/6] Restarting tinyproxy..."
