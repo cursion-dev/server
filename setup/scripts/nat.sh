@@ -1,12 +1,46 @@
 #!/bin/bash
+# If using k8s, the VP_CIDR is likely specific to the cluster
+
 
 set -e
 
-# ====== Configuration ======
-VPC_CIDR="10.124.0.0/20"   # <-- Your VPC CIDR block
-LISTEN_PORT="8888"         # <-- Tinyproxy listen port
-# ============================
+# ========== Helper: Print usage ==========
+usage() {
+  echo "Usage: $0 [-c VPC_CIDR] [-p LISTEN_PORT]"
+  echo "  -c CIDR block (e.g., 10.0.0.0/16)"
+  echo "  -p Port to listen on (e.g., 8888)"
+  exit 1
+}
 
+# ========== Parse flags ==========
+while getopts ":c:p:" opt; do
+  case "${opt}" in
+    c)
+      VPC_CIDR="${OPTARG}"
+      ;;
+    p)
+      LISTEN_PORT="${OPTARG}"
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+# ========== Prompt if not provided ==========
+if [ -z "$VPC_CIDR" ]; then
+  read -rp "Enter VPC CIDR block (e.g., 10.0.0.0/16): " VPC_CIDR
+fi
+
+if [ -z "$LISTEN_PORT" ]; then
+  read -rp "Enter listen port (e.g., 8888): " LISTEN_PORT
+fi
+
+# ========== Display final values ==========
+echo "Using VPC_CIDR: $VPC_CIDR"
+echo "Using LISTEN_PORT: $LISTEN_PORT"
+
+# ========== Begin Script ==========
 echo "[1/6] Updating system..."
 apt update -y
 apt install -y tinyproxy iptables-persistent curl
@@ -35,9 +69,6 @@ MaxRequestsPerChild 0
 ViaProxyName "tinyproxy"
 
 Allow $VPC_CIDR
-
-ConnectPort 443
-ConnectPort 563
 EOF
 
 echo "[3/6] Restarting tinyproxy..."
@@ -45,18 +76,14 @@ systemctl restart tinyproxy
 systemctl enable tinyproxy
 
 echo "[4/6] Setting up IP forwarding..."
-
-# Enable IP forwarding
 sysctl -w net.ipv4.ip_forward=1
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 
 echo "[5/6] Configuring iptables (NAT fallback)..."
-# Flush existing rules & add new redirects
 iptables -t nat -F
 iptables -A FORWARD -i eth0 -j ACCEPT
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
-# Save iptables rules
 netfilter-persistent save
 netfilter-persistent reload
 

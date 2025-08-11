@@ -2451,13 +2451,13 @@ def create_flowrun_bg(*args, **kwargs) -> None:
     """
 
     # get data
-    flow_id = kwargs.get('flow_id')
-    account_id = kwargs.get('account_id')
-    resources = kwargs.get('resources', [])
-    scope = kwargs.get('scope')
-    alert_id = kwargs.get('alert_id')
-    task_id = kwargs.get('task_id')
-    configs = kwargs.get('configs', settings.CONFIGS)
+    flow_id     = kwargs.get('flow_id')
+    account_id  = kwargs.get('account_id')
+    resources   = kwargs.get('resources', [])
+    scope       = kwargs.get('scope')
+    alert_id    = kwargs.get('alert_id')
+    task_id     = kwargs.get('task_id')
+    configs     = kwargs.get('configs', settings.CONFIGS)
 
     # check for redis lock
     redis_id = task_id if task_id else secrets.token_hex(8)
@@ -2470,7 +2470,7 @@ def create_flowrun_bg(*args, **kwargs) -> None:
             return None
 
         # checking location
-        if not check_location(configs.get('location', settings.LOCATION)):
+        if not check_location(configs.get('location', 'us')): # not using `settings.LOCATION` for now
             logger.info('Not running due to location param')
             return None
 
