@@ -151,16 +151,6 @@ class TestAdmin(admin.ModelAdmin):
     actions = ['delete_tests',]
     raw_id_fields = ('site', 'page', 'pre_scan', 'post_scan',)
 
-    def change_view(self, object_id, form_url='', extra_context=None):
-        # Avoid streaming cursors by evaluating related objects early
-        obj = self.get_object(object_id)
-        if obj is not None:
-            # Force evaluation of any heavy reverse relationships
-            _ = obj.pre_scan
-            _ = obj.post_scan
-
-        return super().change_view(object_id, form_url, extra_context)
-
     def delete_tests(self, queryset):
         for test in queryset:
             delete_test(
@@ -237,7 +227,7 @@ class CaseAdmin(admin.ModelAdmin):
 class CaseRunAdmin(admin.ModelAdmin):
     list_display = ('title', 'user', 'time_created', 'time_completed',)
     search_fields = ('title', 'site__site_url')
-    raw_id_fields = ('user', 'account', 'site')
+    raw_id_fields = ('user', 'account', 'site', 'case')
 
     actions = ['delete_caseruns',]
 
@@ -273,7 +263,7 @@ class FlowAdmin(admin.ModelAdmin):
 class FlowRunAdmin(admin.ModelAdmin):
     list_display = ('title', 'account', 'site', 'time_created', 'time_completed', 'status')
     search_fields = ('title', 'site__site_url',)
-    raw_id_fields = ('user', 'account', 'site')
+    raw_id_fields = ('user', 'account', 'site', 'flow')
 
 
 
