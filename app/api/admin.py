@@ -123,7 +123,7 @@ class ScanAdmin(admin.ModelAdmin):
     list_display = ('id', 'page', 'time_created', 'time_completed')
     search_fields = ('page__page_url',)
     actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ]
-    raw_id_fields = ('site', 'page',)
+    raw_id_fields = ('site', 'page', 'paired_scan',)
 
     def delete_scans(self, queryset):
         for scan in queryset:
