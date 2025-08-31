@@ -274,6 +274,7 @@ CONFIGS = {
     'create_issue': True,
     'end_on_fail': True,
     'ai_analysis': False,
+    'api_priority': False,
 }
 
 
