@@ -320,13 +320,13 @@ class Lighthouse():
         while not scan_complete and attempts < 2:
 
             try:
-                # CLI on first attempt
-                if attempts < 1:
+                # CLI on first attempt if not API Priority
+                if attempts < 1 and not self.configs.get('api_priority'):
                     raw_data = self.lighthouse_cli()
                     self.process_data(stdout_json=raw_data)
                 
-                # API after first attempt
-                if attempts >= 1:
+                # API after first attempt or if API Priority
+                if attempts >= 1 or self.configs.get('api_priority'):
                     raw_data = self.lighthouse_api()
                     self.process_data(stdout_json=raw_data)
 
