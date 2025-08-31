@@ -12,15 +12,14 @@ from cursion import celery
 from redis import Redis
 from redis.exceptions import RedisError
 from cursion import settings
-from celery import app
 from .serializers import *
 from ...tasks import *
 from ...models import *
 from ...utils.reporter import Reporter as R
 from ...utils.devices import devices
 from ...utils.issuer import Issuer
-from datetime import datetime, timedelta, timezone as tz
-import json, boto3, asyncio, os, requests, uuid, secrets
+from datetime import datetime, timedelta
+import json, boto3, os, requests, uuid, secrets
 
 
 
@@ -3721,7 +3720,17 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         hour = time[0:2]
 
         # building cron expression freq
-        if freq == 'hourly':
+        if freq == '10-min':
+            minute = '*/10'
+            hour = '*'
+            day_of_week = '*'
+            day_of_month = '*'
+        elif freq == '30-min':
+            minute = '*/30'
+            hour = '*'
+            day_of_week = '*'
+            day_of_month = '*'
+        elif freq == 'hourly':
             hour = '*/1'
             day_of_week = '*'
             day_of_month = '*'
