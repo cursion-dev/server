@@ -782,9 +782,9 @@ def update_scan_score(self, scan_id: str) -> None:
 
     # get latest scan scores
     if scan.lighthouse['scores']['average'] is not None:
-        scans.append(scan.lighthouse['scores']['average'])
+        scores.append(scan.lighthouse['scores']['average'])
     if scan.yellowlab['scores']['globalScore'] is not None:
-        scans.append(scan.yellowlab['scores']['globalScore'])
+        scores.append(scan.yellowlab['scores']['globalScore'])
     
     # calc average score
     if len(scores) > 0:
@@ -934,7 +934,7 @@ def create_scan(
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def create_scan_bg(self, *args, **kwargs) -> None:
+def create_scan_bg(self, **kwargs) -> None:
     """ 
     Creates 1 or more `Scans` depending on 
     the scope (page, site or account). Used with `Schedules`
@@ -1739,7 +1739,7 @@ def create_test(
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def create_test_bg(self, *args, **kwargs) -> None:
+def create_test_bg(self, **kwargs) -> None:
     """ 
     Depending on the scope, run create_test() for 
     all requested pages.
@@ -2003,7 +2003,7 @@ def create_report(
 
 
 @shared_task
-def create_report_bg(*args, **kwargs) -> None:
+def create_report_bg(**kwargs) -> None:
     """
     Creates new `Reports` for the requested `Pages`
 
@@ -2263,7 +2263,7 @@ def run_case(
 
 
 @shared_task
-def create_caserun_bg(*args, **kwargs) -> None:
+def create_caserun_bg(**kwargs) -> None:
     """ 
     Creates and or runs a CaseRun.
 
@@ -2433,7 +2433,7 @@ def create_caserun_bg(*args, **kwargs) -> None:
 
 
 @shared_task
-def create_flowrun_bg(*args, **kwargs) -> None:
+def create_flowrun_bg(**kwargs) -> None:
     """ 
     Creates and runs a FlowRun.
 
