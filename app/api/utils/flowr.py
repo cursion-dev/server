@@ -7,10 +7,9 @@ from ..tasks import (
     send_phone_bg, send_email_bg, 
     send_slack_bg, send_webhook_bg
 )
-from cursion import settings
 from django.utils import timezone
 from datetime import datetime
-import time, uuid, json, boto3, os, requests, uuid, random
+import time, uuid, uuid, random
 
 
 
