@@ -65,7 +65,7 @@ API-first, open-source, and beginner friendly. Cursion is built for the busy dev
 - [x] [Lighthouse](https://github.com/GoogleChrome/lighthouse) Performance Testing
 - [x] [YellowLab](https://github.com/YellowLabTools/YellowLabTools) Performance Testing
 - [x] Selenium-based Functional Testing
-- [x] Functional Test Genmerator
+- [x] Functional Test Generator
 - [x] A.I. Generated Issues (via OpenAI)
 - [x] A.I. VRT Analysis & Review (via OpenAI)
 
