@@ -27,7 +27,6 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # installing system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql \
     postgresql-client \
     gcc \
     make \
@@ -48,8 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype6 \
     ca-certificates \
     libfontconfig \
-    apt-transport-https \
-    software-properties-common
+    gnupg
      
 # installing firefox-esr
 RUN apt-get update && apt-get install -y --no-install-recommends firefox-esr
