@@ -24,7 +24,7 @@ def driver_init(
     """ 
     Starts a new selenium driver instance
 
-    Expects: {
+    Args:
         'browser'       : str,
         'window_size'   : str, 
         'device'        : str,
@@ -33,7 +33,6 @@ def driver_init(
         'wait_time'     : int, 
         'pixel_ratio'   : int,
         'scale_factor'  : int
-    } 
 
     Returns -> driver object
     """
@@ -70,7 +69,7 @@ def driver_init(
     if browser == 'chrome':
         options.add_argument("--no-sandbox")
         options.add_argument("disable-blink-features=AlertControlled")
-        options.add_argument("--headless=new")
+        options.add_argument("--headless")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
@@ -111,7 +110,7 @@ def driver_init(
     if browser == 'edge':
         options.add_argument("--no-sandbox")
         options.add_argument("disable-blink-features=AlertControlled")
-        options.add_argument("--headless=new")
+        options.add_argument("--headless")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
@@ -126,7 +125,6 @@ def driver_init(
         
         # init driver
         driver = webdriver.Edge(options=options)
-    
 
     # resizing window
     driver.maximize_window()
@@ -264,18 +262,16 @@ def get_data(
     Once the page has loaded, grabs the
     page-source (html) and console-logs (logs).
 
-    Expects: {
+    Args:
         'driver'        : object, 
         'browser'       : str, 
         'interval'      : int,
         'max_wait_time' : int,
         'min_wait_time' : int
-    }
 
-    Returns -> data = {
+    Returns:
         'html' : str,
         'logs' : dict
-    }
     """
 
     # setting defaults
