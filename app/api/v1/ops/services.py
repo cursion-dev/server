@@ -2286,9 +2286,13 @@ def create_test(request: object=None, **kwargs) -> object:
                     return Response(data, status=status.HTTP_404_NOT_FOUND)
                 return data
 
-        # grabbing most recent Scan 
+        # grabbing most recent Scan with matching window size and types
         if pre_scan_id is None:
-            pre_scan = Scan.objects.filter(page=p).order_by('-time_created')[0]
+            pre_scan = Scan.objects.filter(
+                page=p,
+                configs__window_size=configs.get('window_size'),
+                type_overlap=test_type
+            ).order_by('-time_created').first()
 
         # verifying pre_ and post_ scans completion
         if pre_scan:

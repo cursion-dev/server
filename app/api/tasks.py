@@ -1589,8 +1589,21 @@ def create_test(
         post_scan = Scan.objects.get(id=post_scan)
     if post_scan is None or pre_scan is None:
         if pre_scan is None:
-            # check for pre_scan existance 
-            if not Scan.objects.filter(page=page).exclude(time_completed=None).exists():
+
+            # get latest pre_scan (matching page, type, and window_size)
+            pre_scan = (
+                Scan.objects.filter(
+                    page=page,
+                    type__overlap=type,
+                    configs__window_size=configs.get('window_size')
+                )
+                .exclude(time_completed=None)
+                .order_by('-time_completed')
+                .first()
+            )
+            
+            # check for pre_scan existance
+            if not pre_scan:
                 
                 # create new scan if none exists
                 new_scan = Scan.objects.create(
@@ -1635,13 +1648,7 @@ def create_test(
                 # return None
                 logger.info('no pre_scan available to create Test with')
                 return None
-                
-            # get pre_scan if exists
-            pre_scan = Scan.objects.filter(
-                page=page
-            ).exclude(
-                time_completed=None
-            ).order_by('-time_completed')[0]
+
 
         # check and increment resources
         if not check_and_increment_resource(page.account.id, 'scans'):
@@ -1712,7 +1719,7 @@ def create_test(
         
     # updating parired scans
     pre_scan.paired_scan    = post_scan
-    post_scan.paried_scan   = pre_scan
+    post_scan.paired_scan   = pre_scan
     pre_scan.save()
     post_scan.save()
 
