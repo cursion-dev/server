@@ -1,15 +1,14 @@
 from .driver import driver_init, driver_wait, quit_driver
-from ..models import Site, Scan, Test, Mask
+from ..models import Mask
 from skimage.metrics import structural_similarity
 from cursion import settings
 from PIL import Image as I, ImageChops, ImageStat
 from datetime import datetime
-from asgiref.sync import sync_to_async
 from openai import OpenAI
 from pydantic import BaseModel
 from .meter import meter_account
-import time, os, sys, json, uuid, boto3, \
-    statistics, shutil, numpy, cv2, requests
+import time, os, uuid, boto3, \
+    base64, shutil, numpy, cv2, requests
 
 
 
@@ -132,7 +131,7 @@ class Imager():
 
 
     
-    def save_image(self, pic_id: str, image: object) -> None:
+    def save_image(self, pic_id: str, image: str) -> None:
         """
         Upload image to s3, save info as image_obj,
         add image_obj to image_array, & remove image file
@@ -523,119 +522,145 @@ class Imager():
 
 
 
-    def scan_vrt(self, driver: object=None) -> list:
+    def resize_window(
+            self, 
+            driver: object=None, 
+            sizes: list=[]
+        ) -> object:
+        """ 
+        Tries to resize the window length by scrolling to 
+        the bottom of the page.
+
+        Args:
+            driver: `<object>`,
+            sizes: `<list>`
+
+        Returns:
+            `Driver` 
         """
-        Grabs full length screenshots of the website and uploads 
-        them to s3.
+        
+        # pausing image stretching
+        driver.execute_script(self.pause_stretch)
 
-        Expects: {
-            'driver': object
-        }
+        # get scroll_height, client_height & set window_size
+        scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+        client_height = driver.execute_script("return document.documentElement.clientHeight;")
 
-        Returns -> self.image_array list
-        """
+        # trying to match "document.body.clientHeight" 
+        # and "document.body.scrollHeight"
+        # iterate 3 times or untill height_diff is less than 20
+        i = 0
+        success = False
+        while not success and i < 4:
 
-        # initialize driver if not passed as param
-        driver_present = True
-        if not driver:
-            driver = driver_init(
-                browser=self.scan.configs.get('browser', 'chrome'),
-                window_size=self.scan.configs.get('window_size', '1920,1080'),
-                device=self.scan.configs.get('device', 'desktop'),
-            )
-            driver_present = False
-
-        # request page_url 
-        driver.get(self.scan.page.page_url)
-
-        # waiting for network requests to resolve
-        driver_wait(
-            driver=driver, 
-            interval=int(self.scan.configs.get('interval', 5)),  
-            min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
-            max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
-        )
-
-        # defining browser demesions
-        sizes = self.scan.configs.get('window_size', '1920,1080').split(',')
-
-        # calculating and auto setting page height
-        if self.scan.configs.get('auto_height', True):
-
-            # pausing image stretching
-            driver.execute_script(self.pause_stretch)
-
-            # get scroll_height, client_height & set window_size
-            scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+            # set window_size
+            driver.set_window_size(int(sizes[0]), (int(scroll_height)))
+            
+            # scroll down and up
+            driver.execute_script(f"window.scrollBy(0, {client_height});")
+            time.sleep(1)
+            driver.execute_script(f"window.scrollBy(0, -{client_height});")
+            
+            # get client & new scroll height
             client_height = driver.execute_script("return document.documentElement.clientHeight;")
+            new_scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
 
-            # trying to match "document.body.clientHeight" 
-            # and "document.body.scrollHeight"
-            # iterate 3 times or untill height_diff is less than 20
-            i = 0
-            success = False
-            while not success and i < 4:
+            # get difference between full page height and new scrolled position
+            height_diff = int(new_scroll_height) - int(client_height)
 
-                # set window_size
-                driver.set_window_size(int(sizes[0]), (int(scroll_height)))
-                
-                # scroll down and up
-                driver.execute_script(f"window.scrollBy(0, {client_height});")
-                time.sleep(1)
-                driver.execute_script(f"window.scrollBy(0, -{client_height});")
-                
-                # get client & new scroll height
-                client_height = driver.execute_script("return document.documentElement.clientHeight;")
-                new_scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+            # re-set window size
+            print(f'adding {height_diff} to full_page_height')
+            scroll_height += height_diff if height_diff > 0 else 0
 
-                # get difference between full page height and new scrolled position
-                height_diff = int(new_scroll_height) - int(client_height)
+            # checking difference
+            if height_diff < 20:
+                success = True
 
-                # re-set window size
-                print(f'adding {height_diff} to full_page_height')
-                scroll_height += height_diff if height_diff > 0 else 0
+            # increment
+            i += 1
 
-                # checking difference
-                if height_diff < 20:
-                    success = True
-
-                # increment
-                i += 1
+        return driver
 
 
-        if self.scan.configs.get('disable_animations') == True:
-            # inserting animation pausing script
-            try:
-                driver.execute_script(self.pause_animations_script)
-            except:
-                print('cannot pause animations')
-                
-            # inserting video pausing scripts
-            try:
-                driver.execute_script(self.pause_video_script)
-            except:
-                print('cannnot pause videos')
 
-        # mask all listed ids        
-        if self.scan.configs.get('mask_ids') is not None and self.scan.configs.get('mask_ids') != '':
-            ids = self.scan.configs.get('mask_ids').split(',')
-            for id in ids:
-                try:
-                    driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
-                    print('masked an element')
-                except:
-                    print('cannot find element via id provided')
 
-        # mask all Global mask ids that are active
-        active_masks = Mask.objects.filter(active=True)
-        if len(active_masks) != 0:
-            for mask in active_masks:
-                try:
-                    driver.execute_script(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
-                    print('masked an element')
-                except:
-                    print('cannot find element via global mask id provided')
+    def autoheight_screenshot(
+            self, 
+            driver: object=None, 
+            sizes: list=[],
+            browser: str='chrome'
+        ) -> object:
 
+        """
+        Captures full-page screenshots of the current page 
+        using browser specifc functions.
+
+        Args:
+            - driver,
+            - sizes,
+            - browser
+        
+        Returns:
+            - driver
+        """
+
+        # setting defaults
+        pic_id  = uuid.uuid4()
+        image   = os.path.join(settings.BASE_DIR, f'{pic_id}.png')
+
+        # seting window size to configs before resize
+        driver.set_window_size(sizes[0], sizes[1])
+
+        # handle chrome & edge cases
+        if browser in ['chrome', 'edge']:
+
+            # get page height
+            metrics = driver.execute_cdp_cmd("Page.getLayoutMetrics", {})
+            height  = metrics["contentSize"]["height"]
+
+            # set viewport
+            driver.set_window_size(sizes[0], height)
+
+            # capture screenshot using CDP
+            screenshot = driver.execute_cdp_cmd("Page.captureScreenshot", {
+                "format": "png",
+                "fromSurface": True,
+                "captureBeyondViewport": True,
+            })
+
+            # dcecode and save
+            with open(image, "wb") as f:
+                f.write(base64.b64decode(screenshot['data']))
+
+        # handle firefox cases
+        if browser == 'firefox':
+            
+            # execute firefox sepcific screenshot function
+            driver.get_full_page_screenshot_as_file(image)
+
+        # save and upload
+        self.save_image(pic_id, image)
+        
+        # return driver
+        return driver
+
+
+
+
+    def scroll_and_stitch_screenshot(
+            self, 
+            driver: object=None, 
+        ) -> object:
+        """
+        Captures full-page screenshots of the current page 
+        using the scroll-and-stitch method
+
+        Args:
+            - driver,
+        
+        Returns:
+            - driver
+        """
         # scroll one frame at a time and capture screenshot
         final_img = None
         index = 0
@@ -703,6 +728,102 @@ class Imager():
 
         # saving image
         self.save_image(pic_id=pic_id_2, image=final_img)
+        return driver
+    
+
+
+
+    def scan_vrt(self, driver: object=None) -> list:
+        """
+        Grabs full length screenshots of the website and uploads 
+        them to s3.
+
+        Expects: {
+            'driver': object
+        }
+
+        Returns -> self.image_array list
+        """
+
+        # initialize driver if not passed as param
+        driver_present = True
+        if not driver:
+            driver = driver_init(
+                browser=self.scan.configs.get('browser', 'chrome'),
+                window_size=self.scan.configs.get('window_size', '1920,1080'),
+                device=self.scan.configs.get('device', 'desktop'),
+            )
+            driver_present = False
+
+        # request page_url 
+        driver.get(self.scan.page.page_url)
+
+        # waiting for network requests to resolve
+        driver_wait(
+            driver=driver, 
+            interval=int(self.scan.configs.get('interval', 5)),  
+            min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
+            max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
+        )
+
+        # defining browser demesions
+        sizes = self.scan.configs.get('window_size', '1920,1080').split(',')
+
+        # calculating and auto setting page height
+        if self.scan.configs.get('auto_height', True):
+            self.resize_window(driver, sizes)
+
+
+        if self.scan.configs.get('disable_animations') == True:
+            # inserting animation pausing script
+            try:
+                driver.execute_script(self.pause_animations_script)
+            except:
+                print('cannot pause animations')
+                
+            # inserting video pausing scripts
+            try:
+                driver.execute_script(self.pause_video_script)
+            except:
+                print('cannnot pause videos')
+
+        # mask all listed ids        
+        if self.scan.configs.get('mask_ids') is not None and self.scan.configs.get('mask_ids') != '':
+            ids = self.scan.configs.get('mask_ids').split(',')
+            for id in ids:
+                try:
+                    driver.execute_script(f"document.getElementById('{id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via id provided')
+
+        # mask all Global mask ids that are active
+        active_masks = Mask.objects.filter(active=True)
+        if len(active_masks) != 0:
+            for mask in active_masks:
+                try:
+                    driver.execute_script(f"document.getElementById('{mask.mask_id}').style.visibility='hidden';")
+                    print('masked an element')
+                except:
+                    print('cannot find element via global mask id provided')
+
+        # capture auto-height screenshot if requested
+        if self.scan.configs.get('auto_height', True):
+
+            # capturing via browser specific functions
+            self.autoheight_screenshot(
+                driver=driver,
+                sizes=sizes,
+                browser=self.scan.configs.get('browser', 'chrome')
+            )
+        
+        # capture non auto-height screenshot if requested
+        if not self.scan.configs.get('auto_height', True):
+            
+            # capturing via scroll-and-stitch method 
+            self.scroll_and_stitch_screenshot(
+                driver=driver
+            )
 
         # clean up
         if not driver_present:
