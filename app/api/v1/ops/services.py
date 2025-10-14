@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.db.models import Q
+from functools import reduce
 from django.http import HttpResponse
 from django.utils import timezone
 from django.core.cache import cache
@@ -19,7 +20,7 @@ from ...utils.reporter import Reporter as R
 from ...utils.devices import devices
 from ...utils.issuer import Issuer
 from datetime import datetime, timedelta
-import json, boto3, os, requests, uuid, secrets
+import json, boto3, os, requests, uuid, secrets, operator
 
 
 
@@ -2291,7 +2292,8 @@ def create_test(request: object=None, **kwargs) -> object:
             pre_scan = Scan.objects.filter(
                 page=p,
                 configs__window_size=configs.get('window_size'),
-                type_overlap=test_type
+            ).filter(
+                reduce(operator.and_, (Q(type__contains=[t]) for t in test_type))
             ).order_by('-time_created').first()
 
         # verifying pre_ and post_ scans completion

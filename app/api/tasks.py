@@ -20,6 +20,8 @@ from .utils.updater import update_flowrun
 from .utils.meter import meter_account
 from .utils.manager import record_task
 from .models import *
+from functools import reduce
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta, timezone as tz
@@ -27,8 +29,8 @@ from redis import Redis
 from contextlib import contextmanager
 from kombu.utils.encoding import bytes_to_str
 from cursion import settings
-import asyncio, boto3, time, requests, \
-json, stripe, inspect, random, secrets
+import boto3, time, requests, operator, \
+json, stripe, inspect, random, secrets 
 
 
 
@@ -1594,8 +1596,10 @@ def create_test(
             pre_scan = (
                 Scan.objects.filter(
                     page=page,
-                    type__overlap=type,
                     configs__window_size=configs.get('window_size')
+                )
+                .filter(
+                    reduce(operator.and_, (Q(type__contains=[t]) for t in type))
                 )
                 .exclude(time_completed=None)
                 .order_by('-time_completed')
@@ -1680,7 +1684,7 @@ def create_test(
             site=page.site,
             page=page,
             tags=tags, 
-            type=settings.TYPES,
+            type=type,
             configs=configs
         )
 
