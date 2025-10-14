@@ -20,7 +20,7 @@ from .tasks import (
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ('name', 'user__email', 'time_created', 'type')
+    list_display = ('name', 'user', 'time_created', 'type')
     search_fields = ('name', 'user__email')
     actions = ['reset_usage',]
 
