@@ -3570,15 +3570,16 @@ def send_email_bg(
     """ 
     Run `Alerts.sendgrid_email` as a backgroud task
 
-    Expects: { 
+    Args:
         'account_id'    : str, 
         'objects'       : list,
         'message_obj'   : dict,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
+    
 
-    Returns: None
+    Returns:
+        None
     """
 
     # interating through objects

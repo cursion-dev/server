@@ -98,17 +98,7 @@ def update_flowrun(*args, **kwargs) -> object:
         if 'failed' in statuses and 'working' not in statuses:
             return 'failed'
         return 'passed'
-
-
-    # get datetime from str
-    def get_timestamp(timestamp):
-        # format for timestamp
-        f = '%Y-%m-%d %H:%M:%S.%f'
-        # clean timestamp str
-        clean_str = timestamp.replace('T', ' ').replace('Z', '')
-        # format date str as datetime obj
-        return datetime.strptime(clean_str, f)
-
+    
 
     # update flowrun logs, nodes, & edges
     nodes = flowrun.nodes
@@ -143,17 +133,24 @@ def update_flowrun(*args, **kwargs) -> object:
             edges[edge_index]['animated'] = True if nodes[int(node_index)]['data']['status'] == 'working' else False
             edges[edge_index]['style'] = {'stroke': "#60a5fa"} if nodes[int(node_index)]['data']['status'] == 'working' else None
 
-
+    # added messages to logs
     if message:
-        # update current logs
-        logs.append({
-            'timestamp': timestamp,
-            'message': message,
-            'step': nodes[int(node_index)]['id'] if node_index else logs[-1]['step']
-        })
 
-        # sort new logs
-        logs = sorted(logs, key=lambda l: (int(l['step'])))
+        # loop through multiple messages if passed:
+        for msg in message.split(','):
+            
+            # check for empty string
+            if msg and len(msg) > 0:
+
+                # update current logs
+                logs.append({
+                    'timestamp': timestamp,
+                    'message': msg,
+                    'step': nodes[int(node_index)]['id'] if node_index else logs[-1]['step']
+                })
+
+                # sort new logs
+                logs = sorted(logs, key=lambda l: (int(l['step'])))
 
 
     # save updates

@@ -4,7 +4,7 @@ from twilio.rest import Client
 from slack_sdk.web import WebClient
 from slack_sdk.errors import SlackApiError
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import *
+from sendgrid.helpers.mail import Mail, Subject, Content, From
 from ..models import *
 from cursion import settings
 from .definitions import get_definition, definitions
@@ -788,11 +788,15 @@ def sendgrid_email(
     title           = message_obj.get('title', '')
     pre_header      = message_obj.get('pre_header', '')
     button_text     = message_obj.get('button_text')
-    email           = message_obj.get('email')
+    emails          = message_obj.get('email')
     exp_list        = message_obj.get('exp_list')
     object_url      = message_obj.get('object_url')
     signature       = message_obj.get('signature', '- Cheers!')
     greeting        = message_obj.get('greeting', 'Hi there,')
+
+    # defaults
+    success = True
+    msg     = str('')
 
     if account_id:
         # get account & secrets
@@ -832,41 +836,44 @@ def sendgrid_email(
     if exp_list is not None:
         template = settings.AUTOMATION_TEMPLATE
 
-    # init SendGrid message
-    message = Mail(
-        from_email=From(settings.SENDGRID_EMAIL, 'Cursion'),
-        to_emails=email,  
-    )
+    # loop through passed email addresses
+    for email in emails.split(','):
 
-    # attach template data and id
-    if not plain_text:
-        message.dynamic_template_data = template_data
-        message.template_id = template
-    
-    # building message as plain text
-    if plain_text:
-        message.subject = Subject(subject)
-        message.content = [
-            Content(
-                mime_type="text/html",
-                content=content
-            )
-        ]
+        # init SendGrid message
+        message = Mail(
+            from_email=From(settings.SENDGRID_EMAIL, 'Cursion'),
+            to_emails=email.strip(),  
+        )
 
-    # send message 
-    try:
-        sg = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
-        response = sg.send(message)
-        status = True
-        msg = 'email sent successfully'
-    except Exception as e:
-        status = False
-        msg = str(e)
-        print(f'error sending email -> {e}')
+        # attach template data and id
+        if not plain_text:
+            message.dynamic_template_data = template_data
+            message.template_id = template
+        
+        # building message as plain text
+        if plain_text:
+            message.subject = Subject(subject)
+            message.content = [
+                Content(
+                    mime_type="text/html",
+                    content=content
+                )
+            ]
+
+        # send message 
+        try:
+            sg = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
+            sg.send(message)
+            msg = f'{msg}, email sent successfully to {email.strip()}'
+        except Exception as e:
+            success = False
+            err = f'error sending email to {email.strip()}'
+            msg = f'{msg}, {err}' 
+            print(f'{err} | {e}')
 
     # formatting resposne
     data = {
-        'success': status,
+        'success': success,
         'message': msg
     }
 
@@ -882,8 +889,8 @@ def send_phone(
         body: str=None
     ) -> dict:
     """ 
-    Using Twilio, sends an SMS with the passed 'body'
-    to the passed 'phone_number'
+    Using Twilio, sends an SMS with the passed 'body' to the passed 
+    'phone_number' (single or comma seperated string of phone numbers)
 
     Expects: { 
         'account_id'    : str, 
@@ -908,30 +915,37 @@ def send_phone(
 
         # cleaning data
         body = transpose_data(body, obj, secrets)
+ 
+    # defaults
+    success = True
+    msg     = str('')
 
-    try:
-        # setup client
-        account_sid = settings.TWILIO_SID
-        auth_token  = settings.TWILIO_AUTH_TOKEN
-        client = Client(account_sid, auth_token)
+    # loop through phone numbers 
+    for number in phone_number.split(','):
+        
+        try:
+            # setup client
+            account_sid = settings.TWILIO_SID
+            auth_token  = settings.TWILIO_AUTH_TOKEN
+            client = Client(account_sid, auth_token)
 
-        # clean phone_number
-        phone_number = phone_number.strip().replace('(', '').replace(')', '').replace('-', '')
-        phone_number = ''.join(phone_number.split())
+            # clean phone_number
+            number = number.strip().replace('(', '').replace(')', '').replace('-', '')
+            number = ''.join(number.split())
 
-        # send message
-        message = client.messages.create(
-            to=phone_number, 
-            from_=settings.TWILIO_NUMBER,
-            body=body
-        )
-        success = True
-        msg = 'sms sent successfully'
+            # send message
+            client.messages.create(
+                to=number, 
+                from_=settings.TWILIO_NUMBER,
+                body=body
+            )
+            msg = f'{msg}, sms sent successfully to {number}'
 
-    except Exception as e:
-        print(e)
-        success = False
-        msg = str(e)
+        except Exception as e:
+            success = False
+            err = f'error sending sms to {number}'
+            msg = f'{msg}, {err}' 
+            print(f'{err} | {e}')
     
     data = {
         'success': success,
@@ -981,7 +995,7 @@ def send_slack(
         client = WebClient(token=token) 
 
         # send message
-        response = client.chat_postMessage(
+        client.chat_postMessage(
             channel=channel,
             text=(body),
             block=[
