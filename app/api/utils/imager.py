@@ -616,7 +616,7 @@ class Imager():
 
             # get page height
             metrics = driver.execute_cdp_cmd("Page.getLayoutMetrics", {})
-            height  = metrics["contentSize"]["height"]
+            height  = max(metrics["contentSize"]["height"], sizes[1])
 
             # set viewport
             driver.set_window_size(sizes[0], height)
