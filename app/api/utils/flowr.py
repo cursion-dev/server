@@ -525,8 +525,6 @@ class Flowr():
             # set defaults
             true_outcomes       = []
             false_outcomes      = []
-            false_child_ran     = False
-            true_child_ran      = False
 
             # iterate through the objects and run conditions for each
             for obj_data in current_data['node']['data'].get('objects', []):
@@ -710,7 +708,6 @@ class Flowr():
         node_data   = step_data['node']['data']
         task_type   = node_data['task_type']
         node_index  = step_data['index']
-        parent_data = None if node_index == 0 else self.get_node_by_id(node_data['parentId'])
         message     = (
             f'starting job ID: {node_data["id"]} ' + 
             f'| job type is [ {task_type.upper()} ]'
