@@ -208,8 +208,6 @@ class Lighthouse():
             headers=headers
         ).json()
 
-        print(res)
-
         # try to get just LH response
         res = res.get('lighthouseResult')
 
@@ -330,7 +328,6 @@ class Lighthouse():
                 # API after first attempt or if API Priority
                 if attempts >= 1 or self.configs.get('api_priority'):
                     raw_data = self.lighthouse_api()
-                    print(raw_data)
                     self.process_data(stdout_json=raw_data)
 
                 scan_complete = True
