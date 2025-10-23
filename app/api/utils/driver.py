@@ -12,14 +12,11 @@ import time, os, sys, tempfile
 
 
 def driver_init(
-        browser: str='chrome',
-        window_size: str='1920,1080', 
-        device: str='Windows 10 PC',
-        script_timeout: int=30,
-        load_timeout: int=30,
-        wait_time: int=15, 
-        pixel_ratio: int=1.0,
-        scale_factor: int=0.5
+        browser         : str='chrome',
+        window_size     : str='1920,1080', 
+        device          : str='Windows 10 PC',
+        pixel_ratio     : int=1.0,
+        scale_factor    : int=0.5
     ) -> object:
     """ 
     Starts a new selenium driver instance
