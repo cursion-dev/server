@@ -199,7 +199,7 @@ class Lighthouse():
         }
 
         # cats
-        cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=PWA&category=SEO'
+        cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=SEO'
 
         # setting up initial request
         res = requests.get(
@@ -207,6 +207,8 @@ class Lighthouse():
             params=params,
             headers=headers
         ).json()
+
+        print(res)
 
         # try to get just LH response
         res = res.get('lighthouseResult')
@@ -328,6 +330,7 @@ class Lighthouse():
                 # API after first attempt or if API Priority
                 if attempts >= 1 or self.configs.get('api_priority'):
                     raw_data = self.lighthouse_api()
+                    print(raw_data)
                     self.process_data(stdout_json=raw_data)
 
                 scan_complete = True
