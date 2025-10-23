@@ -47,8 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype6 \
     ca-certificates \
     libfontconfig \
-    gnupg \
-    unzip
+    gnupg
      
 # installing firefox-esr
 RUN apt-get update && apt-get install -y --no-install-recommends firefox-esr
@@ -57,14 +56,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends firefox-esr
 RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
     apt-get install -y ./google-chrome-stable_current_amd64.deb && \
     rm google-chrome-stable_current_amd64.deb
-
-# installing chromedriver from source
-RUN CHROME=$(google-chrome-stable --version | grep -oE '[0-9]+(\.[0-9]+){3}') && \
-    curl -LO "https://storage.googleapis.com/chrome-for-testing-public/${CHROME}/linux64/chromedriver-linux64.zip" && \
-    unzip chromedriver-linux64.zip -d /usr/local/bin/ && \
-    mv /usr/local/bin/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver && \
-    chmod +x /usr/local/bin/chromedriver && \
-    rm -rf /var/lib/apt/lists/* && rm chromedriver-linux64.zip
 
 # installing microsoft-edge-stable
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg && \
