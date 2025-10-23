@@ -199,7 +199,7 @@ class Lighthouse():
         }
 
         # cats
-        cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=PWA&category=SEO'
+        cats = 'category=ACCESSIBILITY&category=BEST_PRACTICES&category=PERFORMANCE&category=SEO'
 
         # setting up initial request
         res = requests.get(
