@@ -1099,7 +1099,7 @@ def create_scan_bg(self, **kwargs) -> None:
 
 
 
-@shared_task
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_html_and_logs_bg(
         self, 
         scan_id: str=None, 
@@ -1173,7 +1173,7 @@ def run_html_and_logs_bg(
 
 
 
-@shared_task
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_vrt_bg(
         self, 
         scan_id: str=None, 
@@ -1247,7 +1247,7 @@ def run_vrt_bg(
 
 
 
-@shared_task
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_lighthouse_bg(
         self, 
         scan_id: str=None, 
@@ -1321,7 +1321,7 @@ def run_lighthouse_bg(
 
 
 
-
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_yellowlab_bg(
         self, 
         scan_id: str=None, 
@@ -1624,14 +1624,16 @@ def create_test(
                     kwargs={
                         'scan_id': str(new_scan.id),
                         'alert_id': None,
-                        'flowrun_id': None,
-                        'node_index': None
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index
                     }
                 )
 
                 # init Scan process
                 scan_page_bg(
                     scan_id=new_scan.id,
+                    flowrun_id=flowrun_id,
+                    node_index=node_index
                 )
 
                 # update flowrun
