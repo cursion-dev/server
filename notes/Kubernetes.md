@@ -82,4 +82,21 @@ kubectl apply celery-deployment.yaml
 ```shell
 kubectl port-forward service/app-service 8000:8000
 ```
-  
+ 
+----
+
+&nbsp;
+
+## Update to New Version
+
+> Ensure container version tags are up-to-date in each `.yaml` deployment file.
+
+#### 1. Apply changes 
+```shell
+kubectl apply -f app-deployment.yaml,celery-deployment.yaml,beat-deployment.yaml
+``` 
+
+#### 2. Restart deployments
+```shell
+kubectl rollout restart deployment app-deployment celery-deployment beat-deployment
+```
