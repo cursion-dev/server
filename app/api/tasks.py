@@ -1624,14 +1624,16 @@ def create_test(
                     kwargs={
                         'scan_id': str(new_scan.id),
                         'alert_id': None,
-                        'flowrun_id': None,
-                        'node_index': None
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index
                     }
                 )
 
                 # init Scan process
                 scan_page_bg(
                     scan_id=new_scan.id,
+                    flowrun_id=flowrun_id,
+                    node_index=node_index
                 )
 
                 # update flowrun
