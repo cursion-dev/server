@@ -21,13 +21,13 @@ class Flowr():
     Executes a `FlowRun` based on the state of 
     the `FlowRun` instance.
 
-    Expects: {
-        'flowrun_id' : str,
-    }
+    Use `Flowr.run_next()` to run next step in `FlowRun`
 
-    - Use `Flowr.run_next()` to run next step in `FlowRun`
+    Args:
+        - 'flowrun_id' str
 
-    Returns -> Flow instance
+    Returns: 
+        - Flow instance
     """
 
 
