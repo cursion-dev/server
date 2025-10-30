@@ -122,8 +122,11 @@ class Alerter():
 
             # get comparison value
             if expression['data_type'] not in non_float_types:
-                value = str(float(re.search(r'\d+', str(expression['value'])).group()))
-
+                try:
+                    value = float(re.search(r'-?\d+(?:\.\d+)?', str(expression['value'])).group())
+                except:
+                    value = None
+                    
             # get operator
             if '>=' in expression['operator']:
                 operator = ' >= '
