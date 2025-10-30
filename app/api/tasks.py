@@ -1099,7 +1099,7 @@ def create_scan_bg(self, **kwargs) -> None:
 
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+@shared_task
 def run_html_and_logs_bg(
         self, 
         scan_id: str=None, 
@@ -1173,7 +1173,7 @@ def run_html_and_logs_bg(
 
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+@shared_task
 def run_vrt_bg(
         self, 
         scan_id: str=None, 
@@ -1247,7 +1247,7 @@ def run_vrt_bg(
 
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+@shared_task
 def run_lighthouse_bg(
         self, 
         scan_id: str=None, 
@@ -1321,7 +1321,7 @@ def run_lighthouse_bg(
 
 
 
-@shared_task(bind=True, base=BaseTaskWithRetry)
+
 def run_yellowlab_bg(
         self, 
         scan_id: str=None, 
@@ -3629,7 +3629,7 @@ def send_webhook_bg(
     Run `Alerts.sendgrid_email` as a backgroud task
 
     Expects: { 
-        'account_id'    : str, 
+        'account_id'    : str,
         'objects'       : list,
         'request_type'  : str,
         'url'           : str,
