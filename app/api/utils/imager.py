@@ -572,6 +572,10 @@ class Imager():
             print(f'adding {height_diff} to full_page_height')
             scroll_height += height_diff if height_diff > 0 else 0
 
+            # catching infinite scrolls
+            if (i >= 1 and height_diff >= 200) or height_diff >= 1000:
+                break
+
             # checking difference
             if height_diff < 20:
                 success = True
