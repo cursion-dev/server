@@ -622,6 +622,14 @@ class Imager():
 
             # set viewport
             driver.set_window_size(sizes[0], height)
+            
+            # wait for content to load
+            driver_wait(
+                driver=driver, 
+                interval=int(self.scan.configs.get('interval', 5)),  
+                min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
+                max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
+            )
 
             # capture screenshot using CDP
             screenshot = driver.execute_cdp_cmd("Page.captureScreenshot", {
