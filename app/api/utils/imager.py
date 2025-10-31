@@ -136,7 +136,12 @@ class Imager():
         Upload image to s3, save info as image_obj,
         add image_obj to image_array, & remove image file
 
-        Returns -> None
+        Args:
+            pic_id: str,
+            image: str
+
+        Returns:
+            None
         """
         remote_path = f'static/sites/{self.scan.site.id}/{self.scan.page.id}/{self.scan.id}/{pic_id}.png'
         root_path = settings.AWS_S3_URL_PATH
@@ -176,13 +181,13 @@ class Imager():
         """ 
         Saves two images to test.id path in S3 bucket
 
-        Expects: {
+        Args:
             pre_img_id  : uuid,
             post_img_id : uuid,
-            index       : int, 
-        }
+            index       : int
 
-        Returns: img_objs <list>
+        Returns:
+            img_objs : list
         """
 
         # build paths based test
@@ -230,17 +235,15 @@ class Imager():
         """ 
         Parses image info and downloads image to local temp_root
 
-        Expects: {
+        Args:
             'url'       : str, image url,
             'temp_root' : str, local temp dir
-        }
 
-        Returns: {
+        Returns:
             'name'          : str, image name,
             'id'            : str, image id,
             'remote_path'   : str, remote path,
             'local_path'    : str, local path
-        }
         """
         image_name = url.split('/')[-1]
         image_id = image_name.split('.')[0]
@@ -276,17 +279,15 @@ class Imager():
         Runs SSIM comparision and highlights 
         differences between two passed images
 
-        Expects: {
+        Args:
             temp_root     : str,
             pre_img_path  : str,
             post_img_path : str,
-            index         : int,
-        }
+            index         : int
 
-        Returns: {
-            'img_objs'   : dict,
-            'ssim_score' : float
-        }
+        Returns:
+            img_objs   : dict,
+            ssim_score : float
         """
         # Load the images
         image1 = cv2.imread(pre_img_path)
@@ -340,12 +341,12 @@ class Imager():
         Runs pixel ratio comparison on the two 
         passed images and returns a score.
 
-        Expects: {
+        Args:
             pre_img  : object,
             post_img : object,
-        }
 
-        Returns: pil_img_score <float>
+        Returns: 
+            pil_img_score float
         """
         try:
             if (pre_img.mode != post_img.mode) \
@@ -378,12 +379,12 @@ class Imager():
         Runs cv2 ORB Brute-force comparison on the two 
         passed images and returns a score.
 
-        Expects: {
+        Args:
             pre_img  : object,
             post_img : object,
-        }
 
-        Returns: cv2_img_score <float>
+        Returns:
+            cv2_img_score float
         """
         try:
             orb = cv2.ORB_create()
@@ -429,16 +430,14 @@ class Imager():
         Using OpenAI, compares the two images and 
         provides a summary and boolean for 'broken'
 
-        Expects: {
+        Args:
             pre_img_url     : str,
             post_img_url    : str,
             score           : float
-        }
 
-        Returns: {
+        Returns:
             'summary': str,
             'broken': bool
-        }
         """
 
         # define output as object (JSON)
@@ -550,8 +549,7 @@ class Imager():
         # and "document.body.scrollHeight"
         # iterate 3 times or untill height_diff is less than 20
         i = 0
-        success = False
-        while not success and i < 4:
+        while i < 4:
 
             # set window_size
             driver.set_window_size(int(sizes[0]), (int(scroll_height)))
@@ -578,7 +576,7 @@ class Imager():
 
             # checking difference
             if height_diff < 20:
-                success = True
+                break
 
             # increment
             i += 1
@@ -737,12 +735,15 @@ class Imager():
 
 
 
-    def scan_vrt(self, driver: object=None) -> list:
+    def scan_vrt(
+            self, 
+            driver: object=None
+        ) -> list:
         """
         Grabs full length screenshots of the website and uploads 
         them to s3.
 
-        Expects: {
+        Args: {
             'driver': object
         }
 
@@ -844,17 +845,17 @@ class Imager():
         Compares each screenshot between the two scans and records 
         a score out of 100%.
 
-        Compairsons used : 
+        Compairsons used: 
             - Structral Similarity Index (ssim)
             - PIL ImageChop Differences, Ratio
             - cv2 ORB Brute-force Matcher, Ratio
 
-        Expects: None
+        Args:
+            None
 
-        Returns -> data: {
-            'average_score' : float(0-100),
-            'images'        : dict,
-        }
+        Returns:
+            'average_score' float(0-100),
+            'images'        dict
         """
 
         # defaults
@@ -987,25 +988,29 @@ class Imager():
 
 
 
-    def caserun_vrt(self, step: int=None, type: str=None) -> dict:
+    def caserun_vrt(
+            self, 
+            step: int=None, 
+            type: str=None
+        ) -> dict:
         """
         Compares the passed step.screenshot to the case.step.screenshot
         and records a score out of 100%.
 
-        Compairsons used : 
+        Compairsons used: 
             - Structral Similarity Index (ssim)
             - PIL ImageChop Differences, Ratio
             - cv2 ORB Brute-force Matcher, Ratio
 
-        Expects: {
+        Args:
             step : int, current step to test
             type : str, "action" or "assertion"
-        }
+        
 
-        Returns: {
+        Returns:
             'average_score' : float(0-100),
             'images'        : dict,
-        }
+        
         """
 
         # default 
