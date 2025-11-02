@@ -554,14 +554,23 @@ class Imager():
             # set window_size
             driver.set_window_size(int(sizes[0]), (int(scroll_height)))
             
-            # scroll down and up
+            # scroll down 
             driver.execute_script(f"window.scrollBy(0, {client_height});")
-            time.sleep(1)
+            
+            # wait for content to load
+            driver_wait(
+                driver=driver,
+                interval=int(self.scan.configs.get('interval', 5)),  
+                min_wait_time=int(self.scan.configs.get('min_wait_time', 10)),
+                max_wait_time=int(self.scan.configs.get('max_wait_time', 30)),
+            )
+
+            # scroll up
             driver.execute_script(f"window.scrollBy(0, -{client_height});")
             
             # get client & new scroll height
-            client_height = driver.execute_script("return document.documentElement.clientHeight;")
-            new_scroll_height = driver.execute_script("return document.documentElement.scrollHeight;")
+            client_height       = driver.execute_script("return document.documentElement.clientHeight;")
+            new_scroll_height   = driver.execute_script("return document.documentElement.scrollHeight;")
 
             # get difference between full page height and new scrolled position
             height_diff = int(new_scroll_height) - int(client_height)
