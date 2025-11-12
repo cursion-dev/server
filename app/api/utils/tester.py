@@ -894,7 +894,7 @@ class Tester():
         )
         
         # calculating final weighted average score
-        score = ((
+        score = round((((
             (html_score * html_score_w) + 
             (logs_score * logs_score_w) + 
             (num_logs_ratio * num_logs_w) + 
@@ -903,7 +903,7 @@ class Tester():
             (yellowlab_score * delta_yl_w) +
             (micro_diff_score * micro_diff_w) +
             (images_score * images_w)
-        ) / total_w) * 100
+        ) / total_w) * 100), 2)
 
         print(
             "Formula was --> ((" + str(html_score*html_score_w) + " + " 
