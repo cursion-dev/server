@@ -4,31 +4,23 @@
 
 # If using k8s, the NAT_VP_CIDR is likely specific to the cluster
 
-set -e
 
-usage() {
-  echo "Usage: $0 [-c NAT_VPC_CIDR] [-p NAT_LISTEN_PORT]"
-  exit 1
-}
+set -u # Treat unset variables as errors
 
-# Reset variables so the script ALWAYS prompts if not provided
-unset NAT_VPC_CIDR
-unset NAT_LISTEN_PORT
 
-while getopts ":c:p:" opt; do
-  case "${opt}" in
-    c) NAT_VPC_CIDR="${OPTARG}" ;;
-    p) NAT_LISTEN_PORT="${OPTARG}" ;;
-    *) usage ;;
-  esac
-done
+# ===========================
+# Positional arguments
+# ===========================
+
+NAT_VPC_CIDR="${1:-}"
+NAT_LISTEN_PORT="${2:-}"
 
 if [ -z "$NAT_VPC_CIDR" ]; then
-  read -rp "Enter VPC CIDR block (e.g., 10.124.0.0/16): " NAT_VPC_CIDR
+  read -rp "Enter VPC CIDR block (e.g., 10.124.0.0/16): " VPC_CIDR
 fi
 
 if [ -z "$NAT_LISTEN_PORT" ]; then
-  read -rp "Enter Proxy Listen Port (e.g., 8888): " NAT_LISTEN_PORT
+  read -rp "Enter Proxy Listen Port (e.g., 8888): " LISTEN_PORT
 fi
 
 echo "Using NAT_VPC_CIDR: $NAT_VPC_CIDR"
