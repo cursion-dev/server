@@ -1,6 +1,6 @@
 from ..models import *
 from .alerts import *
-import re, uuid
+import re 
 
 
 

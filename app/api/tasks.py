@@ -2656,7 +2656,7 @@ def create_issue(
         secrets = Secret.objects.filter(account=account)
 
         # transpose data
-        title = transpose_data(title, obj.get('obj'), secrets)
+        title   = transpose_data(title, obj.get('obj'), secrets)
         details = transpose_data(details, obj.get('obj'), secrets)
 
         # build Issue
