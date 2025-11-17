@@ -71,11 +71,13 @@ mv /etc/squid/squid.conf /etc/squid/squid.conf.bak
 cat <<EOF > /etc/squid/squid.conf
 # ================== Squid CONNECT Proxy ==================
 
+# Prevent Squid from restarting under burst load
 shutdown_lifetime 3 seconds
-dns_v4_first on
 
-http_port $NAT_LISTEN_PORT
+# Listen on custom port
+http_port ${NAT_LISTEN_PORT}
 
+# Allow HTTPS CONNECT only
 acl SSL_ports port 443
 acl CONNECT method CONNECT
 http_access allow CONNECT SSL_ports
@@ -86,22 +88,21 @@ reply_header_max_size 64 KB
 
 # Avoid connection pooling exhaustion
 server_persistent_connections off
+
+# Allow persistent connections from clients
 client_persistent_connections on
 
-# Outbound sockets per worker
-maxconn 5000
-
 # Disable request pipelining
-pipeline_prefetch off
+pipeline_prefetch 0
 
 # Allow VPC CIDR
-acl vpc src $NAT_VPC_CIDR
+acl vpc src ${NAT_VPC_CIDR}
 http_access allow vpc
 
-# Deny all others
+# Deny all other access
 http_access deny all
 
-# No caching
+# No caching (Chrome-friendly)
 cache deny all
 memory_pools off
 cache_mem 16 MB
@@ -111,7 +112,8 @@ max_filedescriptors 65535
 
 workers 1
 
-cache_dir null /tmp
+# NOTE: no cache_dir — means "no cache"
+# (Null cache type is not supported in Ubuntu 24.04 build)
 
 access_log /var/log/squid/access.log
 cache_log /var/log/squid/cache.log
