@@ -12,10 +12,9 @@ def meter_account(account_id: str=None, count: int=1) -> None:
     Sends a `MeterEvent` request to Stripe to 
     track account usage
 
-    Expects: {
-        'account_id' : <str> (REQUIRED)   
-        'count'      : <int> (OPTIONAL)   
-    }
+    Expects:
+        'account_id' `<str>` (REQUIRED)   
+        'count'      `<int>` (OPTIONAL)   
 
     Returns: None
     """
