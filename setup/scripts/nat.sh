@@ -119,7 +119,7 @@ cache_mem 64 MB
 maximum_object_size_in_memory 32 KB
 
 # Limit per-connection buffers
-client_request_buffer_max_size 32 KB
+client_request_buffer_max_size 64 KB
 request_body_max_size 0 KB
 
 # FD scaling
