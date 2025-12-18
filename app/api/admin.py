@@ -24,7 +24,7 @@ class AccountAdmin(admin.ModelAdmin):
     search_fields = ('name', 'user__email')
     actions = ['reset_usage',]
 
-    def reset_usage(self, queryset):
+    def reset_usage(self, request, queryset):
         for account in queryset:
             reset_account_usage.delay(
                 account_id=account.id
@@ -56,28 +56,28 @@ class SiteAdmin(admin.ModelAdmin):
     actions = ['scan_sites', 'test_sites', 'delete_sites', 'crawl_sites']
     raw_id_fields = ('account', 'user',)
 
-    def crawl_sites(self, queryset):
+    def crawl_sites(self, request, queryset):
         for site in queryset:
             crawl_site(
                 id=site.id,
                 user=site.account.user
             )
 
-    def scan_sites(self, queryset):
+    def scan_sites(self, request, queryset):
         for site in queryset:
             create_scan(
                 site_id=site.id,
                 user_id=site.account.user.id
             )
     
-    def test_sites(self, queryset):
+    def test_sites(self, request, queryset):
         for site in queryset:
             create_test(
                 site_id=site.id,
                 user_id=site.account.user.id
             )
     
-    def delete_sites(self, queryset):
+    def delete_sites(self, request, queryset):
         for site in queryset:
             delete_site(
                 id=site.id,
@@ -94,21 +94,21 @@ class PageAdmin(admin.ModelAdmin):
     actions = ['scan_pages', 'test_pages', 'delete_pages',]
     raw_id_fields = ('account', 'user', 'site')
 
-    def scan_pages(self, queryset):
+    def scan_pages(self, request, queryset):
         for page in queryset:
             create_scan(
                 page_id=page.id,
                 user_id=page.account.user.id
             )
     
-    def test_pages(self, queryset):
+    def test_pages(self, request, queryset):
         for page in queryset:
             create_test(
                 page_id=page.id,
                 user_id=page.account.user.id
             )
     
-    def delete_pages(self, queryset):
+    def delete_pages(self, request, queryset):
         for page in queryset:
             delete_page(
                 id=page.id,
@@ -125,20 +125,20 @@ class ScanAdmin(admin.ModelAdmin):
     actions = ['delete_scans', 'mark_as_completed', 'add_scan_score' ]
     raw_id_fields = ('site', 'page', 'paired_scan',)
 
-    def delete_scans(self, queryset):
+    def delete_scans(self, request, queryset):
         for scan in queryset:
             delete_scan(
                 id=scan.id,
                 user=scan.page.account.user
             )
     
-    def add_scan_score(self, queryset):
+    def add_scan_score(self, request, queryset):
         for scan in queryset:
             update_scan_score.delay(
                 scan_id=scan.id
             )
 
-    def mark_as_completed(self, queryset):
+    def mark_as_completed(self, request, queryset):
         queryset.update(time_completed=datetime.now())
 
 
@@ -151,7 +151,7 @@ class TestAdmin(admin.ModelAdmin):
     actions = ['delete_tests',]
     raw_id_fields = ('site', 'page', 'pre_scan', 'post_scan',)
 
-    def delete_tests(self, queryset):
+    def delete_tests(self, request, queryset):
         for test in queryset:
             delete_test(
                 id=test.id,
@@ -206,14 +206,14 @@ class CaseAdmin(admin.ModelAdmin):
     actions = ['delete_cases', 'start_pre_run']
     raw_id_fields = ('user', 'account', 'site')
 
-    def delete_cases(self, queryset):
+    def delete_cases(self, request, queryset):
         for case in queryset:
             delete_case(
                 id=case.id,
                 user=case.user
             )
     
-    def start_pre_run(self, queryset):
+    def start_pre_run(self, request, queryset):
         for case in queryset:
             case_pre_run(**{
                 'case_id': str(case.id),
@@ -231,7 +231,7 @@ class CaseRunAdmin(admin.ModelAdmin):
 
     actions = ['delete_caseruns',]
 
-    def delete_caseruns(self, queryset):
+    def delete_caseruns(self, request, queryset):
         for caserun in queryset:
             delete_caserun(
                 id=caserun.id,
@@ -290,10 +290,10 @@ class MaskAdmin(admin.ModelAdmin):
     search_fields = ('mask_id',)
     actions = ['mark_as_inactive', 'mark_as_active',]
     
-    def mark_as_inactive(self, queryset):
+    def mark_as_inactive(self, request, queryset):
         queryset.update(active=False)
     
-    def mark_as_active(self, queryset):
+    def mark_as_active(self, request, queryset):
         queryset.update(active=True)
 
 
