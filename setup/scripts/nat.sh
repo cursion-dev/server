@@ -27,16 +27,21 @@ echo "Using NAT_VPC_CIDR: $NAT_VPC_CIDR"
 echo "Using NAT_LISTEN_PORT: $NAT_LISTEN_PORT"
 echo ""
 
+# update and install deps
 echo "[1/8] Updating system..."
 apt update -y
 apt install -y squid iptables-persistent curl
 
+# load conntrack
 echo "[2/8] Loading conntrack kernel modules..."
 modprobe nf_conntrack
 modprobe xt_conntrack || true
 
+# adding sysctl tunning
+if ! grep -q "NAT_PROXY_TUNING" /etc/sysctl.conf; then
 echo "[3/8] Applying sysctl tuning..."
 cat <<EOF >> /etc/sysctl.conf
+# === NAT_PROXY_TUNING ===
 
 # TCP backlog & performance
 net.core.somaxconn = 65535
@@ -61,7 +66,10 @@ net.ipv4.tcp_tw_reuse = 1
 
 # File descriptors
 fs.file-max = 500000
+
+# === END NAT_PROXY_TUNING ===
 EOF
+fi
 
 sysctl -p
 
@@ -102,10 +110,17 @@ http_access allow vpc
 # Deny all other access
 http_access deny all
 
-# No caching (Chrome-friendly)
+# Memory Safety (1 GiB RAM)
 cache deny all
 memory_pools off
-cache_mem 16 MB
+
+# Hard memory caps
+cache_mem 64 MB
+maximum_object_size_in_memory 32 KB
+
+# Limit per-connection buffers
+client_request_buffer_max_size 32 KB
+request_body_max_size 0 KB
 
 # FD scaling
 max_filedescriptors 65535
@@ -127,8 +142,31 @@ cat <<EOF > /etc/systemd/system/squid.service.d/limits.conf
 LimitNOFILE=65535
 EOF
 
+# restarts squid on OOM failure
+cat <<EOF > /etc/systemd/system/squid.service.d/oom.conf
+[Service]
+OOMScoreAdjust=-900
+Restart=always
+RestartSec=2
+EOF
+
+# adding memory swap 
+if ! swapon --show | grep -q /swapfile; then
+  fallocate -l 1G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# update squid dameon
+systemctl daemon-reexec
 systemctl daemon-reload
 
+# avoids silent failures
+squid -k parse
+
+# restart squid
 echo "[6/8] Restarting Squid..."
 systemctl restart squid
 systemctl enable squid
