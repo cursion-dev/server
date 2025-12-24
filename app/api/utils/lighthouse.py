@@ -206,10 +206,16 @@ class Lighthouse():
             url=f'{settings.LIGHTHOUSE_ROOT}?{cats}',
             params=params,
             headers=headers
-        ).json()
+        )
+
+        print(res)
+
+        res_json = res.json()
+
+        print(res_json)
 
         # try to get just LH response
-        res = res.get('lighthouseResult')
+        res = res_json.get('lighthouseResult')
 
         # return response
         return res
