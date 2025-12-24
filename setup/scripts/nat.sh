@@ -48,9 +48,6 @@ net.core.netdev_max_backlog = 250000
 # Orphan sockets
 net.ipv4.tcp_max_orphans = 16384
 
-# SYN backlog
-net.ipv4.tcp_max_syn_backlog = 16384
-
 # NAT proxy performance
 net.ipv4.ip_forward = 1
 net.ipv4.ip_local_port_range = 15000 65000
@@ -61,6 +58,12 @@ net.netfilter.nf_conntrack_max = 262144
 # TIME_WAIT cleanup
 net.ipv4.tcp_fin_timeout = 15
 net.ipv4.tcp_tw_reuse = 1
+
+# limit SYNs calls
+net.ipv4.tcp_syn_retries = 2
+net.ipv4.tcp_synack_retries = 2
+net.ipv4.tcp_max_syn_backlog = 4096
+net.ipv4.tcp_abort_on_overflow = 1
 
 # File descriptors
 fs.file-max = 500000
@@ -76,6 +79,10 @@ mv /etc/squid/squid.conf /etc/squid/squid.conf.bak
 
 cat <<EOF > /etc/squid/squid.conf
 # ================== Squid CONNECT Proxy ==================
+
+# Prevent squid from proxying itself
+acl localhost src 127.0.0.1/32 137.184.90.205/32
+http_access deny localhost
 
 # Prevent Squid from restarting under burst load
 shutdown_lifetime 3 seconds
@@ -96,7 +103,7 @@ connect_retries 1
 
 # Force cleanup of idle/stalled tunnels
 request_timeout 30 seconds
-connect_timeout 10 seconds
+connect_timeout 5 seconds
 read_timeout 30 seconds
 client_lifetime 5 minutes
 persistent_request_timeout 30 seconds
@@ -191,12 +198,12 @@ iptables -t nat -F
 iptables -A FORWARD -s "$NAT_VPC_CIDR" -j ACCEPT
 iptables -t nat -A POSTROUTING -s "$NAT_VPC_CIDR" -o eth0 -j MASQUERADE
 
+# rejects self traffic
+iptables -I INPUT -s 127.0.0.1 -p tcp --dport ${NAT_LISTEN_PORT} -j REJECT
+iptables -I INPUT -s 137.184.90.205 -p tcp --dport ${NAT_LISTEN_PORT} -j REJECT
+
 netfilter-persistent save
 netfilter-persistent reload
-
-# limit SYNs calls
-sysctl -w net.ipv4.tcp_max_syn_backlog=4096
-sysctl -w net.ipv4.tcp_abort_on_overflow=1
 
 echo "[8/8] Completed!"
 echo ""
