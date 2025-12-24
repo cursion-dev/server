@@ -765,8 +765,9 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
         account.usage['schedules_allowed'] -= 1
         account.save()
 
-        # update billing
-        update_sub_price.delay(account_id=account.id)
+        # update billing for enterprise
+        if account.type == 'enterprise':
+            update_sub_price.delay(account_id=account.id)
 
     # returning response
     data = {'message': 'site deleted'}

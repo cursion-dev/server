@@ -246,67 +246,73 @@ class Lighthouse():
             'interactive',
         ]
 
-        # iterating through categories to get relevant lh_audits 
-        # and store them in their respective `audits = {}` obj
-        for cat in self.audits:
-            # skipping non-existent cat
-            if stdout_json["categories"].get(cat) is None:
-                continue
-            cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
-            if cat_audits is not None:
-                for a in cat_audits:
-                    if int(a["weight"]) > 0 or a["id"] in allow_list:
-                        audit = stdout_json["audits"][a["id"]]
-                        self.audits[cat].append(audit)
-       
-        # get scores from each category
-        score_queue = [] 
-        for cat in self.scores:
-            # skipping non-existent cat
-            if stdout_json["categories"].get(cat) is None:
-                continue
-            # record score
-            self.scores[cat] = round(stdout_json["categories"][cat]["score"] * 100)
-            # add to queue
-            score_queue.append(self.scores[cat])
+        try:
 
-        # changing audits & score names back to original
-        self.scores['best_practices'] = self.scores.pop('best-practices')
-        self.audits['best_practices'] = self.audits.pop('best-practices')
-        self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
-
-        # dynamically calculating average
-        average_score = round(sum(score_queue)/len(score_queue))
-        self.scores['average'] = average_score
-
-
-        # save audits data as json file
-        file_id = uuid.uuid4()
-        with open(f'{file_id}.json', 'w') as fp:
-            json.dump(self.audits, fp)
+            # iterating through categories to get relevant lh_audits 
+            # and store them in their respective `audits = {}` obj
+            for cat in self.audits:
+                # skipping non-existent cat
+                if stdout_json["categories"].get(cat) is None:
+                    continue
+                cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
+                if cat_audits is not None:
+                    for a in cat_audits:
+                        if int(a["weight"]) > 0 or a["id"] in allow_list:
+                            audit = stdout_json["audits"][a["id"]]
+                            self.audits[cat].append(audit)
         
-        # upload to s3 and return url
-        audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
-        remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
-        root_path = settings.AWS_S3_URL_PATH
-        self.audits_url = f'{root_path}/{remote_path}'
-    
-        # upload to s3
-        with open(audit_file, 'rb') as data:
-            s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
-                remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
-            )
-        # remove local copy
-        os.remove(audit_file)
+            # get scores from each category
+            score_queue = [] 
+            for cat in self.scores:
+                # skipping non-existent cat
+                if stdout_json["categories"].get(cat) is None:
+                    continue
+                # record score
+                self.scores[cat] = round(stdout_json["categories"][cat]["score"] * 100)
+                # add to queue
+                score_queue.append(self.scores[cat])
 
-        data = {
-            "scores": self.scores, 
-            "audits": self.audits_url,
-            "failed": False
-        }
+            # changing audits & score names back to original
+            self.scores['best_practices'] = self.scores.pop('best-practices')
+            self.audits['best_practices'] = self.audits.pop('best-practices')
+            self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
 
-        # returning data 
-        return data
+            # dynamically calculating average
+            average_score = round(sum(score_queue)/len(score_queue))
+            self.scores['average'] = average_score
+
+
+            # save audits data as json file
+            file_id = uuid.uuid4()
+            with open(f'{file_id}.json', 'w') as fp:
+                json.dump(self.audits, fp)
+            
+            # upload to s3 and return url
+            audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+            remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
+            root_path = settings.AWS_S3_URL_PATH
+            self.audits_url = f'{root_path}/{remote_path}'
+        
+            # upload to s3
+            with open(audit_file, 'rb') as data:
+                s3.upload_fileobj(data, str(settings.AWS_STORAGE_BUCKET_NAME), 
+                    remote_path, ExtraArgs={'ACL': 'public-read', 'ContentType': "application/json"}
+                )
+            # remove local copy
+            os.remove(audit_file)
+
+            data = {
+                "scores": self.scores, 
+                "audits": self.audits_url,
+                "failed": False
+            }
+
+            # returning data 
+            return data
+
+        except:
+            print(f'FAILED to pasrse: \n{stdout_json}')
+            raise TypeError
 
 
     

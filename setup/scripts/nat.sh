@@ -80,10 +80,6 @@ mv /etc/squid/squid.conf /etc/squid/squid.conf.bak
 cat <<EOF > /etc/squid/squid.conf
 # ================== Squid CONNECT Proxy ==================
 
-# Prevent squid from proxying itself
-acl localhost src 127.0.0.1/32 137.184.90.205/32
-http_access deny localhost
-
 # Prevent Squid from restarting under burst load
 shutdown_lifetime 3 seconds
 
