@@ -2,7 +2,7 @@ from pathlib import Path
 from ..models import Site, Scan
 from .devices import get_device
 from cursion import settings
-import subprocess, json, uuid, boto3, os, requests
+import subprocess, json, uuid, boto3, os, requests, ast
 
 
 
@@ -174,7 +174,11 @@ class Lighthouse():
         stdout_value = stdout_string.encode('iso-8859-1')
         
         # converting stdout str into Dict
-        stdout_json = json.loads(stdout_value)
+        try:
+            stdout_json = json.loads(stdout_value)
+        except json.JSONDecodeError:
+            # fallback for Python dict literal debugging payloads
+            stdout_json = ast.literal_eval(stdout_string)
         return stdout_json
 
 
@@ -209,10 +213,9 @@ class Lighthouse():
         )
 
         print(res)
+        print(res.status_code, res.text)
 
         res_json = res.json()
-
-        print(res_json)
 
         # try to get just LH response
         res = res_json.get('lighthouseResult')
@@ -290,11 +293,11 @@ class Lighthouse():
 
             # save audits data as json file
             file_id = uuid.uuid4()
-            with open(f'{file_id}.json', 'w') as fp:
+            audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
+            with open(audit_file, 'w') as fp:
                 json.dump(self.audits, fp)
             
             # upload to s3 and return url
-            audit_file = os.path.join(settings.BASE_DIR, f'{file_id}.json')
             remote_path = f'static/sites/{self.site.id}/{self.page.id}/{self.scan.id}/{file_id}.json'
             root_path = settings.AWS_S3_URL_PATH
             self.audits_url = f'{root_path}/{remote_path}'
@@ -316,8 +319,8 @@ class Lighthouse():
             # returning data 
             return data
 
-        except:
-            print(f'FAILED to pasrse: \n{stdout_json}')
+        except Exception as e:
+            print(f'FAILED to pasrse: {e.__class__.__name__}: {e}\n{stdout_json}')
             raise TypeError
 
 
