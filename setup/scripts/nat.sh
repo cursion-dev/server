@@ -92,6 +92,7 @@ http_access allow CONNECT SSL_ports
 # Cap total concurrent client connections (prevents runaway growth)
 acl max_clients maxconn 500
 http_access deny max_clients
+connect_retries 1
 
 # Force cleanup of idle/stalled tunnels
 request_timeout 30 seconds
@@ -160,8 +161,8 @@ EOF
 cat <<EOF > /etc/systemd/system/squid.service.d/oom.conf
 [Service]
 OOMScoreAdjust=-900
-Restart=always
-RestartSec=2
+Restart=on-failure
+RestartSec=10
 EOF
 
 # adding memory swap
@@ -192,6 +193,10 @@ iptables -t nat -A POSTROUTING -s "$NAT_VPC_CIDR" -o eth0 -j MASQUERADE
 
 netfilter-persistent save
 netfilter-persistent reload
+
+# limit SYNs calls
+sysctl -w net.ipv4.tcp_max_syn_backlog=4096
+sysctl -w net.ipv4.tcp_abort_on_overflow=1
 
 echo "[8/8] Completed!"
 echo ""
