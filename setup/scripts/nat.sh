@@ -90,11 +90,14 @@ http_access allow CONNECT SSL_ports
 
 # ---- HARD CONCURRENCY / BACKPRESSURE (1 GiB box) ----
 # Cap total concurrent client connections (prevents runaway growth)
-acl max_clients maxconn 600
+acl max_clients maxconn 500
 http_access deny max_clients
 
 # Force cleanup of idle/stalled tunnels
 request_timeout 30 seconds
+connect_timeout 10 seconds
+read_timeout 30 seconds
+client_lifetime 5 minutes
 persistent_request_timeout 30 seconds
 
 # Reduce FD retention / half-closed socket buildup
