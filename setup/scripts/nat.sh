@@ -4,9 +4,7 @@
 
 # If using k8s, the NAT_VP_CIDR is likely specific to the cluster
 
-
 set -u # Treat unset variables as errors
-
 
 # ===========================
 # Positional arguments
@@ -90,6 +88,18 @@ acl SSL_ports port 443
 acl CONNECT method CONNECT
 http_access allow CONNECT SSL_ports
 
+# ---- HARD CONCURRENCY / BACKPRESSURE (1 GiB box) ----
+# Cap total concurrent client connections (prevents runaway growth)
+acl max_clients maxconn 600
+http_access deny max_clients
+
+# Force cleanup of idle/stalled tunnels
+request_timeout 30 seconds
+persistent_request_timeout 30 seconds
+
+# Reduce FD retention / half-closed socket buildup
+half_closed_clients off
+
 # Large CONNECT tunnels
 request_header_max_size 64 KB
 reply_header_max_size 64 KB
@@ -97,8 +107,8 @@ reply_header_max_size 64 KB
 # Avoid connection pooling exhaustion
 server_persistent_connections off
 
-# Allow persistent connections from clients
-client_persistent_connections on
+# IMPORTANT: disable long-lived client persistence to prevent memory creep
+client_persistent_connections off
 
 # Disable request pipelining
 pipeline_prefetch 0
@@ -119,6 +129,7 @@ cache_mem 64 MB
 maximum_object_size_in_memory 32 KB
 
 # Limit per-connection buffers
+# NOTE: must be > request_header_max_size (64 KB). 96 KB is safe.
 client_request_buffer_max_size 96 KB
 request_body_max_size 0 KB
 
@@ -150,16 +161,16 @@ Restart=always
 RestartSec=2
 EOF
 
-# adding memory swap 
+# adding memory swap
 if ! swapon --show | grep -q /swapfile; then
   fallocate -l 1G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
-  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# update squid dameon
+# update squid daemon
 systemctl daemon-reexec
 systemctl daemon-reload
 
