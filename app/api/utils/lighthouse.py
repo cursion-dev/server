@@ -244,11 +244,6 @@ class Lighthouse():
             endpoint_url=str(settings.AWS_S3_ENDPOINT_URL)
         )
 
-        # changing audits & score names before iterations
-        self.scores['best-practices'] = self.scores.pop('best_practices')
-        self.audits['best-practices'] = self.audits.pop('best_practices')
-        self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
-
         # allow_list of 0 weighted audits
         allow_list = [
             'server-response-time', 'cache-insight',
@@ -256,6 +251,13 @@ class Lighthouse():
         ]
 
         try:
+            # changing audits & score names before iterations
+            if 'best_practices' in self.scores:
+                self.scores['best-practices'] = self.scores.pop('best_practices')
+            if 'best_practices' in self.audits:
+                self.audits['best-practices'] = self.audits.pop('best_practices')
+            if 'crux' in self.audits:
+                self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
 
             # iterating through categories to get relevant lh_audits 
             # and store them in their respective `audits = {}` obj
@@ -276,19 +278,18 @@ class Lighthouse():
                 # skipping non-existent cat
                 if stdout_json["categories"].get(cat) is None:
                     continue
+                score_value = stdout_json["categories"][cat]["score"]
+                if score_value is None:
+                    continue
                 # record score
-                self.scores[cat] = round(stdout_json["categories"][cat]["score"] * 100)
+                self.scores[cat] = round(score_value * 100)
                 # add to queue
                 score_queue.append(self.scores[cat])
 
-            # changing audits & score names back to original
-            self.scores['best_practices'] = self.scores.pop('best-practices')
-            self.audits['best_practices'] = self.audits.pop('best-practices')
-            self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
-
             # dynamically calculating average
-            average_score = round(sum(score_queue)/len(score_queue))
-            self.scores['average'] = average_score
+            if score_queue:
+                average_score = round(sum(score_queue)/len(score_queue))
+                self.scores['average'] = average_score
 
 
             # save audits data as json file
@@ -322,6 +323,14 @@ class Lighthouse():
         except Exception as e:
             print(f'FAILED to pasrse: {e.__class__.__name__}: {e}\n{stdout_json}')
             raise TypeError
+        finally:
+            # changing audits & score names back to original
+            if 'best-practices' in self.scores:
+                self.scores['best_practices'] = self.scores.pop('best-practices')
+            if 'best-practices' in self.audits:
+                self.audits['best_practices'] = self.audits.pop('best-practices')
+            if 'lighthouse-plugin-crux' in self.audits:
+                self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
 
 
     
