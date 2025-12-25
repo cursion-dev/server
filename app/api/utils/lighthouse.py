@@ -212,12 +212,12 @@ class Lighthouse():
             headers=headers
         )
 
-        print(res)
-        print(res.status_code, res.text)
-
-        res_json = res.json()
+        # print error if not 200
+        if not str(res.status_code).startswith('2'):
+            print(res.status_code, res.text)
 
         # try to get just LH response
+        res_json = res.json()
         res = res_json.get('lighthouseResult')
 
         # return response
