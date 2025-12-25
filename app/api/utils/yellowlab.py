@@ -199,9 +199,15 @@ class Yellowlab():
         # get scores from each category
         for key in self.scores:
             if key == 'globalScore':
-                self.scores['globalScore'] = stdout_json["scoreProfiles"]["generic"]["globalScore"]
+                score_value = stdout_json["scoreProfiles"]["generic"]["globalScore"]
+                if score_value is None:
+                    continue
+                self.scores['globalScore'] = score_value
             else:
-                self.scores[key] = stdout_json["scoreProfiles"]["generic"]["categories"][key]["categoryScore"]
+                score_value = stdout_json["scoreProfiles"]["generic"]["categories"][key]["categoryScore"]
+                if score_value is None:
+                    continue
+                self.scores[key] = score_value
 
 
         # save audits data as json file
