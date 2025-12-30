@@ -2,7 +2,8 @@
 # NAT + High-Concurrency HTTP CONNECT Proxy (Squid)
 # Supports VPC CIDR + listen port input
 
-# If using k8s, the NAT_VP_CIDR is likely specific to the cluster
+# NAT_VPC_CIDR is the VPC where k8s is located 
+# https://cloud.digitalocean.com/networking/vpc/
 
 set -u # Treat unset variables as errors
 
@@ -12,6 +13,7 @@ set -u # Treat unset variables as errors
 
 NAT_VPC_CIDR="${1:-}"
 NAT_LISTEN_PORT="${2:-}"
+NAT_PRIVATE_IP="${3:-}"
 
 if [ -z "$NAT_VPC_CIDR" ]; then
   read -rp "Enter VPC CIDR block (e.g., 10.124.0.0/16): " NAT_VPC_CIDR
@@ -21,14 +23,20 @@ if [ -z "$NAT_LISTEN_PORT" ]; then
   read -rp "Enter Proxy Listen Port (e.g., 8888): " NAT_LISTEN_PORT
 fi
 
+if [ -z "$NAT_PRIVATE_IP" ]; then
+  read -rp "Enter NAT Private IP addres (e.g., 10.124.0.29): " NAT_PRIVATE_IP
+fi
+
+echo ""
 echo "Using NAT_VPC_CIDR: $NAT_VPC_CIDR"
 echo "Using NAT_LISTEN_PORT: $NAT_LISTEN_PORT"
+echo "Using NAT_PRIVATE_IP: $NAT_PRIVATE_IP"
 echo ""
 
 # update and install deps
 echo "[1/8] Updating system..."
 apt update -y
-apt install -y squid iptables-persistent curl
+apt install -y squid iptables-persistent curl conntrack
 
 # load conntrack
 echo "[2/8] Loading conntrack kernel modules..."
@@ -74,90 +82,62 @@ fi
 
 sysctl -p
 
+# setup Squid configs
 echo "[4/8] Configuring Squid..."
 mv /etc/squid/squid.conf /etc/squid/squid.conf.bak
 
 cat <<EOF > /etc/squid/squid.conf
 # ================== Squid CONNECT Proxy ==================
 
-# Prevent Squid from restarting under burst load
 shutdown_lifetime 3 seconds
 
-# Listen on custom port
-http_port ${NAT_LISTEN_PORT}
+# Bind ONLY to private VPC IP (prevents public access)
+http_port ${NAT_PRIVATE_IP}:${NAT_LISTEN_PORT}
 
-# Allow HTTPS CONNECT only
+# ---- ACCESS CONTROL (ORDER MATTERS) ----
+acl vpc src ${NAT_VPC_CIDR}
 acl SSL_ports port 443
 acl CONNECT method CONNECT
-http_access allow CONNECT SSL_ports
 
-# ---- HARD CONCURRENCY / BACKPRESSURE (1 GiB box) ----
-# Cap total concurrent client connections (prevents runaway growth)
+http_access allow vpc CONNECT SSL_ports
+http_access deny all
+
+# ---- HARD BACKPRESSURE ----
 acl max_clients maxconn 500
 http_access deny max_clients
 connect_retries 1
 
-# Force cleanup of idle/stalled tunnels
+# Timeouts to kill abandoned tunnels
 request_timeout 30 seconds
 connect_timeout 5 seconds
 read_timeout 30 seconds
 client_lifetime 5 minutes
 persistent_request_timeout 30 seconds
-
-# Reduce FD retention / half-closed socket buildup
 half_closed_clients off
 
-# Large CONNECT tunnels
+# Headers / buffers
 request_header_max_size 64 KB
 reply_header_max_size 64 KB
-
-# Avoid connection pooling exhaustion
-server_persistent_connections off
-
-# IMPORTANT: disable long-lived client persistence to prevent memory creep
-client_persistent_connections off
-
-# Disable request pipelining
-pipeline_prefetch 0
-
-# Allow VPC CIDR
-acl vpc src ${NAT_VPC_CIDR}
-http_access allow vpc
-
-# Deny all other access
-http_access deny all
-
-# Memory Safety (1 GiB RAM)
-cache deny all
-memory_pools off
-
-# Hard memory caps
-cache_mem 64 MB
-maximum_object_size_in_memory 32 KB
-
-# Limit per-connection buffers
-# NOTE: must be > request_header_max_size (64 KB). 96 KB is safe.
 client_request_buffer_max_size 96 KB
 request_body_max_size 0 KB
 
-# FD scaling
+# Connection behavior
+server_persistent_connections off
+client_persistent_connections off
+pipeline_prefetch 0
+
+# Memory safety
+cache deny all
+memory_pools off
+cache_mem 64 MB
+maximum_object_size_in_memory 32 KB
+
+# FDs
 max_filedescriptors 65535
-
 workers 1
-
-# NOTE: no cache_dir — means "no cache"
-# (Null cache type is not supported in Ubuntu 24.04 build)
 
 access_log /var/log/squid/access.log
 cache_log /var/log/squid/cache.log
-EOF
-
-echo "[5/8] Adding systemd NOFILE limit..."
-mkdir -p /etc/systemd/system/squid.service.d
-
-cat <<EOF > /etc/systemd/system/squid.service.d/limits.conf
-[Service]
-LimitNOFILE=65535
 EOF
 
 # restarts squid on OOM failure
@@ -184,27 +164,32 @@ systemctl daemon-reload
 # avoids silent failures
 squid -k parse
 
-# restart squid
-echo "[6/8] Restarting Squid..."
-systemctl restart squid
-systemctl enable squid
-
-echo "[7/8] Setting up iptables NAT..."
+echo "[6/8] Setting up iptables NAT..."
 iptables -t nat -F
 iptables -A FORWARD -s "$NAT_VPC_CIDR" -j ACCEPT
 iptables -t nat -A POSTROUTING -s "$NAT_VPC_CIDR" -o eth0 -j MASQUERADE
 
-# rejects self traffic
-iptables -I INPUT -s 127.0.0.1 -p tcp --dport ${NAT_LISTEN_PORT} -j REJECT
-iptables -I INPUT -s 137.184.90.205 -p tcp --dport ${NAT_LISTEN_PORT} -j REJECT
+# default deny/lock-down
+iptables -A INPUT -i lo -j ACCEPT
+iptables -P INPUT DROP
+iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -p tcp --dport $NAT_LISTEN_PORT -s $NAT_VPC_CIDR -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
 netfilter-persistent save
 netfilter-persistent reload
 
+# flush existing abusive connections
+conntrack -F
+
+# restart squid
+echo "[7/8] Restarting Squid..."
+systemctl restart squid
+systemctl enable squid
+
+# success message
 echo "[8/8] Completed!"
 echo ""
 echo "Squid CONNECT proxy active on port: $NAT_LISTEN_PORT"
 echo "Allowed VPC range: $NAT_VPC_CIDR"
 echo ""
-echo "Test with:"
-echo "  curl -x http://<NAT_IP>:$NAT_LISTEN_PORT https://google.com -I"
