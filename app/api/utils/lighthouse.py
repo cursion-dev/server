@@ -251,21 +251,20 @@ class Lighthouse():
         ]
 
         try:
-            # changing audits & score names before iterations
-            if 'best_practices' in self.scores:
-                self.scores['best-practices'] = self.scores.pop('best_practices')
-            if 'best_practices' in self.audits:
-                self.audits['best-practices'] = self.audits.pop('best_practices')
-            if 'crux' in self.audits:
-                self.audits['lighthouse-plugin-crux'] = self.audits.pop('crux')
+            # Map internal keys (used by the client) to Lighthouse category keys.
+            category_key_map = {
+                "best_practices": "best-practices",
+                "crux": "lighthouse-plugin-crux",
+            }
 
             # iterating through categories to get relevant lh_audits 
             # and store them in their respective `audits = {}` obj
             for cat in self.audits:
+                lh_cat = category_key_map.get(cat, cat)
                 # skipping non-existent cat
-                if stdout_json["categories"].get(cat) is None:
+                if stdout_json["categories"].get(lh_cat) is None:
                     continue
-                cat_audits = stdout_json["categories"].get(cat).get("auditRefs")
+                cat_audits = stdout_json["categories"].get(lh_cat).get("auditRefs")
                 if cat_audits is not None:
                     for a in cat_audits:
                         if int(a["weight"]) > 0 or a["id"] in allow_list:
@@ -275,10 +274,11 @@ class Lighthouse():
             # get scores from each category
             score_queue = [] 
             for cat in self.scores:
+                lh_cat = category_key_map.get(cat, cat)
                 # skipping non-existent cat
-                if stdout_json["categories"].get(cat) is None:
+                if stdout_json["categories"].get(lh_cat) is None:
                     continue
-                score_value = stdout_json["categories"][cat]["score"]
+                score_value = stdout_json["categories"][lh_cat]["score"]
                 if score_value is None:
                     continue
                 # record score
@@ -323,14 +323,6 @@ class Lighthouse():
         except Exception as e:
             print(f'FAILED to pasrse: {e.__class__.__name__}: {e}\n{stdout_json}')
             raise TypeError
-        finally:
-            # changing audits & score names back to original
-            if 'best-practices' in self.scores:
-                self.scores['best_practices'] = self.scores.pop('best-practices')
-            if 'best-practices' in self.audits:
-                self.audits['best_practices'] = self.audits.pop('best-practices')
-            if 'lighthouse-plugin-crux' in self.audits:
-                self.audits['crux'] = self.audits.pop('lighthouse-plugin-crux')
 
 
     
