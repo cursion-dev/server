@@ -19,10 +19,9 @@ def create_and_send_report_export(report_id: id, email: str, first_name: str) ->
         'email'         : str prospect's email address 
         'first_name'    : str prospect's first name
     
-    Returns -> data {
+    Returns: {
         'success' : bool if process started successfully
         'error'   : str any error msg from cursion server
-    }
     """
 
     # setting up s3 client

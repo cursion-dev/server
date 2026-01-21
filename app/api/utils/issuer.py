@@ -13,7 +13,7 @@ class Issuer():
     """ 
     Generate new `Issue` for the passed 'test' or 'caserun'.
 
-    Expects: {
+    Args:
         'scan'      : object
         'test'      : object,
         'caserun'   : object,
@@ -22,7 +22,7 @@ class Issuer():
 
     Use `Issuer.build_issue()` to generate new `Issue`
 
-    Returns -> None
+    Returns: None
     """
 
 
@@ -70,11 +70,11 @@ class Issuer():
         snake case str into a spaced str with 
         each word capitalized
 
-        Expects: {
+        Args:
             key: str
         }
 
-        Returns -> str
+        Returns: str
         """
 
         # remove "_delta"
@@ -98,11 +98,11 @@ class Issuer():
         """ 
         Replaces URLs with correct URLs
 
-        Expects: {
+        Args:
             'recommendation': str
         }
 
-        Returns -> str
+        Returns: str
         """
         # clean client URI
         client_uri = settings.CLIENT_URL_ROOT.split('://')[1]
@@ -126,7 +126,7 @@ class Issuer():
 
         Expects: None
 
-        Returns -> `Issue` <obj>
+        Returns: `Issue` <obj>
         """
 
         # deciding on type
@@ -188,7 +188,7 @@ class Issuer():
 
         # meter account if necessary
         if self.account.type == 'cloud' and self.account.cust_id:
-            meter_account(str(self.account.id), 1)
+            meter_account(str(self.account.id), 2)
         
         # new Issue
         return issue
@@ -501,7 +501,7 @@ class Issuer():
 
         Expects: None
 
-        Returns -> str    
+        Returns: str    
         """
 
         # initializing

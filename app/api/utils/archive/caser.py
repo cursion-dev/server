@@ -19,14 +19,14 @@
 #     """ 
 #     Run a `CaseRun` for a specific `Site`.
 
-#     Expects: {
+#     Args:
 #         'caserun' : object,
 #     }
 
 #     - Use `Caser.run_s()` to run with selenium
 #     - Use `Caser.run_p()` to run with puppeteer
 
-#     Returns -> None
+#     Returns: None
 #     """
 
 
@@ -158,7 +158,7 @@
 #         Grabs & uploads a screenshot of the `page` 
 #         passed in the params. 
 
-#         Returns -> `image_url` <str:remote path to image>
+#         Returns: `image_url` <str:remote path to image>
 #         '''
 
 #         # setup boto3 configurations
@@ -200,7 +200,7 @@
 #         Grabs & uploads a screenshot of the `page` 
 #         passed in the params. 
 
-#         Returns -> `image_url` <str:remote path to image>
+#         Returns: `image_url` <str:remote path to image>
 #         '''
 
 #         # setup boto3 configurations
@@ -242,11 +242,11 @@
 #         Cleans the passed `exception` of any 
 #         system refs and unnecessary info
 
-#         Expects: {
+#         Args:
 #             "exception": str
 #         }
 
-#         Returns -> str
+#         Returns: str
 #         """
 
 #         split_e = str(exception).split('Stacktrace:')
@@ -262,11 +262,11 @@
 #         Cleans the passed `exception` of any 
 #         system refs and unnecessary info
 
-#         Expects: {
+#         Args:
 #             "exception": str
 #         }
 
-#         Returns -> str
+#         Returns: str
 #         """
 
 #         split_e = str(exception).split('Stacktrace:')
@@ -281,7 +281,7 @@
 #         """
 #         Runs the self.caserun using selenium as the driver
 
-#         Returns -> None
+#         Returns: None
 #         """
 
 #         print(f'beginning caserun for {self.site_url}  \
@@ -600,7 +600,7 @@
 #         """
 #         Runs the self.caserun using pupeteer as the driver
 
-#         Returns -> None
+#         Returns: None
 #         """
 
 #         print(f'beginning caserun for {self.site_url}  \

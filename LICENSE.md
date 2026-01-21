@@ -1,4 +1,4 @@
-Copyright (C) 2025 Grey Labs, LLC
+Copyright (C) 2026 Grey Labs, LLC
 
 
 > This software **(Cursion Server)**, is offered with a dual-license depending on your use case.

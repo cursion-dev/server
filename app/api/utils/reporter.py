@@ -16,18 +16,17 @@ class Reporter():
     Used for generating web vitals reports for 
     the associated `Page` & `Scan`
 
-    Expects: {
+    Args:
         'report': <report:obj>,
         'scan'  : <scan:obj>,
     }
 
     Use self.generate_report() to create a new report
 
-    Returns: {
+    Returns:
         'report' : object,
         'success': bool,
         'message': str
-    }
     """
 
 
@@ -161,7 +160,7 @@ class Reporter():
         """ 
         Builds the cover page with a title
 
-        Returns -> None
+        Returns: None
         """
 
         # background and title
@@ -216,12 +215,12 @@ class Reporter():
         Using the passed 'score', decide on 
         which grade and color to return.
 
-        Expects: {
+        Args:
             'score'     : float,
             'is_binary' : bool
         }
 
-        Returns -> dict
+        Returns: dict
         """
 
         # calc score if binary
@@ -341,11 +340,11 @@ class Reporter():
         Paints the data for the passed 'data_type', 
         either 'lighthouse' or 'yellowlab'.
         
-        Expects: {
+        Args:
             'data_type': str
         }
 
-        Returns -> None
+        Returns: None
         """
         
         # add new page
@@ -537,7 +536,7 @@ class Reporter():
         """ 
         Generates a new Report.
 
-        Returns -> data: {
+        Returns: {
             'report' : object,
             'success': bool,
             'message': str

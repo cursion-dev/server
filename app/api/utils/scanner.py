@@ -33,7 +33,7 @@ class Scanner():
 
     Use self.build_scan() to create a new Scan
 
-    Returns -> `Scan` object
+    Returns: `Scan` object
     """
 
 
@@ -65,7 +65,7 @@ class Scanner():
         """
         Method to run a scan independently of an existing `scan` obj.
 
-        Returns -> `Scan` <obj>
+        Returns: `Scan` <obj>
         """
 
         # setting defaults
@@ -135,11 +135,10 @@ def update_scan_score(scan: object) -> object:
     Method to calculate the average health score and update 
     for the passed scan
 
-    Expects: {
+    Args:
         'scan': object
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
     
     # setting defaults
@@ -170,11 +169,10 @@ def update_site_info(scan: object) -> object:
     """ 
     Method to update associated Site with the new Scan data
 
-    Expects: {
+    Args:
         'scan': object
-    }
-
-    Returns -> `Site` <obj>
+    
+    Returns: `Site` <obj>
     """
     
     # setting defaults
@@ -212,11 +210,10 @@ def update_page_info(scan: object) -> object:
     """ 
     Method to update associated Page with the new Scan data
 
-    Expects: {
+    Args:
         'scan': object
-    }
-
-    Returns -> `Page` <obj>
+    
+    Returns: `Page` <obj>
     """
 
     # saving new info to page
@@ -237,12 +234,11 @@ def save_html(html: str, scan: object) -> object:
     Saves html page source as a '.txt' file and uploads 
     to s3. Then saves the remote uri to the `scan` obj.
 
-    Expects: {
+    Args:
         html: str, 
         scan: object
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
 
     # setup boto3 configuration
@@ -296,16 +292,15 @@ def check_scan_completion(
     components. If so, method also updates Scan, Site, 
     & Page info.
 
-    Expects: {
+    Args:
         scan: object,
         sender: str,
         test_id: str,
         alert_id: str
         flowrun_id: str, 
         node_index: str
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
 
     # sleeping random for DB update
@@ -434,15 +429,14 @@ def _html_and_logs(
     Method to run the 'html' and 'logs' component of the scan 
     allowing for multi-threading.
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str, 
         node_index  : str
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
 
     # retrieve scan
@@ -529,15 +523,14 @@ def _vrt(
     Method to run the visual regression (vrt) component of the scan 
     allowing for multi-threading.
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str, 
         node_index  : str
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
 
     # retrieve scan
@@ -606,15 +599,14 @@ def _lighthouse(
     Method to run the lighthouse component of the scan 
     allowing for multi-threading.
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str, 
         node_index  : str
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """
 
     # retrieve scan
@@ -683,15 +675,14 @@ def _yellowlab(
     Method to run the yellowlab component of the scan 
     allowing for multi-threading.
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str, 
         node_index  : str
-    }
-
-    Returns -> `Scan` <obj>
+    
+    Returns: `Scan` <obj>
     """ 
 
     # retrieve scan

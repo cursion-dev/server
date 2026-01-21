@@ -22,7 +22,7 @@ class Caser():
     Run a `CaseRun` for a specific `Site` or 
     gather element info for new `Case`.
 
-    Expects: {
+    Args:
         'caserun'       : object,
         'case'          : object,
         'process'       : object,
@@ -33,7 +33,7 @@ class Caser():
     - Use `Caser.run()` to run Case as CaseRun
     - Use `Caser.pre_run()` to gather element info for a new Case 
 
-    Returns -> None
+    Returns: None
     """
 
 
@@ -140,11 +140,11 @@ class Caser():
         Using replaces all vairables in string with 
         account `Secrets`.
 
-        Expects: {
+        Args:
             'string' : str (to be transposed)
         }
 
-        Returns -> transposed string
+        Returns: transposed string
         """
 
         # decryption helper
@@ -224,7 +224,7 @@ class Caser():
         Using Imager.caserun_vrt compare the step.screeshot 
         to the Case baseline.
 
-        Expects: {
+        Args:
             'index' : int, step index
             'type'  : str, 'action' or 'assertion'
         }
@@ -255,13 +255,13 @@ class Caser():
         number of steps expected - then updates self.process
         with the info.
 
-        Expects: {
+        Args:
             current     : int, 
             total       : int, 
             complete    : bool=False, 
         }
 
-        Returns -> None
+        Returns: None
         """
 
         final_progress = 90
@@ -295,11 +295,11 @@ class Caser():
         Grabs & uploads a screenshot of the active `page` 
         self.driver is working on. 
 
-        Expects: {
+        Args:
             run_type: str, 'run' or 'pre_run'
         }
 
-        Returns -> `image_url` <str:remote path to image>
+        Returns: `image_url` <str:remote path to image>
         """
 
         # default
@@ -355,12 +355,12 @@ class Caser():
         Helper function that uploads the "steps" data to 
         s3 bucket
 
-        Expects: {
+        Args:
             'steps'   : dict, 
             'case_id' : str
         }
 
-        Returns -> data: {
+        Returns: {
             'num_steps' : int,
             'url'       : str
         }
@@ -416,12 +416,12 @@ class Caser():
         then by xpath. If both fail, then return
         None for "element" and True for "failed".
 
-        Expects: {
+        Args:
             "selector": str, 
             "xpath": str, 
         }
 
-        Returns -> data: {
+        Returns: {
             'element': object | None,
             'failed': bool
         }
@@ -461,11 +461,11 @@ class Caser():
         Cleans the passed `exception` of any 
         system refs and unnecessary info
 
-        Expects: {
+        Args:
             "exception": str
         }
 
-        Returns -> str
+        Returns: str
         """
 
         split_e = str(exception).split('Stacktrace:')
@@ -481,11 +481,11 @@ class Caser():
         Grabs a screenshot of the passed "element"
         and returns image data as base64 str.
 
-        Expects: {
+        Args:
             "element": object (REQUIRED)
         }
 
-        Returns -> str (base64 encoded)
+        Returns: str (base64 encoded)
         """
 
         try:
@@ -503,7 +503,7 @@ class Caser():
         """
         Runs the self.caserun using selenium as the driver
 
-        Returns -> None
+        Returns: None
         """
 
         msg = f'starting case run for {self.site_url} using case "{self.caserun.title}" | run_id: {str(self.caserun.id)}'
@@ -1175,7 +1175,7 @@ class Caser():
         Runs the self.case using selenium as the driver
         and tries to collect element img & screenshot data.
 
-        Returns -> None
+        Returns: None
         """
 
         print(f'beginning pre_run for Case {self.case.title}')

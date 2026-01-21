@@ -31,7 +31,7 @@ def driver_init(
         'pixel_ratio'   : int,
         'scale_factor'  : int
 
-    Returns -> driver object
+    Returns: driver object
     """
 
     # get userAgent 
@@ -140,7 +140,7 @@ def driver_test() -> None:
     Spins up a selenium driver instance and
     tests to ensure it can access the browser and internet
 
-    Returns -> None
+    Returns: None
     """
     
     print("Testing Selenium...")
@@ -188,14 +188,13 @@ def driver_wait(
     for either the page to fully load or the max_wait_time
     to expire before returning.
 
-    Expects: {
+    Args:
         'driver'        : object, 
         'interval'      : int,
         'max_wait_time' : int,
         'min_wait_time' : int
-    }
-
-    Returns -> bool (True if page is loaded)
+    
+    Returns: bool (True if page is loaded)
     """
 
     def interact_with_page(driver):
@@ -313,7 +312,7 @@ def quit_driver(driver: object) -> None:
     """ 
     Quits and reaps all child processes in docker
 
-    Returns -> None
+    Returns: None
     """
     print('Quitting session: %s' % driver.session_id)
     driver.quit()

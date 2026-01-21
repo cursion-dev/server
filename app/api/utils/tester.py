@@ -23,7 +23,7 @@ class Tester():
 
     Use self.run_test() to run all Test components
 
-    Returns -> `Test` object
+    Returns: `Test` object
     """
 
 
@@ -722,7 +722,7 @@ class Tester():
 
         Expects: None
 
-        Returns -> `Test` object
+        Returns: `Test` object
         """
 
         # update test obj with scan configs

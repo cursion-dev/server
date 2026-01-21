@@ -11,12 +11,12 @@
 #     """ 
 #     Starts a new puppeteer driver instance
 
-#     Expects: {
+#     Args:
 #         'window_size' : str, 
 #         'wait_time'   : int
 #     } 
 
-#     Returns -> driver object
+#     Returns: driver object
 #     """
 
 #     # parsing window sizes
@@ -71,12 +71,12 @@
 #     for either the page to fully load or the max_wait_time
 #     to expire before returning.
 
-#     Expects: {
+#     Args:
 #         'page'          : object, 
 #         'max_wait_time' : int
 #     }
 
-#     Returns -> page <pypt:instance>
+#     Returns: page <pypt:instance>
 #     """
 
 #     print(f'waiting for page load or {str(max_wait_time)} seconds')
@@ -100,7 +100,7 @@
 #     Spins up a puppeteer driver instance and
 #     tests to ensure it can access the browser and internet
 
-#     Returns -> None
+#     Returns: None
 #     """
 
 #     print("Testing puppeteer instalation and integration...")
@@ -145,12 +145,12 @@
 #     'url' and records the page source and any 
 #     present console errors & warnings
 
-#     Expects: {
+#     Args:
 #         url     : str, 
 #         configs : dict
 #     }
     
-#     Returns -> data: {
+#     Returns: {
 #         'html' : str, 
 #         'logs' : dict,
 #     }

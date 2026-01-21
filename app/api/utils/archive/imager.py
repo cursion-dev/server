@@ -90,7 +90,7 @@
 #         """
 #         Checks to see if the current time exceedes the alotted timeout. 
         
-#         Returns -> True if timeout exceeded
+#         Returns: True if timeout exceeded
 #         """
 #         current = datetime.now()
 #         diff = current - start_time
@@ -107,7 +107,7 @@
 #         """
 #         Joins img1 and im2 vertically and saves as "new_img"
         
-#         Returns -> new_img <Image>
+#         Returns: new_img <Image>
 #         """
 #         im1 = I.open(im1)
 #         im2 = I.open(im2)
@@ -124,7 +124,7 @@
 #         Upload image to s3, save info as image_obj,
 #         add image_obj to image_array, & remove image file
 
-#         Returns -> None
+#         Returns: None
 #         """
 #         remote_path = f'static/sites/{self.scan.site.id}/{self.scan.page.id}/{self.scan.id}/{pic_id}.png'
 #         root_path = settings.AWS_S3_URL_PATH
@@ -160,11 +160,11 @@
 #         Grabs full length screenshots of the website and uploads 
 #         them to s3.
 
-#         Expects: {
+#         Args:
 #             'driver': object
 #         }
 
-#         Returns -> self.image_array list
+#         Returns: self.image_array list
 #         """
 
 #         # initialize driver if not passed as param
@@ -310,7 +310,7 @@
 #         Using Puppeteer, grabs full length screenshots of the website and uploads 
 #         them to s3.
 
-#         Returns -> self.image_array list
+#         Returns: self.image_array list
 #         """
 
 #         @sync_to_async
@@ -507,12 +507,12 @@
 #             - PIL ImageChop Differences, Ratio
 #             - cv2 ORB Brute-force Matcher, Ratio
 
-#         Expects: {
+#         Args:
 #             'test': object, 
 #             'index': int,
 #         }
 
-#         Returns -> data: {
+#         Returns: {
 #             'average_score' : float(0-100),
 #             'images'        : dict,
 #         }
@@ -588,7 +588,7 @@
 #                 # build two new images with differences highlighted
 #                 def highlight_diffs(pre_img_path, post_img_path, index):
 #                     '''
-#                     Returns -> two new images with highlights & float(ssim_score)
+#                     Returns: two new images with highlights & float(ssim_score)
 #                     '''
 #                     # Load the images
 #                     image1 = cv2.imread(pre_img_path)

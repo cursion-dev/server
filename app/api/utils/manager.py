@@ -17,13 +17,12 @@ def record_task(
     Records task information in the `resource.system` 
     attribute.
 
-    Expects: {
+    Args:
         'resource_type' : str (scan, test, caserun)
         'resource_id'   : str 
         'task_id'       : str 
         'task_method'   : str
         'kwargs'        : dict
-    }
     
     Returns: max_attempts_reached <bool>
     """

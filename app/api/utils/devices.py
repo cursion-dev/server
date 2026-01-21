@@ -232,12 +232,11 @@ def get_device(browser: str=None, name: str=None) -> str:
     Finds the specific device based on the 
     browser and name provided.
 
-    Expects: {
+    Args:
         "browser": str,
         "name":    str,
-    }
-
-    Returns -> "device" dict
+    
+    Returns: "device" dict
     """
 
     # setting default to 'Windows 10 PC'
