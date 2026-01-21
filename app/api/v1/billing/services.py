@@ -1,8 +1,6 @@
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth.models import User
-from django.core import serializers
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from ...models import (
     Account, Member, Card, Site, Issue, Schedule, Flow,
     get_meta_default, get_usage_default, Coupon
@@ -28,7 +26,7 @@ def stripe_setup(request: object) -> object:
     Price, & Subscription associated with the passed 
     "user" and `Account`
 
-    Expects: {
+    Args:
         'name'                  : <str> 'free', 'cloud', 'selfhost', 'enterprise' (REQUIRED)
         'interval'              : <str> 'month' or 'year' (REQUIRED)
         'price_amount'          : <int> 1000 == $10 (REQUIRED)
@@ -45,45 +43,44 @@ def stripe_setup(request: object) -> object:
         'nodes_allowed'         : <int> total # of `nodes` per `Flow` per month (OPTIONAL)
         'conditions_allowed'    : <int> total # of `conditons` per `Flow` (OPTIONAL)
         'meta'                  : <dict> any extra data for the account (OPTIONAL)
-    }
     
-    Returns -> data: {
+    
+    Returns:
         'subscription_id' : Stripe subscription id,
         'client_secret' : Stripe subscription client_secret,
-    }
     """ 
 
     # init Stripe client
     stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
-    name = request.data.get('name')
-    interval = request.data.get('interval', 'month') # month or year
-    price_amount = int(request.data.get('price_amount'))
-    task_amount = int(request.data.get('task_amount'))
-    sites_allowed = int(request.data.get('sites_allowed'))
-    pages_allowed = int(request.data.get('pages_allowed'))
-    schedules_allowed = int(request.data.get('schedules_allowed'))
-    retention_days = int(request.data.get('retention_days'))
-    scans_allowed = int(request.data.get('scans_allowed'))
-    tests_allowed = int(request.data.get('tests_allowed'))
-    caseruns_allowed = int(request.data.get('caseruns_allowed'))
-    flowruns_allowed = int(request.data.get('flowruns_allowed'))
-    nodes_allowed = int(request.data.get('nodes_allowed'))
-    conditions_allowed = int(request.data.get('conditions_allowed'))
-    meta = request.data.get('meta', get_meta_default())
+    name                = request.data.get('name')
+    interval            = request.data.get('interval', 'month') # month or year
+    price_amount        = int(request.data.get('price_amount'))
+    task_amount         = int(request.data.get('task_amount'))
+    sites_allowed       = int(request.data.get('sites_allowed'))
+    pages_allowed       = int(request.data.get('pages_allowed'))
+    schedules_allowed   = int(request.data.get('schedules_allowed'))
+    retention_days      = int(request.data.get('retention_days'))
+    scans_allowed       = int(request.data.get('scans_allowed'))
+    tests_allowed       = int(request.data.get('tests_allowed'))
+    caseruns_allowed    = int(request.data.get('caseruns_allowed'))
+    flowruns_allowed    = int(request.data.get('flowruns_allowed'))
+    nodes_allowed       = int(request.data.get('nodes_allowed'))
+    conditions_allowed  = int(request.data.get('conditions_allowed'))
+    meta                = request.data.get('meta', get_meta_default())
     
     # get user
     user = request.user
 
     # set defaults
-    initial_call = True
-    client_secret = None
+    initial_call    = True
+    client_secret   = None
     default_product = None
-    default_price = None
-    task_product = None
-    task_price = None
-    prices = []
+    default_price   = None
+    task_product    = None
+    task_price      = None
+    prices          = []
 
     # build Stripe Default Product name
     default_product_name = f'{name.capitalize()}'
@@ -105,9 +102,9 @@ def stripe_setup(request: object) -> object:
 
     # update existing Stripe Customer & Product
     if account.cust_id is not None:
-        initial_call = False
+        initial_call    = False
         default_product = stripe.Product.modify(account.product_id, name=default_product_name)
-        customer = stripe.Customer.retrieve(account.cust_id)
+        customer        = stripe.Customer.retrieve(account.cust_id)
 
     # create new Stripe Default Price for 
     default_price = stripe.Price.create(
@@ -120,8 +117,8 @@ def stripe_setup(request: object) -> object:
     # add to prices
     prices.append(default_price)
     
-    # create new Stripe Task Product & Price for CLOUD
-    if name == 'cloud':
+    # create new Stripe Task Product & Price for CLOUD (Team & Business)
+    if name in ['cloud', 'team', 'business']:
 
         # create task product
         task_product = stripe.Product.create(name='Tasks')
@@ -245,19 +242,20 @@ def stripe_complete(request: object) -> object:
     enters CC details on Cursion.client - Also updates 
     `Account` payment method.
 
-    Expects: {
+    Args:
         'payment_method' : <str> stripe payment method id from client (REQUIRED)
     
-    Returns -> `Account` HTTP Response object
+    Returns:
+        `Account` HTTP Response object
     """
 
     # init Stripe client
     stripe.api_key = settings.STRIPE_PRIVATE
     
     # get request data
-    user = request.user
-    account = Account.objects.get(user=user)
-    pay_method_id = request.data['payment_method']
+    user            = request.user
+    account         = Account.objects.get(user=user)
+    pay_method_id   = request.data['payment_method']
 
     # get Stripe PaymentMethod object
     pay_method = stripe.PaymentMethod.retrieve(pay_method_id)
@@ -337,11 +335,11 @@ def calc_price(account: object=None) -> int:
     Calculates a `price` based on `Account.sites_allowed` 
     and any `Account.meta.coupon` data.
 
-    Expects: {
+    Args:
         'account': <object> (REQUIRED)
-    } 
     
-    Returns: 'price_amount' <int>
+    Returns:
+        'price_amount' <int>
     """
 
     # init Stripe client
@@ -381,13 +379,11 @@ def get_stripe_hosted_url(request: object=None) -> object:
     Portal Session' (allows customer to manage existing subscription).
     Either session type with return a Stripe redirect url
 
-    Expects: {
+    Args:
         'request' : <object> (REQUIRED)
-    }
     
-    Returns -> data: {
+    Returns:
         'stripe_url': <str>
-    }
     """
 
     # init Stripe client
@@ -456,11 +452,11 @@ def update_account_with_stripe_redirect(request: object=None) -> object:
     """ 
     Updates `Account` with new sub data from stripe redirect
 
-    Expects: {
+    Args:
         'request' : <object> (REQUIRED)
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # init Stripe client
@@ -488,11 +484,11 @@ def update_account_with_stripe_redirect(request: object=None) -> object:
     )
 
     # get stripe product & price info
-    plan = sub['items']['data'][0]['plan']
-    product_id = plan['product']
-    price_id = plan['id']
-    price_amount = plan['amount']
-    interval = plan['interval']
+    plan            = sub['items']['data'][0]['plan']
+    product_id      = plan['product']
+    price_id        = plan['id']
+    price_amount    = plan['amount']
+    interval        = plan['interval']
 
     # setting Account.active
     active = False if (sub['canceled_at'] or sub['pause_collection']) else True
@@ -555,11 +551,11 @@ def get_billing_info(request: object) -> object:
     Gets the `Card`, `Account`, and slack info associated
     with the passed "user".
 
-    Expects: {
+    Args:
         'request' : <object> (REQUIRED)
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # init Stripe client
@@ -580,10 +576,10 @@ def get_billing_info(request: object) -> object:
     estimated_cost = None
 
     # get current task usage overages if cloud
-    if account.type == 'cloud':
+    if account.type in ['cloud', 'team', 'business']:
         
         task_count = 0
-        task_items = ['caseruns', 'flowruns', 'scans', 'tests']
+        task_items = ['caseruns', 'scans', 'tests']
         
         for item in task_items:
             overage = int(account.usage[item]) - int(account.usage[f'{item}_allowed'])
@@ -601,23 +597,23 @@ def get_billing_info(request: object) -> object:
 
     # build plan
     plan = {
-        'name': account.type,
-        'active': account.active,
-        'price_amount': account.price_amount,
-        'interval': account.interval,
-        'usage': account.usage,
-        'meta': account.meta,
-        'estimated_cost': estimated_cost
+        'name'           : account.type,
+        'active'         : account.active,
+        'price_amount'   : account.price_amount,
+        'interval'       : account.interval,
+        'usage'          : account.usage,
+        'meta'           : account.meta,
+        'estimated_cost' : estimated_cost
     }
         
     # get `Card` info if exists
     if Card.objects.filter(account=account).exists():
         _card = Card.objects.get(account=account)
         card = {
-            'brand': _card.brand,
-            'exp_year': _card.exp_year,
-            'exp_month': _card.exp_month,
-            'last_four': _card.last_four,
+            'brand'     : _card.brand,
+            'exp_year'  : _card.exp_year,
+            'exp_month' : _card.exp_month,
+            'last_four' : _card.last_four,
         }
 
     # format billing info
@@ -637,10 +633,11 @@ def account_activation(request: object) -> object:
     Pauses or Activates the `Account` and billing 
     for the associated Stripe Subscription.
 
-    Expects: {
+    Args:
         'request' : <object> (REQUIRED)
     
-    Returns -> `Account` HTTP Response object
+    Returns:
+        Account` HTTP Response object
     """
 
     # init Stripe client
@@ -658,7 +655,7 @@ def account_activation(request: object) -> object:
             account.sub_id,
             pause_collection={
                 'behavior': 'mark_uncollectible',
-                },
+            },
         )
         active = False
 
@@ -688,12 +685,12 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
     Cancels the Stripe Subscription associated with the
     passed "user" and reverts the `Account` to a "free" plan
     
-    Expects: {
+    Args:
         'request': object (OPTIONAL)
         'account': object (OPTIONAL)
-    }
 
-    Returns -> `Account` HTTP Response object or Bool `true`
+    Returns:
+        Account` HTTP Response object or Bool `true`
     """
 
     # init Stripe client
@@ -701,7 +698,7 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
 
     # get user's account
     if request is not None:
-        user = request.user
+        user    = request.user
         account = Account.objects.get(user=user)
 
     # update billing if accout is active
@@ -716,16 +713,16 @@ def cancel_subscription(request: object=None, account: object=None) -> object:
             print(e)
 
         # update Account plan
-        account.type = 'free'
-        account.interval = 'month'
-        account.price_amount = 0
-        account.cust_id = None
-        account.sub_id = None
-        account.product_id = None
-        account.price_id = None
-        account.price_amount = None
-        account.usage = get_usage_default()
-        account.meta = get_meta_default()
+        account.type            = 'free'
+        account.interval        = 'month'
+        account.price_amount    = 0
+        account.cust_id         = None
+        account.sub_id          = None
+        account.product_id      = None
+        account.price_id        = None
+        account.price_amount    = None
+        account.usage           = get_usage_default()
+        account.meta            = get_meta_default()
 
         # save Account
         account.save()
@@ -767,14 +764,12 @@ def get_stripe_invoices(request: object) -> object:
     Gets a list of Stripe Invoice objects associated with the 
     passed "user" `Account`
     
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> data: {
+    
+    Returns:
         'has_more': <bool> true if more than 10
         'data': <list> of invoice objects
-    }
     """
 
     # init Stripe client
@@ -828,8 +823,16 @@ def get_stripe_invoices(request: object) -> object:
                     # get product_name
                     if 'cloud' in item['description'].lower():
                         product_name = 'Cloud'
+                    if 'team' in item['description'].lower():
+                        product_name = 'Team'
+                    if 'business' in item['description'].lower():
+                        product_name = 'Business'
                     if 'selfhost' in item['description'].lower():
                         product_name = 'Self Host'
+                    if 'license' in item['description'].lower():
+                        product_name = 'License'
+                    if 'manage' in item['description'].lower():
+                        product_name = 'Manage'
                     if 'enterprise' in item['description'].lower():
                         product_name = 'Enterprise'
                     # get interval
@@ -881,11 +884,10 @@ def check_coupon(request: object) -> object:
     `Coupon.codes`. If found, returns "success=True" 
     and the whole `Coupon` object
 
-    Expects: {
+    Args: {
         'request' : <object> (REQUIRED)
-    }
     
-    Returns -> HTTP Response of serialized `Coupon` objects
+    Returns: HTTP Response of serialized `Coupon` objects
     """
 
     # get request data
