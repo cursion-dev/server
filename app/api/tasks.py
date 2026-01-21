@@ -54,6 +54,32 @@ logger = get_task_logger(__name__)
 # setting redis client
 redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
 
+CELERY_QUEUE_SCHEDULED = getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled')
+CELERY_QUEUE_ON_DEMAND = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+
+
+def get_task_queue(task_request=None, kwargs: dict | None = None) -> str:
+    if kwargs and kwargs.get('_queue'):
+        return str(kwargs['_queue'])
+    if task_request is not None:
+        try:
+            delivery_info = getattr(task_request, 'delivery_info', {}) or {}
+            routing_key = delivery_info.get('routing_key')
+            if routing_key:
+                return str(routing_key)
+        except Exception:
+            pass
+    return str(getattr(settings, 'CELERY_TASK_DEFAULT_QUEUE', CELERY_QUEUE_SCHEDULED))
+
+
+def apply_async_in_queue(task, *, kwargs: dict, queue: str, task_id: str | None = None):
+    return task.apply_async(
+        kwargs=kwargs,
+        queue=queue,
+        routing_key=queue,
+        task_id=task_id,
+    )
+
 
 
 
@@ -250,7 +276,8 @@ def call_local_task_by_name(
 
     task_func = globals()[task_name]
     print(f'calling -> task_func.apply_async(kwargs={kwargs}, task_id={task_id})')
-    return task_func.apply_async(kwargs=kwargs, task_id=task_id)
+    queue = get_task_queue(kwargs=kwargs)
+    return apply_async_in_queue(task_func, kwargs=kwargs, queue=queue, task_id=task_id)
 
 
 
@@ -282,7 +309,20 @@ def redeliver_failed_tasks() -> None:
     # fetch active, reserved, & queues tasks
     reserved    = i.reserved() or {}
     active      = i.active() or {}
-    queued      = redis_client.lrange('celery', 0, -1)
+    broker_queues = list(
+        {
+            'celery',
+            CELERY_QUEUE_SCHEDULED,
+            CELERY_QUEUE_ON_DEMAND,
+            getattr(settings, 'CELERY_TASK_DEFAULT_QUEUE', CELERY_QUEUE_SCHEDULED),
+        }
+    )
+    queued = []
+    for q in broker_queues:
+        try:
+            queued += redis_client.lrange(str(q), 0, -1)
+        except Exception:
+            continue
     all_tasks   = []
 
     # gather task IDs from reserved queue
@@ -318,6 +358,7 @@ def redeliver_failed_tasks() -> None:
         alert_id        = None
         flowrun_id      = None
         node_index      = None
+        queue           = None
         components      = []
         for task in (scan.system or {}).get('tasks', []):
 
@@ -342,6 +383,7 @@ def redeliver_failed_tasks() -> None:
             alert_id    = task['kwargs'].get('alert_id')    or alert_id
             flowrun_id  = task['kwargs'].get('flowrun_id')  or flowrun_id
             node_index  = task['kwargs'].get('node_index')  or node_index 
+            queue = get_task_queue(kwargs=task.get('kwargs') or {}) or queue
             
             # re-run task if task is not "running", "pending", 
             # or reached "max_attempts".
@@ -353,7 +395,7 @@ def redeliver_failed_tasks() -> None:
 
                 # check for max attempts
                 elif task.get('attempts', 0) < settings.MAX_ATTEMPTS:
-                    task_id = f'lock:{task["task_method"].replace('run_','')}_{scan.id}'
+                    task_id = f"lock:{task['task_method'].replace('run_', '')}_{scan.id}"
                     call_local_task_by_name(task["task_method"], task["kwargs"], task_id)
                     retried_tasks += 1
 
@@ -376,12 +418,19 @@ def redeliver_failed_tasks() -> None:
             # execute `run_test()` if test_id present
             if test_id:
                 logger.info(f'executing run_test() from `post_scan` in `retry_tasks`')
-                run_test.delay(
-                    test_id=str(test_id),
-                    alert_id=alert_id,
-                    flowrun_id=flowrun_id,
-                    node_index=node_index
-                )  
+                queue = queue or get_task_queue(kwargs={'_queue': None})
+                apply_async_in_queue(
+                    run_test,
+                    kwargs={
+                        'test_id': str(test_id),
+                        'alert_id': alert_id,
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index,
+                        '_queue': queue,
+                    },
+                    queue=queue,
+                    task_id=f'lock:run_test_{test_id}',
+                )
         
     # iterate through each test and re-run if failed
     for test in tests:
@@ -485,6 +534,8 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
 
     # crawl site 
     pages = Crawler(url=site.site_url, max_urls=max_urls).get_links()
+
+    queue = get_task_queue(self.request)
     
     # create pages and scans
     for url in pages:
@@ -508,12 +559,12 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
                     type=settings.TYPES,
                     configs=configs
                 )
-                
-                # run each scan component in parallel
-                run_html_and_logs_bg.delay(scan_id=scan.id)
-                run_lighthouse_bg.delay(scan_id=scan.id)
-                run_yellowlab_bg.delay(scan_id=scan.id)
-                run_vrt_bg.delay(scan_id=scan.id)
+
+                apply_async_in_queue(
+                    scan_page_bg,
+                    kwargs={'scan_id': str(scan.id), '_queue': queue},
+                    queue=queue,
+                )
                 
                 # update page info 
                 page.info["latest_scan"]["id"] = str(scan.id)
@@ -562,6 +613,8 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     new_urls = Crawler(url=site.site_url, max_urls=pages_allowed).get_links()
     add_urls = []
 
+    queue = get_task_queue(self.request)
+
     # checking for duplicates
     for url in new_urls:
         if not url in old_urls:
@@ -591,11 +644,12 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
                     type=settings.TYPES,
                     configs=configs
                 )
-                # run each scan component in parallel
-                run_html_and_logs_bg.delay(scan_id=scan.id)
-                run_lighthouse_bg.delay(scan_id=scan.id)
-                run_yellowlab_bg.delay(scan_id=scan.id)
-                run_vrt_bg.delay(scan_id=scan.id)
+
+                apply_async_in_queue(
+                    scan_page_bg,
+                    kwargs={'scan_id': str(scan.id), '_queue': queue},
+                    queue=queue,
+                )
                 page.info["latest_scan"]["id"] = str(scan.id)
                 page.info["latest_scan"]["time_created"] = str(scan.time_created)
                 page.save()
@@ -807,6 +861,7 @@ def scan_page_bg(
         alert_id    : str=None, 
         flowrun_id  : str=None,
         node_index  : str=None,
+        _queue      : str=None,
     ) -> None:
     """ 
     Runs all the requested `Scan` components 
@@ -825,51 +880,65 @@ def scan_page_bg(
     
     # get scan object
     scan = Scan.objects.get(id=scan_id)
+
+    queue = get_task_queue(self.request, kwargs={'_queue': _queue} if _queue else None)
     
     # run each scan component in parallel
     if 'html' in scan.type or 'logs' in scan.type or 'full' in scan.type:
-        run_html_and_logs_bg.apply_async(
+        apply_async_in_queue(
+            run_html_and_logs_bg,
             kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
+                '_queue'    : queue,
             },
-            task_id=f'lock:html_and_logs_bg_{scan_id}'
+            queue=queue,
+            task_id=f'lock:html_and_logs_bg_{scan_id}',
         )
     if 'lighthouse' in scan.type or 'full' in scan.type:
-        run_lighthouse_bg.apply_async(
+        apply_async_in_queue(
+            run_lighthouse_bg,
             kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
+                '_queue'    : queue,
             },
-            task_id=f'lock:lighthouse_bg_{scan_id}'
+            queue=queue,
+            task_id=f'lock:lighthouse_bg_{scan_id}',
         )
     if 'yellowlab' in scan.type or 'full' in scan.type:
-        run_yellowlab_bg.apply_async(
+        apply_async_in_queue(
+            run_yellowlab_bg,
             kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
+                '_queue'    : queue,
             },
-            task_id=f'lock:yellowlab_bg_{scan_id}'
+            queue=queue,
+            task_id=f'lock:yellowlab_bg_{scan_id}',
         )
     if 'vrt' in scan.type or 'full' in scan.type:
-        run_vrt_bg.apply_async(
+        apply_async_in_queue(
+            run_vrt_bg,
             kwargs={
                 'scan_id'   : scan_id,
                 'test_id'   : test_id,
                 'alert_id'  : alert_id,
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
+                '_queue'    : queue,
             },
-            task_id=f'lock:vrt_bg_{scan_id}'
+            queue=queue,
+            task_id=f'lock:vrt_bg_{scan_id}',
         )
 
     logger.info('started scan component tasks')
@@ -978,6 +1047,8 @@ def create_scan_bg(self, **kwargs) -> None:
             logger.info('Not running due to location param')
             return None
 
+        queue = get_task_queue(self.request, kwargs)
+
         # setting defaults
         pages = []
         sites = []
@@ -1041,7 +1112,8 @@ def create_scan_bg(self, **kwargs) -> None:
                         'scan_id': str(scan.id),
                         'alert_id': alert_id,
                         'flowrun_id': flowrun_id,
-                        'node_index': node_index
+                        'node_index': node_index,
+                        '_queue': queue,
                     }
                 )
 
@@ -1067,11 +1139,16 @@ def create_scan_bg(self, **kwargs) -> None:
                 })
 
                 # init scan page in background
-                scan_page_bg.delay(
-                    scan_id=str(scan.id),
-                    alert_id=alert_id,
-                    flowrun_id=flowrun_id,
-                    node_index=node_index
+                apply_async_in_queue(
+                    scan_page_bg,
+                    kwargs={
+                        'scan_id': str(scan.id),
+                        'alert_id': alert_id,
+                        'flowrun_id': flowrun_id,
+                        'node_index': node_index,
+                        '_queue': queue,
+                    },
+                    queue=queue,
                 )
             
         # update flowrun
@@ -1506,7 +1583,8 @@ def create_test(
         tags: list=None,
         threshold: float=settings.TEST_THRESHOLD,
         flowrun_id: str=None,
-        node_index: str=None
+        node_index: str=None,
+        _queue: str=None,
     ) -> None:
     """ 
     Creates a `post_scan` if necessary, waits for completion,
@@ -1531,6 +1609,7 @@ def create_test(
     # setting defaults
     created_test = None
     objects = []
+    queue = get_task_queue(self.request, kwargs={'_queue': _queue} if _queue else None)
 
     # get or create a Test
     if test_id is not None:
@@ -1621,7 +1700,8 @@ def create_test(
                 scan_page_bg(
                     scan_id=new_scan.id,
                     flowrun_id=flowrun_id,
-                    node_index=node_index
+                    node_index=node_index,
+                    _queue=queue,
                 )
 
                 # update flowrun
@@ -1696,7 +1776,8 @@ def create_test(
             test_id=created_test.id,
             alert_id=alert_id,
             flowrun_id=flowrun_id,
-            node_index=node_index
+            node_index=node_index,
+            _queue=queue,
         )
 
         # update flowrun
@@ -1726,11 +1807,17 @@ def create_test(
 
     # check if pre and post scan are complete and start test if True
     if pre_scan.time_completed is not None and post_scan.time_completed is not None:
-        run_test.delay(
-            test_id=created_test.id, 
-            alert_id=alert_id,
-            flowrun_id=flowrun_id,
-            node_index=node_index
+        apply_async_in_queue(
+            run_test,
+            kwargs={
+                'test_id': str(created_test.id),
+                'alert_id': alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                '_queue': queue,
+            },
+            queue=queue,
+            task_id=f'lock:run_test_{created_test.id}',
         )
     
     logger.info('Began Scan/Test process')
@@ -1794,6 +1881,8 @@ def create_test_bg(self, **kwargs) -> None:
         if not check_location(configs.get('location', settings.LOCATION)):
             logger.info('Not running due to location param')
             return None
+
+        queue = get_task_queue(self.request, kwargs)
 
         # create test if none was passed
         if test_id is None:
@@ -1879,7 +1968,8 @@ def create_test_bg(self, **kwargs) -> None:
                         post_scan=post_scan,
                         alert_id=str(alert_id),
                         flowrun_id=str(flowrun_id),
-                        node_index=node_index
+                        node_index=node_index,
+                        _queue=queue,
                     )
                 
                 else:
@@ -1914,18 +2004,23 @@ def create_test_bg(self, **kwargs) -> None:
         # get test and run 
         if test_id:
             test = Test.objects.get(id=test_id)
-            create_test.delay(
-                test_id=str(test_id),
-                page_id=str(test.page.id),
-                type=type,
-                configs=configs,
-                tags=tags,
-                threshold=float(threshold),
-                pre_scan=pre_scan,
-                post_scan=post_scan,
-                alert_id=str(alert_id),
-                flowrun_id=str(flowrun_id),
-                node_index=node_index
+            apply_async_in_queue(
+                create_test,
+                kwargs={
+                    'test_id': str(test_id),
+                    'page_id': str(test.page.id),
+                    'type': type,
+                    'configs': configs,
+                    'tags': tags,
+                    'threshold': float(threshold),
+                    'pre_scan': pre_scan,
+                    'post_scan': post_scan,
+                    'alert_id': str(alert_id),
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    '_queue': queue,
+                },
+                queue=queue,
             )
 
         # update schedule if task_id is not None
@@ -1942,7 +2037,9 @@ def create_report(
         page_id: str=None, 
         alert_id: str=None,
         flowrun_id: str=None,
-        node_index: str=None
+        node_index: str=None,
+        _queue: str=None,
+        **kwargs,
     ) -> None:
     """ 
     Generates a new PDF `Report` of the requested `Page`
@@ -2038,6 +2135,8 @@ def create_report_bg(**kwargs) -> None:
             logger.info('task is already running, skipping execution.')
             return None
 
+        queue = get_task_queue(kwargs=kwargs)
+
         # setting defaults
         pages = []
         sites = []
@@ -2106,11 +2205,16 @@ def create_report_bg(**kwargs) -> None:
             # sleeping random for DB 
             time.sleep(random.uniform(2, 6))
 
-            create_report.delay(
-                page_id=page.id,
-                alert_id=alert_id,
-                flowrun_id=flowrun_id,
-                node_index=node_index
+            apply_async_in_queue(
+                create_report,
+                kwargs={
+                    'page_id': str(page.id),
+                    'alert_id': alert_id,
+                    'flowrun_id': flowrun_id,
+                    'node_index': node_index,
+                    '_queue': queue,
+                },
+                queue=queue,
             )
         
         # update schedule if task_id is not None
@@ -2224,7 +2328,9 @@ def run_case(
         caserun_id: str=None, 
         alert_id: str=None,
         flowrun_id: str=None,
-        node_index: str=None
+        node_index: str=None,
+        _queue: str=None,
+        **kwargs,
     ) -> None:
     """
     Runs a CaseRun.
@@ -2306,6 +2412,8 @@ def create_caserun_bg(**kwargs) -> None:
         if not check_location(configs.get('location', settings.LOCATION)):
             logger.info('Not running due to location param')
             return None
+
+        queue = get_task_queue(kwargs=kwargs)
 
         # settign defaults 
         case = None
@@ -2411,11 +2519,16 @@ def create_caserun_bg(**kwargs) -> None:
 
         # iterate through caseruns and run
         for caserun in caseruns:
-            run_case.delay(
-                caserun_id=str(caserun.id),
-                alert_id=alert_id,
-                flowrun_id=flowrun_id,
-                node_index=node_index
+            apply_async_in_queue(
+                run_case,
+                kwargs={
+                    'caserun_id': str(caserun.id),
+                    'alert_id': alert_id,
+                    'flowrun_id': flowrun_id,
+                    'node_index': node_index,
+                    '_queue': queue,
+                },
+                queue=queue,
             )
 
         # update schedule if task_id is not None
@@ -3710,6 +3823,3 @@ def migrate_site_bg(
 
     logger.info('Finished Migration')
     return None
-
-
-

@@ -51,7 +51,7 @@ def register_user(request: object) -> object:
         'first_name' : str,
         'last_name'  : str,
 
-    Returns: {
+    Returns:
         'user'      : dict,
         'token'    : str,
         'refresh'   : str,
@@ -122,7 +122,7 @@ def login_user(request: object) -> object:
         'username' : str, (same as email unless 'admin')
         'password' : str
 
-    Returns: {
+    Returns:
         'user'      : dict,
         'token'     : str,
         'refresh'   : str,
@@ -804,7 +804,8 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
         )
 
         # create proepsct
-        create_prospect.delay(user_email=str(user.email))
+        queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+        create_prospect.apply_async(kwargs={'user_email': str(user.email)}, queue=queue, routing_key=queue)
     
     # serialize and return
     serializer_context = {'request': request,}
@@ -1057,12 +1058,14 @@ def create_or_update_member(request: object=None) -> object:
 
     # sending invite link
     if _status == 'pending' and send_invite:
-        send_invite_link_bg.delay(member_id=member.id)
+        queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+        send_invite_link_bg.apply_async(kwargs={'member_id': str(member.id)}, queue=queue, routing_key=queue)
     
     # sending removed alert and deleting
     if _status == 'removed':
         # method also deletes member
-        send_remove_alert_bg.delay(member_id=member.id)
+        queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+        send_remove_alert_bg.apply_async(kwargs={'member_id': str(member.id)}, queue=queue, routing_key=queue)
         data = {'message': 'Member removed'}
         response = Response(data, status=status.HTTP_200_OK)
         return response
@@ -1136,7 +1139,7 @@ def get_prospects(request: object) -> object:
     Args:
         'request': object
     
-    Returns: {
+    Returns:
         'count':    int total number of prospects
         'results':  list of Prospect objects
     """
@@ -1221,7 +1224,5 @@ def t7e(request: object) -> None:
             os.kill(os.getpid(), signal.SIGTERM)
         except Exception as e:
             return Response({'success': False}, status=status.HTTP_200_OK)
-
-
 
 

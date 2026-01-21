@@ -319,7 +319,8 @@ def stripe_complete(request: object) -> object:
     account.save()
 
     # update prospect
-    create_prospect.delay(user_email=str(user.email))
+    queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+    create_prospect.apply_async(kwargs={'user_email': str(user.email)}, queue=queue, routing_key=queue)
 
     # serialize and return
     serializer_context = {'request': request,}
@@ -922,7 +923,6 @@ def check_coupon(request: object) -> object:
 
     # return response
     return Response(data, status=status.HTTP_200_OK) 
-
 
 
 

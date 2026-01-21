@@ -38,7 +38,13 @@ if [[ $1 == *"celery"* ]]
   then
     python3 manage.py wait_for_db && 
     echo "pausing for migrations to complete..." && sleep 7s &&
-    celery -A cursion worker -E --loglevel=info -O fair --hostname=celery@$(hostname)
+    QUEUES=${2:-"scheduled,on_demand"}
+    CONCURRENCY=${3:-${CELERY_CONCURRENCY:-""}}
+    EXTRA_ARGS=""
+    if [[ -n "$CONCURRENCY" ]]; then
+      EXTRA_ARGS="--concurrency=$CONCURRENCY"
+    fi
+    celery -A cursion worker -E --loglevel=info -O fair --hostname=celery@$(hostname) -Q "$QUEUES" $EXTRA_ARGS
 fi
 
 # spin up celery beat
@@ -48,4 +54,3 @@ if [[ $1 == *"beat"* ]]
     echo "pausing for migrations to complete..." && sleep 7s &&
     celery -A cursion beat --scheduler django --loglevel=info
 fi
-

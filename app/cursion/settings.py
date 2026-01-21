@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+from kombu import Exchange, Queue
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -188,7 +189,21 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 
 # Redis and Celery Config
-CELERY_BROKER_URL = 'redis://redis:6379'
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379')
+
+# Celery queues
+CELERY_QUEUE_SCHEDULED = os.environ.get('CELERY_QUEUE_SCHEDULED', 'scheduled')
+CELERY_QUEUE_ON_DEMAND = os.environ.get('CELERY_QUEUE_ON_DEMAND', 'on_demand')
+
+# Default to scheduled so interactive work can reserve capacity via the on_demand workers
+CELERY_TASK_DEFAULT_QUEUE = os.environ.get('CELERY_TASK_DEFAULT_QUEUE', CELERY_QUEUE_SCHEDULED)
+CELERY_TASK_DEFAULT_EXCHANGE = os.environ.get('CELERY_TASK_DEFAULT_EXCHANGE', CELERY_TASK_DEFAULT_QUEUE)
+CELERY_TASK_DEFAULT_ROUTING_KEY = os.environ.get('CELERY_TASK_DEFAULT_ROUTING_KEY', CELERY_TASK_DEFAULT_QUEUE)
+CELERY_TASK_CREATE_MISSING_QUEUES = True
+CELERY_TASK_QUEUES = (
+    Queue(CELERY_QUEUE_SCHEDULED, Exchange(CELERY_QUEUE_SCHEDULED), routing_key=CELERY_QUEUE_SCHEDULED),
+    Queue(CELERY_QUEUE_ON_DEMAND, Exchange(CELERY_QUEUE_ON_DEMAND), routing_key=CELERY_QUEUE_ON_DEMAND),
+)
 
 
 # RabbitMQ and Celery Config
@@ -288,5 +303,4 @@ TYPES = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
 
 # Global max attempts
 MAX_ATTEMPTS = 3
-
 

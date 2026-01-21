@@ -25,7 +25,7 @@ def send_reset_link(email: str=None) -> dict:
     Args:
         'email': str
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -81,7 +81,7 @@ def send_invite_link(member: object=None) -> dict:
     Args:
         'member': obj
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -141,7 +141,7 @@ def send_remove_alert(member: object=None) -> dict:
     Args:
         'member': obj
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -200,7 +200,7 @@ def create_exp(obj: object=None, alert: object=None) -> dict:
         'obj'   :  object (Scan, Test, CaseRun, FlowRun),
         'alert' :  object
     
-    Returns: {
+    Returns:
         'exp_list': list, 
         'exp_str' : str,
     """
@@ -333,7 +333,7 @@ def get_obj(object_id: str=None) -> dict:
     Args:
         'object_id':  str,
     
-    Returns: {
+    Returns:
         'obj'      : object,
         'obj_type' : str,
         'success'  : bool
@@ -410,7 +410,7 @@ def alert_email(email: str=None, alert_id: str=None, object_id: str=None) -> dic
         'alert_id' : str,
         'object_id'     : str
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -504,7 +504,7 @@ def alert_report_email(email: str=None, alert_id: str=None, object_id: str=None)
         'alert_id' : str,
         'object_id'     : str
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -581,7 +581,7 @@ def alert_phone(phone_number: str=None, alert_id: str=None, object_id: str=None)
         'alert_id'        : str, 
         'object_id'       : str,
     
-    Returns: {
+    Returns:
         'success': bool
     """
 
@@ -657,7 +657,7 @@ def alert_slack(alert_id: str=None, object_id: str=None) -> dict:
         'alert_id'   : str, 
         'object_id'  : str,
     
-    Returns: {
+    Returns:
         'success': bool
     """
 

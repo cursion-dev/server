@@ -536,7 +536,7 @@ class Reporter():
         """ 
         Generates a new Report.
 
-        Returns: {
+        Returns:
             'report' : object,
             'success': bool,
             'message': str

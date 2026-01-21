@@ -512,7 +512,7 @@
 #             'index': int,
 #         }
 
-#         Returns: {
+#         Returns:
 #             'average_score' : float(0-100),
 #             'images'        : dict,
 #         }

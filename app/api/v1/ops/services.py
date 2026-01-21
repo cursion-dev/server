@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 import json, boto3, os, requests, uuid, secrets, operator
 
 
+ON_DEMAND_QUEUE = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+
 
 
 
@@ -350,7 +352,7 @@ def check_permissions_and_usage(
             
             # update price for sub if enterprise
             if account.type == 'enterprise':
-                update_sub_price.delay(account.id)
+                update_sub_price.apply_async(kwargs={'account_id': str(account.id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
 
     # check usage if action is 'add'
@@ -485,20 +487,24 @@ def create_site(request: object=None) -> object:
     )
 
     # auto gen Cases using bg_autocase_task
-    create_auto_cases_bg.delay(
-        site_id=site.id,
-        process_id=process.id,
-        start_url=str(site.site_url),
-        configs=configs,
-        max_cases=3,
-        max_layers=8
+    create_auto_cases_bg.apply_async(
+        kwargs={
+            'site_id': str(site.id),
+            'process_id': str(process.id),
+            'start_url': str(site.site_url),
+            'configs': configs,
+            'max_cases': 3,
+            'max_layers': 8,
+        },
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
     
     # check if this is account's first site and onboarding = True
     if Site.objects.filter(account=account).count() == 1 \
         and onboarding == True:
         # send POST to landing/v1/ops/prospect
-        create_prospect.delay(user_email=str(user.email))
+        create_prospect.apply_async(kwargs={'user_email': str(user.email)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # check if scan requested
     if no_scan == False:
@@ -528,9 +534,10 @@ def create_site(request: object=None) -> object:
         
         # starting crawler and scans in background
         else:
-            create_site_and_pages_bg.delay(
-                site_id=site.id, 
-                configs=configs
+            create_site_and_pages_bg.apply_async(
+                kwargs={'site_id': str(site.id), 'configs': configs},
+                queue=ON_DEMAND_QUEUE,
+                routing_key=ON_DEMAND_QUEUE,
             )
             
     # serialize response and return
@@ -586,7 +593,7 @@ def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
     site.save()
 
     # starting crawl
-    crawl_site_bg.delay(site_id=site.id, configs=configs)
+    crawl_site_bg.apply_async(kwargs={'site_id': str(site.id), 'configs': configs}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # serializing and returning
     if request:
@@ -738,7 +745,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
     site = Site.objects.get(id=id)
 
     # remove s3 objects
-    delete_site_s3_bg.delay(site_id=id)
+    delete_site_s3_bg.apply_async(kwargs={'site_id': str(id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
     
     # remove any associated tasks 
     delete_tasks_and_schedules(resource_id=str(site.id), scope='site', account=account)
@@ -764,7 +771,7 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
 
         # update billing for enterprise
         if account.type == 'enterprise':
-            update_sub_price.delay(account_id=account.id)
+            update_sub_price.apply_async(kwargs={'account_id': str(account.id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # returning response
     data = {'message': 'site deleted'}
@@ -997,7 +1004,7 @@ def create_page(request: object=None) -> object:
         page.save()
 
         # running scan in background
-        scan_page_bg.delay(scan_id=scan.id)
+        scan_page_bg.apply_async(kwargs={'scan_id': str(scan.id), '_queue': ON_DEMAND_QUEUE}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
       
     # serialize response and return
     serializer_context = {'request': request}
@@ -1105,7 +1112,11 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
                 page.save()
                 
                 # run scanner
-                scan_page_bg.delay(scan_id=scan.id, configs=configs)
+                scan_page_bg.apply_async(
+                    kwargs={'scan_id': str(scan.id), '_queue': ON_DEMAND_QUEUE},
+                    queue=ON_DEMAND_QUEUE,
+                    routing_key=ON_DEMAND_QUEUE,
+                )
 
                 # update info
                 succeeded.append(url)
@@ -1285,7 +1296,7 @@ def delete_page(request: object=None, id: str=None, user: object=None) -> object
     page = Page.objects.get(id=id)
 
     # remove s3 objects
-    delete_page_s3_bg.delay(page_id=id, site_id=page.site.id)
+    delete_page_s3_bg.apply_async(kwargs={'page_id': str(id), 'site_id': str(page.site.id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # remove any schedules and associated tasks
     delete_tasks_and_schedules(resource_id=str(page.id), scope='page', account=account)
@@ -1465,7 +1476,8 @@ def create_scan(request: object=None, **kwargs) -> object:
     Args:
         'request': object, 
     
-    Returns: dict or HTTP Response object
+    Returns:
+        dict or HTTP Response object
     """
 
     # check location
@@ -1542,6 +1554,7 @@ def create_scan(request: object=None, **kwargs) -> object:
 
     # setting default
     created_scans = []
+    queue = ON_DEMAND_QUEUE
 
     # looping through each page
     for p in pages:
@@ -1581,7 +1594,8 @@ def create_scan(request: object=None, **kwargs) -> object:
                 'scan_id': str(created_scan.id),
                 'alert_id': None,
                 'flowrun_id': None,
-                'node_index': None
+                'node_index': None,
+                '_queue': queue,
             }
         )
 
@@ -1610,19 +1624,19 @@ def create_scan(request: object=None, **kwargs) -> object:
         # running scans components in parallel 
         if 'html' in types or 'logs' in types or 'full' in types:
             task_id = f'lock:html_and_logs_bg_{created_scan.id}'
-            run_html_and_logs_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+            run_html_and_logs_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
         
         if 'lighthouse' in types or 'full' in types:
             task_id = f'lock:lighthouse_bg_{created_scan.id}'
-            run_lighthouse_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+            run_lighthouse_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
         
         if 'yellowlab' in types or 'full' in types:
             task_id = f'lock:yellowlab_bg_{created_scan.id}'
-            run_yellowlab_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+            run_yellowlab_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
         
         if 'vrt' in types or 'full' in types:
             task_id = f'lock:vrt_bg_{created_scan.id}'
-            run_vrt_bg.apply_async(kwargs={'scan_id':str(created_scan.id)}, task_id=task_id)
+            run_vrt_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
     
     # returning dynaminc response
     data = {
@@ -1941,16 +1955,17 @@ def delete_scan(request: object=None, id: str=None, user: object=None) -> object
     scan = Scan.objects.get(id=id)
 
     # remove s3 objects
-    delete_scan_s3_bg.delay(scan.id, scan.site.id, scan.page.id)
+    delete_scan_s3_bg.apply_async(kwargs={'scan_id': str(scan.id), 'site_id': str(scan.site.id), 'page_id': str(scan.page.id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # delete scan
     page_id = str(scan.page.id)
     scan.delete()
 
     # update page and site
-    update_site_and_page_info.delay(
-        resource='scan',
-        page_id=page_id
+    update_site_and_page_info.apply_async(
+        kwargs={'resource': 'scan', 'page_id': str(page_id)},
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
 
     # return response
@@ -2144,7 +2159,8 @@ def create_test(request: object=None, **kwargs) -> object:
         'request': object, 
         'delay': bool
     
-    Returns: dict or HTTP Response object
+    Returns: 
+        dict or HTTP Response object
     """
 
     # check location
@@ -2368,15 +2384,20 @@ def create_test(request: object=None, **kwargs) -> object:
         test.save()
 
         # running test in background
-        create_test_bg.delay(
-            test_id=test.id,
-            configs=configs,
-            type=test_type,
-            index=index,
-            pre_scan=pre_scan_id, 
-            post_scan=post_scan_id,
-            tags=tags,
-            threshold=float(threshold),
+        create_test_bg.apply_async(
+            kwargs={
+                'test_id': str(test.id),
+                'configs': configs,
+                'type': test_type,
+                'index': index,
+                'pre_scan': pre_scan_id,
+                'post_scan': post_scan_id,
+                'tags': tags,
+                'threshold': float(threshold),
+                '_queue': ON_DEMAND_QUEUE,
+            },
+            queue=ON_DEMAND_QUEUE,
+            routing_key=ON_DEMAND_QUEUE,
         )
         message = 'Tests are being created in the background'
 
@@ -2706,16 +2727,17 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
     test = Test.objects.get(id=id)
     
     # remove s3 objects
-    delete_test_s3_bg.delay(test.id, test.site.id, test.page.id)
+    delete_test_s3_bg.apply_async(kwargs={'test_id': str(test.id), 'site_id': str(test.site.id), 'page_id': str(test.page.id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # delete test
     page_id = str(test.page.id)
     test.delete()
 
     # update site and page with most recent data
-    update_site_and_page_info.delay(
-        resource='test',
-        page_id=page_id
+    update_site_and_page_info.apply_async(
+        kwargs={'resource': 'test', 'page_id': str(page_id)},
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
 
     # return response
@@ -3704,6 +3726,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             'type': types,
             'threshold': threshold,
             'alert_id': alert_id,
+            '_queue': getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled'),
         }
 
         # setting start date default
@@ -3776,6 +3799,8 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
                     name=task_name, 
                     task=task,
                     kwargs=json.dumps(arguments),
+                    queue=getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled'),
+                    routing_key=getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled'),
                 )
                 # get periodic task by id
                 periodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
@@ -3795,7 +3820,9 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             periodic_task = PeriodicTask.objects.create(
                 crontab=crontab, 
                 name=task_name, 
-                task=task,   
+                task=task,
+                queue=getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled'),
+                routing_key=getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled'),
             )
             
             # inserting task_id
@@ -3963,7 +3990,6 @@ def run_schedule(request: object=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # checking account and resource 
     check_data = check_permissions_and_usage(
@@ -3980,6 +4006,8 @@ def run_schedule(request: object=None) -> object:
     task = schedule.task_type
     perodic_task = PeriodicTask.objects.get(id=schedule.periodic_task_id)
     task_kwargs = json.loads(perodic_task.kwargs)
+    queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+    task_kwargs['_queue'] = queue
 
     # check location
     local = schedule.extras['configs'].get('location', settings.LOCATION)
@@ -3990,29 +4018,19 @@ def run_schedule(request: object=None) -> object:
     # decidign on which task 
     if task == 'scan':
         # run create_scan_bg
-        create_scan_bg.delay(
-            **task_kwargs
-        )
+        create_scan_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
     if task == 'test':
         # run create_test_bg
-        create_test_bg.delay(
-            **task_kwargs
-        )
+        create_test_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
     if task == 'caserun':
         # run create_caserun_bg
-        create_caserun_bg.delay(
-            **task_kwargs
-        )
+        create_caserun_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
     if task == 'flowrun':
         # run create_flowrun_bg
-        create_flowrun_bg.delay(
-            **task_kwargs
-        )
+        create_flowrun_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
     if task == 'report':
         # run create_report_bg
-        create_report_bg.delay(
-            **task_kwargs
-        )
+        create_report_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
 
     # serialize and return
     serializer_context = {'request': request}
@@ -4802,7 +4820,7 @@ def delete_report(request: object=None, id: str=None) -> object:
     report = Report.objects.get(id=id)
 
     # remove s3 objects
-    delete_report_s3_bg.delay(report_id=id)
+    delete_report_s3_bg.apply_async(kwargs={'report_id': str(id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
     
     # remove report
     report.delete()
@@ -4834,10 +4852,10 @@ def export_report(request: object=None) -> object:
     first_name = request.data.get('first_name')
 
     # send task to background
-    create_report_export_bg.delay(
-        report_id=report_id,
-        email=email, 
-        first_name=first_name
+    create_report_export_bg.apply_async(
+        kwargs={'report_id': str(report_id), 'email': email, 'first_name': first_name},
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
 
     # building response
@@ -4980,7 +4998,7 @@ def save_case_steps(steps: dict, case_id: str) -> dict:
         'steps'   : dict, 
         'case_id' : str
     
-    Returns: {
+    Returns:
         'num_steps' : int,
         'url'       : str
     """
@@ -5049,7 +5067,6 @@ def case_pre_run(request: object=None, **kwargs) -> object:
     
     # get member, and account
     member = Member.objects.get(user__id=user_id)
-    account = member.id
 
     # checking account and resource 
     check_data = check_permissions_and_usage(
@@ -5074,9 +5091,10 @@ def case_pre_run(request: object=None, **kwargs) -> object:
     )
 
     # start pre_run for new Case
-    case_pre_run_bg.delay(
-        case_id=str(case.id),
-        process_id=str(process.id)
+    case_pre_run_bg.apply_async(
+        kwargs={'case_id': str(case.id), 'process_id': str(process.id)},
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
 
     # return dynamic
@@ -5316,13 +5334,17 @@ def create_auto_cases(request: object=None) -> object:
     )
 
     # send data to bg_autocase_task
-    create_auto_cases_bg.delay(
-        site_id=site_id,
-        process_id=process.id,
-        start_url=start_url,
-        configs=configs,
-        max_cases=max_cases,
-        max_layers=max_layers,
+    create_auto_cases_bg.apply_async(
+        kwargs={
+            'site_id': str(site_id),
+            'process_id': str(process.id),
+            'start_url': start_url,
+            'configs': configs,
+            'max_cases': max_cases,
+            'max_layers': max_layers,
+        },
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
 
     # return response
@@ -5435,7 +5457,7 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
     case = Case.objects.get(id=id)
     
     # delete case s3 objects
-    delete_case_s3_bg.delay(case_id=id)
+    delete_case_s3_bg.apply_async(kwargs={'case_id': str(id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # delete case
     case.delete()
@@ -5674,7 +5696,14 @@ def create_caserun(request: object=None) -> object:
     )
 
     # pass the newly created CaseRun to the backgroud task to run
-    run_case.delay(caserun_id=caserun.id)
+    run_case.apply_async(
+        kwargs={
+            'caserun_id': str(caserun.id), 
+            '_queue': ON_DEMAND_QUEUE
+        }, 
+        queue=ON_DEMAND_QUEUE, 
+        routing_key=ON_DEMAND_QUEUE
+    )
 
     # serialize and return
     data = {
@@ -5836,7 +5865,7 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
     caserun = CaseRun.objects.get(id=id)
 
     # remove s3 objects
-    delete_caserun_s3_bg.delay(caserun_id=id)
+    delete_caserun_s3_bg.apply_async(kwargs={'caserun_id': str(id)}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
 
     # delete caserun
     caserun.delete()
@@ -7689,14 +7718,34 @@ def get_celery_metrics(request: object=None) -> object:
     if cached:
         return Response(cached, status=status.HTTP_200_OK)
 
+    queue_param = None
+    try:
+        queue_param = request.query_params.get('queue')
+    except Exception:
+        queue_param = None
+
+    scheduled_queue = getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled')
+    on_demand_queue = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
+
     try:
         redis_client = Redis.from_url(
             settings.CELERY_BROKER_URL,
             socket_connect_timeout=2
         )
-        redis_queue_len = redis_client.llen('celery')
+        if queue_param in {scheduled_queue, on_demand_queue, 'celery'}:
+            redis_queue_len = redis_client.llen(queue_param)
+            scheduled_len = redis_client.llen(scheduled_queue) if queue_param == scheduled_queue else 0
+            on_demand_len = redis_client.llen(on_demand_queue) if queue_param == on_demand_queue else 0
+        else:
+            # default to total queued across known queues
+            scheduled_len = redis_client.llen(scheduled_queue)
+            on_demand_len = redis_client.llen(on_demand_queue)
+            legacy_len = redis_client.llen('celery')
+            redis_queue_len = scheduled_len + on_demand_len + legacy_len
     except RedisError:
         redis_queue_len = 0
+        scheduled_len = 0
+        on_demand_len = 0
 
     try:
         i = celery.app.control.inspect()
@@ -7705,11 +7754,23 @@ def get_celery_metrics(request: object=None) -> object:
     except Exception:
         reserved, active = {}, {}
 
+    def _count_tasks_by_queue(tasks_by_worker: dict, queue_name: str | None) -> int:
+        count = 0
+        for tasks in (tasks_by_worker or {}).values():
+            for task in tasks or []:
+                if not queue_name:
+                    count += 1
+                    continue
+                delivery = task.get('delivery_info') or {}
+                routing_key = delivery.get('routing_key')
+                if routing_key == queue_name:
+                    count += 1
+        return count
+
+    filter_queue = queue_param if queue_param in {scheduled_queue, on_demand_queue, 'celery'} else None
+
     # calc tasks
-    num_tasks = (
-            sum(len(tasks) for tasks in reserved.values()) +
-            sum(len(tasks) for tasks in active.values())
-        )
+    num_tasks = _count_tasks_by_queue(reserved, filter_queue) + _count_tasks_by_queue(active, filter_queue)
     
     # calc replicas
     num_replicas = len(reserved)
@@ -7723,6 +7784,8 @@ def get_celery_metrics(request: object=None) -> object:
         "num_replicas": num_replicas,
         "ratio": ratio,
         "redis_queue": redis_queue_len,
+        "redis_queue_scheduled": scheduled_len,
+        "redis_queue_on_demand": on_demand_len,
         "working_len": working_len
     }
 
@@ -7784,21 +7847,25 @@ def migrate_site(request: object=None) -> object:
     )
 
     # start migrtation task in background
-    migrate_site_bg.delay(
-        login_url, 
-        admin_url, 
-        username, 
-        password, 
-        email_address, 
-        destination_url, 
-        sftp_address, 
-        dbname, 
-        sftp_username, 
-        sftp_password, 
-        plugin_name, 
-        wait_time, 
-        process.id, 
-        driver
+    migrate_site_bg.apply_async(
+        args=[
+            login_url,
+            admin_url,
+            username,
+            password,
+            email_address,
+            destination_url,
+            sftp_address,
+            dbname,
+            sftp_username,
+            sftp_password,
+            plugin_name,
+            wait_time,
+            str(process.id),
+            driver,
+        ],
+        queue=ON_DEMAND_QUEUE,
+        routing_key=ON_DEMAND_QUEUE,
     )
     
     # serialize and return
@@ -7807,8 +7874,3 @@ def migrate_site(request: object=None) -> object:
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
-
-
-
-
-
