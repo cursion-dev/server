@@ -92,5 +92,5 @@ Special thanks to [@ashrafsamhouri](https://github.com/ashrafsamhouri) with [@ac
 <br>
 <br>
 
-Copyright © 2025 Grey Labs, LLC 
+Copyright © 2026 Grey Labs, LLC 
 
