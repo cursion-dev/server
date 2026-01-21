@@ -360,7 +360,7 @@ class Caser():
             'case_id' : str
         }
 
-        Returns: {
+        Returns:
             'num_steps' : int,
             'url'       : str
         }
@@ -421,7 +421,7 @@ class Caser():
             "xpath": str, 
         }
 
-        Returns: {
+        Returns:
             'element': object | None,
             'failed': bool
         }

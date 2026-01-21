@@ -41,16 +41,35 @@ services:
       - "6379"
 
 
-  celery:
-    container_name: cursion-celery
-    hostname: cursion-celery
+  celery-scheduled:
+    container_name: cursion-celery-scheduled
+    hostname: cursion-celery-scheduled
     platform: linux/amd64
     privileged: true
     restart: no
     build:
       context: .
       dockerfile: Dockerfile
-    entrypoint: ["/entrypoint.sh", "celery"]
+    entrypoint: ["/entrypoint.sh", "celery", "scheduled"]
+    volumes:
+      - celery:/app
+    env_file:
+      - ./env/.env.local
+    depends_on:
+      - redis
+      - server
+      - db
+
+  celery-on-demand:
+    container_name: cursion-celery-on-demand
+    hostname: cursion-celery-on-demand
+    platform: linux/amd64
+    privileged: true
+    restart: no
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["/entrypoint.sh", "celery", "on_demand"]
     volumes:
       - celery:/app
     env_file:
@@ -77,7 +96,8 @@ services:
       - ./env/.env.local
     depends_on:
       - redis
-      - celery
+      - celery-scheduled
+      - celery-on-demand
       - server
       - db
 
@@ -92,7 +112,8 @@ services:
       - 8383:8383
     depends_on:
       - redis
-      - celery 
+      - celery-scheduled
+      - celery-on-demand
       - server
       - db
 

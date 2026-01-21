@@ -403,7 +403,7 @@ class AutoCaser():
 
     def record_new_element(self, elem: object, sub_elements: list) -> dict:
         """
-        Returns: {
+        Returns:
             'sub_elements': [],
             'run': bool,
             'added': bool,

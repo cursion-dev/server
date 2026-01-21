@@ -150,7 +150,7 @@
 #         configs : dict
 #     }
     
-#     Returns: {
+#     Returns:
 #         'html' : str, 
 #         'logs' : dict,
 #     }

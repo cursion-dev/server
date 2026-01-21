@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-on-demand-deployment
+  labels:
+    deployment: celery-on-demand
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: celery-on-demand-deployment
+  template:
+    metadata:
+      labels:
+        app: celery-on-demand-deployment
+    spec:
+      terminationGracePeriodSeconds: 300
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: celery-on-demand
+          image: <IMAGE>
+          imagePullPolicy: IfNotPresent
+          command: ["/entrypoint.sh", "celery", "on_demand"]
+          envFrom:
+            - configMapRef:
+                name: app-configs
+          env:
+            - name: THIS_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # remove below if not using NAT gateway
+            - name: HTTP_PROXY
+              value: "http://10.124.0.29:8888"
+            - name: HTTPS_PROXY
+              value: "http://10.124.0.29:8888"
+            - name: NO_PROXY
+              value: "localhost,127.0.0.1,.svc.cluster.local,10.0.0.0/8,.googleapis.com,.google.com,clients2.google.com,mtalk.google.com"
+          resources:
+            limits:
+              cpu: "1"
+              memory: "2.5Gi"
+            requests:
+              cpu: "0.75"
+              memory: "1.5Gi"
+          lifecycle:
+            preStop:
+              exec:
+                command: ["python3", "manage.py", "terminate_worker"]
+          livenessProbe:
+            exec:
+              command: ["/healthcheck.sh", "celery"]
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            failureThreshold: 12
+          readinessProbe:
+            exec:
+              command: ["/healthcheck.sh", "celery"]
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            failureThreshold: 12
+
