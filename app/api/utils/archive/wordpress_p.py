@@ -60,7 +60,7 @@
 #         ''' 
 #             Tries to log into a WP site with given credentials.
 
-#             returns --> True / False 
+#             Returns: True / False 
         
 #         '''
 
@@ -413,7 +413,7 @@
 #         ''' 
 #             Launches the migration plugin once Activated.
 
-#             returns --> True / False 
+#             Returns: True / False 
         
 #         '''
 
@@ -456,7 +456,7 @@
 #             and begins updating the associated `Process` with data
 #             from the page.
 
-#             returns --> True / False 
+#             Returns: True / False 
         
 #         '''
 

@@ -63,7 +63,7 @@ class Yellowlab():
         Serves as the CLI method for collecting YL metrics.
         Creates a sub process running yellowlabtools CLI
 
-        Returns --> raw YL data (Dict)
+        Returns: raw YL data (Dict)
         """
 
         print(f'starting YL with device type -> {self.device_type}')
@@ -93,7 +93,7 @@ class Yellowlab():
         Sends API requests to http://yellowlab:8383
         or localhost:8383
 
-        Returns --> raw YL data (Dict)
+        Returns: raw YL data (Dict)
         """
 
         headers = {
@@ -174,7 +174,7 @@ class Yellowlab():
         Expects the following:
             stdout_json: <dict> or json from output
             
-        Returns --> formatted YL data <dict> 
+        Returns: formatted YL data <dict> 
         """
 
         # setup boto3 configurations

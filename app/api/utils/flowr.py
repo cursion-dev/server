@@ -58,7 +58,7 @@ class Flowr():
         """ 
         Formats the 'timestamp' if not None
 
-        Expects: {
+        Args:
             timestamp: str
         }
 
@@ -86,7 +86,7 @@ class Flowr():
 
         Expects: None
 
-        Returns: {
+        Returns:
             'index' : int,
             'node'  : dict
         } 
@@ -158,11 +158,11 @@ class Flowr():
         Retrieves the self.flowrun.edge[] that matched the 
         passed 'target' id
 
-        Expects: {
+        Args:
             'target': str
         }
 
-        Returns: {
+        Returns:
             'index': str,
             'edge': dict
         }
@@ -187,7 +187,7 @@ class Flowr():
         Retrieves the self.flowrun.edges[] that matched the 
         passed 'source' id
 
-        Expects: {
+        Args:
             'source': str
         }
 
@@ -217,11 +217,11 @@ class Flowr():
         Retrieves the self.flowrun.node[] that matched the 
         passed 'id'
 
-        Expects: {
+        Args:
             'id': str
         }
 
-        Returns: {
+        Returns:
             'index': str,
             'node': dict
         }
@@ -246,7 +246,7 @@ class Flowr():
         Iterates through the object_list of a given node
         and returns True if all object.status != 'working'
 
-        Expects: {
+        Args:
             'object_list': list
         }
 
@@ -363,7 +363,7 @@ class Flowr():
         Updates the node matching the 'index' with 
         'finalized' = True, then updates self.flowrun
 
-        Expects: {
+        Args:
             'index': int
         }
 
@@ -387,7 +387,7 @@ class Flowr():
         Checks for run completion and updates final 
         run status.
 
-        Expects: {
+        Args:
             'current_data': dict
         }
 
@@ -683,7 +683,7 @@ class Flowr():
         """ 
         Executes the `step` with associated job.
 
-        Expects: {
+        Args:
             'step_data': {
                 'index': str,
                 'node' : dict

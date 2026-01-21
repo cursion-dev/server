@@ -13,7 +13,7 @@ class AutoCaser():
     """ 
     Generate new `Cases` for the passed 'site'.
 
-    Expects: {
+    Args:
         'site'        : object,
         'process'     : object,
         'start_url'   : str,
@@ -24,7 +24,7 @@ class AutoCaser():
 
     Use `AutoCaser.build_cases()` to generate new `Cases`
 
-    Returns -> None
+    Returns: None
     """
 
 
@@ -403,7 +403,7 @@ class AutoCaser():
 
     def record_new_element(self, elem: object, sub_elements: list) -> dict:
         """
-        returns -> {
+        Returns: {
             'sub_elements': [],
             'run': bool,
             'added': bool,

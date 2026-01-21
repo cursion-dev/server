@@ -60,7 +60,7 @@ class Wordpress():
         ''' 
             Tries to log into a WP site with given credentials.
 
-            returns --> True / False 
+            Returns: True / False 
         
         '''
 
@@ -377,7 +377,7 @@ class Wordpress():
         ''' 
             Launches the migration plugin once Activated.
 
-            returns --> True / False 
+            Returns: True / False 
         
         '''
 
@@ -421,7 +421,7 @@ class Wordpress():
             and begins updating the associated `Process` with data
             from the page.
 
-            returns --> True / False 
+            Returns: True / False 
         
         '''
 

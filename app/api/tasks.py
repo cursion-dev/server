@@ -92,12 +92,12 @@ def check_and_increment_resource(account_id: str, resource: str) -> bool:
     {resource}_allowed has not been reached or 
     if account.type is 'cloud'.
 
-    Expects: {
+    Args:
         'account_id'  : <str>,
         'resource'    : <str> 'scan', 'test', 'caserun', etc
-    }
-
-    Returns: Bool, True if resource was incremented.
+    
+    Returns:
+        bool, True if resource was incremented.
     """
 
     # get account
@@ -105,10 +105,11 @@ def check_and_increment_resource(account_id: str, resource: str) -> bool:
 
     # define defaults
     success = False
-    charge_list = ['caseruns', 'flowruns', 'scans', 'tests']
+    charge_list = ['caseruns', 'scans', 'tests']
+    cloud_types = ['cloud', 'team', 'business']
 
     # handle non-paid, cloud accounts
-    if account.type != 'cloud':
+    if account.type not in cloud_types:
 
         # check allowance
         if (int(account.usage[f'{resource}']) + 1) <= int(account.usage[f'{resource}_allowed']):
@@ -119,7 +120,7 @@ def check_and_increment_resource(account_id: str, resource: str) -> bool:
             success = True
     
     # handle paid, cloud accounts
-    if account.type == 'cloud':
+    if account.type in cloud_types:
 
         # increment chargable resources
         if resource in charge_list:
@@ -158,11 +159,11 @@ def check_location(location: str) -> bool:
     Determines if task should be executed based on 
     passed location and current system location (settings.LOCATION). 
 
-    Expects: {
+    Args:
         'location': str
-    }
-
-    Returns: bool (True if task should run)
+    
+    Returns:
+        bool (True if task should run)
     """
 
     # compare location to system
@@ -178,11 +179,11 @@ def update_schedule(task_id: str=None) -> None:
     """
     Helper function to update Schedule.time_last_run
 
-    Expects: {
+    Args:
         task_id: str
-    }
-
-    Returns: None
+    
+    Returns:
+        None
     """
     if task_id:
         try:
@@ -201,11 +202,11 @@ def add_scan_system_data(scan: object=None, kwargs: dict={}) -> dict:
     """
     Helper function to build system for passed `Scan`.
 
-    Expects: {
+    Args:
         'scan': obj
-    }
-
-    Returns: `Scan`
+    
+    Returns:
+        `Scan`
     """
 
     # build system data
@@ -238,13 +239,13 @@ def call_local_task_by_name(
     """ 
     Helper method to dynamically re-execute local tasks.
 
-    Expects: {
+    Args:
         'task_name' : str,
         'kwargs'    : dict,
         'task_id'   : str
-    }
-
-    Returns `task_name.apply_async(...)`
+    
+    Returns:
+        `task_name.apply_async(...)`
     """
 
     task_func = globals()[task_name]
@@ -466,12 +467,11 @@ def create_site_and_pages_bg(self, site_id: str=None, configs: dict=settings.CON
     Takes a newly created `Site`, initiates a Crawl and 
     initial `Scan` for each crawled page
 
-    Expects: {
+    Args:
         site_id: str, 
         configs: dict
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # getting site and updating for time_crawl_start
@@ -536,12 +536,11 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
     Takes an existing `Site`, initiates a new Crawl and 
     initial `Scan` for each newly added page
 
-    Expects: {
+    Args:
         site_id: str, 
         configs: dict
-    }
     
-    Returns -> None
+    Returns: None
     """
     
     # getting site and updating for time_crawl_start
@@ -625,13 +624,12 @@ def update_site_and_page_info(
     Updates the site and or page `latest_scan` & `latest_test` info 
     depending on scope.
 
-    Expects: {
+    Args:
         "resource" : str (OPTIONAL),
         "site_id"  : str (OPTIONAL),
         "page_id"  : str (OPTIONAL)
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # defaults
@@ -770,11 +768,10 @@ def update_scan_score(self, scan_id: str) -> None:
     Method to calculate the average health score and update 
     for the passed scan_id
 
-    Expects: {
+    Args:
         'scan_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
     
     # setting defaults
@@ -815,16 +812,15 @@ def scan_page_bg(
     Runs all the requested `Scan` components 
     of the passed `Scan`.
 
-    Expects: {
+    Args:
         scan_id    : str, 
         test_id    : str, 
         alert_id   : str, 
         configs    : dict,
         flowrun_id : str,
         node_index : str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
     
     # get scan object
@@ -896,16 +892,15 @@ def create_scan(
     Runs a `Scan` using Scanner.build_scan() 
     where each component is run in sequence.
 
-    Expects: {
+    Args:
         scan_id         : str,
         page_id         : str, 
         type            : list,
         alert_id        : str, 
         configs         : dict,
         tags            : list,
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # get scan if scan_id present
@@ -941,7 +936,7 @@ def create_scan_bg(self, **kwargs) -> None:
     Creates 1 or more `Scans` depending on 
     the scope (page, site or account). Used with `Schedules`
 
-    Expects: {
+    Args:
         'scope'         : str
         'resources'     : list
         'account_id'    : strx
@@ -952,9 +947,8 @@ def create_scan_bg(self, **kwargs) -> None:
         'task_id'       : str,
         'flowrun_id'    : str,
         'node_index     : str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # get data from kwargs
@@ -1112,16 +1106,15 @@ def run_html_and_logs_bg(
     """ 
     Runs the html & logs components of the passed `Scan`
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str,
         **kwargs
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # sleeping random for DB 
@@ -1186,16 +1179,15 @@ def run_vrt_bg(
     """ 
     Runs the VRT component of the passed `Scan`
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str,
         **kwargs
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # sleeping random for DB 
@@ -1260,16 +1252,15 @@ def run_lighthouse_bg(
     """ 
     Runs the lighthouse component of the passed `Scan`
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str,
         **kwargs
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # sleeping random for DB 
@@ -1334,16 +1325,15 @@ def run_yellowlab_bg(
     """ 
     Runs the yellowlab component of the passed `Scan`
 
-    Expects: {
+    Args:
         scan_id     : str, 
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str,
         **kwargs
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # sleeping random for DB 
@@ -1408,15 +1398,14 @@ def run_test(
     Primary executor for running a `Test`.
     Compatible with `FlowRuns`
 
-    Expects: {
+    Args:
         test_id     : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str,
         **kwargs
-    }
     
-    Returns -> None
+    Returns: None
     """
     # sleeping random for DB 
     time.sleep(random.uniform(2, 6))
@@ -1523,7 +1512,7 @@ def create_test(
     Creates a `post_scan` if necessary, waits for completion,
     and runs a `Test`
 
-    Expects: {
+    Args:
         test_id     : str,
         page_id     : str, 
         alert_id    : str, 
@@ -1535,9 +1524,8 @@ def create_test(
         threshold   : float,
         flowrun_id  : str,
         node_index  : str
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # setting defaults
@@ -1757,7 +1745,7 @@ def create_test_bg(self, **kwargs) -> None:
     Depending on the scope, run create_test() for 
     all requested pages.
 
-    Expects: {
+    Args:
         scope         : str
         resources     : list
         account_id    : str
@@ -1772,9 +1760,8 @@ def create_test_bg(self, **kwargs) -> None:
         task_id       : str
         flowrun_id    : str
         node_index    : str
-    }
     
-    Returns -> None
+    Returns: None
     """
     
     # get data
@@ -1961,14 +1948,13 @@ def create_report(
     Generates a new PDF `Report` of the requested `Page`
     and runs the associated `Alert` if requested
 
-    Expects: {
+    Args:
         page_id       : str, 
         alert_id      : str,
         flowrun_id    : str
         node_index    : str
-    }
     
-    Returns -> None
+    Returns: None
     """
     
     # get page
@@ -2020,7 +2006,7 @@ def create_report_bg(**kwargs) -> None:
     """
     Creates new `Reports` for the requested `Pages`
 
-    Expects: {
+    Args:
         'scope'         : str,
         'resources'     : str
         'account_id'    : str
@@ -2030,7 +2016,7 @@ def create_report_bg(**kwargs) -> None:
         'node_index'    : str
     }
      
-    Returns -> None
+    Returns: None
     """
 
     # get data
@@ -2149,16 +2135,15 @@ def create_auto_cases_bg(
     """ 
     Generates new `Cases` for the passed site.
 
-    Expects: {
+    Args:
         site_id    : str,
         process_id : str,
         start_url  : str,
         max_cases  : int,
         max_layers : int,
         configs    : dict
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # checking location
@@ -2203,12 +2188,11 @@ def case_pre_run_bg(
     """ 
     Runs Caser.pre_run() for the passed case_id
 
-    Expects: {
+    Args:
         case_id    : str,
         process_id : str,
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # get objects
@@ -2245,14 +2229,13 @@ def run_case(
     """
     Runs a CaseRun.
 
-    Expects: {
+    Args:
         caserun_id  : str, 
         alert_id    : str,
         flowrun_id  : str,
         node_index  : str
-    }
     
-    Returns -> None
+    Returns: None
     """
     
     # get caserun
@@ -2280,7 +2263,7 @@ def create_caserun_bg(**kwargs) -> None:
     """ 
     Creates and or runs a CaseRun.
 
-    Expects: {
+    Args:
         caserun_id    : str, 
         resources     : list, 
         scope         : str, 
@@ -2292,9 +2275,8 @@ def create_caserun_bg(**kwargs) -> None:
         task_id       : str,
         flowrun_id    : str,
         node_index    : str
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # get data
@@ -2450,7 +2432,7 @@ def create_flowrun_bg(**kwargs) -> None:
     """ 
     Creates and runs a FlowRun.
 
-    Expects: {
+    Args:
         flow_id       : str, 
         resources     : list, 
         scope         : str, 
@@ -2458,9 +2440,8 @@ def create_flowrun_bg(**kwargs) -> None:
         alert_id      : str,
         configs       : dict,
         task_id       : str
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # get data
@@ -2583,18 +2564,16 @@ def create_issue(
     Creates and `Issue` for each passed obj, using either 
     passed data or Issuer.build_issue()
 
-    Expects: {
+    Args:
         'account_id'    : str, 
         'object_id'     : str,
         'title'         : str,
         'details'       : str,
         'generate'      : bool
-    }
-
-    Returns: {
+    
+    Returns:
         'message' : str,
         'success' : bool
-    }
     """
 
     # set defaults
@@ -2697,7 +2676,7 @@ def create_issue_bg(
     """ 
     Runs create_issue for each passed `object`
 
-    Expects: {
+    Args:
         'account_id'    : str, 
         'objects'       : list,
         'title'         : str,
@@ -2705,8 +2684,7 @@ def create_issue_bg(
         'generate'      : bool,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
-
+    
     Returns: None
     """
 
@@ -2769,11 +2747,10 @@ def delete_site_s3_bg(site_id: str) -> None:
     Deletes the directory in s3 bucked associated 
     with passed site
 
-    Expects: {
+    Args:
         'site_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2795,12 +2772,11 @@ def delete_page_s3_bg(page_id: str, site_id: str) -> None:
     Deletes the directory in s3 bucked associated 
     with passed page
 
-    Expects: {
+    Args:
         'site_id': str,
         'page_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2822,13 +2798,12 @@ def delete_scan_s3_bg(scan_id: str, site_id: str, page_id: str) -> None:
     Deletes the directory in s3 bucked associated 
     with passed scan
 
-    Expects: {
+    Args:
         'scan_id': str,
         'site_id': str,
         'page_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2850,13 +2825,12 @@ def delete_test_s3_bg(test_id: str, site_id: str, page_id: str) -> None:
     Deletes the directory in s3 bucked associated 
     with passed test
 
-    Expects: {
+    Args:
         'test_id': str,
         'site_id': str,
         'page_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2878,11 +2852,10 @@ def delete_caserun_s3_bg(caserun_id: str) -> None:
     Deletes the directory in s3 bucked associated 
     with passed test
 
-    Expects: {
+    Args:
         'caserun_id': str,
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2904,11 +2877,10 @@ def delete_report_s3_bg(report_id: str) -> None:
     Deletes the file in s3 bucked associated 
     with passed report
 
-    Expects: {
+    Args:
         'report_id': str,
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # get site
@@ -2933,11 +2905,10 @@ def delete_case_s3_bg(case_id: str) -> None:
     Deletes the file in s3 bucked associated 
     with passed case_id
 
-    Expects: {
+    Args:
         'case_id': str,
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # deleting s3 objects
@@ -2959,11 +2930,10 @@ def purge_logs(username: str=None) -> None:
     Deletes all `Logs` associated with the passed "username".
     If "username" is None, deletes all `Logs`.
 
-    Expects: {
+    Args:
         'username': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # delete logs
@@ -2986,10 +2956,9 @@ def reset_account_usage(account_id: str=None) -> None:
     if timezone.now() is the start of the 
     next billing cycle, and resets `Account.usage`
 
-    Expects: {
+    Args:
         'account_id': <str> (OPTIONAL)
-    }
-
+    
     Returns: None
     """
 
@@ -3078,11 +3047,10 @@ def update_sub_price(account_id: str=None, sites_allowed: int=None) -> None:
     Update price for existing stripe Subscription 
     based on new `Account.usage.sites_allowed`
 
-    Expects: {
+    Args:
         'account_id'       : <str> (REQUIRED)   
         'sites_allowed'    : <int> (OPTIONAL)   
-    }
-
+    
     Returns: None
     """
 
@@ -3169,12 +3137,11 @@ def delete_old_resources(account_id: str=None, days_to_live: int=30) -> None:
     Deletes all `Tests`, `Scans`, `CaseRuns`, `FlowRuns`,
     `Logs`, `Issues`, and `Processes` that have reached expiry
 
-    Expects: {
+    Args:
         account_id   : str, 
         days_to_live : int
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # calculate max dates
@@ -3237,7 +3204,7 @@ def data_retention() -> None:
     Helper task for looping through each account and deleting old resources using 
     delete_old_resources()
 
-    Returns -> None
+    Returns: None
     """
 
     # get all accounts
@@ -3264,11 +3231,10 @@ def delete_admin_sites(days_to_live: int=1) -> None:
     Delete all admin sites which are older 
     than 'days_to_live'
 
-    Expects: {
+    Args:
         'days_to_live': int 
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # calculate max date
@@ -3294,11 +3260,10 @@ def create_prospect(user_email: str=None) -> None:
     Sends an API request to Cursion Landing which 
     creates a new `Prospect`
 
-    Expects: {
+    Args:
         'user_email': str
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     if settings.MODE == 'selfhost':
@@ -3380,13 +3345,12 @@ def create_report_export_bg(report_id: str=None, email: str=None, first_name: st
     """ 
     Creates and exports a Cursion landing report
 
-    Expects: {
+    Args:
         report_id   : str, 
         email       : str, 
         first_name  : str
-    }
     
-    Returns -> None
+    Returns: None
     """
 
     # create and export 
@@ -3407,11 +3371,10 @@ def send_invite_link_bg(member_id: str) -> None:
     """ 
     Sends an invite link to the requested member
 
-    Expects: {
+    Args:
         'member_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
     
     # get member
@@ -3431,11 +3394,10 @@ def send_remove_alert_bg(member_id: str) -> None:
     """ 
     Sends a 'removed' email to the requested member
 
-    Expects: {
+    Args:
         'member_id': str
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # get member
@@ -3462,15 +3424,14 @@ def send_phone_bg(
     """ 
     Run `Alerts.send_phone` as a backgroud task
 
-    Expects: { 
+    Args: 
         'account_id'    : str, 
         'objects'       : list,
         'phone_number'  : str,
         'body'          : str,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
-
+    
     Returns: None
     """
 
@@ -3518,14 +3479,13 @@ def send_slack_bg(
     """ 
     Run `Alerts.send_slack` as a backgroud task
 
-    Expects: { 
+    Args: 
         'account_id'    : str, 
         'objects'       : list,
         'body'          : str,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
-
+    
     Returns: None
     """
 
@@ -3630,7 +3590,7 @@ def send_webhook_bg(
     """ 
     Run `Alerts.sendgrid_email` as a backgroud task
 
-    Expects: { 
+    Args: 
         'account_id'    : str,
         'objects'       : list,
         'request_type'  : str,
@@ -3639,8 +3599,7 @@ def send_webhook_bg(
         'payload'       : str,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
-
+    
     Returns: None
     """
 
@@ -3699,7 +3658,7 @@ def migrate_site_bg(
     """ 
     Runs the WP site migration process.
 
-    Expects: {
+    Args:
         login_url: str, 
         admin_url: str,
         username: str,
@@ -3714,9 +3673,8 @@ def migrate_site_bg(
         wait_time: int,
         process_id: str,
         driver: str,
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # init wordpress for selenium

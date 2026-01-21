@@ -12,7 +12,7 @@ def update_flowrun(*args, **kwargs) -> object:
     Updates the `FlowRun`, matching the 'flowrun_id',
     with the **kwargs data
 
-    Expects: {
+    Args:
         'kwargs' : {
             'flowrun_id'   : str
             'node_index'   : int or str,
@@ -20,7 +20,6 @@ def update_flowrun(*args, **kwargs) -> object:
             'node_status'  : str,
             'objects'      : list of dicts
         }
-    }
     
     Returns: `FlowRun` obj
     """

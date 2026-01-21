@@ -33,13 +33,13 @@ def record_api_call(request: object, data: dict, status: str) -> None:
     the request was sent with Token auth. 
     Creates a `Log` with the recorded info
 
-    Expects: {
+    Args:
         request : object, 
         data    : dict, 
         status  : str
-    }
     
-    Returns -> None
+    Returns: 
+        None
     """
     
     # get auth type
@@ -75,12 +75,12 @@ def decrement_resource(account: object, resource: str) -> None:
     """ 
     Removes '1' from the resource total 
 
-    Expects: {
-        'account'  : <object>,
+    Args:
+        'account'  : <object>
         'resource' : <str> 'site', 'page', 'schedule'
-    }
-
-    Returns: None
+    
+    Returns: 
+        None
     """
 
     # remove 1 from account.usage[{resource}]
@@ -98,15 +98,13 @@ def check_location(request: None, local: None) -> dict:
     Reroutes a request to a geo-specific 
     instance of Cursion Server. 
 
-    Expects: {
+    Args:
         'request': obj,
         'local'  : str,
-    }
-
-    Returns: data: {
-        'routed': bool (True if request was forwarded)
+    
+    Returns:
+        'routed': bool (True if request was forwarded),
         'response': obj (HTTP response from forwarded request)
-    }
     """
 
     # set defaults
@@ -176,21 +174,19 @@ def check_permissions_and_usage(
     References Member.permissions to determine if 
     give action is allowed on given resource.
 
-    Expects: {
+    Args:
         'member'    : obj, (REQUIRED)
         'resource'  : str, (REQUIRED)
         'action'    : str, (OPTIONAL, 'get')
         'id'        : str, (OPTIONAL)
         'id_type'   : str, (OPTIONAL)
         'url'       : str, (OPTIONAL)
-    }
     
-    Returns: {
-        'allowed'   : bool,
-        'error'     : str,
-        'code':     : str, 
+    Returns:
+        'allowed'   : bool
+        'error'     : str
+        'code':     : str 
         'status':   : object
-    }
     """
 
     # get account from member
@@ -344,7 +340,7 @@ def check_permissions_and_usage(
             
 
     # check for cloud / enterprise plan
-    if (account.type == 'enterprise' or account.type == 'cloud') and resource == 'site' and account.user.username != 'admin' :
+    if (account.type == 'enterprise') and resource == 'site' and account.user.username != 'admin' :
         
         # add to sites_allowed only for enterprise and cloud plans
         if action == 'add' and account.usage['sites_allowed'] == Site.objects.filter(account=account).count():
@@ -389,11 +385,11 @@ def retry_failed_tasks(request: object=None) -> object:
     Using `tasks.redeliver_failed_tasks()`, retries any
     "failed" task that has not reached MAX_ATTEMPTS.
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # init rety 
@@ -417,12 +413,12 @@ def create_site(request: object=None) -> object:
     Creates a new `Site`, initiates a Crawl, initial `Scans` 
     for each added `Page`, and generates new `Cases`. 
 
-    Expects: {
+    Args:
         request : object, 
         delay   : bool
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # getting data
@@ -552,13 +548,13 @@ def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
     """ 
     Initiates a new Crawl for the passed `Site`.id
 
-    Expects: {
+    Args:
         'request' : object, 
         'id'      : str,
         'user'    : object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -609,11 +605,12 @@ def get_sites(request: object=None) -> object:
     """ 
     Get one or more `Sites` in paginated response
 
-    Expects: {
+    Args:
         'request': object,
     } 
 
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # getting request data
@@ -670,12 +667,12 @@ def get_site(request: object=None, id: str=None) -> object:
     """
     Get single `Site` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -710,13 +707,13 @@ def delete_site(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Site` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -785,11 +782,11 @@ def delete_many_sites(request: object=None) -> object:
     Deletes one or more `Sites` associated
     with the passed "request.ids" 
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -862,11 +859,11 @@ def get_sites_zapier(request: object=None) -> object:
     """ 
     Get all `Sites` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -925,11 +922,11 @@ def create_page(request: object=None) -> object:
     """ 
     Creates one or more pages.
 
-    Expects: {
+    Args:
         'requests': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # getting request data
@@ -1017,12 +1014,11 @@ def create_many_pages(request: object, http_response: bool=True) -> object:
     """ 
     Bulk creates `Pages` for each url passed in "page_urls"
 
-    Expects: {
+    Args:
         'request'       : object,
         'http_response'  : bool
-    }
-
-    Returns -> dict or HTTP Response object
+    
+    Returns: dict or HTTP Response object
     """
 
     # get request data
@@ -1152,11 +1148,11 @@ def get_pages(request: object=None) -> object:
     Get one or more `Pages` from either 
     "page_id" or "site_id"
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -1218,12 +1214,12 @@ def get_page(request: object=None, id: str=None) -> object:
     """
     Get single `Page` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -1258,12 +1254,12 @@ def delete_page(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Page` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
     
     # get user and account info
@@ -1316,11 +1312,11 @@ def delete_many_pages(request: object=None) -> object:
     Deletes one or more `Pages` associated
     with the passed "request.ids" 
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -1392,11 +1388,11 @@ def get_pages_zapier(request: object=None) -> object:
     """ 
     Get all `Pages` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -1466,11 +1462,10 @@ def create_scan(request: object=None, **kwargs) -> object:
     Create one or more `Scans` depanding on 
     `Page` or `Site` scope
 
-    Expects: {
+    Args:
         'request': object, 
-    }
-
-    Returns -> dict or HTTP Response object
+    
+    Returns: dict or HTTP Response object
     """
 
     # check location
@@ -1648,11 +1643,11 @@ def create_many_scans(request: object=None) -> object:
     Bulk creates `Scans` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # check location
@@ -1754,11 +1749,11 @@ def get_scans(request: object=None) -> object:
     """ 
     Get one or more `Scans`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -1818,12 +1813,12 @@ def get_scan(request: object=None, id: str=None) -> object:
     """
     Get single `Scan` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -1858,12 +1853,12 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
     """ 
     Get a single `Scan` and only return scores & timestamps
 
-    Expects: {
+    Args:
         'request' : object, 
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -1914,14 +1909,14 @@ def delete_scan(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Scan` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'account' : object,
         'user'    : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -1974,11 +1969,11 @@ def delete_many_scans(request: object=None) -> object:
     Deletes one or more `Scans` associated
     with the passed "request.ids" 
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -2050,11 +2045,11 @@ def get_scans_zapier(request: object=None) -> object:
     """ 
     Get all `Scans` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -2145,12 +2140,11 @@ def create_test(request: object=None, **kwargs) -> object:
     Create one or more `Tests` depanding on 
     `Page` or `Site` scope
 
-    Expects: {
+    Args:
         'request': object, 
         'delay': bool
-    }
-
-    Returns -> dict or HTTP Response object
+    
+    Returns: dict or HTTP Response object
     """
 
     # check location
@@ -2405,11 +2399,11 @@ def create_many_tests(request: object=None) -> object:
     Bulk creates `Tests` for each requested `Page`.
     Either scoped for many `Pages` or many `Sites`.
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # check location
@@ -2514,11 +2508,11 @@ def get_tests(request: object=None) -> object:
     """ 
     Get one or more `Tests`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -2578,12 +2572,12 @@ def get_test(request: object=None, id: str=None) -> object:
     """
     Get single `Test` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -2618,12 +2612,12 @@ def get_test_lean(request: object=None, id: str=None) -> object:
     """ 
     Get a single `Test` and only return scores & timestamps
 
-    Expects: {
+    Args:
         'request' : object, 
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -2681,13 +2675,13 @@ def delete_test(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Test` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -2740,11 +2734,11 @@ def delete_many_tests(request: object=None) -> object:
     Deletes one or more `Tests` associated
     with the passed "request.ids" 
 
-    Expects: {
+    Args:
         'request' : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -2816,11 +2810,11 @@ def get_tests_zapier(request: object=None) -> object:
     """ 
     Get all `Tests` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -2920,12 +2914,12 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
     """ 
     Creates or Updates an `Issue` 
 
-    Expects: {
+    Args:
         'request': object
         'kwargs': dict
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3032,12 +3026,12 @@ def generate_issue(request: object=None, **kwargs) -> object:
     Generates a new `Issue` based on the data
     passed in the request or kwargs
 
-    Expects: {
+    Args:
         'request': object
         'kwargs': dict
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3154,12 +3148,12 @@ def update_many_issues(request: object=None) -> object:
     """ 
     Updates many `Issues` passed in a list
 
-    Expects: {
+    Args:
         'ids'     : list
         'updates' : dict
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -3219,11 +3213,11 @@ def get_issues(request: object=None) -> object:
     """ 
     Get one or more `Issues`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3308,12 +3302,12 @@ def get_issue(request: object=None, id: str=None) -> object:
     """
     Get single `Issue` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -3349,11 +3343,11 @@ def search_issues(request: object=None) -> object:
     Searches for matching `Issues` to the passed 
     "query"
 
-    Expects: {
+    Args:
         'request': obejct
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3404,12 +3398,12 @@ def delete_issue(request: object=None, id: str=None, user: object=None) -> objec
     """ 
     Deletes the `Issue` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -3451,11 +3445,11 @@ def delete_many_issues(request: object=None) -> object:
     """ 
     Deletes many `Issues` passed in a list
 
-    Expects: {
+    Args:
         'ids': list
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -3509,11 +3503,11 @@ def get_issues_zapier(request: object=None) -> object:
     """ 
     Get all `Issues` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3597,11 +3591,11 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
     """ 
     Creates or Updates a `Schedule` 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -3892,12 +3886,12 @@ def update_many_schedules(request: object=None) -> object:
     """ 
     Updates many `Schedules` passed in a list
 
-    Expects: {
+    Args:
         'ids'     : list
         'updates' : dict
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -3956,7 +3950,7 @@ def run_schedule(request: object=None) -> object:
     and executes the task manually without interupting
     the perodic_task's normal cycle.
 
-    Expects: {
+    Args:
         requests: object
     } 
 
@@ -4034,11 +4028,11 @@ def get_schedules(request: object=None) -> object:
     """ 
     Get one or more `Schedules`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -4113,12 +4107,12 @@ def get_schedule(request: object=None, id: str=None) -> object:
     """
     Get single `Schedule` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -4153,13 +4147,13 @@ def delete_schedule(request: object=None, id: str=None, user: object=None) -> ob
     """ 
     Deletes the `Schedule` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -4208,11 +4202,11 @@ def delete_many_schedules(request: object=None) -> object:
     """ 
     Deletes many `Schedules` passed in a list
 
-    Expects: {
+    Args:
         'ids': list
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -4272,13 +4266,12 @@ def delete_tasks_and_schedules(
     associated with the passed "resource_id", "scope", and 
     "account"
 
-    Expects: {
+    Args:
         'resource_id'   : str, 
         'scope'         : str
         'account'       : object
-    }
-
-    Returns -> None
+    
+    Returns: None
     """ 
     # get all scopped Schedules
     schedules = Schedule.objects.filter(
@@ -4312,11 +4305,11 @@ def create_or_update_alert(request: object=None) -> object:
     """ 
     Creates or Updates an `Alert` 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -4422,11 +4415,11 @@ def get_alerts(request: object=None) -> object:
     """ 
     Get one or more `Alerts`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -4479,12 +4472,12 @@ def get_alert(request: object=None, id: str=None) -> object:
     """
     Get single `Alert` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -4519,12 +4512,12 @@ def delete_alert(request: object=None, id: str=None) -> object:
     """ 
     Deletes the `Alert` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -4566,11 +4559,11 @@ def create_or_update_report(request: object=None) -> object:
     """ 
     Creates or Updates an `Report` 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -4670,11 +4663,11 @@ def get_reports(request: object=None) -> object:
     """ 
     Get one or more `Reports`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -4742,12 +4735,12 @@ def get_report(request: object=None, id: str=None) -> object:
     """
     Get single `Report` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -4782,12 +4775,12 @@ def delete_report(request: object=None, id: str=None) -> object:
     """ 
     Deletes the `Report` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -4828,11 +4821,11 @@ def export_report(request: object=None) -> object:
     Used to create and send a Cursion.landing 
     `Report` to the passed "email"  
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # getting data from request
@@ -4869,11 +4862,11 @@ def create_or_update_case(request: object=None) -> object:
     """ 
     Creates or Updates a `Case` 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -4983,15 +4976,13 @@ def save_case_steps(steps: dict, case_id: str) -> dict:
     Helper function that uploads the "steps" data to 
     s3 bucket
 
-    Expects: {
+    Args:
         'steps'   : dict, 
         'case_id' : str
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'num_steps' : int,
         'url'       : str
-    }
     """
 
     # setup boto3 configurations
@@ -5103,11 +5094,11 @@ def get_cases(request: object=None) -> object:
     """ 
     Get one or more `Cases`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -5179,12 +5170,12 @@ def get_case(request: object=None, id: str=None) -> object:
     """
     Get single `Case` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -5220,11 +5211,11 @@ def search_cases(request: object=None) -> object:
     Searches for matching `Cases` to the passed 
     "query"
 
-    Expects: {
+    Args:
         'request': obejct
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -5269,11 +5260,11 @@ def create_auto_cases(request: object=None) -> object:
     Initiates a new `Case` generation task for the `Site` 
     associated with either the passed "site_url" or "site_id" 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # check location
@@ -5350,11 +5341,10 @@ def copy_case(request: object=None) -> object:
     """ 
     Creates a copy of the passed `Case`
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response obejct
+    Returns: HTTP Response obejct
     """
 
     # get request data
@@ -5414,13 +5404,13 @@ def delete_case(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Case` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -5465,11 +5455,11 @@ def delete_many_cases(request: object=None) -> object:
     """ 
     Deletes many `Cases` passed in a list
 
-    Expects: {
+    Args:
         'ids': list
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -5523,11 +5513,11 @@ def get_cases_zapier(request: object=None) -> object:
     """ 
     Get all `Cases` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -5599,11 +5589,11 @@ def create_caserun(request: object=None) -> object:
     Creates a new `CaseRun` from the passed "case_id" for the 
     passed "site_id"
 
-    Expects: {
+    Args:
         'request': obejct
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # check location
@@ -5704,11 +5694,11 @@ def get_caseruns(request: object=None) -> object:
     """ 
     Get one or more `CaseRun`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -5775,12 +5765,12 @@ def get_caserun(request: object=None, id: str=None) -> object:
     """
     Get single `CaseRun` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -5815,13 +5805,13 @@ def delete_caserun(request: object=None, id: str=None, user: object=None) -> obj
     """ 
     Deletes the `CaseRun` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -5866,11 +5856,11 @@ def get_caseruns_zapier(request: object=None) -> object:
     """ 
     Get all `CaseRuns` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -5940,11 +5930,11 @@ def create_or_update_flow(request: object=None) -> object:
     """ 
     Creates or Updates a `Flow` 
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6011,11 +6001,11 @@ def get_flows(request: object=None) -> object:
     """ 
     Get one or more `Flows`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6069,12 +6059,12 @@ def get_flow(request: object=None, id: str=None) -> object:
     """
     Get single `Flow` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -6110,11 +6100,11 @@ def search_flows(request: object=None) -> object:
     Searches for matching `Flows` to the passed 
     "query"
 
-    Expects: {
+    Args:
         'request': obejct
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6154,11 +6144,10 @@ def copy_flow(request: object=None) -> object:
     """ 
     Creates a copy of the passed `Flow`
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response obejct
+    Returns: HTTP Response obejct
     """
 
     # get request data
@@ -6206,13 +6195,13 @@ def delete_flow(request: object=None, id: str=None, user: object=None) -> object
     """ 
     Deletes the `Flow` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object,
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -6254,11 +6243,11 @@ def delete_many_flows(request: object=None) -> object:
     """ 
     Deletes many `Flows` passed in a list
 
-    Expects: {
+    Args:
         'ids': list
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     #  get request data
@@ -6312,11 +6301,11 @@ def get_flows_zapier(request: object=None) -> object:
     """ 
     Get all `Flows` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6370,11 +6359,11 @@ def create_flowrun(request: object=None) -> object:
     Creates a new `FlowRun` from the passed 
     "flow_id" & "site_id"
 
-    Expects: {
+    Args:
         'request': obejct
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6480,11 +6469,11 @@ def get_flowruns(request: object=None) -> object:
     """ 
     Get one or more `FlowRun`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -6555,12 +6544,12 @@ def get_flowrun(request: object=None, id: str=None) -> object:
     """
     Get single `FlowRun` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -6595,13 +6584,13 @@ def delete_flowrun(request: object=None, id: str=None, user: object=None) -> obj
     """ 
     Deletes the `FlowRun` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'account' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -6643,11 +6632,11 @@ def get_flowruns_zapier(request: object=None) -> object:
     """ 
     Get all `FlowRuns` associated with user's Account.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -6715,11 +6704,11 @@ def create_or_update_secret(request: object=None) -> object:
     """ 
     Creates or Updates a `Secret`
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -6781,11 +6770,11 @@ def get_secrets(request: object=None) -> object:
     """ 
     Get one or more `Secrets`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -6839,12 +6828,12 @@ def get_secret(request: object=None, id: str=None) -> object:
     """
     Get single `Secret` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -6880,11 +6869,11 @@ def get_secrets_all(request: object=None) -> object:
     Get all `Secrets` associated with the 
     equesting user's `Account`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -6925,13 +6914,13 @@ def delete_secret(request: object=None, id: str=None, user: object=None) -> obje
     """ 
     Deletes the `Secret` associated with the passed "id" 
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str,
         'user'    : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account info
@@ -6978,11 +6967,11 @@ def get_processes(request: object=None) -> object:
     """ 
     Get one or more `Processes`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get request data
@@ -7057,12 +7046,12 @@ def get_process(request: object=None, id: str=None) -> object:
     """
     Get single `Process` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -7097,12 +7086,12 @@ def delete_process(request: object=None, id: str=None) -> object:
     """
     Get single `Process` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -7153,11 +7142,11 @@ def get_logs(request: object=None) -> object:
     """ 
     Get one or more `CaseRun`.
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -7218,12 +7207,12 @@ def get_log(request: object=None, id: str=None) -> object:
     """
     Get single `Log` from the passed "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str 
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user and account
@@ -7424,7 +7413,8 @@ def get_devices(request: object=None) -> object:
     
     Expects: None
 
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # format data
@@ -7449,11 +7439,11 @@ def get_home_metrics(request: object=None) -> object:
     Builds metrics for account "Home" view 
     on Cursion.client
 
-    Expects: {
+    Args:
         'request' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user, account, sites, & issues
@@ -7517,11 +7507,11 @@ def get_site_metrics(request: object=None) -> object:
     Builds metrics for account "Site" view 
     on Cursion.client
 
-    Expects: {
+    Args:
         'request' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user, account, site, & pages
@@ -7615,11 +7605,11 @@ def get_page_metrics(request: object=None) -> object:
     Builds `Scan` and `Test` metrics for 
     "Page" view on Cursion.client
 
-    Expects: {
+    Args:
         'request' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user, account, member 
@@ -7688,11 +7678,11 @@ def get_celery_metrics(request: object=None) -> object:
     Used to provision and terminate new pods in 
     k8s cluster on PROD
 
-    Expects: {
+    Args:
         'request' : object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     cached = cache.get("celery_metrics")
@@ -7751,11 +7741,11 @@ def migrate_site(request: object=None) -> object:
     """
     Initiate a `Site` migration task in background
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data

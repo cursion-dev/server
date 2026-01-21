@@ -395,12 +395,11 @@ def get_definition(key: str=None, name: str=None) -> str:
     Finds the specific data definition based on the 
     key or name provided.
 
-    Expects: {
+    Args:
         "key"   : str,
         "name"  : str,
-    }
-
-    Returns -> "definition" dict, or None
+    
+    Returns: "definition" dict, or None
     """
 
     # setting default

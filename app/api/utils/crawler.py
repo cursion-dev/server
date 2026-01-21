@@ -11,7 +11,7 @@ class Crawler():
     Crawl the passed "site" for pages, stoping 
     once 'max_urls' is reached.
 
-    Expects: {
+    Args:
         'url'       : str,
         'sitemap'   : str,
         'max_urls'  : int,
@@ -19,7 +19,7 @@ class Crawler():
 
     Use `Crawler.get_links()` initiate a new crawl
 
-    Returns -> list
+    Returns: list
     """
 
 

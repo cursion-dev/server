@@ -102,7 +102,7 @@ class Imager():
         """
         Checks to see if the current time exceedes the alotted timeout. 
         
-        Returns -> True if timeout exceeded
+        Returns: True if timeout exceeded
         """
         current = datetime.now()
         diff = current - start_time
@@ -119,7 +119,7 @@ class Imager():
         """
         Joins img1 and im2 vertically and saves as "new_img"
         
-        Returns -> new_img <Image>
+        Returns: new_img <Image>
         """
         im1 = I.open(im1)
         im2 = I.open(im2)
@@ -513,7 +513,7 @@ class Imager():
 
         # meter account if necessary
         if self.test.page.account.type == 'cloud' and self.test.page.account.cust_id:
-            meter_account(str(self.test.page.account.id), 1)
+            meter_account(str(self.test.page.account.id), 2)
 
         print(result)
         return result
@@ -764,7 +764,7 @@ class Imager():
             'driver': object
         }
 
-        Returns -> self.image_array list
+        Returns: self.image_array list
         """
 
         # initialize driver if not passed as param

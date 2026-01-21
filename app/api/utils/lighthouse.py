@@ -75,6 +75,7 @@ class Lighthouse():
 
 
 
+
     def create_configs(self):
     
         # custom Lighthouse config
@@ -117,7 +118,7 @@ class Lighthouse():
         Serves as the CLI method for collecting LH metrics.
         Creates a sub process running lighthouse CLI
 
-        Returns --> raw LH data (Dict)
+        Returns: raw LH data (Dict)
         """
 
         # warm up the page by curl'ing site
@@ -189,7 +190,7 @@ class Lighthouse():
         Serves as the API method for collecting LH metrics.
         Sends API requests to 
 
-        Returns --> raw LH data (Dict)
+        Returns: raw LH data (Dict)
         """
 
         # defaults
@@ -225,6 +226,7 @@ class Lighthouse():
 
 
 
+
     def process_data(self, stdout_json: dict) -> dict:
         """ 
         Accepts JSON data from either CLI or API method 
@@ -233,7 +235,7 @@ class Lighthouse():
         Expects the following:
             stdout_json: <dict> or json from output
             
-        Returns --> formatted LH data <dict> 
+        Returns: formatted LH data <dict> 
         """
 
         # setup boto3 configurations
@@ -323,6 +325,7 @@ class Lighthouse():
         except Exception as e:
             print(f'FAILED to pasrse: {e.__class__.__name__}: {e}\n{stdout_json}')
             raise TypeError
+
 
 
     

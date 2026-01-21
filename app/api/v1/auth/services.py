@@ -51,12 +51,11 @@ def register_user(request: object) -> object:
         'first_name' : str,
         'last_name'  : str,
 
-    Returns -> data: {
+    Returns: {
         'user'      : dict,
         'token'    : str,
         'refresh'   : str,
         'api_token' : str
-    }
     """
 
     # get data
@@ -123,12 +122,11 @@ def login_user(request: object) -> object:
         'username' : str, (same as email unless 'admin')
         'password' : str
 
-    Returns -> data: {
+    Returns: {
         'user'      : dict,
         'token'     : str,
         'refresh'   : str,
         'api_token' : str
-    }
     """
 
     # get data
@@ -185,11 +183,12 @@ def update_user(request: object) -> object:
     """ 
     Updates the User with the passed "email".
 
-    Expects: {
+    Args:
         'request': object
     }    
 
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -222,11 +221,12 @@ def update_password(request: object) -> object:
     """ 
     Updates the User with the passed "password".
 
-    Expects: {
+    Args:
         'request': object
     }    
 
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -256,11 +256,11 @@ def send_reset_email(request: object) -> object:
     Sends a password reset email to the 
     User that matches the passed "email".
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -290,9 +290,8 @@ def jwt_login(*, user: object) -> str:
     
     Expect: {
         'user': object
-    }
-
-    Returns -> str
+    
+    Returns: str
     """
 
     # get JWTs for user
@@ -336,11 +335,10 @@ def get_or_create_user(email: str,  **extra_fields) -> object:
     """ 
     Creates a new `User` with the passed "email".
     
-    Expects: {
+    Args:
         'email' : str, 
-    }
-
-    Returns -> User object 
+    
+    Returns: User object 
     """
 
     # trying to find user
@@ -388,12 +386,11 @@ def google_get_access_token(*, code: str, redirect_uri: str) -> str:
     """ 
     Get an access token from Google OAuth2 API
 
-    Expects: {
+    Args:
         'code'         : str,
         'redirect_uri' : str
-    }
-
-    Returns -> str
+    
+    Returns: str
     """
 
     # format request data
@@ -424,11 +421,10 @@ def google_get_user_info(*, access_token: str) -> dict:
     """ 
     Gets User info from google OAuth2 API
 
-    Expects: {
+    Args:
         'access_token'
-    }
-
-    Returns -> dict
+    
+    Returns: dict
     """
 
     # send request
@@ -452,11 +448,10 @@ def google_login(request: object) -> str:
     Authenticates and Creates a new User 
     with Google OAuth
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> str
+    Returns: str
     """
         
     # get request data
@@ -508,11 +503,11 @@ def slack_oauth_middleware(request: object) -> object:
     Used to update `Account` once "account.admin" 
     has integrated Slack
     
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -554,11 +549,11 @@ def slack_oauth_init(request: object) -> object:
     """ 
     Used to authenticate with Slack
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """ 
 
     # check if account exists
@@ -612,11 +607,11 @@ def create_or_update_account(request: object=None, *args, **kwargs) -> object:
     """ 
     Creates or Updates an `Account`
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -825,11 +820,11 @@ def get_account(request: object) -> object:
     """
     Gets the `Account` associated with the passed user
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user
@@ -857,11 +852,11 @@ def create_user_token(request: object) -> object:
     """ 
     Creates a new API token for the passed "user"
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # delete old token if exists
@@ -884,11 +879,11 @@ def get_account_license(request: object) -> object:
     Checks if Account is type "selfhost" and returns
     rquested ENV data
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -944,11 +939,11 @@ def get_account_members(request: object, *args, **kwargs) -> object:
     Get a list of `Members` associated with the 
     `Account` of the passed "user"
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> HTTP Response object
+    
+    Returns:
+        HTTP Response object
     """
 
     # get user
@@ -981,11 +976,11 @@ def create_or_update_member(request: object=None) -> object:
     """ 
     Creates or Updates a `Member`
 
-    Expects: {
+    Args:
         'request': object
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
 
     # get request data
@@ -1086,12 +1081,12 @@ def get_member(request: object=None, id: str=None) -> object:
     """ 
     Get a single member via passed "user" or "id"
 
-    Expects: {
+    Args:
         'request' : object,
         'id'      : str
-    }
     
-    Returns -> HTTP Response object
+    Returns:
+        HTTP Response object
     """
     
     # get user and member_id
@@ -1138,14 +1133,12 @@ def get_prospects(request: object) -> object:
     builds a list to reflect the needed 
     attributes for `Landing.api.Prospect`
 
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'count':    int total number of prospects
         'results':  list of Prospect objects
-    }
     """
 
     try:
@@ -1214,11 +1207,10 @@ def t7e(request: object) -> None:
     """
     Helper function for validation & verification
     
-    Expects: {
+    Args:
         'request': object
-    }
-
-    Returns -> None
+    
+    Returns: None
     """
 
     # validating

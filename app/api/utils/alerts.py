@@ -22,13 +22,11 @@ def send_reset_link(email: str=None) -> dict:
     Sends a reset password email to the User with 
     the passed 'email'
 
-    Expects: {
+    Args:
         'email': str
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if User exists
@@ -80,13 +78,11 @@ def send_invite_link(member: object=None) -> dict:
     """
     Sends an invite email to the passed `Member`
 
-    Expects: {
+    Args:
         'member': obj
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if member exists as status "pending"
@@ -142,13 +138,11 @@ def send_remove_alert(member: object=None) -> dict:
     Sends a "removed" email to the passed `Member` and 
     deletes member from DB 
 
-    Expects: {
+    Args:
         'member': obj
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if member exists as status "removed"
@@ -202,15 +196,13 @@ def create_exp(obj: object=None, alert: object=None) -> dict:
     Builds an expression list (exp_list = []) based 
     on the passed 'obj' and `Alert`.
 
-    Expects: {
+    Args:
         'obj'   :  object (Scan, Test, CaseRun, FlowRun),
         'alert' :  object
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'exp_list': list, 
         'exp_str' : str,
-    }
     """
 
     # seting defaults
@@ -279,13 +271,12 @@ def transpose_data(string: str=None, obj: object=None, secrets: list=[]) -> dict
     """ 
     Using 'definitions.py' replaces all vairables with definition data.
 
-    Expects: {
+    Args:
         'string'    : str (to be transposed)
         'obj'       : object (Scan, Test, CaseRun, Report, Issue),
         'secrets'   : list (account secrets)
-    }
-
-    Returns -> transposed string
+    
+    Returns: transposed string
     """
 
     # decryption helper
@@ -339,15 +330,13 @@ def get_obj(object_id: str=None) -> dict:
     Tries to find an object that matches theh passed 'object_id'.
     (Scan, Test, CaseRun, FlowRun, Report, Issue)
 
-    Expects: {
+    Args:
         'object_id':  str,
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'obj'      : object,
         'obj_type' : str,
         'success'  : bool
-    }
     """
 
     # init obj
@@ -416,15 +405,13 @@ def alert_email(email: str=None, alert_id: str=None, object_id: str=None) -> dic
     Sends an alert email to the User with 
     the passed 'email'
 
-    Expects: {
+    Args:
         'email'         : str,
         'alert_id' : str,
         'object_id'     : str
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if data is present
@@ -512,15 +499,13 @@ def alert_report_email(email: str=None, alert_id: str=None, object_id: str=None)
     Sends an alert report email to the User with 
     the passed 'email'
 
-    Expects: {
+    Args:
         'email'         : str,
         'alert_id' : str,
         'object_id'     : str
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if data is present
@@ -591,15 +576,13 @@ def alert_phone(phone_number: str=None, alert_id: str=None, object_id: str=None)
     Sends an SMS alert to the passed 'phone_number' 
     with the `Alert` data 
 
-    Expects: {
+    Args:
         'phone_number'    : str, 
         'alert_id'        : str, 
         'object_id'       : str,
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # checking if data is present
@@ -670,14 +653,12 @@ def alert_slack(alert_id: str=None, object_id: str=None) -> dict:
     """
     Sends a Slack alert with the `Alert` data 
 
-    Expects: {
+    Args:
         'alert_id'   : str, 
         'object_id'  : str,
-    }
-
-    Returns -> data: {
+    
+    Returns: {
         'success': bool
-    }
     """
 
     # check if data is present
@@ -772,12 +753,10 @@ def sendgrid_email(
             'signature':    str,
             'greeting':     str,
         }
-    }
-
-    Returns: {
+    
+    Returns:
         'success': bool,
         'message': str
-    }
     """
 
     # defining data
@@ -892,17 +871,15 @@ def send_phone(
     Using Twilio, sends an SMS with the passed 'body' to the passed 
     'phone_number' (single or comma seperated string of phone numbers)
 
-    Expects: { 
+    Args: 
         'account_id'    : str, 
         'object_id'     : str,
         'phone_number'  : str,
         'body'          : str,
-    }
-
-    Returns: {
+    
+    Returns:
         'success': bool,
         'message': str
-    }
     """
 
     if account_id and object_id:
@@ -965,16 +942,14 @@ def send_slack(
     Using Slack, sends an message with the passed 'body'
     to the passed 'account'.channel
 
-    Expects: { 
+    Args: 
         'account_id' : str, 
         'object_id'  : str,
         'body'       : str,
-    }
-
-    Returns: {
+    
+    Returns:
         'success': bool,
         'message': str
-    }
     """
 
     if account_id and object_id:
@@ -1037,19 +1012,17 @@ def send_webhook(
     Sends a GET or POST request to the passed 'url'
     with the passed 'payload' & 'heasders'
 
-    Expects: {
+    Args:
         'account_id'   : str, 
         'object_id'    : str,
         'request_type' : str, 
         'url'          : str, 
         'headers'      : dict,
         'payload'      : dict,
-    }
-
-    Returns: {
+    
+    Returns:
         'success': bool,
         'message': str
-    }
     """
 
     # get account & secrets
