@@ -65,15 +65,18 @@ def driver_init(
     # setting broswer options for chrome
     if browser == 'chrome':
         options.add_argument("--no-sandbox")
-        options.add_argument("disable-blink-features=AlertControlled")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-gpu-compositing")
+        options.add_argument("--use-gl=swiftshader")
+        options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--headless")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--enable-unsafe-swiftshader")
-        options.add_argument("ignore-certificate-errors")
+        options.add_argument("--ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
         options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
         options.add_argument(f"--user-agent={user_agent}")
-        options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
+        options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         options.page_load_strategy = 'none'
         
         # setting to mobile or tablet if reqeusted
@@ -107,15 +110,18 @@ def driver_init(
     # setting broswer options for edge
     if browser == 'edge':
         options.add_argument("--no-sandbox")
-        options.add_argument("disable-blink-features=AlertControlled")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-gpu-compositing")
+        options.add_argument("--use-gl=swiftshader")
+        options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--headless")
         options.add_argument("--enable-unsafe-swiftshader")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("ignore-certificate-errors")
+        options.add_argument("--ignore-certificate-errors")
         options.add_argument("--hide-scrollbars")
         options.add_argument(f"--force-device-scale-factor={str(scale_factor)}")
         options.add_argument(f"--user-agent={user_agent}")
-        options.set_capability("goog:loggingPrefs", {'performance': 'ALL'})
+        options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
         options.page_load_strategy = 'none'
         
         # setting to mobile or tablet if reqeusted
@@ -203,8 +209,12 @@ def driver_wait(
         action.pointer_action.move_to_location(0, 0)
         action.perform()
         # wait for 1s
-        time.sleep(1)
+        time.sleep(0.5)
         action.pointer_action.move_to_location(0, 50)
+        action.perform()
+        # wait for 1s
+        time.sleep(0.5)
+        action.pointer_action.move_to_location(0, 0)
         action.perform()
         return
 
@@ -284,6 +294,19 @@ def get_data(
         min_wait_time=min_wait_time
     )
 
+    def is_ignorable_warning(log_entry: object) -> bool:
+        ignore_list = [
+            "WebGL", "GL Driver Message", "GPU", "No available adapters",
+        ]
+        try:
+            message = (log_entry or {}).get("message", "")
+        except Exception:
+            return False
+        for i in ignore_list:
+            if i in message:
+                return True
+        return False
+
     # get page_source from browser
     try:
         html = driver.page_source
@@ -294,6 +317,7 @@ def get_data(
     if browser != 'firefox' :
         try:
             logs = driver.get_log('browser')
+            logs = [entry for entry in logs if not is_ignorable_warning(entry)]
         except Exception as e:
             print(e)
 

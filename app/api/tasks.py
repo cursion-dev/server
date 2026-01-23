@@ -1,5 +1,5 @@
 from celery.utils.log import get_task_logger
-from celery import shared_task, Task
+from celery import shared_task
 from cursion import celery
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
@@ -19,14 +19,21 @@ from .utils.alerts import *
 from .utils.updater import update_flowrun
 from .utils.meter import meter_account
 from .utils.manager import record_task
+from .queue import (
+    BaseTaskWithRetry, redis_client, 
+    CELERY_QUEUE_SCHEDULED, CELERY_QUEUE_ON_DEMAND,
+    account_concurrency_slot, _always_acquired, 
+    _reschedule_due_to_concurrency, task_lock, 
+    _get_account_id_from_scan_id, _get_account_id_from_test_id,
+    _get_account_id_from_caserun_id, get_task_queue, 
+    apply_async_in_queue, _get_account_id_from_page_id
+)
 from .models import *
 from functools import reduce
 from django.db.models import Q
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime, timedelta, timezone as tz
-from redis import Redis
-from contextlib import contextmanager
 from kombu.utils.encoding import bytes_to_str
 from cursion import settings
 import boto3, time, requests, operator, \
@@ -37,65 +44,8 @@ json, stripe, inspect, random, secrets
 
 
 
-class BaseTaskWithRetry(Task):
-    autoretry_for = (Exception, KeyError)
-    retry_kwargs = {'max_retries': int(settings.MAX_ATTEMPTS - 1)}
-    retry_backoff = True
-
-
-
-
 # setting logger 
 logger = get_task_logger(__name__)
-
-
-
-
-# setting redis client
-redis_client = Redis.from_url(settings.CELERY_BROKER_URL)
-
-CELERY_QUEUE_SCHEDULED = getattr(settings, 'CELERY_QUEUE_SCHEDULED', 'scheduled')
-CELERY_QUEUE_ON_DEMAND = getattr(settings, 'CELERY_QUEUE_ON_DEMAND', 'on_demand')
-
-
-def get_task_queue(task_request=None, kwargs: dict | None = None) -> str:
-    if kwargs and kwargs.get('_queue'):
-        return str(kwargs['_queue'])
-    if task_request is not None:
-        try:
-            delivery_info = getattr(task_request, 'delivery_info', {}) or {}
-            routing_key = delivery_info.get('routing_key')
-            if routing_key:
-                return str(routing_key)
-        except Exception:
-            pass
-    return str(getattr(settings, 'CELERY_TASK_DEFAULT_QUEUE', CELERY_QUEUE_SCHEDULED))
-
-
-def apply_async_in_queue(task, *, kwargs: dict, queue: str, task_id: str | None = None):
-    return task.apply_async(
-        kwargs=kwargs,
-        queue=queue,
-        routing_key=queue,
-        task_id=task_id,
-    )
-
-
-
-
-# setting locking manager to prevent duplicate tasks
-@contextmanager
-def task_lock(lock_name, timeout=300):
-    lock = redis_client.lock(lock_name, timeout=timeout)
-    acquired = lock.acquire(blocking=False)
-    logger.info(f"Lock {'acquired' if acquired else 'not acquired'} for {lock_name}")
-    try:
-        yield acquired
-    finally:
-        if acquired:
-            lock.release()
-            logger.info(f"Lock released for {lock_name}")
-
 
 
 
@@ -292,9 +242,11 @@ def redeliver_failed_tasks() -> None:
     resource appears complete but is not marked as such, 
     update `.time_completed` with `timezone.now()`
 
-    Expects: None
+    Args:
+        None
     
-    Returns: None
+    Returns:
+        None
     """
 
     # get uncompleted Scans & Tests
@@ -306,9 +258,10 @@ def redeliver_failed_tasks() -> None:
     # inspect Celery workers
     i = celery.app.control.inspect()
 
-    # fetch active, reserved, & queues tasks
+    # fetch active, reserved, scheduled (ETA), & queues tasks
     reserved    = i.reserved() or {}
     active      = i.active() or {}
+    scheduled   = i.scheduled() or {}
     broker_queues = list(
         {
             'celery',
@@ -334,6 +287,13 @@ def redeliver_failed_tasks() -> None:
     for replica, tasks in active.items():
         for task in tasks:
             all_tasks.append(task['id'])
+
+    # gather task IDs from scheduled/ETA tasks
+    for replica, tasks in scheduled.items():
+        for task in tasks:
+            req = task.get('request') or {}
+            if req.get('id'):
+                all_tasks.append(req['id'])
 
     # gather redis_ids from queued tasks
     for item in queued:
@@ -1194,9 +1154,6 @@ def run_html_and_logs_bg(
     Returns: None
     """
 
-    # sleeping random for DB 
-    time.sleep(random.uniform(2, 6))
-
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
@@ -1204,38 +1161,48 @@ def run_html_and_logs_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-    
-    # check redis task lock
-    lock_name = f"lock:html_and_logs_bg_{scan_id}"
-    with task_lock(lock_name) as lock_acquired:
 
-        # checking if task is already running
-        if not lock_acquired:
-            logger.info('task is already running, skipping execution.')
+    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
             return None
 
-        # save & check sys data
-        max_reached = record_task(
-            resource_type='scan',
-            resource_id=str(scan_id),
-            task_id=str(self.request.id),
-            task_method=str(inspect.stack()[0][3]),
-            kwargs={
-                'scan_id': str(scan_id) if scan_id is not None else None,
-                'test_id': str(test_id) if test_id is not None else None, 
-                'alert_id': str(alert_id) if alert_id is not None else None,
-                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                'node_index': str(node_index) if node_index is not None else None
-            }
-        )
-
-        # return early if max_attempts reached
-        if max_reached:
-            logger.info('max attempts reach for html & logs component')
-            return None
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
         
-        # run html and logs component
-        _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
+        # check redis task lock
+        lock_name = f"lock:html_and_logs_bg_{scan_id}"
+        with task_lock(lock_name) as lock_acquired:
+
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
+
+            # save & check sys data
+            max_reached = record_task(
+                resource_type='scan',
+                resource_id=str(scan_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'scan_id': str(scan_id) if scan_id is not None else None,
+                    'test_id': str(test_id) if test_id is not None else None, 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
+
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for html & logs component')
+                return None
+            
+            # run html and logs component
+            _html_and_logs(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran html & logs component')
     return None
@@ -1267,9 +1234,6 @@ def run_vrt_bg(
     Returns: None
     """
 
-    # sleeping random for DB 
-    time.sleep(random.uniform(2, 6))
-
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
@@ -1278,37 +1242,47 @@ def run_vrt_bg(
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
 
-    # check redis task lock
-    lock_name = f"lock:vrt_bg_{scan_id}"
-    with task_lock(lock_name) as lock_acquired:
-
-        # checking if task is already running
-        if not lock_acquired:
-            logger.info('task is already running, skipping execution.')
+    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
             return None
+
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
+
+        # check redis task lock
+        lock_name = f"lock:vrt_bg_{scan_id}"
+        with task_lock(lock_name) as lock_acquired:
+
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
    
-        # save sys data
-        max_reached = record_task(
-            resource_type='scan',
-            resource_id=str(scan_id),
-            task_id=str(self.request.id),
-            task_method=str(inspect.stack()[0][3]),
-            kwargs={
-                'scan_id': str(scan_id) if scan_id is not None else None,
-                'test_id': str(test_id) if test_id is not None else None, 
-                'alert_id': str(alert_id) if alert_id is not None else None,
-                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                'node_index': str(node_index) if node_index is not None else None
-            }
-        )
+            # save sys data
+            max_reached = record_task(
+                resource_type='scan',
+                resource_id=str(scan_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'scan_id': str(scan_id) if scan_id is not None else None,
+                    'test_id': str(test_id) if test_id is not None else None, 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
 
-        # return early if max_attempts reached
-        if max_reached:
-            logger.info('max attempts reach for vrt component')
-            return None
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for vrt component')
+                return None
 
-        # run VRT component
-        _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
+            # run VRT component
+            _vrt(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran vrt component')
     return None
@@ -1340,9 +1314,6 @@ def run_lighthouse_bg(
     Returns: None
     """
 
-    # sleeping random for DB 
-    time.sleep(random.uniform(2, 6))
-
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
@@ -1350,38 +1321,48 @@ def run_lighthouse_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-   
-    # check redis task lock
-    lock_name = f"lock:lighthouse_bg_{scan_id}"
-    with task_lock(lock_name) as lock_acquired:
 
-        # checking if task is already running
-        if not lock_acquired:
-            logger.info('task is already running, skipping execution.')
+    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
             return None
 
-        # save sys data
-        max_reached = record_task(
-            resource_type='scan',
-            resource_id=str(scan_id),
-            task_id=str(self.request.id),
-            task_method=str(inspect.stack()[0][3]),
-            kwargs={
-                'scan_id': str(scan_id) if scan_id is not None else None,
-                'test_id': str(test_id) if test_id is not None else None, 
-                'alert_id': str(alert_id) if alert_id is not None else None,
-                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                'node_index': str(node_index) if node_index is not None else None
-            }
-        )
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
+       
+        # check redis task lock
+        lock_name = f"lock:lighthouse_bg_{scan_id}"
+        with task_lock(lock_name) as lock_acquired:
 
-        # return early if max_attempts reached
-        if max_reached:
-            logger.info('max attempts reach for lighthouse component')
-            return None
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
 
-        # run lighthouse component
-        _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
+            # save sys data
+            max_reached = record_task(
+                resource_type='scan',
+                resource_id=str(scan_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'scan_id': str(scan_id) if scan_id is not None else None,
+                    'test_id': str(test_id) if test_id is not None else None, 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
+
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for lighthouse component')
+                return None
+
+            # run lighthouse component
+            _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran lighthouse component')
     return None
@@ -1413,9 +1394,6 @@ def run_yellowlab_bg(
     Returns: None
     """
 
-    # sleeping random for DB 
-    time.sleep(random.uniform(2, 6))
-
     # get kwargs data if no scan_id
     if scan_id is None:
         scan_id = kwargs.get('scan_id')
@@ -1423,38 +1401,48 @@ def run_yellowlab_bg(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-    
-    # check redis task lock
-    lock_name = f"lock:yellowlab_bg_{scan_id}"
-    with task_lock(lock_name) as lock_acquired:
 
-        # checking if task is already running
-        if not lock_acquired:
-            logger.info('task is already running, skipping execution.')
-            return None
-    
-        # save sys data
-        max_reached = record_task(
-            resource_type='scan',
-            resource_id=str(scan_id),
-            task_id=str(self.request.id),
-            task_method=str(inspect.stack()[0][3]),
-            kwargs={
-                'scan_id': str(scan_id) if scan_id is not None else None,
-                'test_id': str(test_id) if test_id is not None else None, 
-                'alert_id': str(alert_id) if alert_id is not None else None,
-                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                'node_index': str(node_index) if node_index is not None else None
-            }
-        )
-
-        # return early if max_attempts reached
-        if max_reached:
-            logger.info('max attempts reach for yellowlab component')
+    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
             return None
 
-        # run yellowlab component
-        _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
+        
+        # check redis task lock
+        lock_name = f"lock:yellowlab_bg_{scan_id}"
+        with task_lock(lock_name) as lock_acquired:
+
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
+    
+            # save sys data
+            max_reached = record_task(
+                resource_type='scan',
+                resource_id=str(scan_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'scan_id': str(scan_id) if scan_id is not None else None,
+                    'test_id': str(test_id) if test_id is not None else None, 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
+
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for yellowlab component')
+                return None
+
+            # run yellowlab component
+            _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran yellowlab component')
     return None
@@ -1484,85 +1472,92 @@ def run_test(
     
     Returns: None
     """
-    # sleeping random for DB 
-    time.sleep(random.uniform(2, 6))
-
     # get kwargs data if no test_id
     if test_id is None:
         test_id = kwargs.get('test_id')
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
-    
-    # check redis task lock
-    lock_name = f"lock:run_test_{test_id}"
-    with task_lock(lock_name) as lock_acquired:
 
-        # checking if task is already running
-        if not lock_acquired:
-            logger.info('task is already running, skipping execution.')
+    account_id = _get_account_id_from_test_id(str(test_id)) if test_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
             return None
 
-        # save sys data
-        max_reached = record_task(
-            resource_type='test',
-            resource_id=str(test_id),
-            task_id=str(self.request.id),
-            task_method=str(inspect.stack()[0][3]),
-            kwargs={
-                'test_id': str(test_id), 
-                'alert_id': str(alert_id) if alert_id is not None else None,
-                'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                'node_index': str(node_index) if node_index is not None else None
-            }
-        )
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
+        
+        # check redis task lock
+        lock_name = f"lock:run_test_{test_id}"
+        with task_lock(lock_name) as lock_acquired:
 
-        # return early if max_attempts reached
-        if max_reached:
-            logger.info('max attempts reach for Tester')
-            return None
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
 
-        # get test 
-        test = Test.objects.get(id=test_id)
+            # save sys data
+            max_reached = record_task(
+                resource_type='test',
+                resource_id=str(test_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'test_id': str(test_id), 
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
 
-        # define objects for flowrun
-        objects = [{
-            'parent': str(test.page.id),
-            'id': str(test_id),
-            'status': 'working'
-        }]
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for Tester')
+                return None
 
-        # update flowrun
-        if flowrun_id and flowrun_id != 'None':
-            time.sleep(random.uniform(0.1, 5))
-            update_flowrun(**{
-                'flowrun_id': str(flowrun_id),
-                'node_index': node_index,
-                'message': f'starting test comparison algorithm for {test.page.page_url} | test_id: {str(test_id)}',
-                'objects': objects
-            })
+            # get test 
+            test = Test.objects.get(id=test_id)
 
-        # execute test
-        logger.info('\n---------------\nStarting Test...\n---------------\n')
-        test = T(test=test).run_test()
+            # define objects for flowrun
+            objects = [{
+                'parent': str(test.page.id),
+                'id': str(test_id),
+                'status': 'working'
+            }]
 
-        # update FlowRun if passed
-        if flowrun_id and flowrun_id != 'None':
-            objects[-1]['status'] = test.status
-            update_flowrun(**{
-                'flowrun_id': str(flowrun_id),
-                'node_index': node_index,
-                'message': (
-                    f'test for {test.page.page_url} completed with status: '+
-                    f'{"❌ FAILED" if test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
-                ),
-                'objects': objects
-            })
+            # update flowrun
+            if flowrun_id and flowrun_id != 'None':
+                time.sleep(random.uniform(0.1, 5))
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': f'starting test comparison algorithm for {test.page.page_url} | test_id: {str(test_id)}',
+                    'objects': objects
+                })
 
-        # execute Alert if passed
-        if alert_id and alert_id != 'None':
-            logger.info('running alert from `task.run_test`')
-            Alerter(alert_id=alert_id, object_id=str(test.id)).run_alert()
+            # execute test
+            logger.info('\n---------------\nStarting Test...\n---------------\n')
+            test = T(test=test).run_test()
+
+            # update FlowRun if passed
+            if flowrun_id and flowrun_id != 'None':
+                objects[-1]['status'] = test.status
+                update_flowrun(**{
+                    'flowrun_id': str(flowrun_id),
+                    'node_index': node_index,
+                    'message': (
+                        f'test for {test.page.page_url} completed with status: '+
+                        f'{"❌ FAILED" if test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
+                    ),
+                    'objects': objects
+                })
+
+            # execute Alert if passed
+            if alert_id and alert_id != 'None':
+                logger.info('running alert from `task.run_test`')
+                Alerter(alert_id=alert_id, object_id=str(test.id)).run_alert()
 
     logger.info('Test completed')
     return None
@@ -2032,9 +2027,10 @@ def create_test_bg(self, **kwargs) -> None:
 
 
 
-@shared_task
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def create_report(
-        page_id: str=None, 
+        self,
+        page_id: str=None,
         alert_id: str=None,
         flowrun_id: str=None,
         node_index: str=None,
@@ -2054,46 +2050,53 @@ def create_report(
     Returns: None
     """
     
-    # get page
-    page = Page.objects.get(id=page_id)
-    
-    # create report obj
-    info = {
-        "text_color": '#24262d',
-        "background_color": '#e1effd',
-        "highlight_color": '#ffffff',
-    }
-    report = Report.objects.create(
-        user=page.user,
-        site=page.site,
-        account=page.account,
-        page=page,
-        info=info,
-        type=['lighthouse', 'yellowlab']
-    )
-    
-    # generate report PDF
-    resp = R(report=report).generate_report()
-    
-    # run alert
-    if alert_id and alert_id != 'None':
-        Alerter(alert_id, str(report.id)).run_alert()
+    account_id = _get_account_id_from_page_id(str(page_id)) if page_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
+            return None
 
-    # update flowrun 
-    if flowrun_id and flowrun_id != 'None':
-        update_flowrun(**{
-            'flowrun_id': flowrun_id,
-            'node_index': node_index,
-            'message': f'report {'created' if  resp['success'] else 'not created'} for {page.page_url} | report_id: {str(report.id)}',
-            'objects': [{
-                'parent': str(page.id),
-                'id': str(report.id),
-                'status': 'passed' if resp['success'] else 'failed'
-            }]
-        })
+        # get page
+        page = Page.objects.get(id=page_id)
     
-    logger.info('Created new report of page')
-    return None
+        # create report obj
+        info = {
+            "text_color": '#24262d',
+            "background_color": '#e1effd',
+            "highlight_color": '#ffffff',
+        }
+        report = Report.objects.create(
+            user=page.user,
+            site=page.site,
+            account=page.account,
+            page=page,
+            info=info,
+            type=['lighthouse', 'yellowlab']
+        )
+
+        # generate report PDF
+        resp = R(report=report).generate_report()
+        
+        # run alert
+        if alert_id and alert_id != 'None':
+            Alerter(alert_id, str(report.id)).run_alert()
+
+        # update flowrun 
+        if flowrun_id and flowrun_id != 'None':
+            update_flowrun(**{
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                'message': f'report {'created' if  resp['success'] else 'not created'} for {page.page_url} | report_id: {str(report.id)}',
+                'objects': [{
+                    'parent': str(page.id),
+                    'id': str(report.id),
+                    'status': 'passed' if resp['success'] else 'failed'
+                }]
+            })
+        
+        logger.info('Created new report of page')
+        return None
 
 
 
@@ -2323,9 +2326,10 @@ def case_pre_run_bg(
 
 
 
-@shared_task
+@shared_task(bind=True, base=BaseTaskWithRetry)
 def run_case(
-        caserun_id: str=None, 
+        self,
+        caserun_id: str=None,
         alert_id: str=None,
         flowrun_id: str=None,
         node_index: str=None,
@@ -2344,22 +2348,29 @@ def run_case(
     Returns: None
     """
     
-    # get caserun
-    caserun = CaseRun.objects.get(id=caserun_id)
+    account_id = _get_account_id_from_caserun_id(str(caserun_id)) if caserun_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
+            return None
 
-    # running caserun
-    Caser(
-        caserun=caserun,
-        flowrun_id=flowrun_id,
-        node_index=node_index
-    ).run()
+        # get caserun
+        caserun = CaseRun.objects.get(id=caserun_id)
 
-    # run alert if requested
-    if alert_id and alert_id != 'None':
-        Alerter(alert_id=alert_id, object_id=str(caserun.id)).run_alert()
+        # running caserun
+        Caser(
+            caserun=caserun,
+            flowrun_id=flowrun_id,
+            node_index=node_index
+        ).run()
 
-    logger.info('Ran CaseRun')
-    return None
+        # run alert if requested
+        if alert_id and alert_id != 'None':
+            Alerter(alert_id=alert_id, object_id=str(caserun.id)).run_alert()
+
+        logger.info('Ran CaseRun')
+        return None
 
 
 

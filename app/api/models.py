@@ -255,6 +255,7 @@ def get_usage_default():
         'tests': 0,
         'caseruns': 0,
         'flowruns': 0,
+        'concurrency': 2,
         'sites_allowed': 1, 
         'pages_allowed': 3, 
         'schedules_allowed': 1, 
@@ -733,6 +734,5 @@ class Coupon(models.Model):
 
     def __str__(self):
         return f'{self.code}'
-
 
 
