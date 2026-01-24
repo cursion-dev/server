@@ -406,8 +406,7 @@ class AutoCaser():
         Returns:
             'sub_elements': [],
             'run': bool,
-            'added': bool,
-        }
+            'added': bool
         """
         # setting defaults
         run = True
@@ -541,6 +540,9 @@ class AutoCaser():
 
             print(f'recording form -> {form_selector}')
 
+            # get relative_url
+            relative_url = self.get_relative_url(self.driver.current_url)
+
             # getting form text
             elem_text = self.get_elem_text(selector=form_selector)
 
@@ -563,7 +565,6 @@ class AutoCaser():
                     value = i.get_attribute('value')
                     type = str(i.get_attribute('type'))
                     img = self.get_element_image(element=i)
-                    relative_url = self.get_relative_url(self.driver.current_url)
 
                     sub_elements.append({
                         'selector': input_selector,
@@ -592,7 +593,6 @@ class AutoCaser():
                     placeholder = i.get_attribute('placeholder')
                     type = str(i.get_attribute('type'))
                     img = self.get_element_image(element=i)
-                    relative_url = self.get_relative_url(self.driver.current_url)
 
                     sub_elements.append({
                         'selector': input_selector,
@@ -618,7 +618,6 @@ class AutoCaser():
                 iframe_selector = self.driver.execute_script(self.selector_script, iframe)
                 iframe_xpath = self.driver.execute_script(self.xpath_script, iframe)
                 iframe_img = self.get_element_image(element=iframe)
-                relative_url = self.get_relative_url(self.driver.current_url)
                 
                 # get all inputs for iframe
                 iframe_inputs = iframe.find_elements(By.TAG_NAME, "input")
@@ -635,7 +634,6 @@ class AutoCaser():
                         value = i.get_attribute('value')
                         type = str(i.get_attribute('type'))
                         img = self.get_element_image(element=i)
-                        relative_url = self.get_relative_url(self.driver.current_url)
 
                         # save internal iframe data
                         iframe_elements.append({
@@ -679,7 +677,6 @@ class AutoCaser():
                     btn_xpath = self.driver.execute_script(self.xpath_script, btn)
                     type = str(btn.get_attribute('type'))
                     btn_img = self.get_element_image(element=btn)
-                    relative_url = self.get_relative_url(self.driver.current_url)
 
                     sub_elements.append({
                         'selector': btn_selector,
