@@ -1,25 +1,22 @@
 from ..models import *
 from django.utils import timezone
-from datetime import datetime
 
 
 
 
 
 
-def update_flowrun(*args, **kwargs) -> object:
+def update_flowrun(**kwargs) -> object:
     """ 
     Updates the `FlowRun`, matching the 'flowrun_id',
     with the **kwargs data
 
     Args:
-        'kwargs' : {
-            'flowrun_id'   : str
-            'node_index'   : int or str,
-            'messsage'     : str,
-            'node_status'  : str,
-            'objects'      : list of dicts
-        }
+        'flowrun_id'   : str
+        'node_index'   : int or str,
+        'messsage'     : str,
+        'node_status'  : str,
+        'objects'      : list of dicts
     
     Returns: `FlowRun` obj
     """

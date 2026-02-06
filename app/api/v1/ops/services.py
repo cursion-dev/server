@@ -416,8 +416,7 @@ def create_site(request: object=None) -> object:
     for each added `Page`, and generates new `Cases`. 
 
     Args:
-        request : object, 
-        delay   : bool
+        request : object
     
     Returns:
         HTTP Response object
@@ -435,7 +434,6 @@ def create_site(request: object=None) -> object:
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
-    sites = Site.objects.filter(account=account)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -613,8 +611,7 @@ def get_sites(request: object=None) -> object:
     Get one or more `Sites` in paginated response
 
     Args:
-        'request': object,
-    } 
+        'request': object 
 
     Returns:
         HTTP Response object
@@ -1173,11 +1170,10 @@ def get_pages(request: object=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check for params
     if page_id is None and site_id is None:
-        data = {'reason': 'neet site or page id'}
+        data = {'reason': 'need site_id or page_id'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1776,7 +1772,6 @@ def get_scans(request: object=None) -> object:
     lean = request.query_params.get('lean')
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
     
     # deciding on scope
     id = page_id if page_id else scan_id
@@ -2542,7 +2537,6 @@ def get_tests(request: object=None) -> object:
     lean = request.query_params.get('lean')
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
     
     # deciding on scope
     id = test_id if test_id else page_id
