@@ -7,6 +7,7 @@ data:
   SECRET_KEY : "ask-for-this-or-generate-yourself"
   CLIENT_URL_ROOT : "https://app.yourdomain.com"
   API_URL_ROOT : "https://api.yourdomain.com"  
+  MCP_URL_ROOT : "https://mcp.yourdomain.com"  
   YELLOWLAB_ROOT : "http://ylt-service"
   LIGHTHOUSE_ROOT : "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
   LANDING_API_KEY : ""

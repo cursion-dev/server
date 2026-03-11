@@ -300,7 +300,8 @@ def get_permissions_default():
         'resources': [
             'site', 'page', 'issue', 'case', 'caserun',
             'flow', 'flowrun', 'test', 'scan', 'schedule', 
-            'alert', 'secret', 'report', 'process', 'log'
+            'alert', 'secret', 'report', 'process', 'log',
+            'chat'
         ], 
         'sites': []
     }
@@ -350,6 +351,13 @@ def get_nodes_default():
 def get_edges_default():
     edges = []
     return edges
+
+
+
+
+def get_messages_default():
+    messages = []
+    return messages
 
 
 
@@ -424,7 +432,7 @@ class Member(models.Model):
 
 
 
-class Secret(models.Model): ### NEW !!!!
+class Secret(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
@@ -673,6 +681,21 @@ class Alert(models.Model):
 
     def __str__(self):
         return f'{self.id}'
+
+
+
+
+class Chat(models.Model): ### NEW !!!!
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    time_created = models.DateTimeField(default=timezone.now, serialize=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
+    status = models.CharField(max_length=100, serialize=True, default='active', null=True, blank=True)
+    messages = models.JSONField(serialize=True, null=True, blank=True, default=get_messages_default)
+
+    def __str__(self):
+        return f'{self.id}_chat'
+
 
 
 

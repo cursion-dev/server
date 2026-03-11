@@ -55,6 +55,20 @@ class SecretSerializer(serializers.HyperlinkedModelSerializer):
 
 
 
+class ChatSerializer(serializers.HyperlinkedModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(**kwargs)
+    user = serializers.ReadOnlyField(source='user.username')
+    account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
+    
+    class Meta:
+        model = Chat
+        fields = ['id', 'user', 'account', 'time_created', 
+        'status', 'messages'
+        ]
+
+
+
+
 class SiteSerializer(serializers.HyperlinkedModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
     id = serializers.PrimaryKeyRelatedField(**kwargs)

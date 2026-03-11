@@ -176,6 +176,13 @@ class LogAdmin(admin.ModelAdmin):
 
 
 
+@admin.register(Chat)
+class ChatAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'time_created', 'status', 'user')
+
+
+
+
 @admin.register(Schedule)
 class ScheduleAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'time_last_run', 'status', 'user', 'time_created')

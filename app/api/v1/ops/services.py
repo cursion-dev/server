@@ -201,7 +201,7 @@ def check_permissions_and_usage(
     _status = status.HTTP_403_FORBIDDEN
 
     # ignore site assoc checks on these resorces
-    ignore_list = ['alert', 'schedule', 'log', 'process', 'flow', 'secret']
+    ignore_list = ['alert', 'schedule', 'log', 'process', 'flow', 'secret', 'chat']
     
     # check usage on these resources
     usage_list = ['site', 'schedule', 'caserun', 'flowrun', 'scan', 'test']
@@ -416,8 +416,7 @@ def create_site(request: object=None) -> object:
     for each added `Page`, and generates new `Cases`. 
 
     Args:
-        request : object, 
-        delay   : bool
+        request : object
     
     Returns:
         HTTP Response object
@@ -435,7 +434,6 @@ def create_site(request: object=None) -> object:
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
-    sites = Site.objects.filter(account=account)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -613,8 +611,7 @@ def get_sites(request: object=None) -> object:
     Get one or more `Sites` in paginated response
 
     Args:
-        'request': object,
-    } 
+        'request': object 
 
     Returns:
         HTTP Response object
@@ -629,7 +626,7 @@ def get_sites(request: object=None) -> object:
     account = member.account
 
     # check if site_id was passed
-    if site_id != None:
+    if site_id:
 
         # check account and resource
         check_data = check_permissions_and_usage(
@@ -1173,11 +1170,10 @@ def get_pages(request: object=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check for params
     if page_id is None and site_id is None:
-        data = {'reason': 'neet site or page id'}
+        data = {'reason': 'need site_id or page_id'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1776,7 +1772,6 @@ def get_scans(request: object=None) -> object:
     lean = request.query_params.get('lean')
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
     
     # deciding on scope
     id = page_id if page_id else scan_id
@@ -2542,7 +2537,6 @@ def get_tests(request: object=None) -> object:
     lean = request.query_params.get('lean')
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
     
     # deciding on scope
     id = test_id if test_id else page_id
@@ -6978,6 +6972,210 @@ def delete_secret(request: object=None, id: str=None, user: object=None) -> obje
 
     # return response
     data = {'message': 'Secret deleted'}
+    if request:
+        record_api_call(request, data, '200')
+        response = Response(data, status=status.HTTP_200_OK)
+        return response
+    return data
+
+
+
+
+### ------ Begin Secret Services ------ ###
+
+
+
+
+def create_or_update_chat(request: object=None) -> object:
+    """ 
+    Creates or Updates a `Chat`
+
+    Args:
+        'request': object
+    
+    Returns:
+        HTTP Response object
+    """
+    
+    # get request data
+    chat_id = request.data.get('chat_id')
+    messages = request.data.get('messages')
+    _status = request.data.get('value')
+    action = 'update' if chat_id else 'add'
+    
+    # get user & account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+    
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='chat', 
+        action=action, id=chat_id, id_type='chat'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # update chat
+    if chat_id:
+        
+        # get chat 
+        chat = Chat.objects.get(id=chat_id)
+
+        # update with new values
+        if messages:
+            chat.messages = messages
+        if _status:
+            chat.status = _status
+        chat.save()
+    
+    # create new chat
+    if not chat_id:
+        chat = Chat.objects.create(
+            account=account,
+            user=user,
+            status='active',
+            messages=messages if messages else []
+        )
+
+    # serialize and return
+    serialized = ChatSerializer(chat, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
+
+
+
+
+def get_chats(request: object=None) -> object:
+    """ 
+    Get one or more `Chats`.
+
+    Args:
+        'request': object
+    
+    Returns:
+        HTTP Response object
+    """
+    
+    # get request data
+    chat_id = request.query_params.get('chat_id')
+    _status = request.query_params.get('status', 'active')
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='chat', 
+        action='get', id=chat_id, id_type='chat'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get single chat
+    if chat_id:        
+
+        # get chat
+        chat = Chat.objects.get(id=chat_id)
+
+        # serialize and return
+        serialized = ChatSerializer(chat, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        return Response(data, status=status.HTTP_200_OK)
+    
+    # get chats scoped to user & status
+    chats = Chat.objects.filter(user=user, status=_status).order_by('-time_created')
+
+    # serialize and return
+    paginator = LimitOffsetPagination()
+    result_page = paginator.paginate_queryset(chats, request)
+    serialized = ChatSerializer(result_page, many=True, context={'request': request})
+    response = paginator.get_paginated_response(serialized.data)
+    record_api_call(request, response.data, '200')
+    return response
+
+
+
+
+def get_chat(request: object=None, id: str=None) -> object:
+    """
+    Get single `Chat` from the passed "id"
+
+    Args:
+        'request' : object,
+        'id'      : str 
+    
+    Returns:
+        HTTP Response object
+    """
+
+    # get user and account
+    user = request.user
+    member = Member.objects.get(user=user)
+
+    # check account and resource
+    check_data = check_permissions_and_usage(
+        member=member, resource='chat', 
+        action='get', id=id, id_type='chat'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        record_api_call(request, data, check_data['code'])
+        return Response(data, status=check_data['status'])
+
+    # get secrets if checks passed
+    chat = Chat.objects.get(id=id)
+        
+    # serialize and return
+    serialized = ChatSerializer(chat, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
+
+
+
+
+def delete_chat(request: object=None, id: str=None, user: object=None) -> object:
+    """ 
+    Deletes the `Chat` associated with the passed "id" 
+
+    Args:
+        'request' : object,
+        'id'      : str,
+        'user'    : object
+    
+    Returns:
+        HTTP Response object
+    """
+
+    # get user and account info
+    user = request.user if request else user
+    member = Member.objects.get(user=user)
+
+    # checking account and resource 
+    check_data = check_permissions_and_usage(
+        member=member, resource='chat', 
+        action='delete', id=id, id_type='chat'
+    )
+    if not check_data['allowed']:
+        data = {'reason': check_data['error']}
+        if request:
+            record_api_call(request, data, check_data['code'])
+            return Response(data, status=check_data['status'])
+        return data
+
+    # get chat if checks passed
+    chat = Chat.objects.get(id=id)
+
+    # delete secret
+    chat.delete()
+
+    # return response
+    data = {'message': 'Chat deleted'}
     if request:
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)

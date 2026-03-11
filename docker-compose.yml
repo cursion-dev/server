@@ -9,6 +9,7 @@ services:
     privileged: true
     restart: no
     init: true
+    image: cursion-app:local
     build:
       context: .
       dockerfile: Dockerfile
@@ -47,9 +48,7 @@ services:
     platform: linux/amd64
     privileged: true
     restart: no
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cursion-app:local
     entrypoint: ["/entrypoint.sh", "celery", "scheduled"]
     volumes:
       - celery:/app
@@ -66,9 +65,7 @@ services:
     platform: linux/amd64
     privileged: true
     restart: no
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cursion-app:local
     entrypoint: ["/entrypoint.sh", "celery", "on_demand"]
     volumes:
       - celery:/app
@@ -86,9 +83,7 @@ services:
     platform: linux/amd64
     privileged: true
     restart: no
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cursion-app:local
     entrypoint: ["/entrypoint.sh", "beat"]
     volumes:
       - beat:/app

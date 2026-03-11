@@ -869,13 +869,47 @@ class SecretDetail(APIView):
 
 
 
-
 class SecretsAll(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['get']
 
     def get(self, request):
         response = get_secrets_all(request)
+        return response
+
+
+
+
+### ------ Begin Chat Views ------ ###
+
+
+
+
+class Chats(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['post', 'get']
+
+    def post(self, request):
+        response = create_or_update_chat(request)        
+        return response
+    
+    def get(self, request):
+        response = get_chats(request)
+        return response
+
+
+
+
+class ChatDetail(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get', 'delete']
+
+    def get(self, request, id):
+        response = get_chat(request, id)
+        return response
+
+    def delete(self, request, id):
+        response = delete_chat(request, id)        
         return response
 
 
