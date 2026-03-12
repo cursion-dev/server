@@ -392,7 +392,6 @@ class Account(models.Model):
     info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default)
     meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
    
-
     def __str__(self):
         return self.user.email
 
@@ -525,7 +524,6 @@ class Test(models.Model):
     pre_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
     post_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
     system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
-
 
     def __str__(self):
         return f'{self.id}_test'
@@ -685,7 +683,7 @@ class Alert(models.Model):
 
 
 
-class Chat(models.Model): ### NEW !!!!
+class Chat(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)
