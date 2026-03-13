@@ -2,7 +2,6 @@
 
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
-from django.contrib.auth.middleware import get_user
 from django.contrib.auth.password_validation import validate_password
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -10,19 +9,19 @@ from django.db.models import Q
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework import status, serializers
+from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from slack_sdk.oauth import AuthorizeUrlGenerator
-from slack_sdk.oauth.installation_store import FileInstallationStore, Installation
+from slack_sdk.oauth.installation_store import FileInstallationStore
 from slack_sdk.oauth.state_store import FileOAuthStateStore
 from slack_sdk.web import WebClient
-from ...models import Account, Card, Member, Site, get_permissions_default
+from ...models import Account, Member, Site, get_permissions_default
 from ..ops.services import record_api_call
 from .serializers import *
 from ...utils.alerts import send_reset_link
 from ...tasks import send_invite_link_bg, send_remove_alert_bg, create_prospect
 from cursion import settings
-import requests, os, subprocess, secrets, sys, signal
+import requests, os, secrets, signal
 
 
 

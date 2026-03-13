@@ -392,7 +392,6 @@ class Account(models.Model):
     info = models.JSONField(serialize=True, null=True, blank=True, default=get_account_info_default)
     meta = models.JSONField(serialize=True, null=True, blank=True, default=get_meta_default)
    
-
     def __str__(self):
         return self.user.email
 
@@ -526,7 +525,6 @@ class Test(models.Model):
     post_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
     system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
 
-
     def __str__(self):
         return f'{self.id}_test'
 
@@ -649,6 +647,7 @@ class Schedule(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
+    tags = models.JSONField(serialize=True, null=True, blank=True)
     alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
     time_created = models.DateTimeField(default=timezone.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
@@ -685,7 +684,7 @@ class Alert(models.Model):
 
 
 
-class Chat(models.Model): ### NEW !!!!
+class Chat(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, serialize=True, null=True, blank=True)

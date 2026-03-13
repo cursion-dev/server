@@ -591,6 +591,7 @@ def crawl_site_bg(self, site_id: str=None, configs: dict=settings.CONFIGS) -> No
                 site=site,
                 page_url=url,
                 user=site.user,
+                tags=[],
                 account=site.account,
             )
 
@@ -968,6 +969,7 @@ def create_scan_bg(self, **kwargs) -> None:
     Args:
         'scope'         : str
         'resources'     : list
+        'tags'          : list
         'account_id'    : strx
         'type'          : list,
         'configs'       : dict,
@@ -982,11 +984,11 @@ def create_scan_bg(self, **kwargs) -> None:
 
     # get data from kwargs
     scope = kwargs.get('scope')
-    resources = kwargs.get('resources')
+    resources = kwargs.get('resources', [])
+    tags = kwargs.get('tags', [])
     account_id = kwargs.get('account_id')
     type = kwargs.get('type')
     configs = kwargs.get('configs')
-    tags = kwargs.get('tags')
     alert_id = kwargs.get('alert_id')
     task_id = kwargs.get('task_id')
     flowrun_id = kwargs.get('flowrun_id')
@@ -1040,15 +1042,32 @@ def create_scan_bg(self, **kwargs) -> None:
                         ) 
                     except Exception as e:
                         logger.warning(e)
+
+        # iterating through tags 
+        # and adding to sites or pages
+        if len(tags) > 0:
+            for tag in tags:
+                
+                # adding to pages
+                try:
+                    pages += Page.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
+                
+                # adding to sites
+                try:
+                    sites += Site.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
         
         # grabbing all sites because no 
-        # resources were specified and scope is "account"
-        if len(resources) == 0 and scope == 'account':
+        # resources/tags were specified and scope is "account"
+        if len(resources) == 0 and len(tags) == 0 and scope == 'account':
             sites = Site.objects.filter(account=account)
 
         # get all pages from existing sites
         for site in sites:
-            pages += Page.objects.filter(site=site)
+            pages += Page.objects.filter(site=site).exclude(id__in=[str(p.id) for p in pages])
 
         # creating scans for each page
         for page in pages:
@@ -1830,11 +1849,11 @@ def create_test_bg(self, **kwargs) -> None:
     Args:
         scope         : str
         resources     : list
+        tags          : list
         account_id    : str
         test_id       : str
         type          : list
         configs       : dict
-        tags          : list
         alert_id      : str
         pre_scan      : str
         post_scan     : str
@@ -1849,11 +1868,11 @@ def create_test_bg(self, **kwargs) -> None:
     # get data
     scope = kwargs.get('scope')
     resources = kwargs.get('resources', [])
+    tags = kwargs.get('tags', [])
     account_id = kwargs.get('account_id')
     test_id = kwargs.get('test_id')
     type = kwargs.get('type')
     configs = kwargs.get('configs')
-    tags = kwargs.get('tags')
     threshold = kwargs.get('threshold')
     alert_id = kwargs.get('alert_id')
     pre_scan = kwargs.get('pre_scan')
@@ -1915,6 +1934,23 @@ def create_test_bg(self, **kwargs) -> None:
                         except Exception as e:
                             logger.info(e)
             
+            # iterating through tags 
+            # and adding to sites or pages
+            if len(tags) > 0:
+                for tag in tags:
+                    
+                    # adding to pages
+                    try:
+                        pages += Page.objects.filter(tags__contains=[tag])
+                    except Exception as e:
+                        logger.warning(e)
+                    
+                    # adding to sites
+                    try:
+                        sites += Site.objects.filter(tags__contains=[tag])
+                    except Exception as e:
+                        logger.warning(e)
+            
             # grabbing all sites because no 
             # resources were specified and scope is "account"
             if len(resources) == 0 and scope == 'account':
@@ -1922,7 +1958,7 @@ def create_test_bg(self, **kwargs) -> None:
 
             # get all pages from existing sites
             for site in sites:
-                pages += Page.objects.filter(site=site)
+                pages += Page.objects.filter(site=site).exclude(id__in=[str(p.id) for p in pages])
             
             # create a test for each page
             for page in pages:
@@ -2108,7 +2144,8 @@ def create_report_bg(**kwargs) -> None:
 
     Args:
         'scope'         : str,
-        'resources'     : str
+        'resources'     : list
+        'tags'          : list
         'account_id'    : str
         'alert_id'      : str
         'task_id'       : str
@@ -2122,6 +2159,7 @@ def create_report_bg(**kwargs) -> None:
     # get data
     scope = kwargs.get('scope')
     resources = kwargs.get('resources', [])
+    tags = kwargs.get('tags', [])
     account_id = kwargs.get('account_id')
     alert_id = kwargs.get('alert_id')
     task_id = kwargs.get('task_id')
@@ -2173,6 +2211,23 @@ def create_report_bg(**kwargs) -> None:
                         ) 
                     except Exception as e:
                         logger.warning(e)
+
+        # iterating through tags 
+        # and adding to sites or pages
+        if len(tags) > 0:
+            for tag in tags:
+                
+                # adding to pages
+                try:
+                    pages += Page.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
+                
+                # adding to sites
+                try:
+                    sites += Site.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
         
         # grabbing all sites because no 
         # resources were specified and scope is "account"
@@ -2181,7 +2236,7 @@ def create_report_bg(**kwargs) -> None:
 
         # get all pages from existing sites
         for site in sites:
-            pages += Page.objects.filter(site=site)
+            pages += Page.objects.filter(site=site).exclude(id__in=[str(p.id) for p in pages])
 
         # record objects for each report
         for page in pages:
@@ -2383,6 +2438,7 @@ def create_caserun_bg(**kwargs) -> None:
     Args:
         caserun_id    : str, 
         resources     : list, 
+        tags          : list, 
         scope         : str, 
         account_id    : str, 
         case_id       : str, 
@@ -2401,6 +2457,7 @@ def create_caserun_bg(**kwargs) -> None:
     case_id = kwargs.get('case_id')
     account_id = kwargs.get('account_id')
     resources = kwargs.get('resources', [])
+    tags = kwargs.get('tags', [])
     scope = kwargs.get('scope')
     updates = kwargs.get('updates')
     alert_id = kwargs.get('alert_id')
@@ -2472,6 +2529,17 @@ def create_caserun_bg(**kwargs) -> None:
                         sites.append(
                             Site.objects.get(id=item['id'])
                         )
+                    except Exception as e:
+                        logger.warning(e)
+
+            # iterating through tags 
+            # and adding to sites
+            if len(tags) > 0:
+                for tag in tags:
+                
+                    # adding to sites
+                    try:
+                        sites += Site.objects.filter(tags__contains=[tag])
                     except Exception as e:
                         logger.warning(e)
             
@@ -2559,6 +2627,7 @@ def create_flowrun_bg(**kwargs) -> None:
     Args:
         flow_id       : str, 
         resources     : list, 
+        tags          : list, 
         scope         : str, 
         account_id    : str, 
         alert_id      : str,
@@ -2572,6 +2641,7 @@ def create_flowrun_bg(**kwargs) -> None:
     flow_id     = kwargs.get('flow_id')
     account_id  = kwargs.get('account_id')
     resources   = kwargs.get('resources', [])
+    tags        = kwargs.get('tags', [])
     scope       = kwargs.get('scope')
     alert_id    = kwargs.get('alert_id')
     task_id     = kwargs.get('task_id')
@@ -2610,6 +2680,17 @@ def create_flowrun_bg(**kwargs) -> None:
                 except Exception as e:
                     logger.info(e)
         
+        # iterating through tags 
+        # and adding to sites
+        if len(tags) > 0:
+            for tag in tags:
+            
+                # adding to sites
+                try:
+                    sites += Site.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
+        
         # add all sites in account if scope == 'account'
         if scope == 'account' and len(resources) == 0:
             sites = Site.objects.filter(account__id=account_id)
@@ -2647,7 +2728,7 @@ def create_flowrun_bg(**kwargs) -> None:
                 },]
 
                 # create flowrun
-                flowrun = FlowRun.objects.create(
+                FlowRun.objects.create(
                     id      = flowrun_id,
                     flow    = flow,
                     user    = flow.user,
@@ -3147,8 +3228,8 @@ def reset_account_usage(account_id: str=None) -> None:
             except stripe.error.StripeError as e:
                 logger.info(f'Stripe error for account {account.id}: {e}')
 
-        # reset free account
-        elif account.type == 'free':
+        # reset free & selfhost accounts
+        elif account.type in ['free', 'selfhost']:
             if not last_reset or (today - last_reset).days >= 30:
                 needs_reset = True
 

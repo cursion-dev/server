@@ -183,7 +183,7 @@ class ScheduleSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'time_created', 'user', 'task_type',
         'timezone', 'begin_date', 'time', 'frequency', 'task', 'crontab_id',
         'periodic_task_id', 'status', 'alert', 'extras', 'account', 
-        'scope', 'resources', 'time_last_run',
+        'scope', 'resources', 'tags', 'time_last_run',
         ]
 
 

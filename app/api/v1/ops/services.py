@@ -410,7 +410,7 @@ def retry_failed_tasks(request: object=None) -> object:
 
 
 
-def create_site(request: object=None) -> object:
+def create_or_update_site(request: object=None) -> object:
     """ 
     Creates a new `Site`, initiates a Crawl, initial `Scans` 
     for each added `Page`, and generates new `Cases`. 
@@ -423,6 +423,7 @@ def create_site(request: object=None) -> object:
     """
 
     # getting data
+    site_id = request.data.get('site_id')
     site_url = request.data.get('site_url')
     page_urls = request.data.get('page_urls')
     onboarding = request.data.get('onboarding', None)
@@ -446,22 +447,39 @@ def create_site(request: object=None) -> object:
             onboarding = False
 
     # clean & check site url
-    if site_url.endswith('/'):
-        site_url = site_url.rstrip('/')
-    if site_url is None or site_url == '':
+    if (site_url is None or site_url == '') and not site_id:
         data = {'reason': 'the site_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    if site_url:
+        if site_url.endswith('/'):
+            site_url = site_url.rstrip('/')
 
     # check account and resource
     check_data = check_permissions_and_usage(
-        member=member, resource='site', action='add',
-        url=site_url
+        member=member, resource='site', 
+        action='update' if site_id else 'add',
+        url=site_url, id=site_id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
+    
+    # update site if site_id passed
+    if site_id:
+        
+        # get site & update data
+        site = Site.objects.get(id=site_id)
+        if tags is not None:
+            site.tags = tags
+        site.save()
+
+        # serialize response and return
+        serialized = SiteSerializer(site, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        response = Response(serialized.data, status=status.HTTP_200_OK)
+        return response
 
     # creating site if checks passed
     site = Site.objects.create(
@@ -539,11 +557,9 @@ def create_site(request: object=None) -> object:
             )
             
     # serialize response and return
-    serializer_context = {'request': request}
-    serialized = SiteSerializer(site, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
+    serialized = SiteSerializer(site, context={'request': request})
+    record_api_call(request, serialized.data, '201')
+    response = Response(serialized.data, status=status.HTTP_201_CREATED)
     return response
 
 
@@ -596,7 +612,7 @@ def crawl_site(request: object=None, id: str=None, user: object=None) -> object:
     # serializing and returning
     if request:
         serializer_context = {'request': request}
-        serialized = SiteSerializer(site, context=serializer_context)
+        serialized = SiteSerializer(site, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '201')
         response = Response(data, status=status.HTTP_201_CREATED)
@@ -619,11 +635,38 @@ def get_sites(request: object=None) -> object:
 
     # getting request data
     site_id = request.query_params.get('site_id')
+    sort = request.query_params.getlist('sort')
     user = request.user
 
     # getting account
     member = Member.objects.get(user=user)
     account = member.account
+
+    # site-specific sorting dict
+    sorting_items = {
+        # accend
+        'site': 'site_url',
+        'time_created': 'time_created',
+        'scan': 'info__latest_scan__score',
+        'scan_completed': 'info__latest_scan__time_completed',
+        'test': 'info__latest_test__score',
+        # decend
+        '-site': '-site_url',
+        '-time_created': '-time_created',
+        '-scan': '-info__latest_scan__score',
+        '-scan_completed': '-info__latest_scan__time_completed',
+        '-test': '-info__latest_test__score',
+    }
+
+    # transform sort param
+    _sort = []
+    for s in sort:
+        _sort.extend(s.split(','))
+
+    # build order_by list (ignore invalid sort tokens)
+    ordering = [sorting_items[s] for s in _sort if s in sorting_items]
+    if not ordering:
+        ordering = ['-time_created']
 
     # check if site_id was passed
     if site_id:
@@ -641,25 +684,22 @@ def get_sites(request: object=None) -> object:
         site = Site.objects.get(id=site_id)
 
         # serialize single site response and return
-        serializer_context = {'request': request}
-        serialized = SiteSerializer(site, context=serializer_context)
-        data = serialized.data
-        record_api_call(request, data, '200')
-        return Response(data, status=status.HTTP_200_OK)
+        serialized = SiteSerializer(site, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        return Response(serialized.data, status=status.HTTP_200_OK)
     
     # getting all account assoicated sites
-    sites = Site.objects.filter(account=account).order_by('-time_created')
+    sites = Site.objects.filter(account=account).order_by(*ordering)
 
     # filter out all non permissioned sites
     if len(member.permissions.get('sites', [])) != 0:
         id_list = [item['id'] for item in member.permissions.get('sites')]
-        sites = sites.filter(id__in=id_list).order_by('-time_created')
+        sites = sites.filter(id__in=id_list).order_by(*ordering)
 
     # serialize response and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(sites, request)
-    serializer_context = {'request': request}
-    serialized = SiteSerializer(result_page, many=True, context=serializer_context)
+    serialized = SiteSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -698,11 +738,9 @@ def get_site(request: object=None, id: str=None) -> object:
     site = Site.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = SiteSerializer(site, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK) 
+    serialized = SiteSerializer(site, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK) 
 
 
 
@@ -922,7 +960,7 @@ def get_sites_zapier(request: object=None) -> object:
 
 
 
-def create_page(request: object=None) -> object:
+def create_or_update_page(request: object=None) -> object:
     """ 
     Creates one or more pages.
 
@@ -935,6 +973,7 @@ def create_page(request: object=None) -> object:
 
     # getting request data
     site_id = request.data.get('site_id')
+    page_id = request.data.get('page_id')
     page_url = request.data.get('page_url')
     page_urls = request.data.get('page_urls')
     tags = request.data.get('tags', None)
@@ -945,7 +984,6 @@ def create_page(request: object=None) -> object:
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
-    site = Site.objects.get(id=site_id)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -960,22 +998,42 @@ def create_page(request: object=None) -> object:
         return response
     
     # validating page_url
-    if page_url.endswith('/'):
-        page_url = page_url.rstrip('/')
-    if page_url is None or page_url == '':
+    if (page_url is None or page_url == '') and not page_id:
         data = {'reason': 'the page_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    if page_url:
+        if page_url.endswith('/'):
+            page_url = page_url.rstrip('/')
 
     # check account and resource
     check_data = check_permissions_and_usage(
-        member=member, resource='page', action='add', 
-        id=site_id, id_type='site', url=page_url,
+        member=member, resource='page', action='add' if site_id else 'update', 
+        id=site_id if site_id else page_id, 
+        id_type='site' if site_id else 'page', url=page_url,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
+    
+    # update page if page_id passed
+    if page_id:
+        
+        # get page & update data
+        page = Page.objects.get(id=page_id)
+        if tags is not None:
+            page.tags = tags
+        page.save()
+
+        # serialize response and return
+        serialized = PageSerializer(page, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        response = Response(serialized.data, status=status.HTTP_200_OK)
+        return response
+    
+    # get site
+    site = Site.objects.get(id=site_id)
 
     # adding page if checks passed
     page = Page.objects.create(
@@ -1004,11 +1062,10 @@ def create_page(request: object=None) -> object:
         scan_page_bg.apply_async(kwargs={'scan_id': str(scan.id), '_queue': ON_DEMAND_QUEUE}, queue=ON_DEMAND_QUEUE, routing_key=ON_DEMAND_QUEUE)
       
     # serialize response and return
-    serializer_context = {'request': request}
-    serialized = PageSerializer(page, context=serializer_context)
+    serialized = PageSerializer(page, context={'request': request})
     data = serialized.data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
+    record_api_call(request, serialized.data, '201')
+    response = Response(serialized.data, status=status.HTTP_201_CREATED)
     return response
 
 
@@ -1166,6 +1223,7 @@ def get_pages(request: object=None) -> object:
     # get request data
     site_id = request.query_params.get('site_id')
     page_id = request.query_params.get('page_id')
+    sort = request.query_params.getlist('sort')
 
     # get user and account
     user = request.user
@@ -1188,6 +1246,32 @@ def get_pages(request: object=None) -> object:
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
     
+    # page-specific sorting dict
+    sorting_items = {
+        # accend
+        'page': 'page_url',
+        'time_created': 'time_created',
+        'scan': 'info__latest_scan__score',
+        'scan_completed': 'info__latest_scan__time_completed',
+        'test': 'info__latest_test__score',
+        # decend
+        '-page': '-page_url',
+        '-time_created': '-time_created',
+        '-scan': '-info__latest_scan__score',
+        '-scan_completed': '-info__latest_scan__time_completed',
+        '-test': '-info__latest_test__score',
+    }
+
+    # transform sort param
+    _sort = []
+    for s in sort:
+        _sort.extend(s.split(','))
+
+    # build order_by list
+    ordering = [sorting_items[s] for s in _sort if s in sorting_items]
+    if not ordering:
+        ordering = ['-time_created']
+    
     # getting single page
     if page_id != None:
         
@@ -1195,21 +1279,19 @@ def get_pages(request: object=None) -> object:
         page = Page.objects.get(id=page_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = PageSerializer(page, context=serializer_context)
+        serialized = PageSerializer(page, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
     # get site and assocaited pages
     site = Site.objects.get(id=site_id)
-    pages = Page.objects.filter(site=site).order_by('-time_created')
+    pages = Page.objects.filter(site=site).order_by(*ordering)
 
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(pages, request)
-    serializer_context = {'request': request}
-    serialized = PageSerializer(result_page, many=True, context=serializer_context)
+    serialized = PageSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -1232,7 +1314,6 @@ def get_page(request: object=None, id: str=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check account and resource
     check_data = check_permissions_and_usage(
@@ -1248,11 +1329,9 @@ def get_page(request: object=None, id: str=None) -> object:
     page = Page.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = PageSerializer(page, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK) 
+    serialized = PageSerializer(page, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK) 
 
 
 
@@ -1794,8 +1873,7 @@ def get_scans(request: object=None) -> object:
         scan = Scan.objects.get(id=scan_id)
         
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = ScanSerializer(scan, context=serializer_context)
+        serialized = ScanSerializer(scan, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -1807,10 +1885,9 @@ def get_scans(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(scans, request)
-    serializer_context = {'request': request}
-    serialized = ScanSerializer(result_page, many=True, context=serializer_context)
+    serialized = ScanSerializer(result_page, many=True, context={'request': request})
     if str(lean).lower() == 'true':
-        serialized = SmallScanSerializer(result_page, many=True, context=serializer_context)
+        serialized = SmallScanSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -1833,7 +1910,6 @@ def get_scan(request: object=None, id: str=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check account and resource
     check_data = check_permissions_and_usage(
@@ -1849,11 +1925,9 @@ def get_scan(request: object=None, id: str=None) -> object:
     scan = Scan.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = ScanSerializer(scan, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = ScanSerializer(scan, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -1873,7 +1947,6 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check account and resource 
     check_data = check_permissions_and_usage(
@@ -1992,7 +2065,6 @@ def delete_many_scans(request: object=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check for ids
     if ids is not None:
@@ -2559,8 +2631,7 @@ def get_tests(request: object=None) -> object:
         test = Test.objects.get(id=test_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = TestSerializer(test, context=serializer_context)
+        serialized = TestSerializer(test, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -2572,10 +2643,9 @@ def get_tests(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(tests, request)
-    serializer_context = {'request': request}
-    serialized = TestSerializer(result_page, many=True, context=serializer_context)
+    serialized = TestSerializer(result_page, many=True, context={'request': request})
     if str(lean).lower() == 'true':
-        serialized = SmallTestSerializer(result_page, many=True, context=serializer_context)
+        serialized = SmallTestSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -2614,11 +2684,9 @@ def get_test(request: object=None, id: str=None) -> object:
     test = Test.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = TestSerializer(test, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = TestSerializer(test, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -3021,8 +3089,7 @@ def create_or_update_issue(request: object=None, **kwargs) -> object:
     # decide on response type
     if request is not None:
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = IssueSerializer(issue, context=serializer_context)
+        serialized = IssueSerializer(issue, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -3144,8 +3211,7 @@ def generate_issue(request: object=None, **kwargs) -> object:
     # decide on response type
     if request is not None:
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = IssueSerializer(issue, context=serializer_context)
+        serialized = IssueSerializer(issue, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -3240,6 +3306,7 @@ def get_issues(request: object=None) -> object:
     issue_id = request.query_params.get('issue_id')
     site_id = request.query_params.get('site_id')
     page_id = request.query_params.get('page_id')
+    sort = request.query_params.getlist('sort')
     
     user = request.user
     member = Member.objects.get(user=user)
@@ -3261,6 +3328,30 @@ def get_issues(request: object=None) -> object:
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
+    # issue-specific sorting dict
+    sorting_items = {
+        # accend
+        'time_created': 'time_created',
+        'status': 'status',
+        'title': 'title',
+        'affected': 'affected__str',
+        # decend
+        '-time_created': '-time_created',
+        '-status': '-status',
+        '-title': '-title',
+        '-affected': '-affected__str',
+    }
+
+    # transform sort param
+    _sort = []
+    for s in sort:
+        _sort.extend(s.split(','))
+
+    # build order_by list
+    ordering = [sorting_items[s] for s in _sort if s in sorting_items]
+    if not ordering:
+        ordering = ['-time_created']
+
     # get single issue
     if issue_id != None:
         
@@ -3268,8 +3359,7 @@ def get_issues(request: object=None) -> object:
         issue = Issue.objects.get(id=issue_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = IssueSerializer(issue, context=serializer_context)
+        serialized = IssueSerializer(issue, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -3285,13 +3375,13 @@ def get_issues(request: object=None) -> object:
         issues = Issue.objects.filter(
             affected__icontains={'id': site_id}, 
             account=account
-        ).order_by('-status', '-time_created')
+        ).order_by(*ordering)
     
     # get all account assocoiated issues
     if issues is None:
         issues = Issue.objects.filter(
             account=account
-        ).order_by('-status', '-time_created')
+        ).order_by(*ordering)
 
     # filter out all non permissioned sites
     if len(member.permissions.get('sites',[])) != 0:
@@ -3300,13 +3390,12 @@ def get_issues(request: object=None) -> object:
         for id in id_list:
             for page in Page.objects.filter(site__id=id):
                 new_ids.append(str(page.id))
-        issues = issues.filter(affected__id__in=new_ids).order_by('-time_created')
+        issues = issues.filter(affected__id__in=new_ids).order_by(*ordering)
 
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(issues, request)
-    serializer_context = {'request': request}
-    serialized = IssueSerializer(result_page, many=True, context=serializer_context)
+    serialized = IssueSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -3345,11 +3434,9 @@ def get_issue(request: object=None, id: str=None) -> object:
     issue = Issue.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = IssueSerializer(issue, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = IssueSerializer(issue, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -3401,8 +3488,7 @@ def search_issues(request: object=None) -> object:
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(issues, request)
-    serializer_context = {'request': request}
-    serialized = IssueSerializer(result_page, many=True, context=serializer_context)
+    serialized = IssueSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response 
@@ -3627,6 +3713,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = request.data.get('schedule_id')
         resources = request.data.get('resources')
+        tags = request.data.get('tags')
         scope = request.data.get('scope')
         case_id = request.data.get('case_id')
         flow_id = request.data.get('flow_id')
@@ -3645,6 +3732,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = kwargs.get('schedule_id')
         resources = kwargs.get('resources')
+        tags = kwargs.get('tags')
         scope = kwargs.get('scope')
         case_id = kwargs.get('case_id')
         flow_id = kwargs.get('flow_id')
@@ -3652,7 +3740,6 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
         
-
     # get account
     member = Member.objects.get(user=user)
     account = member.account
@@ -3712,6 +3799,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         arguments = {
             'scope': scope,
             'resources': resources,
+            'tags': tags,
             'account_id': str(account.id),
             'updates': updates,
             'configs': configs,
@@ -3858,6 +3946,8 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
                 schedule.extras = extras 
             if resources is not None:
                 schedule.resources = resources
+            if tags is not None:
+                schedule.tags = tags
             
             # save udpdates
             schedule.save()
@@ -3867,7 +3957,8 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             schedule = Schedule.objects.create(
                 user=request.user, 
                 scope=scope,
-                resources=resources, 
+                resources=resources,
+                tags=tags, 
                 task_type=task_type, 
                 timezone=timezone,
                 begin_date=begin_date, 
@@ -3887,8 +3978,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
     # deciding on response type
     if request:
         # serialize and return
-        serializer_context = {'request': request}
-        data = ScheduleSerializer(schedule, context=serializer_context).data
+        data = ScheduleSerializer(schedule, context={'request': request}).data
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
@@ -3973,9 +4063,10 @@ def run_schedule(request: object=None) -> object:
 
     Args:
         requests: object
-    } 
 
-    Return -> HTTP Response object
+
+    Returns:
+        Response
     """
 
     # get request data
@@ -4027,8 +4118,7 @@ def run_schedule(request: object=None) -> object:
         create_report_bg.apply_async(kwargs=task_kwargs, queue=queue, routing_key=queue)
 
     # serialize and return
-    serializer_context = {'request': request}
-    data = ScheduleSerializer(schedule, context=serializer_context).data
+    data = ScheduleSerializer(schedule, context={'request': request}).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4075,8 +4165,7 @@ def get_schedules(request: object=None) -> object:
         schedule = Schedule.objects.get(id=schedule_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = ScheduleSerializer(schedule, context=serializer_context)
+        serialized = ScheduleSerializer(schedule, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -4106,8 +4195,7 @@ def get_schedules(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(schedules, request)
-    serializer_context = {'request': request}
-    serialized = ScheduleSerializer(result_page, many=True, context=serializer_context)
+    serialized = ScheduleSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -4146,11 +4234,9 @@ def get_schedule(request: object=None, id: str=None) -> object:
     schedule = Schedule.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = ScheduleSerializer(schedule, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = ScheduleSerializer(schedule, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -4414,8 +4500,7 @@ def create_or_update_alert(request: object=None) -> object:
         task.save()
 
     # serialize and return
-    serializer_context = {'request': request}
-    data = AlertSerializer(alert, context=serializer_context).data
+    data = AlertSerializer(alert, context={'request': request}).data
     record_api_call(request, data, '200')
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -4459,8 +4544,7 @@ def get_alerts(request: object=None) -> object:
         alert = Alert.objects.get(id=alert_id)
         
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = AlertSerializer(alert, context=serializer_context)
+        serialized = AlertSerializer(alert, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -4471,8 +4555,7 @@ def get_alerts(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(alerts, request)
-    serializer_context = {'request': request}
-    serialized = AlertSerializer(result_page, many=True, context=serializer_context)
+    serialized = AlertSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -4511,11 +4594,9 @@ def get_alert(request: object=None, id: str=None) -> object:
     alert = Alert.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = AlertSerializer(alert, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = AlertSerializer(alert, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -4650,10 +4731,9 @@ def create_or_update_report(request: object=None) -> object:
     report_data = R(report=un_cached_report).generate_report()
 
     # serialize report
-    serializer_context = {'request': request}
     new_report = ReportSerializer(
         report_data['report'], 
-        context=serializer_context
+        context={'request': request}
     ).data
 
     # format return data
@@ -4711,8 +4791,7 @@ def get_reports(request: object=None) -> object:
         report = Report.objects.get(id=report_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = ReportSerializer(report, context=serializer_context)
+        serialized = ReportSerializer(report, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -4734,8 +4813,7 @@ def get_reports(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(reports, request)
-    serializer_context = {'request': request}
-    serialized = ReportSerializer(result_page, many=True, context=serializer_context)
+    serialized = ReportSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -4774,11 +4852,9 @@ def get_report(request: object=None, id: str=None) -> object:
     report = Report.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = ReportSerializer(report, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = ReportSerializer(report, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -4973,8 +5049,7 @@ def create_or_update_case(request: object=None) -> object:
         # and run Caser().pre_run() in background
         
     # serialize and return
-    serializer_context = {'request': request}
-    data = CaseSerializer(case, context=serializer_context).data
+    data = CaseSerializer(case, context={'request': request}).data
     data['client'] = settings.CLIENT_URL_ROOT
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
@@ -5094,7 +5169,7 @@ def case_pre_run(request: object=None, **kwargs) -> object:
     # return dynamic
     if request:
         serializer_context = {'request': request}
-        data = CaseSerializer(case, context=serializer_context).data
+        data = CaseSerializer(case, context={'request': request}).data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
     return case
@@ -5116,6 +5191,7 @@ def get_cases(request: object=None) -> object:
     # get request data
     case_id = request.query_params.get('case_id')
     site_id = request.query_params.get('site_id')
+    sort = request.query_params.getlist('sort')
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
@@ -5136,6 +5212,30 @@ def get_cases(request: object=None) -> object:
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
+    # issue-specific sorting dict
+    sorting_items = {
+        # accend
+        'time_created': 'time_created',
+        'type': 'type',
+        'title': 'title',
+        'site': 'site_url',
+        # decend
+        '-time_created': '-time_created',
+        '-type': '-type',
+        '-title': '-title',
+        '-site': '-site_url',
+    }
+
+    # transform sort param
+    _sort = []
+    for s in sort:
+        _sort.extend(s.split(','))
+
+    # build order_by list
+    ordering = [sorting_items[s] for s in _sort if s in sorting_items]
+    if not ordering:
+        ordering = ['-time_created']
+
     # get single case
     if case_id:        
 
@@ -5143,8 +5243,7 @@ def get_cases(request: object=None) -> object:
         case = Case.objects.get(id=case_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = CaseSerializer(case, context=serializer_context)
+        serialized = CaseSerializer(case, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -5155,11 +5254,11 @@ def get_cases(request: object=None) -> object:
 
     # get cases scoped by site
     if site:
-        cases = Case.objects.filter(account=account, site=site).order_by('-time_created')
+        cases = Case.objects.filter(account=account, site=site).order_by(*ordering)
     
     # get cases scoped by account
     if not site:
-        cases = Case.objects.filter(account=account).order_by('-time_created')
+        cases = Case.objects.filter(account=account).order_by(*ordering)
 
     # filter out all non permissioned sites
     if len(member.permissions.get('sites',[])) != 0:
@@ -5169,8 +5268,7 @@ def get_cases(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(cases, request)
-    serializer_context = {'request': request}
-    serialized = CaseSerializer(result_page, many=True, context=serializer_context)
+    serialized = CaseSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -5209,11 +5307,9 @@ def get_case(request: object=None, id: str=None) -> object:
     case = Case.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = CaseSerializer(case, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = CaseSerializer(case, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -5407,8 +5503,7 @@ def copy_case(request: object=None) -> object:
     )
 
     # return response
-    serializer_context = {'request': request}
-    data = CaseSerializer(new_case, context=serializer_context).data
+    data = CaseSerializer(new_case, context={'request': request}).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -5755,8 +5850,7 @@ def get_caseruns(request: object=None) -> object:
         caserun = CaseRun.objects.get(id=caserun_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = CaseRunSerializer(caserun, context=serializer_context)
+        serialized = CaseRunSerializer(caserun, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -5773,10 +5867,9 @@ def get_caseruns(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(caseruns, request)
-    serializer_context = {'request': request}
-    serialized = CaseRunSerializer(result_page, many=True, context=serializer_context)
+    serialized = CaseRunSerializer(result_page, many=True, context={'request': request})
     if str(lean).lower() == 'true':
-        serialized = SmallCaseRunSerializer(result_page, many=True, context=serializer_context)
+        serialized = SmallCaseRunSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -5815,11 +5908,9 @@ def get_caserun(request: object=None, id: str=None) -> object:
     caserun = CaseRun.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = CaseRunSerializer(caserun, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = CaseRunSerializer(caserun, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -6011,8 +6102,7 @@ def create_or_update_flow(request: object=None) -> object:
         )
 
     # serialize and return
-    serializer_context = {'request': request}
-    data = FlowSerializer(flow, context=serializer_context).data
+    data = FlowSerializer(flow, context={'request': request}).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -6057,8 +6147,7 @@ def get_flows(request: object=None) -> object:
         flow = Flow.objects.get(id=flow_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = FlowSerializer(flow, context=serializer_context)
+        serialized = FlowSerializer(flow, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -6069,8 +6158,7 @@ def get_flows(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flows, request)
-    serializer_context = {'request': request}
-    serialized = FlowSerializer(result_page, many=True, context=serializer_context)
+    serialized = FlowSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -6109,11 +6197,9 @@ def get_flow(request: object=None, id: str=None) -> object:
     flow = Flow.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = FlowSerializer(flow, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = FlowSerializer(flow, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -6154,8 +6240,7 @@ def search_flows(request: object=None) -> object:
     # serialize and rerturn
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flows, request)
-    serializer_context = {'request': request}
-    serialized = FlowSerializer(result_page, many=True, context=serializer_context)
+    serialized = FlowSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response 
@@ -6205,8 +6290,7 @@ def copy_flow(request: object=None) -> object:
     )
 
     # return response
-    serializer_context = {'request': request}
-    data = FlowSerializer(new_flow, context=serializer_context).data
+    data = FlowSerializer(new_flow, context={'request': request}).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response
@@ -6530,8 +6614,7 @@ def get_flowruns(request: object=None) -> object:
         flowrun = FlowRun.objects.get(id=flowrun_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = FlowRunSerializer(flowrun, context=serializer_context)
+        serialized = FlowRunSerializer(flowrun, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -6552,10 +6635,9 @@ def get_flowruns(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(flowruns, request)
-    serializer_context = {'request': request}
-    serialized = FlowRunSerializer(result_page, many=True, context=serializer_context)
+    serialized = FlowRunSerializer(result_page, many=True, context={'request': request})
     if str(lean).lower() == 'true':
-        serialized = SmallFlowRunSerializer(result_page, many=True, context=serializer_context)
+        serialized = SmallFlowRunSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -6594,11 +6676,9 @@ def get_flowrun(request: object=None, id: str=None) -> object:
     flowruns = FlowRun.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = FlowRunSerializer(flowruns, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = FlowRunSerializer(flowruns, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -6780,11 +6860,9 @@ def create_or_update_secret(request: object=None) -> object:
         )
 
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = SecretSerializer(secret, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = SecretSerializer(secret, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -6826,8 +6904,7 @@ def get_secrets(request: object=None) -> object:
         secret = Secret.objects.get(id=secret_id)
 
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = SecretSerializer(secret, context=serializer_context)
+        serialized = SecretSerializer(secret, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -6838,8 +6915,7 @@ def get_secrets(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(secrets, request)
-    serializer_context = {'request': request}
-    serialized = SecretSerializer(result_page, many=True, context=serializer_context)
+    serialized = SecretSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -6878,11 +6954,9 @@ def get_secret(request: object=None, id: str=None) -> object:
     secrets = Secret.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = SecretSerializer(secrets, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = SecretSerializer(secrets, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -7232,8 +7306,7 @@ def get_processes(request: object=None) -> object:
         process = Process.objects.get(id=process_id)
         
         # serialize and return
-        serializer_context = {'request': request}
-        data = ProcessSerializer(process, context=serializer_context).data
+        data = ProcessSerializer(process, context={'request': request}).data
         record_api_call(request, data, '200')
         response = Response(data, status=status.HTTP_200_OK)
         return response
@@ -7260,8 +7333,7 @@ def get_processes(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(processes, request)
-    serializer_context = {'request': request}
-    serialized = ProcessSerializer(result_page, many=True, context=serializer_context)
+    serialized = ProcessSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     record_api_call(request, response.data, '200')
     return response
@@ -7300,11 +7372,9 @@ def get_process(request: object=None, id: str=None) -> object:
     process = Process.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = ProcessSerializer(process, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = ProcessSerializer(process, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -7403,8 +7473,7 @@ def get_logs(request: object=None) -> object:
         log = Log.objects.get(id=log_id)
         
         # serialize and return
-        serializer_context = {'request': request}
-        serialized = LogSerializer(log, context=serializer_context)
+        serialized = LogSerializer(log, context={'request': request})
         data = serialized.data
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
@@ -7422,8 +7491,7 @@ def get_logs(request: object=None) -> object:
     # serialize and return
     paginator = LimitOffsetPagination()
     result_page = paginator.paginate_queryset(logs, request)
-    serializer_context = {'request': request}
-    serialized = LogSerializer(result_page, many=True, context=serializer_context)
+    serialized = LogSerializer(result_page, many=True, context={'request': request})
     response = paginator.get_paginated_response(serialized.data)
     return response
 
@@ -7461,11 +7529,9 @@ def get_log(request: object=None, id: str=None) -> object:
     log = Log.objects.get(id=id)
         
     # serialize and return
-    serializer_context = {'request': request}
-    serialized = LogSerializer(log, context=serializer_context)
-    data = serialized.data
-    record_api_call(request, data, '200')
-    return Response(data, status=status.HTTP_200_OK)
+    serialized = LogSerializer(log, context={'request': request})
+    record_api_call(request, serialized.data, '200')
+    return Response(serialized.data, status=status.HTTP_200_OK)
 
 
 
@@ -7627,6 +7693,58 @@ def search_resources(request: object=None) -> object:
         })
         i+=1
     
+    # return response
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_tags(request: object=None) -> object:
+    """ 
+    Retrieves a list of all "Tags" assciated with any object in 
+    user's account
+    
+    Expects:
+        None
+
+    Returns:
+        HTTP Response object
+    """
+
+    # getting account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # default
+    tags = []
+    pages = []
+    all = []
+
+    # get all site & pages
+    sites = Site.objects.filter(account=account)
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites', [])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        sites = sites.filter(id__in=id_list)
+
+    # get all pages
+    for site in sites:
+        pages += Page.objects.filter(site=site)
+
+    # group as one -- super slow!!! fix at somepoint
+    all = list(sites) + pages
+    for i in all:
+        for tag in i.tags:
+            tags.append(tag)
+    
+    # format data
+    data = {
+        'tags': list(set(tags))
+    }
+
     # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response
@@ -8067,8 +8185,7 @@ def migrate_site(request: object=None) -> object:
     )
     
     # serialize and return
-    serializer_context = {'request': request}
-    data = ProcessSerializer(process, context=serializer_context).data
+    data = ProcessSerializer(process, context={'request': request}).data
     record_api_call(request, data, '201')
     response = Response(data, status=status.HTTP_201_CREATED)
     return response

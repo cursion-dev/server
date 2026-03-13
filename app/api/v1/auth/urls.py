@@ -1,10 +1,7 @@
 from django.urls import path, include
 from . import views as views
 from rest_framework.authtoken.views import obtain_auth_token 
-from rest_framework import (
-    routers, serializers, viewsets, 
-)
-
+from rest_framework import routers
 
 
 
