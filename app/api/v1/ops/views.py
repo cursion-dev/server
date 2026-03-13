@@ -1,17 +1,7 @@
-from django.shortcuts import render
-from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth.models import User
-from django.shortcuts import get_object_or_404
 from ...models import *
-from django.urls import path, include
-from rest_framework import routers, serializers, viewsets
-from rest_framework.viewsets import ViewSet
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework.pagination import LimitOffsetPagination
-from django.urls import resolve
 from .serializers import *
 from .services import *
 
@@ -47,7 +37,7 @@ class Sites(APIView):
     pagination_class = LimitOffsetPagination
 
     def post(self, request):
-        response = create_site(request)
+        response = create_or_update_site(request)
         return response
 
     def get(self, request):
@@ -116,7 +106,7 @@ class Pages(APIView):
     pagination_class = LimitOffsetPagination
 
     def post(self, request):
-        response = create_page(request)
+        response = create_or_update_page(request)
         return response
 
     def get(self, request):
@@ -985,6 +975,17 @@ class Search(APIView):
 
     def get(self, request):
         response = search_resources(request)
+        return response
+
+
+
+
+class Tag(APIView):
+    permission_classes = (IsAuthenticated,)
+    http_method_names = ['get',]
+
+    def get(self, request):
+        response = get_tags(request)
         return response
 
 

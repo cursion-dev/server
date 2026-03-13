@@ -410,7 +410,7 @@ def retry_failed_tasks(request: object=None) -> object:
 
 
 
-def create_site(request: object=None) -> object:
+def create_or_update_site(request: object=None) -> object:
     """ 
     Creates a new `Site`, initiates a Crawl, initial `Scans` 
     for each added `Page`, and generates new `Cases`. 
@@ -423,6 +423,7 @@ def create_site(request: object=None) -> object:
     """
 
     # getting data
+    site_id = request.data.get('site_id')
     site_url = request.data.get('site_url')
     page_urls = request.data.get('page_urls')
     onboarding = request.data.get('onboarding', None)
@@ -446,22 +447,39 @@ def create_site(request: object=None) -> object:
             onboarding = False
 
     # clean & check site url
-    if site_url.endswith('/'):
-        site_url = site_url.rstrip('/')
-    if site_url is None or site_url == '':
+    if (site_url is None or site_url == '') and not site_id:
         data = {'reason': 'the site_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    if site_url:
+        if site_url.endswith('/'):
+            site_url = site_url.rstrip('/')
 
     # check account and resource
     check_data = check_permissions_and_usage(
-        member=member, resource='site', action='add',
-        url=site_url
+        member=member, resource='site', 
+        action='update' if site_id else 'add',
+        url=site_url, id=site_id
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
+    
+    # update site if site_id passed
+    if site_id:
+        
+        # get site & update data
+        site = Site.objects.get(id=site_id)
+        if tags is not None:
+            site.tags = tags
+        site.save()
+
+        # serialize response and return
+        serialized = SiteSerializer(site, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        response = Response(serialized.data, status=status.HTTP_200_OK)
+        return response
 
     # creating site if checks passed
     site = Site.objects.create(
@@ -942,7 +960,7 @@ def get_sites_zapier(request: object=None) -> object:
 
 
 
-def create_page(request: object=None) -> object:
+def create_or_update_page(request: object=None) -> object:
     """ 
     Creates one or more pages.
 
@@ -955,6 +973,7 @@ def create_page(request: object=None) -> object:
 
     # getting request data
     site_id = request.data.get('site_id')
+    page_id = request.data.get('page_id')
     page_url = request.data.get('page_url')
     page_urls = request.data.get('page_urls')
     tags = request.data.get('tags', None)
@@ -965,7 +984,6 @@ def create_page(request: object=None) -> object:
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
-    site = Site.objects.get(id=site_id)
 
     # updating configs if None:
     configs = account.configs if configs == None else configs
@@ -980,22 +998,42 @@ def create_page(request: object=None) -> object:
         return response
     
     # validating page_url
-    if page_url.endswith('/'):
-        page_url = page_url.rstrip('/')
-    if page_url is None or page_url == '':
+    if (page_url is None or page_url == '') and not page_id:
         data = {'reason': 'the page_url cannot be empty'}
         record_api_call(request, data, '400')
         return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    if page_url:
+        if page_url.endswith('/'):
+            page_url = page_url.rstrip('/')
 
     # check account and resource
     check_data = check_permissions_and_usage(
-        member=member, resource='page', action='add', 
-        id=site_id, id_type='site', url=page_url,
+        member=member, resource='page', action='add' if site_id else 'update', 
+        id=site_id if site_id else page_id, 
+        id_type='site' if site_id else 'page', url=page_url,
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error']}
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
+    
+    # update page if page_id passed
+    if page_id:
+        
+        # get page & update data
+        page = Page.objects.get(id=page_id)
+        if tags is not None:
+            page.tags = tags
+        page.save()
+
+        # serialize response and return
+        serialized = PageSerializer(page, context={'request': request})
+        record_api_call(request, serialized.data, '200')
+        response = Response(serialized.data, status=status.HTTP_200_OK)
+        return response
+    
+    # get site
+    site = Site.objects.get(id=site_id)
 
     # adding page if checks passed
     page = Page.objects.create(
@@ -3675,6 +3713,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         threshold = request.data.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = request.data.get('schedule_id')
         resources = request.data.get('resources')
+        tags = request.data.get('tags')
         scope = request.data.get('scope')
         case_id = request.data.get('case_id')
         flow_id = request.data.get('flow_id')
@@ -3693,6 +3732,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         threshold = kwargs.get('threshold', settings.TEST_THRESHOLD)
         schedule_id = kwargs.get('schedule_id')
         resources = kwargs.get('resources')
+        tags = kwargs.get('tags')
         scope = kwargs.get('scope')
         case_id = kwargs.get('case_id')
         flow_id = kwargs.get('flow_id')
@@ -3700,7 +3740,6 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         user_id = kwargs.get('user_id')
         user = User.objects.get(id=user_id)
         
-
     # get account
     member = Member.objects.get(user=user)
     account = member.account
@@ -3760,6 +3799,7 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
         arguments = {
             'scope': scope,
             'resources': resources,
+            'tags': tags,
             'account_id': str(account.id),
             'updates': updates,
             'configs': configs,
@@ -3906,6 +3946,8 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
                 schedule.extras = extras 
             if resources is not None:
                 schedule.resources = resources
+            if tags is not None:
+                schedule.tags = tags
             
             # save udpdates
             schedule.save()
@@ -3915,7 +3957,8 @@ def create_or_update_schedule(request: object=None, **kwargs) -> object:
             schedule = Schedule.objects.create(
                 user=request.user, 
                 scope=scope,
-                resources=resources, 
+                resources=resources,
+                tags=tags, 
                 task_type=task_type, 
                 timezone=timezone,
                 begin_date=begin_date, 
@@ -4020,9 +4063,10 @@ def run_schedule(request: object=None) -> object:
 
     Args:
         requests: object
-    } 
 
-    Return -> HTTP Response object
+
+    Returns:
+        Response
     """
 
     # get request data
@@ -7649,6 +7693,58 @@ def search_resources(request: object=None) -> object:
         })
         i+=1
     
+    # return response
+    response = Response(data, status=status.HTTP_200_OK)
+    return response
+
+
+
+
+def get_tags(request: object=None) -> object:
+    """ 
+    Retrieves a list of all "Tags" assciated with any object in 
+    user's account
+    
+    Expects:
+        None
+
+    Returns:
+        HTTP Response object
+    """
+
+    # getting account
+    user = request.user
+    member = Member.objects.get(user=user)
+    account = member.account
+
+    # default
+    tags = []
+    pages = []
+    all = []
+
+    # get all site & pages
+    sites = Site.objects.filter(account=account)
+
+    # filter out all non permissioned sites
+    if len(member.permissions.get('sites', [])) != 0:
+        id_list = [item['id'] for item in member.permissions.get('sites')]
+        sites = sites.filter(id__in=id_list)
+
+    # get all pages
+    for site in sites:
+        pages += Page.objects.filter(site=site)
+
+    # group as one -- super slow!!! fix at somepoint
+    all = list(sites) + pages
+    for i in all:
+        for tag in i.tags:
+            tags.append(tag)
+    
+    # format data
+    data = {
+        'tags': list(set(tags))
+    }
+
     # return response
     response = Response(data, status=status.HTTP_200_OK)
     return response

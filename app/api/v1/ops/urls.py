@@ -72,6 +72,7 @@ urlpatterns = [
     path('log/<uuid:id>', views.LogDetail.as_view(), name='log-detail'),
     path('search', views.Search.as_view(), name='search'),
     path('device', views.Device.as_view(), name='device'),
+    path('tag', views.Tag.as_view(), name='tag'),
     path('metrics/home', views.HomeMetrics.as_view(), name='home-metrics'),
     path('metrics/site', views.SiteMetrics.as_view(), name='site-metrics'),
     path('metrics/page', views.PageMetrics.as_view(), name='page-metrics'),

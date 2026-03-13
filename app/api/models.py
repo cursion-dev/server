@@ -647,6 +647,7 @@ class Schedule(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     scope = models.CharField(max_length=100, default='account', serialize=True)
     resources = models.JSONField(serialize=True, null=True, blank=True)
+    tags = models.JSONField(serialize=True, null=True, blank=True)
     alert = models.ForeignKey('Alert', on_delete=models.SET_NULL, null=True, blank=True, serialize=True, related_name='assoc_alert')
     time_created = models.DateTimeField(default=timezone.now, null=True, blank=True, serialize=True)
     time_last_run = models.DateTimeField(null=True, blank=True, serialize=True)
