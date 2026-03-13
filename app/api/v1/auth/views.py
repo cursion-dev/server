@@ -1,17 +1,12 @@
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from rest_framework.viewsets import ViewSet
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework import status, serializers
+from rest_framework import status
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.shortcuts import redirect
-from django.contrib.auth.models import User
-from datetime import timedelta, datetime
-from ...models import Account, Member
-from cursion import settings
 from .services import *
-import os, stripe, json
 
 
 
