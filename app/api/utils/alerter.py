@@ -15,7 +15,6 @@ class Alerter():
         'alert_id'   : str,
         'object_id'  : str,
         'expressions' : list
-    }
 
     - Use `Alerter.run_alert()` to run an `Alert`
     - Use `Alerter.get_object()` to set self.object

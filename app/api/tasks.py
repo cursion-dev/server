@@ -3637,7 +3637,8 @@ def send_phone_bg(
         'flowrun_id'    : str,
         'node_index'    : str,
     
-    Returns: None
+    Returns:
+        None
     """
 
     # interating through objects
@@ -3662,7 +3663,7 @@ def send_phone_bg(
                 'message': resp.get('message'),
                 'objects': [{
                     'parent': obj['parent'],
-                    'id': obj['id'], 
+                    'id': obj['id'],
                     'status': 'passed' if resp.get('success') else 'failed'
                 }]
             })
