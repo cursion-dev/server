@@ -8,8 +8,9 @@ from ..tasks import (
     send_slack_bg, send_webhook_bg
 )
 from django.utils import timezone
+from django.core.cache import cache
 from datetime import datetime
-import time, uuid, uuid, random
+import time, uuid, random
 
 
 
@@ -189,7 +190,6 @@ class Flowr():
 
         Args:
             'source': str
-        }
 
         Returns: [{
             'index': str,
@@ -219,12 +219,10 @@ class Flowr():
 
         Args:
             'id': str
-        }
 
         Returns:
             'index': str,
             'node': dict
-        }
         """
 
         # find node by id
@@ -248,9 +246,9 @@ class Flowr():
 
         Args:
             'object_list': list
-        }
 
-        Returns: bool
+        Returns:
+            bool
         """
         if len(object_list) == 0:
             return True
@@ -268,10 +266,11 @@ class Flowr():
         if node is `working` and all obj.time_complete 
         are not None: update node & edge with status.'passed'
 
-        Expects: 
-            "ignore_ids": list of node.ids to ignore
+        Args:
+            ignore_ids: `node.ids` to ignore
 
-        Returns: None
+        Returns:
+            None
         """
         # get fresh flowrun obj
         flowrun = FlowRun.objects.get(id=self.flowrun_id)
@@ -365,7 +364,6 @@ class Flowr():
 
         Args:
             'index': int
-        }
 
         Returns: None
         """
@@ -389,9 +387,9 @@ class Flowr():
 
         Args:
             'current_data': dict
-        }
 
-        Returns: `FlowRun` object
+        Returns:
+            `FlowRun` object
         """
         
         # defaults
@@ -462,236 +460,311 @@ class Flowr():
         Checks for the next step and executes 
         if current step has completed.
 
-        Expects: None
+        Args:
+            None
 
-        Returns: `FlowRun` object
+        Returns:
+            `FlowRun` object
         """
 
-        # check if flowrun is complete
-        if self.flowrun.time_completed:
-            # return early 
-            print('flowrun is complete')
+        # cache lookup/lock 
+        lock_key    = f'flowr:run_next:{self.flowrun_id}'
+        pending_key = f'{lock_key}:pending'
+        lock_ttl    = 300 # increased from 90 sec
+        lock_id     = str(uuid.uuid4())
+
+        # single run per flowrun_id
+        if not cache.add(lock_key, lock_id, timeout=lock_ttl):
+            print('[FLOWRUN] no cache lock available')
+            cache.set(pending_key, '1', timeout=lock_ttl)
             return self.flowrun
+        
+        try:
+            # get fresh flowrun
+            self.flowrun = FlowRun.objects.get(id=self.flowrun_id)
 
-
-        # get last completed node or None
-        current_data = self.get_current_step()
-
-
-        # check if FlowRun is just starting
-        if current_data['node'] is None and \
-            self.flowrun.nodes[0]['data']['status'] == 'queued':
-            
-            # create step_data for first step
-            step_data = {
-                'index': 0,
-                'node': self.flowrun.nodes[0]
-            }
-            
-            # create alert obj if needed for first job
-            alert_obj = {
-                'parent': str(self.flowrun_id),
-                'id': str(self.flowrun_id),
-                'status': 'working'
-            }
-            objs = [alert_obj,] if step_data['node']['data']['task_type'] in self.alert_types else []
-
-            # catch empty task_type
-            if not step_data['node']['data']['task_type']:
-                self.complete_flowrun(current_data=step_data)
+            # check if flowrun is complete
+            if self.flowrun.time_completed:
+                # return early 
+                print('flowrun is complete')
                 return self.flowrun
 
-            # run first step
-            print('running first step')
-            self.execute_step(step_data=step_data, objects=objs)
-            return self.flowrun
+            # get last completed node or None
+            current_data = self.get_current_step()
 
-
-        # catch updates without a current_node 
-        if current_data['node'] is None:
-            return self.flowrun
-
-
-        # check for node conditions given not 'queued' or 'working'
-        if current_data['node']['data']['conditions'] and \
-            (current_data['node']['data']['status'] != 'failed' or not self.flowrun.configs.get('end_on_fail')):
-            
-            # starting conditons buliding & execution
-            print('building conditons')
-
-            # finialize node
-            self.finalize_node(index=current_data['index'])
-
-            # set defaults
-            true_outcomes       = []
-            false_outcomes      = []
-
-            # iterate through the objects and run conditions for each
-            for obj_data in current_data['node']['data'].get('objects', []):
-            
-                # get obj using Alerter
-                obj = Alerter(
-                    object_id=obj_data['id'],
-                    task_type=current_data['node']['data']['task_type']
-                ).get_object()
-
-                # check if obj is Test and if status != 'incomplete' (skip if true)
-                if type(obj).__name__ == 'Test':
-                    if obj.status == 'incomplete':
-                        continue
+            # check if FlowRun is just starting
+            if current_data['node'] is None and \
+                self.flowrun.nodes[0]['data']['status'] == 'queued':
                 
-                # build and execute conditions
-                conditions = Alerter(
-                    expressions=current_data['node']['data']['conditions']
-                ).build_expressions()
-
-                print(conditions)
+                # create step_data for first step
+                step_data = {
+                    'index': 0,
+                    'node': self.flowrun.nodes[0]
+                }
                 
-                # evaluate conditons
-                outcome = eval(f'True if ({conditions}) else False')
+                # create alert obj if needed for first job
+                alert_obj = {
+                    'parent': str(self.flowrun_id),
+                    'id': str(self.flowrun_id),
+                    'status': 'working'
+                }
+                objs = [alert_obj,] if step_data['node']['data']['task_type'] in self.alert_types else []
 
-                # create new fake parent ID
-                parentID = uuid.uuid4()
+                # catch empty task_type
+                if not step_data['node']['data']['task_type']:
+                    self.complete_flowrun(current_data=step_data)
+                    return self.flowrun
+
+                # run first step
+                print('running first step')
+                self.execute_step(step_data, objs)
+                return self.flowrun
+
+            # catch updates without a current_node 
+            if current_data['node'] is None:
+                return self.flowrun
+
+            # check for node conditions given not 'queued' or 'working'
+            if current_data['node']['data']['conditions'] and \
+                (current_data['node']['data']['status'] != 'failed' or not self.flowrun.configs.get('end_on_fail')):
                 
-                # sorting
-                if outcome == True:
-                    true_outcomes.append({
-                        'parent'    : str(parentID),
-                        'id'        : obj_data['id'],
-                        'status'    : 'working'
-                    })
-                if outcome == False:
-                    false_outcomes.append({
-                        'parent'    : str(parentID),
-                        'id'        : obj_data['id'],
-                        'status'    : 'working'
-                    })
+                # starting conditons buliding & execution
+                print('building conditons')
 
-            # get child edges
-            edges = self.get_edges_by_source(current_data['node']['id'])
-            children = [self.get_node_by_id(e['edge']['target']) for e in edges]
-            
-            # establish true/false child nodes
-            true_child = None
-            false_child = None
-            for c in children:
-                if c['node']['data']['start_if'] == True:
-                    true_child = c
-                if c['node']['data']['start_if'] == False:
-                    false_child = c
+                # finialize node
+                self.finalize_node(index=current_data['index'])
 
-            # run true_child if true_outcomes exists
-            if len(true_outcomes) > 0:
-                print('RUNNING TRUE CHILD')
-                true_task = true_child['node']['data']['task_type'] if true_child else None
-                # sleeping random for DB 
-                time.sleep(random.uniform(1, 5))
-                self.execute_step(
-                    step_data=true_child, 
-                    objects=true_outcomes if true_task in self.alert_types else []
-                )
-            
-            # run false_child if false_outcomes exists
-            if len(false_outcomes) > 0:
-                print('RUNNING FALSE CHILD')
-                false_task = false_child['node']['data']['task_type'] if false_child else None
-                # sleeping random for DB 
-                time.sleep(random.uniform(1, 5))
-                self.execute_step(
-                    step_data=false_child, 
-                    objects=false_outcomes if false_task in self.alert_types else []
-                )
+                # set defaults
+                true_outcomes  = []
+                false_outcomes = []
 
-            # ending section
-            return self.flowrun
+                # iterate through the objects and run conditions for each
+                for obj_data in current_data['node']['data'].get('objects', []):
+                
+                    # get obj using Alerter
+                    obj = Alerter(
+                        object_id=obj_data['id'],
+                        task_type=current_data['node']['data']['task_type']
+                    ).get_object()
 
-        
-        # get and execute next step if current_node status is 'passed'
-        if current_data['node']['data']['status'] == 'passed':
+                    # check if obj is Test and if status != 'incomplete' (skip if true)
+                    if type(obj).__name__ == 'Test':
+                        if obj.status == 'incomplete':
+                            continue
+                    
+                    # build and execute conditions
+                    conditions = Alerter(
+                        expressions=current_data['node']['data']['conditions']
+                    ).build_expressions()
 
-            # finialize node
-            self.finalize_node(index=current_data['index'])
-            
-            # get child edges
-            edges = self.get_edges_by_source(current_data['node']['id'])
-            children = [self.get_node_by_id(e['edge']['target']) for e in edges]
+                    print(conditions)
+                    
+                    # evaluate conditons
+                    outcome = eval(f'True if ({conditions}) else False')
 
-            # children length should be <= 1 since
-            # current_node.conditions == None
-            if len(children) == 1:
-                if children[0] is not None:
-                    next_step = children[0]
-                    if next_step['node']['data']['task_type']:
-                        print('running next step after "PASSED" non-conditional step')
-                        objs = []
-                        if next_step['node']['data']['task_type'] in self.alert_types:
-                            objs = current_data['node']['data'].get('objects', [])
-                        self.execute_step(step_data=next_step, objects=objs)
-                        return self.flowrun
+                    # create new fake parent ID
+                    parentID = uuid.uuid4()
+                    
+                    # sorting
+                    if outcome == True:
+                        true_outcomes.append({
+                            'parent'    : str(parentID),
+                            'id'        : obj_data['id'],
+                            'status'    : 'working'
+                        })
+                    if outcome == False:
+                        false_outcomes.append({
+                            'parent'    : str(parentID),
+                            'id'        : obj_data['id'],
+                            'status'    : 'working'
+                        })
 
-            # if no children, end flowrun and update logs
-            self.complete_flowrun(current_data=current_data)
-            
-            # return flowrun
-            return self.flowrun
-            
-        
-        # mark flowrun as `complete` and `failed` if 
-        # current_node status is 'failed' & 'end_on_fail' is True
-        if current_data['node']['data']['status'] == 'failed':
+                # get child edges
+                edges = self.get_edges_by_source(current_data['node']['id'])
+                children = [self.get_node_by_id(e['edge']['target']) for e in edges]
+                
+                # establish true/false child nodes
+                true_child = None
+                false_child = None
+                for c in children:
+                    if c['node']['data']['start_if'] == True:
+                        true_child = c
+                    if c['node']['data']['start_if'] == False:
+                        false_child = c
 
-            # finialize node
-            self.finalize_node(index=current_data['index'])
+                # run true_child if true_outcomes exists
+                if len(true_outcomes) > 0:
+                    print('RUNNING TRUE CHILD')
+                    true_task = true_child['node']['data']['task_type'] if true_child else None
+                    # sleeping random for DB 
+                    time.sleep(random.uniform(1, 5))
+                    self.execute_step(
+                        step_data=true_child, 
+                        objects=true_outcomes if true_task in self.alert_types else []
+                    )
+                
+                # run false_child if false_outcomes exists
+                if len(false_outcomes) > 0:
+                    print('RUNNING FALSE CHILD')
+                    false_task = false_child['node']['data']['task_type'] if false_child else None
+                    # sleeping random for DB 
+                    time.sleep(random.uniform(1, 5))
+                    self.execute_step(
+                        step_data=false_child, 
+                        objects=false_outcomes if false_task in self.alert_types else []
+                    )
 
-            # end flowrun if requested
-            if self.flowrun.configs.get('end_on_fail', True):
+                # ending section
+                return self.flowrun
 
-                print('--- ending run early due to failure ---')
+            # get and execute next step if current_node status is 'passed'
+            if current_data['node']['data']['status'] == 'passed':
+
+                # finialize node
+                self.finalize_node(index=current_data['index'])
+                
+                # get child edges
+                edges = self.get_edges_by_source(current_data['node']['id'])
+                children = [self.get_node_by_id(e['edge']['target']) for e in edges]
+
+                # children length should be <= 1 since
+                # current_node.conditions == None
+                if len(children) == 1:
+                    if children[0] is not None:
+                        next_step = children[0]
+                        if next_step['node']['data']['task_type']:
+                            print('running next step after "PASSED" non-conditional step')
+                            
+                            _objs   = current_data['node']['data'].get('objects', [])
+                            parent  = self.get_node_by_id(current_data['node']['data'].get('parentId'))
+                            objs    = []
+                            res     = []
+                            
+                            # set `objs` to previous object data
+                            if next_step['node']['data']['task_type'] in self.alert_types:
+                                objs = _objs
+
+                            # set `res` using object data from previous step
+                            if len(_objs) > 0:
+       
+                                site_types = ['caserun', 'report']
+                                page_types = ['test', 'scan']
+                                
+                                for obj_data in _objs:
+                                    
+                                    # get obj using Alerter
+                                    obj = Alerter(
+                                        object_id=obj_data['id'],
+                                        task_type=parent['node']['data']['task_type']
+                                    ).get_object()
+
+                                    # get obj type 
+                                    obj_type = type(obj).__name__.lower()
+                                    
+                                    # adding site as resource
+                                    if obj_type in site_types:
+                                        res = [{
+                                            "id"    : str(self.flowrun.site.id), 
+                                            "str"   : self.flowrun.site.site_url, 
+                                            "type"  : "site"
+                                        }]
+
+                                        # ending loop early if site
+                                        break
+                                    
+                                    # adding associated pages as resources
+                                    elif obj_type in page_types:
+                                        res.append({
+                                            "id"    : str(obj.page.id), 
+                                            "str"   : obj.page.page_url, 
+                                            "type"  : "page"
+                                        })
+
+                            self.execute_step(next_step, objs, res)
+                            return self.flowrun
+
+                # if no children, end flowrun and update logs
+                self.complete_flowrun(current_data=current_data)
+                
+                # return flowrun
+                return self.flowrun
+                
+            # mark flowrun as `complete` and `failed` if 
+            # current_node status is 'failed' & 'end_on_fail' is True
+            if current_data['node']['data']['status'] == 'failed':
+
+                # finialize node
+                self.finalize_node(index=current_data['index'])
+
+                # end flowrun if requested
+                if self.flowrun.configs.get('end_on_fail', True):
+
+                    print('--- ending run early due to failure ---')
+                    self.complete_flowrun(current_data=current_data)
+
+                    # return flowrun
+                    return self.flowrun
+                        
+                # get child edges
+                edges = self.get_edges_by_source(current_data['node']['id'])
+                children = [self.get_node_by_id(e['edge']['target']) for e in edges]
+
+                # children length should be <= 1 since
+                # current_node.conditions == None
+                if len(children) == 1:
+                    if children[0] is not None:
+                        next_step = children[0]
+                        # check for data in next_step
+                        if next_step['node']['data']['task_type']:
+                            print('running next step after "FAILED" non-conditional step')
+                            objs = []
+                            if next_step['node']['data']['task_type'] in self.alert_types:
+                                objs = current_data['node']['data'].get('objects', [])
+                            self.execute_step(next_step, objs)
+                            return self.flowrun
+
+                # if no children, end flowrun as 'failed' and update logs
                 self.complete_flowrun(current_data=current_data)
 
                 # return flowrun
                 return self.flowrun
-                    
-            # get child edges
-            edges = self.get_edges_by_source(current_data['node']['id'])
-            children = [self.get_node_by_id(e['edge']['target']) for e in edges]
 
-            # children length should be <= 1 since
-            # current_node.conditions == None
-            if len(children) == 1:
-                if children[0] is not None:
-                    next_step = children[0]
-                    # check for data in next_step
-                    if next_step['node']['data']['task_type']:
-                        print('running next step after "FAILED" non-conditional step')
-                        objs = []
-                        if next_step['node']['data']['task_type'] in self.alert_types:
-                            objs = current_data['node']['data'].get('objects', [])
-                        self.execute_step(step_data=next_step, objects=objs)
-                        return self.flowrun
+        # log any exception
+        except Exception as e:
+            print(f'[FLOWRUN Error]: {e}')
 
-            # if no children, end flowrun as 'failed' and update logs
-            self.complete_flowrun(current_data=current_data)
-
-            # return flowrun
-            return self.flowrun
+        # handle cache cleanup
+        finally:
+            
+            # rm local run cache
+            print('[FLOWRUN] removing cache lock')
+            cache.delete(lock_key)
+            
+            # rm local pending lock and run
+            if cache.get(pending_key):
+                print('[FLOWRUN] running pending follow-up')
+                cache.delete(pending_key)
+                Flowr(flowrun_id=str(self.flowrun_id)).run_next()
 
 
-        
 
-    def execute_step(self, step_data: dict=None, objects: list=None) -> None:
+
+    def execute_step(
+            self, 
+            step_data   : dict=None, 
+            objects     : list=None, 
+            resources   : list=None,
+        ) -> None:
         """ 
         Executes the `step` with associated job.
 
         Args:
-            'step_data': {
-                'index': str,
-                'node' : dict
-            },
-            'objects': list
-        }
-        
-        Returns: None
+            'step_data' : dict,
+            'objects'   : list, 
+            'resources' : list
+
+        Returns:
+            None
         """
 
         if step_data is None:
@@ -758,8 +831,7 @@ class Flowr():
             'str'   : self.flowrun.site.site_url,
             'id'    : str(self.flowrun.site.id),
             'type'  : 'site'
-        },]
-    
+        },] if not resources else resources
 
         # create new scan
         if task_type == 'scan':
@@ -801,7 +873,7 @@ class Flowr():
 
         # create new issue
         if task_type == 'issue':
-            create_issue_bg(
+            create_issue_bg.delay(
                 account_id    = account_id,
                 objects       = objects,
                 title         = node_data['title'],
@@ -813,7 +885,7 @@ class Flowr():
         
         # create new report
         if task_type == 'report':
-            create_report_bg(
+            create_report_bg.delay(
                 scope         = scope,
                 resources     = resources,
                 account_id    = account_id,
@@ -824,7 +896,7 @@ class Flowr():
 
         # send phone notification
         if task_type == 'phone':
-            send_phone_bg(
+            send_phone_bg.delay(
                 account_id    = account_id,
                 objects       = objects,
                 phone_number  = node_data['phone_number'],
@@ -835,7 +907,7 @@ class Flowr():
         
         # send slack notification
         if task_type == 'slack':
-            send_slack_bg(
+            send_slack_bg.delay(
                 account_id    = account_id,
                 objects       = objects,
                 body          = node_data['message'],
@@ -845,7 +917,7 @@ class Flowr():
 
         # send email notification
         if task_type == 'email':
-            send_email_bg(
+            send_email_bg.delay(
                 account_id    = account_id,
                 objects       = objects,
                 message_obj   = {
@@ -860,7 +932,7 @@ class Flowr():
 
         # send webhook notification
         if task_type == 'webhook':
-            send_webhook_bg(
+            send_webhook_bg.delay(
                 account_id    = account_id,
                 objects       = objects,
                 request_type  = node_data['request_type'],
@@ -871,16 +943,13 @@ class Flowr():
                 node_index    = node_index
             )
 
-
         # check all objs.time_complete for each "working" node.
         # if node is `working` and all obj.time_complete 
         # are not None: update node with status.'passed'
         self.check_all_working_nodes(ignore_ids=[node_data['id']])
 
-
         # returning 
         return None
-
 
 
 

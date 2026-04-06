@@ -1,5 +1,6 @@
 from ..models import *
 from django.utils import timezone
+from cursion import settings
 
 
 
@@ -155,8 +156,14 @@ def update_flowrun(**kwargs) -> object:
     flowrun.logs = logs
     flowrun.save()
 
-    # signals.py should pickup this `update()` event and 
-    # execute the run_next() instance of flowr.py
+    # run_next() should execute for updater-driven changes.
+    # keep this explicit so progression does not rely solely on signal timing.
+    if settings.LOCATION == 'us':
+        try:
+            from .flowr import Flowr
+            Flowr(flowrun_id=str(flowrun.id)).run_next()
+        except Exception as e:
+            print(f'[update_flowrun] run_next trigger error: {e}')
 
     # return updated flowrun
     return flowrun

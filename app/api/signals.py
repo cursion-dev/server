@@ -23,7 +23,8 @@ def flowrun_created(sender, instance, created, **kwargs):
     if settings.LOCATION == 'us':
 
         # init Flowr & execute run_next()
-        Flowr(flowrun_id=str(flowrun.id)).run_next()
+        if created:
+            Flowr(flowrun_id=str(flowrun.id)).run_next()
 
     # return None
     return None
