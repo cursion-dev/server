@@ -7737,8 +7737,9 @@ def get_tags(request: object=None) -> object:
     # group as one -- super slow!!! fix at somepoint
     all = list(sites) + pages
     for i in all:
-        for tag in i.tags:
-            tags.append(tag)
+        if i.tags:
+            for tag in i.tags:
+                tags.append(tag)
     
     # format data
     data = {
