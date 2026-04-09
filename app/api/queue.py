@@ -195,6 +195,15 @@ def _get_account_id_from_page_id(page_id: str) -> str | None:
         return None
 
 
+def _get_account_id_from_site_id(site_id: str) -> str | None:
+    try:
+        Site = apps.get_model('api', 'Site')
+        site = Site.objects.select_related('account').get(id=site_id)
+        return str(site.account.id) if site.account else None
+    except Exception:
+        return None
+
+
 
 
 # setting locking manager to prevent duplicate tasks
@@ -213,4 +222,3 @@ def task_lock(lock_name, timeout=300):
 @contextmanager
 def _always_acquired():
     yield True, 0
-

@@ -4661,24 +4661,58 @@ def create_or_update_report(request: object=None) -> object:
 
     # get request data
     report_id = request.data.get('report_id')
-    page_id = request.data.get('page_id')
-    report_type = request.data.get('type', ['lighthouse', 'yellowlab'])
+    site_id = request.data.get('site_id')
+    report_type = request.data.get('type')
+    lookback_days = request.data.get('lookback_days')
     text_color = request.data.get('text_color', '#24262d')
     background_color = request.data.get('background_color', '#e1effd')
     highlight_color = request.data.get('highlight_color', '#4283f8')
 
     # set defaults
     report = None
-    page = None
+    site = None
     
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
     account = member.account
 
-    id = report_id if report_id else page_id
-    id_type = 'report' if report_id else 'page'
+    id = report_id if report_id else site_id
+    id_type = 'report' if report_id else 'site'
     action = 'update' if report_id else 'add'
+
+    # validate create/update payload shape
+    valid_types = ['issues', 'tests', 'caseruns', 'performance']
+    if not report_id and not site_id:
+        data = {'reason': 'site_id is required when report_id is not provided'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if lookback_days is None:
+        data = {'reason': 'lookback_days is required and must be one of 1, 7, 30, 90'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        lookback_days = int(lookback_days)
+    except Exception:
+        data = {'reason': 'lookback_days must be one of 1, 7, 30, 90'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+    if lookback_days not in [1, 7, 30, 90]:
+        data = {'reason': 'lookback_days must be one of 1, 7, 30, 90'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if not isinstance(report_type, list) or len(report_type) == 0:
+        data = {'reason': 'type is required and must be a non-empty array'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
+
+    report_type = list(dict.fromkeys([str(item).strip().lower() for item in report_type if str(item).strip()]))
+    if not all(item in valid_types for item in report_type):
+        data = {'reason': f'type must be a subset of {valid_types}'}
+        record_api_call(request, data, '400')
+        return Response(data, status=status.HTTP_400_BAD_REQUEST)
 
     # checking account and resource 
     check_data = check_permissions_and_usage(
@@ -4690,26 +4724,43 @@ def create_or_update_report(request: object=None) -> object:
         record_api_call(request, data, check_data['code'])
         return Response(data, status=check_data['status'])
 
-    # get page if checks passed
-    if page_id:    
-        page = Page.objects.get(id=page_id)
     # get report if checks passed
     if report_id:
         report = Report.objects.get(id=report_id)
+        if site_id:
+            if not Site.objects.filter(id=site_id, account=account).exists():
+                data = {'reason': 'site not found'}
+                record_api_call(request, data, '404')
+                return Response(data, status=status.HTTP_404_NOT_FOUND)
+            site = Site.objects.get(id=site_id)
+        else:
+            site = report.site
+    # get site if creating
+    if not report:
+        if not Site.objects.filter(id=site_id, account=account).exists():
+            data = {'reason': 'site not found'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        site = Site.objects.get(id=site_id)
 
     # build report info
     info = {
         "text_color": text_color,
         "background_color": background_color,
         "highlight_color": highlight_color,
+        "lookback_days": lookback_days,
+        "types": report_type,
     }
     
     # update report
     if report:
-        if info:
-            report.info = info
-        if report_type:
-            report.type = report_type
+        old_info = report.info if isinstance(report.info, dict) else {}
+        old_info.update(info)
+        report.info = old_info
+        report.type = report_type
+        if site:
+            report.site = site
+        report.page = None
         # save updates
         report.save()
         
@@ -4717,8 +4768,8 @@ def create_or_update_report(request: object=None) -> object:
     if not report:
         report = Report.objects.create(
             user=request.user, 
-            page=page, 
-            site=page.site, 
+            page=None,
+            site=site,
             account=account,
             info=info,
             type=report_type
@@ -4763,7 +4814,7 @@ def get_reports(request: object=None) -> object:
     """
 
     # get request data
-    page_id = request.query_params.get('page_id')
+    site_id = request.query_params.get('site_id')
     report_id = request.query_params.get('report_id')
     
     # get user and account
@@ -4771,13 +4822,13 @@ def get_reports(request: object=None) -> object:
     member = Member.objects.get(user=user)
     account = member.account
 
-    id = report_id if report_id else page_id
-    id_type = 'report' if report_id else 'page'
+    id = report_id if report_id else site_id
+    id_type = 'report' if report_id else 'site'
 
     # checking account and resource 
     check_data = check_permissions_and_usage(
         member=member, resource='report', 
-        action='add', id=id, id_type=id_type
+        action='get', id=id, id_type=id_type
     )
     if not check_data['allowed']:
         data = {'reason': check_data['error']}
@@ -4796,13 +4847,17 @@ def get_reports(request: object=None) -> object:
         record_api_call(request, data, '200')
         return Response(data, status=status.HTTP_200_OK)
 
-    # get reports scoped to page if checks passed
-    if page_id:
-        page = Page.objects.get(id=page_id)
-        reports = Report.objects.filter(page=page, account=account).order_by('-time_created')
+    # get reports scoped to site if checks passed
+    if site_id:
+        if not Site.objects.filter(id=site_id, account=account).exists():
+            data = {'reason': 'site not found'}
+            record_api_call(request, data, '404')
+            return Response(data, status=status.HTTP_404_NOT_FOUND)
+        site = Site.objects.get(id=site_id)
+        reports = Report.objects.filter(site=site, account=account).order_by('-time_created')
 
     # get reports scoped to user if checks passed
-    if page_id is None and report_id is None:
+    if site_id is None and report_id is None:
         reports = Report.objects.filter(user=request.user).order_by('-time_created')
 
     # filter out all non permissioned sites
@@ -4836,7 +4891,6 @@ def get_report(request: object=None, id: str=None) -> object:
     # get user and account
     user = request.user
     member = Member.objects.get(user=user)
-    account = member.account
 
     # check account and resource
     check_data = check_permissions_and_usage(

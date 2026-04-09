@@ -206,14 +206,13 @@ class AlertSerializer(serializers.HyperlinkedModelSerializer):
 
 class ReportSerializer(serializers.HyperlinkedModelSerializer):
     id = serializers.PrimaryKeyRelatedField(**kwargs)
-    page = serializers.PrimaryKeyRelatedField(source='page.id', **kwargs)
     site = serializers.PrimaryKeyRelatedField(source='site.id', **kwargs)
     user = serializers.ReadOnlyField(source='user.username')
     account = serializers.PrimaryKeyRelatedField(source='account.id', **kwargs)
 
     class Meta:
         model = Report
-        fields = ['id', 'site', 'page', 'user', 'time_created', 'type',
+        fields = ['id', 'site', 'user', 'time_created', 'type',
         'path', 'info', 'account',
         ]
 
