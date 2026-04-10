@@ -26,7 +26,8 @@ from .queue import (
     _reschedule_due_to_concurrency, task_lock, 
     _get_account_id_from_scan_id, _get_account_id_from_test_id,
     _get_account_id_from_caserun_id, get_task_queue, 
-    apply_async_in_queue, _get_account_id_from_page_id
+    apply_async_in_queue,
+    _get_account_id_from_site_id
 )
 from .models import *
 from functools import reduce
@@ -2066,7 +2067,7 @@ def create_test_bg(self, **kwargs) -> None:
 @shared_task(bind=True, base=BaseTaskWithRetry)
 def create_report(
         self,
-        page_id: str=None,
+        site_id: str=None,
         alert_id: str=None,
         flowrun_id: str=None,
         node_index: str=None,
@@ -2074,41 +2075,50 @@ def create_report(
         **kwargs,
     ) -> None:
     """ 
-    Generates a new PDF `Report` of the requested `Page`
+    Generates a new PDF `Report` of the requested `Site`
     and runs the associated `Alert` if requested
 
     Args:
-        page_id       : str, 
+        site_id       : str,
         alert_id      : str,
         flowrun_id    : str
         node_index    : str
     
     Returns: None
     """
-    
-    account_id = _get_account_id_from_page_id(str(page_id)) if page_id else None
+    if not site_id:
+        logger.warning('create_report skipped: missing site_id')
+        return None
+
+    account_id = _get_account_id_from_site_id(str(site_id)) if site_id else None
     with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
         acquired, rank = slot
         if not acquired:
             _reschedule_due_to_concurrency(self, rank=rank)
             return None
 
-        # get page
-        page = Page.objects.get(id=page_id)
+        # get site
+        site = Site.objects.get(id=site_id)
+
+        lookback_days = kwargs.get('lookback_days', 7)
+        report_type = kwargs.get('type', ['issues', 'tests', 'caseruns', 'performance'])
+        text_color = kwargs.get('text_color', '#24262d')
+        background_color = kwargs.get('background_color', '#e1effd')
+        highlight_color = kwargs.get('highlight_color', '#ffffff')
     
         # create report obj
         info = {
-            "text_color": '#24262d',
-            "background_color": '#e1effd',
-            "highlight_color": '#ffffff',
+            "text_color": text_color,
+            "background_color": background_color,
+            "highlight_color": highlight_color,
+            "lookback_days": lookback_days,
         }
         report = Report.objects.create(
-            user=page.user,
-            site=page.site,
-            account=page.account,
-            page=page,
+            user=site.user,
+            site=site,
+            account=site.account,
             info=info,
-            type=['lighthouse', 'yellowlab']
+            type=report_type
         )
 
         # generate report PDF
@@ -2123,15 +2133,15 @@ def create_report(
             update_flowrun(**{
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
-                'message': f'report {'created' if  resp['success'] else 'not created'} for {page.page_url} | report_id: {str(report.id)}',
+                'message': f'report {"created" if resp["success"] else "not created"} for {site.site_url} | report_id: {str(report.id)}',
                 'objects': [{
-                    'parent': str(page.id),
+                    'parent': str(site.id),
                     'id': str(report.id),
                     'status': 'passed' if resp['success'] else 'failed'
                 }]
             })
         
-        logger.info('Created new report of page')
+        logger.info('Created new report of site')
         return None
 
 
@@ -2140,7 +2150,7 @@ def create_report(
 @shared_task
 def create_report_bg(**kwargs) -> None:
     """
-    Creates new `Reports` for the requested `Pages`
+    Creates new `Reports` for the requested `Sites`
 
     Args:
         'scope'         : str,
@@ -2151,9 +2161,9 @@ def create_report_bg(**kwargs) -> None:
         'task_id'       : str
         'flowrun_id'    : str
         'node_index'    : str
-    }
      
-    Returns: None
+    Returns:
+        None
     """
 
     # get data
@@ -2179,7 +2189,6 @@ def create_report_bg(**kwargs) -> None:
         queue = get_task_queue(kwargs=kwargs)
 
         # setting defaults
-        pages = []
         sites = []
         objects = []
 
@@ -2189,21 +2198,10 @@ def create_report_bg(**kwargs) -> None:
 
         logger.info(f'passed resources => {resources}')
             
-        # iterating through resources 
-        # and adding to sites or pages
+        # iterating through resources and adding sites
         if len(resources) > 0:
             for item in resources:
-                
-                # adding to pages
-                if item['type'] == 'page':
-                    try:
-                        pages.append(
-                            Page.objects.get(id=item['id'])
-                        ) 
-                    except Exception as e:
-                        logger.warning(e)
-                
-                # adding to sites
+
                 if item['type'] == 'site':
                     try:
                         sites.append(
@@ -2212,20 +2210,24 @@ def create_report_bg(**kwargs) -> None:
                     except Exception as e:
                         logger.warning(e)
 
+                if item['type'] == 'page':
+                    try:
+                        page = Page.objects.get(id=item['id'])
+                        sites.append(page.site)
+                    except Exception as e:
+                        logger.warning(e)
+
         # iterating through tags 
-        # and adding to sites or pages
+        # and adding to sites
         if len(tags) > 0:
             for tag in tags:
-                
-                # adding to pages
-                try:
-                    pages += Page.objects.filter(tags__contains=[tag])
-                except Exception as e:
-                    logger.warning(e)
-                
-                # adding to sites
                 try:
                     sites += Site.objects.filter(tags__contains=[tag])
+                except Exception as e:
+                    logger.warning(e)
+                try:
+                    tag_pages = Page.objects.filter(tags__contains=[tag])
+                    sites += [page.site for page in tag_pages]
                 except Exception as e:
                     logger.warning(e)
         
@@ -2234,15 +2236,20 @@ def create_report_bg(**kwargs) -> None:
         if len(resources) == 0 and scope == 'account':
             sites = Site.objects.filter(account=account)
 
-        # get all pages from existing sites
+        # de-duplicate sites
+        deduped_sites = []
+        seen_site_ids = set()
         for site in sites:
-            pages += Page.objects.filter(site=site).exclude(id__in=[str(p.id) for p in pages])
+            if site is None or str(site.id) in seen_site_ids:
+                continue
+            seen_site_ids.add(str(site.id))
+            deduped_sites.append(site)
+        sites = deduped_sites
 
         # record objects for each report
-        for page in pages:
-
+        for site in sites:
             objects.append({
-                'parent': str(page.id),
+                'parent': str(site.id),
                 'id': None,
                 'status': 'working'
             })
@@ -2254,11 +2261,17 @@ def create_report_bg(**kwargs) -> None:
                 'node_index': node_index,
                 'objects': objects,
                 'node_status': 'working',
-                'message': f'starting {str(len(objects))} reports for {page.site.site_url} | run_id: {flowrun_id}'
+                'message': f'starting {str(len(objects))} site reports | run_id: {flowrun_id}'
             })
 
-        # create reports for each page
-        for page in pages:
+        lookback_days = kwargs.get('lookback_days', 7)
+        report_type = kwargs.get('type', ['issues', 'tests', 'caseruns', 'performance'])
+        text_color = kwargs.get('text_color', '#24262d')
+        background_color = kwargs.get('background_color', '#e1effd')
+        highlight_color = kwargs.get('highlight_color', '#ffffff')
+
+        # create reports for each site
+        for site in sites:
 
             # sleeping random for DB 
             time.sleep(random.uniform(2, 6))
@@ -2266,7 +2279,12 @@ def create_report_bg(**kwargs) -> None:
             apply_async_in_queue(
                 create_report,
                 kwargs={
-                    'page_id': str(page.id),
+                    'site_id': str(site.id),
+                    'lookback_days': lookback_days,
+                    'type': report_type,
+                    'text_color': text_color,
+                    'background_color': background_color,
+                    'highlight_color': highlight_color,
                     'alert_id': alert_id,
                     'flowrun_id': flowrun_id,
                     'node_index': node_index,
@@ -2278,7 +2296,7 @@ def create_report_bg(**kwargs) -> None:
         # update schedule if task_id is not None
         update_schedule(task_id=task_id)
         
-        logger.info('Created new Reports')
+        logger.info('Created new site Reports')
         return None
 
 
@@ -3088,13 +3106,15 @@ def delete_report_s3_bg(report_id: str) -> None:
     Returns: None
     """
 
-    # get site
-    site = Report.objects.get(id=report_id).site
-
-    # deleting s3 objects
     try:
+        report = Report.objects.get(id=report_id)
+        site = report.site or (report.page.site if report.page else None)
+        if site is None:
+            logger.info('No site found for report; skipping report s3 delete')
+            return None
+
         bucket = s3().Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-        bucket.objects.filter(Prefix=str(f'static/sites/{site.id}/{report_id}.pdf')).delete()
+        bucket.objects.filter(Prefix=str(f'static/sites/{site.id}/reports/{report_id}.pdf')).delete()
     except:
         pass
 
@@ -3637,7 +3657,8 @@ def send_phone_bg(
         'flowrun_id'    : str,
         'node_index'    : str,
     
-    Returns: None
+    Returns:
+        None
     """
 
     # interating through objects
@@ -3662,7 +3683,7 @@ def send_phone_bg(
                 'message': resp.get('message'),
                 'objects': [{
                     'parent': obj['parent'],
-                    'id': obj['id'], 
+                    'id': obj['id'],
                     'status': 'passed' if resp.get('success') else 'failed'
                 }]
             })

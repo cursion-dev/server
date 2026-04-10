@@ -572,7 +572,7 @@ class CaseRun(models.Model):
 class Report(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     site = models.ForeignKey(Site, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
-    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
+    page = models.ForeignKey(Page, on_delete=models.CASCADE, null=True, blank=True, serialize=True) ### REMOVE
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, serialize=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE, serialize=True, null=True, blank=True)
     time_created = models.DateTimeField(default=timezone.now, serialize=True)
@@ -581,7 +581,11 @@ class Report(models.Model):
     info = models.JSONField(serialize=True, null=True, blank=True)
 
     def __str__(self):
-        return f'{self.page.page_url}_report'
+        if self.page and self.page.page_url:
+            return f'{self.page.page_url}_report'
+        if self.site and self.site.site_url:
+            return f'{self.site.site_url}_report'
+        return f'{self.id}_report'
 
 
 
@@ -756,5 +760,4 @@ class Coupon(models.Model):
 
     def __str__(self):
         return f'{self.code}'
-
 
