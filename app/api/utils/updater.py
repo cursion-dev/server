@@ -1,5 +1,6 @@
 from ..models import *
 from django.utils import timezone
+from django.db import transaction
 from cursion import settings
 
 
@@ -29,141 +30,141 @@ def update_flowrun(**kwargs) -> object:
     message = kwargs.get('message')
     objects = kwargs.get('objects')
 
-    # get flowrun
-    flowrun = FlowRun.objects.get(id=flowrun_id)
+    with transaction.atomic():
+        # lock the row so concurrent workers cannot read-modify-write
+        # stale copies of nodes/edges/logs.
+        flowrun = FlowRun.objects.select_for_update().get(id=flowrun_id)
 
-    # set timestamp
-    timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        # set timestamp
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
-
-    # find flowrun.edge by target
-    def get_edge_by_target(target: str=None) -> dict:
-        # defaults
-        edge = None
-        index = 0
-        # find target
-        for e in flowrun.edges:
-            if e['target'] == target:
-                edge = e
-                break
-            index+=1
-        # return data
-        return {
-            'index': index,
-            'edge': edge
-        }
-
-
-    # update object_list
-    def add_or_update_objects(object_list, objects):
-        i = 0
-        # find obj
-        for obj in objects:
-            exists = False
-            j = 0
-            for o in object_list:
-                if obj['parent'] == o['parent']:
-                    exists = True
-                    # update
-                    object_list[j] = obj
+        # find flowrun.edge by target
+        def get_edge_by_target(target: str=None) -> dict:
+            # defaults
+            edge = None
+            index = 0
+            # find target
+            for e in flowrun.edges:
+                if e['target'] == target:
+                    edge = e
                     break
-                j+=1
-            # add
-            if not exists:
-                object_list.append(obj) 
-            i+=1
-        return object_list
+                index+=1
+            # return data
+            return {
+                'index': index,
+                'edge': edge
+            }
 
+        # update object_list
+        def add_or_update_objects(object_list, objects):
+            i = 0
+            # find obj
+            for obj in objects:
+                exists = False
+                j = 0
+                for o in object_list:
+                    if obj['parent'] == o['parent']:
+                        exists = True
+                        # update
+                        object_list[j] = obj
+                        break
+                    j+=1
+                # add
+                if not exists:
+                    object_list.append(obj) 
+                i+=1
+            return object_list
 
-    # check if all objects are complete
-    def objects_are_complete(object_list):
-        if len(object_list) == 0:
+        # check if all objects are complete
+        def objects_are_complete(object_list):
+            if len(object_list) == 0:
+                return True
+            for obj in object_list:
+                if obj['status'] == 'working':
+                    return False
             return True
-        for obj in object_list:
-            if obj['status'] == 'working':
-                return False
-        return True
 
-
-    # get collective status of  
-    def get_step_status(object_list):
-        statuses = [obj['status'] for obj in object_list]
-        if len(object_list) == 0:
+        # get collective status of  
+        def get_step_status(object_list):
+            statuses = [obj['status'] for obj in object_list]
+            if len(object_list) == 0:
+                return 'passed'
+            if 'working' in statuses:
+                return 'working'
+            if 'failed' in statuses and 'working' not in statuses:
+                return 'failed'
             return 'passed'
-        if 'working' in statuses:
-            return 'working'
-        if 'failed' in statuses and 'working' not in statuses:
-            return 'failed'
-        return 'passed'
-    
+        
+        # update flowrun logs, nodes, & edges
+        nodes = flowrun.nodes
+        edges = flowrun.edges
+        logs = flowrun.logs
 
-    # update flowrun logs, nodes, & edges
-    nodes = flowrun.nodes
-    edges = flowrun.edges
-    logs = flowrun.logs
+        if node_index is not None:
+            # get node object_list
+            object_list = nodes[int(node_index)]['data'].get('objects', [])
 
+            # update object_list if objects
+            if objects:
+                object_list = add_or_update_objects(object_list, objects)
+                nodes[int(node_index)]['data']['objects'] = object_list
 
-    if node_index is not None:
-        # get node object_list
-        object_list = nodes[int(node_index)]['data'].get('objects', [])
+            # if node_status is provided
+            if node_status:
+                nodes[int(node_index)]['data']['status'] = node_status
+                if node_status != 'working':
+                    nodes[int(node_index)]['data']['time_completed'] = timestamp
 
-        # update object_list if objects
-        if objects:
-            object_list = add_or_update_objects(object_list, objects)
-            nodes[int(node_index)]['data']['objects'] = object_list
+            # decide on node status if 'node_status' not provided
+            if not node_status:
+                complete = objects_are_complete(object_list)
+                nodes[int(node_index)]['data']['status'] = get_step_status(object_list) if complete else 'working'
+                nodes[int(node_index)]['data']['time_completed'] = timestamp if complete else None
+                
+            # update current edge if not at flowrun start
+            if int(node_index) != 0:
+                edge_index = get_edge_by_target(target=nodes[int(node_index)]['id'])['index']
+                edges[edge_index]['animated'] = True if nodes[int(node_index)]['data']['status'] == 'working' else False
+                edges[edge_index]['style'] = {'stroke': "#60a5fa"} if nodes[int(node_index)]['data']['status'] == 'working' else None
 
-        # if node_status is provided
-        if node_status:
-            nodes[int(node_index)]['data']['status'] = node_status
-            if node_status != 'working':
-                nodes[int(node_index)]['data']['time_completed'] = timestamp
+        # added messages to logs
+        if message:
 
-        # decide on node status if 'node_status' not provided
-        if not node_status:
-            complete = objects_are_complete(object_list)
-            nodes[int(node_index)]['data']['status'] = get_step_status(object_list) if complete else 'working'
-            nodes[int(node_index)]['data']['time_completed'] = timestamp if complete else None
-            
-        # update current edge if not at flowrun start
-        if int(node_index) != 0:
-            edge_index = get_edge_by_target(target=nodes[int(node_index)]['id'])['index']
-            edges[edge_index]['animated'] = True if nodes[int(node_index)]['data']['status'] == 'working' else False
-            edges[edge_index]['style'] = {'stroke': "#60a5fa"} if nodes[int(node_index)]['data']['status'] == 'working' else None
+            # loop through multiple messages if passed:
+            for msg in message.split(','):
+                
+                # check for empty string
+                if msg and len(msg) > 0:
 
-    # added messages to logs
-    if message:
+                    # update current logs
+                    logs.append({
+                        'timestamp': timestamp,
+                        'message': msg,
+                        'step': nodes[int(node_index)]['id'] if node_index else logs[-1]['step']
+                    })
 
-        # loop through multiple messages if passed:
-        for msg in message.split(','):
-            
-            # check for empty string
-            if msg and len(msg) > 0:
+                    # sort new logs
+                    logs = sorted(logs, key=lambda l: (int(l['step'])))
 
-                # update current logs
-                logs.append({
-                    'timestamp': timestamp,
-                    'message': msg,
-                    'step': nodes[int(node_index)]['id'] if node_index else logs[-1]['step']
-                })
+        # save updates while holding the row lock
+        flowrun.nodes = nodes
+        flowrun.edges = edges
+        flowrun.logs = logs
+        flowrun.save()
 
-                # sort new logs
-                logs = sorted(logs, key=lambda l: (int(l['step'])))
+        # run_next() should execute for updater-driven changes.
+        # keep this explicit so progression does not rely solely on signal timing.
+        if settings.LOCATION == 'us':
+            flowrun_id_str = str(flowrun.id)
 
+            def _run_next():
+                try:
+                    from .flowr import Flowr
+                    Flowr(flowrun_id=flowrun_id_str).run_next()
+                except Exception as e:
+                    print(f'[update_flowrun] run_next trigger error: {e}')
 
-    # save updates
-    flowrun.nodes = nodes
-    flowrun.edges = edges
-    flowrun.logs = logs
-    flowrun.save()
+            transaction.on_commit(_run_next)
 
-    # run_next() should execute for updater-driven changes.
-    # keep this explicit so progression does not rely solely on signal timing.
-    if settings.LOCATION == 'us':
-        try:
-            from .flowr import Flowr
-            Flowr(flowrun_id=str(flowrun.id)).run_next()
-        except Exception as e:
-            print(f'[update_flowrun] run_next trigger error: {e}')
-
-    # return updated flowrun
-    return flowrun
+        # return updated flowrun
+        return flowrun
