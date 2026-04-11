@@ -340,10 +340,27 @@ def check_scan_completion(
         update_page_info(scan)
         update_site_info(scan)
 
+        # resolve stable tracking identity when 
+        # this scan is part of a FlowRun
+        track_id = str(scan.id)
+        source_id = str(scan.id)
+        if test_id is not None:
+            source_id = str(test_id)
+            track_id = str(test_id)
+            try:
+                test_obj = Test.objects.get(id=test_id)
+                first_task = ((test_obj.system or {}).get('tasks') or [{}])[0]
+                task_kwargs = first_task.get('kwargs') or {}
+                track_id = str(task_kwargs.get('track_id') or test_id)
+            except Exception:
+                pass
+
         # add scan to objects
         objects = [{
             'parent': str(scan.page.id),
             'id': str(test_id) if test_id else str(scan.id),
+            'source_id': source_id,
+            'track_id': track_id,
             'status': 'working' if test_id else 'passed' 
         }]
 
@@ -386,7 +403,8 @@ def check_scan_completion(
                     'test_id': str(test_id), 
                     'alert_id': str(alert_id) if alert_id is not None else None,
                     'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                    'node_index': str(node_index) if node_index is not None else None
+                    'node_index': str(node_index) if node_index is not None else None,
+                    'track_id': track_id
                 }
             )
             
@@ -736,7 +754,6 @@ def _yellowlab(
 
     # returning updated scan
     return scan
-
 
 
 

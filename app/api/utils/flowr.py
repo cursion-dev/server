@@ -506,6 +506,8 @@ class Flowr():
                 alert_obj = {
                     'parent': str(self.flowrun_id),
                     'id': str(self.flowrun_id),
+                    'source_id': str(self.flowrun_id),
+                    'track_id': str(self.flowrun_id),
                     'status': 'working'
                 }
                 objs = [alert_obj,] if step_data['node']['data']['task_type'] in self.alert_types else []
@@ -543,7 +545,7 @@ class Flowr():
                 
                     # get obj using Alerter
                     obj = Alerter(
-                        object_id=obj_data['id'],
+                        object_id=obj_data.get('source_id', obj_data['id']),
                         task_type=current_data['node']['data']['task_type']
                     ).get_object()
 
@@ -570,12 +572,16 @@ class Flowr():
                         true_outcomes.append({
                             'parent'    : str(parentID),
                             'id'        : obj_data['id'],
+                            'source_id' : obj_data.get('source_id', obj_data['id']),
+                            'track_id'  : obj_data.get('track_id', obj_data['id']),
                             'status'    : 'working'
                         })
                     if outcome == False:
                         false_outcomes.append({
                             'parent'    : str(parentID),
                             'id'        : obj_data['id'],
+                            'source_id' : obj_data.get('source_id', obj_data['id']),
+                            'track_id'  : obj_data.get('track_id', obj_data['id']),
                             'status'    : 'working'
                         })
 
@@ -637,6 +643,11 @@ class Flowr():
                             
                             _objs   = current_data['node']['data'].get('objects', [])
                             parent  = self.get_node_by_id(current_data['node']['data'].get('parentId'))
+                            source_task_type = current_data['node']['data'].get('task_type')
+                            if parent and parent.get('node'):
+                                parent_task_type = ((parent.get('node') or {}).get('data') or {}).get('task_type')
+                                if parent_task_type:
+                                    source_task_type = parent_task_type
                             objs    = []
                             res     = []
                             
@@ -654,9 +665,12 @@ class Flowr():
                                     
                                     # get obj using Alerter
                                     obj = Alerter(
-                                        object_id=obj_data['id'],
-                                        task_type=parent['node']['data']['task_type']
+                                        object_id=obj_data.get('source_id', obj_data['id']),
+                                        task_type=source_task_type
                                     ).get_object()
+
+                                    if obj is None:
+                                        continue
 
                                     # get obj type 
                                     obj_type = type(obj).__name__.lower()
@@ -950,7 +964,5 @@ class Flowr():
 
         # returning 
         return None
-
-
 
 

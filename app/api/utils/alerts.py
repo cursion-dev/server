@@ -1032,10 +1032,20 @@ def send_webhook(
     # get object
     obj = get_obj(object_id)['obj']
 
+    # normalize values to strings before transposition
+    raw_headers = headers if isinstance(headers, str) else json.dumps(headers or {})
+    raw_payload = payload if isinstance(payload, str) else json.dumps(payload or {})
+    raw_url = url if isinstance(url, str) else str(url or '')
+
     # transpose data
-    cleaned_headers = transpose_data(headers, obj, secrets)
-    cleaned_payload = transpose_data(payload, obj, secrets)
-    cleaned_url = transpose_data(url, obj, secrets)
+    cleaned_headers = transpose_data(raw_headers, obj, secrets)
+    cleaned_payload = transpose_data(raw_payload, obj, secrets)
+    cleaned_url = transpose_data(raw_url, obj, secrets)
+
+    # defaults for empty inputs
+    cleaned_headers = cleaned_headers.strip() if cleaned_headers else '{}'
+    cleaned_payload = cleaned_payload.strip() if cleaned_payload else '{}'
+    cleaned_url = cleaned_url.strip() if cleaned_url else ''
 
     # sanitize data
     cleaned_headers = re.sub(r'[\x00-\x1f\x7f]', '', cleaned_headers)
@@ -1045,27 +1055,40 @@ def send_webhook(
     cleaned_headers = re.sub(r'(["}])\s*(?=["{])', r'\1,', cleaned_headers)
     cleaned_payload = re.sub(r'(["}])\s*(?=["{])', r'\1,', cleaned_payload)
     
-    # building json
-    json_payload = json.loads(cleaned_payload) if request_type == 'POST' else {}
-    json_headers = json.loads(cleaned_headers)
-
-    # send the request
     try:
+        # building json
+        json_headers = json.loads(cleaned_headers) if cleaned_headers else {}
+        if not isinstance(json_headers, dict):
+            raise ValueError('webhook headers must decode to a JSON object')
+
+        json_payload = {}
+        if request_type == 'POST':
+            json_payload = json.loads(cleaned_payload) if cleaned_payload else {}
+            if not isinstance(json_payload, dict):
+                raise ValueError('webhook payload must decode to a JSON object')
+
+        # send the request
         if request_type == 'POST':
             response = requests.post(
                 url=cleaned_url, 
                 headers=json_headers,
                 data=json.dumps(json_payload)
-            ).json()
+            )
 
         elif request_type == 'GET':
             response = requests.get(
                 url=cleaned_url, 
                 headers=json_headers
-            ).json()
+            )
+        
+        else:
+            raise ValueError(f'unsupported request_type: {request_type}')
 
         success = True
-        msg = str(response) 
+        try:
+            msg = str(response.json())
+        except Exception:
+            msg = response.text
     
     except Exception as e:
         success = False
@@ -1076,6 +1099,5 @@ def send_webhook(
         'message': msg
     }
     return data
-
 
 
