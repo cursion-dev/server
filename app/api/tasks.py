@@ -49,6 +49,30 @@ json, stripe, inspect, random, secrets
 logger = get_task_logger(__name__)
 
 
+def _flow_obj(
+        parent: str=None,
+        obj_id: str=None,
+        status: str='working',
+        track_id: str=None,
+        source_id: str=None
+    ) -> dict:
+    """
+    Build a normalized FlowRun object payload.
+    """
+
+    _id         = str(obj_id) if obj_id is not None else None
+    _source_id  = str(source_id) if source_id is not None else _id
+    _track_id   = str(track_id) if track_id is not None else (_id if _id is not None else secrets.token_hex(16))
+    _parent     = str(parent) if parent is not None else None
+
+    return {
+        'parent': _parent,
+        'id': _id,
+        'source_id': _source_id,
+        'track_id': _track_id,
+        'status': status
+    }
+
 
 # setting s3 instance
 def s3():
@@ -319,6 +343,7 @@ def redeliver_failed_tasks() -> None:
         alert_id        = None
         flowrun_id      = None
         node_index      = None
+        track_id        = None
         queue           = None
         components      = []
         for task in (scan.system or {}).get('tasks', []):
@@ -344,6 +369,7 @@ def redeliver_failed_tasks() -> None:
             alert_id    = task['kwargs'].get('alert_id')    or alert_id
             flowrun_id  = task['kwargs'].get('flowrun_id')  or flowrun_id
             node_index  = task['kwargs'].get('node_index')  or node_index 
+            track_id    = task['kwargs'].get('track_id')    or track_id
             queue = get_task_queue(kwargs=task.get('kwargs') or {}) or queue
             
             # re-run task if task is not "running", "pending", 
@@ -380,6 +406,16 @@ def redeliver_failed_tasks() -> None:
             if test_id:
                 logger.info(f'executing run_test() from `post_scan` in `retry_tasks`')
                 queue = queue or get_task_queue(kwargs={'_queue': None})
+
+                # preserve object identity for FlowRun merging
+                if track_id is None:
+                    try:
+                        _test = Test.objects.get(id=test_id)
+                        _task_kwargs = (((_test.system or {}).get('tasks') or [{}])[0].get('kwargs') or {})
+                        track_id = _task_kwargs.get('track_id') or str(test_id)
+                    except Exception:
+                        track_id = str(test_id)
+
                 apply_async_in_queue(
                     run_test,
                     kwargs={
@@ -387,6 +423,7 @@ def redeliver_failed_tasks() -> None:
                         'alert_id': alert_id,
                         'flowrun_id': flowrun_id,
                         'node_index': node_index,
+                        'track_id': track_id,
                         '_queue': queue,
                     },
                     queue=queue,
@@ -439,6 +476,7 @@ def redeliver_failed_tasks() -> None:
             kwargs      = first_task.get('kwargs') or {}
             flowrun_id  = kwargs.get('flowrun_id')
             node_index  = kwargs.get('node_index')
+            track_id    = kwargs.get('track_id') or str(test.id)
             
             # update FlowRun if present
             if flowrun_id and flowrun_id != 'None':
@@ -449,11 +487,13 @@ def redeliver_failed_tasks() -> None:
                         f'test for {test.page.page_url} completed with status: '+
                         f'⏺️ INCOMPLETE | test_id: {str(test.id)}'
                     ),
-                    'objects': [{
-                        'parent': str(test.page.id),
-                        'id': str(test.id),
-                        'status': 'incomplete'
-                    }]
+                    'objects': [_flow_obj(
+                        parent=str(test.page.id),
+                        obj_id=str(test.id),
+                        source_id=str(test.id),
+                        track_id=track_id,
+                        status='incomplete'
+                    )]
                 })
 
         # iterate through each FlowRun 
@@ -1112,11 +1152,13 @@ def create_scan_bg(self, **kwargs) -> None:
                 page.site.save()
 
                 # adding objects
-                objects.append({
-                    'parent': str(scan.page.id),
-                    'id': str(scan.id),
-                    'status': 'working'
-                })
+                objects.append(_flow_obj(
+                    parent=str(scan.page.id),
+                    obj_id=str(scan.id),
+                    source_id=str(scan.id),
+                    track_id=str(scan.id),
+                    status='working'
+                ))
 
                 # init scan page in background
                 apply_async_in_queue(
@@ -1477,6 +1519,7 @@ def run_test(
         alert_id: str=None,
         flowrun_id: str=None,
         node_index: str=None ,
+        track_id: str=None,
         **kwargs
     ) -> None:
     """ 
@@ -1498,6 +1541,7 @@ def run_test(
         alert_id = kwargs.get('alert_id')
         flowrun_id = kwargs.get('flowrun_id')
         node_index = kwargs.get('node_index')
+        track_id = kwargs.get('track_id')
 
     account_id = _get_account_id_from_test_id(str(test_id)) if test_id else None
     with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
@@ -1528,7 +1572,8 @@ def run_test(
                     'test_id': str(test_id), 
                     'alert_id': str(alert_id) if alert_id is not None else None,
                     'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                    'node_index': str(node_index) if node_index is not None else None
+                    'node_index': str(node_index) if node_index is not None else None,
+                    'track_id': str(track_id) if track_id is not None else None
                 }
             )
 
@@ -1541,11 +1586,13 @@ def run_test(
             test = Test.objects.get(id=test_id)
 
             # define objects for flowrun
-            objects = [{
-                'parent': str(test.page.id),
-                'id': str(test_id),
-                'status': 'working'
-            }]
+            objects = [_flow_obj(
+                parent=str(test.page.id),
+                obj_id=str(test_id),
+                source_id=str(test_id),
+                track_id=track_id or str(test_id),
+                status='working'
+            )]
 
             # update flowrun
             if flowrun_id and flowrun_id != 'None':
@@ -1599,6 +1646,7 @@ def create_test(
         threshold: float=settings.TEST_THRESHOLD,
         flowrun_id: str=None,
         node_index: str=None,
+        track_id: str=None,
         _queue: str=None,
     ) -> None:
     """ 
@@ -1642,11 +1690,13 @@ def create_test(
         )
 
     # adding objects
-    objects.append({
-        'parent': str(page.id),
-        'id': str(created_test.id),
-        'status': 'working'
-    })
+    objects.append(_flow_obj(
+        parent=str(page.id),
+        obj_id=str(created_test.id),
+        source_id=str(created_test.id),
+        track_id=track_id or str(created_test.id),
+        status='working'
+    ))
 
     # create system data for new Scan & Test (may not be used)
     test_system = {
@@ -1656,7 +1706,8 @@ def create_test(
                     "test_id": str(created_test.id), 
                     "alert_id": alert_id, 
                     "flowrun_id": flowrun_id, 
-                    "node_index": node_index
+                    "node_index": node_index,
+                    "track_id": track_id or str(created_test.id)
                 }, 
                 "task_id": f"lock:run_test_{created_test.id}", 
                 "attempts": 0, 
@@ -1829,6 +1880,7 @@ def create_test(
                 'alert_id': alert_id,
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
+                'track_id': track_id or str(created_test.id),
                 '_queue': queue,
             },
             queue=queue,
@@ -1964,11 +2016,14 @@ def create_test_bg(self, **kwargs) -> None:
             # create a test for each page
             for page in pages:
                 
-                objects.append({
-                    'parent': str(page.id),
-                    'id': None,
-                    'status': 'working'
-                })
+                flow_track_id = secrets.token_hex(16)
+                objects.append(_flow_obj(
+                    parent=str(page.id),
+                    obj_id=None,
+                    source_id=str(page.id),
+                    track_id=flow_track_id,
+                    status='working'
+                ))
 
                 # check resource 
                 if check_and_increment_resource(page.account.id, 'tests'):
@@ -2001,6 +2056,7 @@ def create_test_bg(self, **kwargs) -> None:
                         alert_id=str(alert_id),
                         flowrun_id=str(flowrun_id),
                         node_index=node_index,
+                        track_id=flow_track_id,
                         _queue=queue,
                     )
                 
@@ -2071,6 +2127,7 @@ def create_report(
         alert_id: str=None,
         flowrun_id: str=None,
         node_index: str=None,
+        track_id: str=None,
         _queue: str=None,
         **kwargs,
     ) -> None:
@@ -2134,11 +2191,13 @@ def create_report(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': f'report {"created" if resp["success"] else "not created"} for {site.site_url} | report_id: {str(report.id)}',
-                'objects': [{
-                    'parent': str(site.id),
-                    'id': str(report.id),
-                    'status': 'passed' if resp['success'] else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=str(site.id),
+                    obj_id=str(report.id),
+                    source_id=str(report.id),
+                    track_id=track_id or str(report.id),
+                    status='passed' if resp['success'] else 'failed'
+                )]
             })
         
         logger.info('Created new report of site')
@@ -2191,6 +2250,7 @@ def create_report_bg(**kwargs) -> None:
         # setting defaults
         sites = []
         objects = []
+        report_track_map = {}
 
         # get account if account_id exists
         if account_id:
@@ -2248,11 +2308,15 @@ def create_report_bg(**kwargs) -> None:
 
         # record objects for each report
         for site in sites:
-            objects.append({
-                'parent': str(site.id),
-                'id': None,
-                'status': 'working'
-            })
+            report_track_id = secrets.token_hex(16)
+            report_track_map[str(site.id)] = report_track_id
+            objects.append(_flow_obj(
+                parent=str(site.id),
+                obj_id=None,
+                source_id=str(site.id),
+                track_id=report_track_id,
+                status='working'
+            ))
 
         # update flowrun
         if flowrun_id and flowrun_id != 'None':
@@ -2288,6 +2352,7 @@ def create_report_bg(**kwargs) -> None:
                     'alert_id': alert_id,
                     'flowrun_id': flowrun_id,
                     'node_index': node_index,
+                    'track_id': report_track_map.get(str(site.id)),
                     '_queue': queue,
                 },
                 queue=queue,
@@ -2586,11 +2651,13 @@ def create_caserun_bg(**kwargs) -> None:
                     caseruns.append(caserun)
 
                     # add to objects
-                    objects.append({
-                        'parent': str(site.id),
-                        'id': str(caserun.id),
-                        'status': 'working'
-                    })
+                    objects.append(_flow_obj(
+                        parent=str(site.id),
+                        obj_id=str(caserun.id),
+                        source_id=str(caserun.id),
+                        track_id=str(caserun.id),
+                        status='working'
+                    ))
                 
                 else:
                     # update flowrun if not able to contiune
@@ -2914,11 +2981,13 @@ def create_issue_bg(
     # create objects list for flowrun
     obj_list = []
     for o in objects:
-        obj_list.append({
-            'parent': o['id'],
-            'id': None, 
-            'status': 'working'
-        })
+        obj_list.append(_flow_obj(
+            parent=o.get('id'),
+            obj_id=None,
+            source_id=o.get('source_id', o.get('id')),
+            track_id=o.get('track_id'),
+            status='working'
+        ))
     
     # update flowrun if requested
     if flowrun_id and flowrun_id != 'None':
@@ -2937,9 +3006,10 @@ def create_issue_bg(
         time.sleep(random.uniform(2, 6))
 
         # run create_issue
+        source_object_id = obj.get('source_id') or obj.get('id')
         resp = create_issue( 
             account_id=account_id, 
-            object_id=obj['id'], 
+            object_id=source_object_id, 
             title=title, 
             details=details,
             generate=generate
@@ -2951,11 +3021,17 @@ def create_issue_bg(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': resp.get('message'),
-                'objects': [{
-                    'parent': obj['id'],
-                    'id': str(resp.get('issue').id) if resp.get('success') else None, 
-                    'status': 'passed' if resp.get('success') else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=obj.get('id'),
+                    obj_id=str(resp.get('issue').id) if resp.get('success') else None,
+                    source_id=(
+                        str(resp.get('issue').id)
+                        if resp.get('success')
+                        else obj.get('source_id', obj.get('id'))
+                    ),
+                    track_id=obj.get('track_id'),
+                    status='passed' if resp.get('success') else 'failed'
+                )]
             })
 
     logger.info('created issues')
@@ -3668,9 +3744,10 @@ def send_phone_bg(
         time.sleep(random.uniform(2, 6))
 
         # run send_phone
+        source_object_id = obj.get('source_id') or obj.get('id')
         resp = send_phone( 
             account_id=account_id, 
-            object_id=obj['id'], 
+            object_id=source_object_id, 
             phone_number=phone_number, 
             body=body,
         )
@@ -3681,11 +3758,13 @@ def send_phone_bg(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': resp.get('message'),
-                'objects': [{
-                    'parent': obj['parent'],
-                    'id': obj['id'],
-                    'status': 'passed' if resp.get('success') else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=obj.get('parent'),
+                    obj_id=obj.get('id'),
+                    source_id=obj.get('source_id', obj.get('id')),
+                    track_id=obj.get('track_id'),
+                    status='passed' if resp.get('success') else 'failed'
+                )]
             })
 
     logger.info('sent phone message')
@@ -3722,9 +3801,10 @@ def send_slack_bg(
         time.sleep(random.uniform(2, 6))
 
         # run send_slack
+        source_object_id = obj.get('source_id') or obj.get('id')
         resp = send_slack( 
             account_id=account_id, 
-            object_id=obj['id'], 
+            object_id=source_object_id, 
             body=body,
         )
         
@@ -3734,11 +3814,13 @@ def send_slack_bg(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': resp.get('message'),
-                'objects': [{
-                    'parent': obj['parent'],
-                    'id': obj['id'], 
-                    'status': 'passed' if resp.get('success') else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=obj.get('parent'),
+                    obj_id=obj.get('id'),
+                    source_id=obj.get('source_id', obj.get('id')),
+                    track_id=obj.get('track_id'),
+                    status='passed' if resp.get('success') else 'failed'
+                )]
             })
 
     logger.info('sent slack message')
@@ -3777,9 +3859,10 @@ def send_email_bg(
         time.sleep(random.uniform(2, 6))
 
         # run sendgrid_email
+        source_object_id = obj.get('source_id') or obj.get('id')
         resp = sendgrid_email( 
             account_id=account_id, 
-            object_id=obj['id'], 
+            object_id=source_object_id, 
             message_obj=message_obj,
         )
         
@@ -3789,11 +3872,13 @@ def send_email_bg(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': resp.get('message'),
-                'objects': [{
-                    'parent': obj['parent'],
-                    'id': obj['id'], 
-                    'status': 'passed' if resp.get('success') else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=obj.get('parent'),
+                    obj_id=obj.get('id'),
+                    source_id=obj.get('source_id', obj.get('id')),
+                    track_id=obj.get('track_id'),
+                    status='passed' if resp.get('success') else 'failed'
+                )]
             })
 
     logger.info('sent email message')
@@ -3836,14 +3921,21 @@ def send_webhook_bg(
         time.sleep(random.uniform(2, 6))
     
         # run sendgrid_email
-        resp = send_webhook( 
-            account_id=account_id, 
-            object_id=obj['id'], 
-            request_type=request_type,
-            url=url,
-            headers=headers,
-            payload=payload
-        )
+        source_object_id = obj.get('source_id') or obj.get('id')
+        try:
+            resp = send_webhook( 
+                account_id=account_id, 
+                object_id=source_object_id, 
+                request_type=request_type,
+                url=url,
+                headers=headers,
+                payload=payload
+            )
+        except Exception as e:
+            resp = {
+                'success': False,
+                'message': str(e)
+            }
             
         if flowrun_id and flowrun_id != 'None':
             # update flowrun
@@ -3851,11 +3943,13 @@ def send_webhook_bg(
                 'flowrun_id': flowrun_id,
                 'node_index': node_index,
                 'message': resp.get('message'),
-                'objects': [{
-                    'parent': obj['parent'],
-                    'id': obj['id'], 
-                    'status': 'passed' if resp.get('success') else 'failed'
-                }]
+                'objects': [_flow_obj(
+                    parent=obj.get('parent'),
+                    obj_id=obj.get('id'),
+                    source_id=obj.get('source_id', obj.get('id')),
+                    track_id=obj.get('track_id'),
+                    status='passed' if resp.get('success') else 'failed'
+                )]
             })
 
     logger.info('sent webhook message')

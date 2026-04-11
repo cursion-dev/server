@@ -20,7 +20,8 @@ def update_flowrun(**kwargs) -> object:
         'node_status'  : str,
         'objects'      : list of dicts
     
-    Returns: `FlowRun` obj
+    Returns:
+        `FlowRun` obj
     """
     
     # get passed kwargs
@@ -55,25 +56,73 @@ def update_flowrun(**kwargs) -> object:
                 'edge': edge
             }
 
+        # object helpers
+        def _clean_str(value):
+            return str(value) if value is not None else None
+
+        def _normalize_object(obj):
+            normalized = dict(obj or {})
+            normalized['parent'] = _clean_str(normalized.get('parent'))
+            normalized['id'] = _clean_str(normalized.get('id'))
+            normalized['source_id'] = _clean_str(
+                normalized.get('source_id', normalized.get('id'))
+            )
+            normalized['track_id'] = _clean_str(normalized.get('track_id'))
+
+            # Transitional defaults while older callers still send legacy shape.
+            if normalized['track_id'] is None:
+                if normalized['id'] is not None:
+                    normalized['track_id'] = normalized['id']
+                elif normalized['source_id'] is not None:
+                    normalized['track_id'] = f'source:{normalized["source_id"]}'
+                elif normalized['parent'] is not None:
+                    normalized['track_id'] = f'legacy:{normalized["parent"]}'
+
+            return normalized
+
+        def _same_object(a, b):
+            # Preferred identity key.
+            if a.get('track_id') and b.get('track_id'):
+                return a['track_id'] == b['track_id']
+            # Transitional fallback for legacy payloads.
+            if a.get('id') and b.get('id'):
+                return a['id'] == b['id']
+            # Final legacy fallback.
+            return a.get('parent') == b.get('parent')
+
         # update object_list
         def add_or_update_objects(object_list, objects):
-            i = 0
-            # find obj
-            for obj in objects:
+            updated = [_normalize_object(o) for o in (object_list or [])]
+            for raw_obj in (objects or []):
+                incoming = _normalize_object(raw_obj)
                 exists = False
-                j = 0
-                for o in object_list:
-                    if obj['parent'] == o['parent']:
+                i = 0
+                for existing in updated:
+                    if _same_object(existing, incoming):
+                        merged = dict(existing)
+                        merged.update(incoming)
+
+                        # Preserve resolved ids when incoming payload is still pending.
+                        if incoming.get('id') is None and existing.get('id') is not None:
+                            merged['id'] = existing.get('id')
+                            # Keep the resolved source identity when incoming payload
+                            # is only a placeholder update.
+                            if existing.get('source_id') is not None:
+                                merged['source_id'] = existing.get('source_id')
+                        if incoming.get('source_id') is None and existing.get('source_id') is not None:
+                            merged['source_id'] = existing.get('source_id')
+                        if incoming.get('track_id') is None and existing.get('track_id') is not None:
+                            merged['track_id'] = existing.get('track_id')
+
+                        updated[i] = merged
                         exists = True
-                        # update
-                        object_list[j] = obj
                         break
-                    j+=1
-                # add
+                    i += 1
+
                 if not exists:
-                    object_list.append(obj) 
-                i+=1
-            return object_list
+                    updated.append(incoming)
+
+            return updated
 
         # check if all objects are complete
         def objects_are_complete(object_list):
