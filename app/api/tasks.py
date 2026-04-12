@@ -1585,6 +1585,11 @@ def run_test(
             # get test 
             test = Test.objects.get(id=test_id)
 
+            # idempotency guard: once a Test is complete, do not execute it again.
+            if test.time_completed is not None:
+                logger.info(f'skipping run_test for completed test_id: {str(test_id)}')
+                return None
+
             # define objects for flowrun
             objects = [_flow_obj(
                 parent=str(test.page.id),
