@@ -10,6 +10,7 @@ from .imager import Imager
 from .updater import update_flowrun
 from .manager import record_task
 from .tester import Tester
+from django.core.cache import cache
 from datetime import datetime
 from cursion import settings
 import os, asyncio, uuid, boto3, random, time
@@ -377,53 +378,83 @@ def check_scan_completion(
         # start Test if test_id present
         if test_id is not None:
 
-            # update flowrun
-            if flowrun_id and flowrun_id != 'None':
-                time.sleep(random.uniform(0.1, 5))
-                update_flowrun(**{
-                    'flowrun_id': str(flowrun_id),
-                    'node_index': node_index,
-                    'message': f'starting test comparison algorithm for {scan.page.page_url} | test_id: {str(test_id)}',
-                    'objects': objects
-                })
- 
-            # get task_id from scan.system
-            task_id = None
-            for task in scan.system['tasks']:
-                if task.get('component') == sender:
-                    task_id = task.get('task_id')
+            # derive tracking identity from Test system data
+            run_track_id = str(test_id)
+            try:
+                test = Test.objects.get(id=test_id)
+                first_task = ((test.system or {}).get('tasks') or [{}])[0]
+                task_kwargs = first_task.get('kwargs') or {}
+                run_track_id = str(task_kwargs.get('track_id') or test_id)
+            except Exception:
+                test = None
 
-            # record task data in test
-            record_task(
-                resource_type='test',
-                resource_id=str(test_id),
-                task_id=str(task_id),
-                task_method='run_test',
-                kwargs={
-                    'test_id': str(test_id), 
-                    'alert_id': str(alert_id) if alert_id is not None else None,
-                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                    'node_index': str(node_index) if node_index is not None else None,
-                    'track_id': track_id
-                }
-            )
-            
-            print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
-            test = Test.objects.get(id=test_id)
-            updated_test = Tester(test=test).run_test()
+            # if Test already completed, do not re-run it.
+            if test is not None and test.time_completed is not None:
+                if flowrun_id and flowrun_id != 'None':
+                    objects[-1]['status'] = test.status
+                    update_flowrun(**{
+                        'flowrun_id': str(flowrun_id),
+                        'node_index': node_index,
+                        'message': f'skipping run_test for completed test_id: {str(test_id)}',
+                        'objects': objects
+                    })
+                return scan
 
-            # update flowrun
-            if flowrun_id and flowrun_id != 'None':
-                objects[-1]['status'] = updated_test.status
-                update_flowrun(**{
-                    'flowrun_id': str(flowrun_id),
-                    'node_index': node_index,
-                    'message': (
-                        f'test for {scan.page.page_url} completed with status: '+
-                        f'{"❌ FAILED" if updated_test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
-                    ),
-                    'objects': objects
-                })
+            # avoid duplicate test launches from concurrent component completions
+            run_test_lock_key = f'scanner:run_test:{str(test_id)}'
+            if not cache.add(run_test_lock_key, '1', timeout=600):
+                return scan
+
+            try:
+                # update flowrun
+                if flowrun_id and flowrun_id != 'None':
+                    time.sleep(random.uniform(0.1, 5))
+                    update_flowrun(**{
+                        'flowrun_id': str(flowrun_id),
+                        'node_index': node_index,
+                        'message': f'starting test comparison algorithm for {scan.page.page_url} | test_id: {str(test_id)}',
+                        'objects': objects
+                    })
+    
+                # get task_id from scan.system
+                task_id = None
+                for task in scan.system['tasks']:
+                    if task.get('component') == sender:
+                        task_id = task.get('task_id')
+
+                # record task data in test
+                record_task(
+                    resource_type='test',
+                    resource_id=str(test_id),
+                    task_id=str(task_id),
+                    task_method='run_test',
+                    kwargs={
+                        'test_id': str(test_id), 
+                        'alert_id': str(alert_id) if alert_id is not None else None,
+                        'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                        'node_index': str(node_index) if node_index is not None else None,
+                        'track_id': run_track_id
+                    }
+                )
+                
+                print('\n---------------\nScan Complete\nStarting Test...\n---------------\n')
+                test = Test.objects.get(id=test_id)
+                updated_test = Tester(test=test).run_test()
+
+                # update flowrun
+                if flowrun_id and flowrun_id != 'None':
+                    objects[-1]['status'] = updated_test.status
+                    update_flowrun(**{
+                        'flowrun_id': str(flowrun_id),
+                        'node_index': node_index,
+                        'message': (
+                            f'test for {scan.page.page_url} completed with status: '+
+                            f'{"❌ FAILED" if updated_test.status == 'failed' else "✅ PASSED"} | test_id: {str(test_id)}'
+                        ),
+                        'objects': objects
+                    })
+            finally:
+                cache.delete(run_test_lock_key)
             
         if alert_id is not None and alert_id != 'None':
             print('running alert from `cursion.check_scan_completion`')
@@ -754,6 +785,5 @@ def _yellowlab(
 
     # returning updated scan
     return scan
-
 
 

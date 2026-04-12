@@ -36,6 +36,11 @@ def update_flowrun(**kwargs) -> object:
         # stale copies of nodes/edges/logs.
         flowrun = FlowRun.objects.select_for_update().get(id=flowrun_id)
 
+        # Ignore stale worker updates after completion; late async tasks should
+        # not mutate finished runs.
+        if flowrun.time_completed is not None:
+            return flowrun
+
         # set timestamp
         timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 
