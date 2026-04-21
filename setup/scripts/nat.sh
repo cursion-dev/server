@@ -1,11 +1,11 @@
 #!/bin/bash
-# NAT + High-Concurrency HTTP CONNECT Proxy (Squid)
+# NAT + High-Concurrency HTTP(S) Proxy (Squid)
 # Supports VPC CIDR + listen port input
 
-# NAT_VPC_CIDR is the VPC where k8s is located 
+# NAT_VPC_CIDR is the VPC where k8s is located
 # https://cloud.digitalocean.com/networking/vpc/
 
-set -u # Treat unset variables as errors
+set -eu # Treat unset variables as errors, and exit on command failures
 
 # ===========================
 # Positional arguments
@@ -43,10 +43,10 @@ echo "[2/8] Loading conntrack kernel modules..."
 modprobe nf_conntrack
 modprobe xt_conntrack || true
 
-# adding sysctl tunning
+# adding sysctl tuning
 if ! grep -q "NAT_PROXY_TUNING" /etc/sysctl.conf; then
 echo "[3/8] Applying sysctl tuning..."
-cat <<EOF >> /etc/sysctl.conf
+cat <<SYSCTL_EOF >> /etc/sysctl.conf
 # === NAT_PROXY_TUNING ===
 
 # TCP backlog & performance
@@ -61,23 +61,23 @@ net.ipv4.ip_forward = 1
 net.ipv4.ip_local_port_range = 15000 65000
 
 # Conntrack table
-net.netfilter.nf_conntrack_max = 262144
+net.netfilter.nf_conntrack_max = 1048576
 
 # TIME_WAIT cleanup
 net.ipv4.tcp_fin_timeout = 15
 net.ipv4.tcp_tw_reuse = 1
 
-# limit SYNs calls
+# limit SYN calls
 net.ipv4.tcp_syn_retries = 2
 net.ipv4.tcp_synack_retries = 2
 net.ipv4.tcp_max_syn_backlog = 4096
-net.ipv4.tcp_abort_on_overflow = 1
+net.ipv4.tcp_abort_on_overflow = 0
 
 # File descriptors
 fs.file-max = 500000
 
 # === END NAT_PROXY_TUNING ===
-EOF
+SYSCTL_EOF
 fi
 
 sysctl -p
@@ -86,34 +86,37 @@ sysctl -p
 echo "[4/8] Configuring Squid..."
 mv /etc/squid/squid.conf /etc/squid/squid.conf.bak
 
-cat <<EOF > /etc/squid/squid.conf
-# ================== Squid CONNECT Proxy ==================
+cat <<SQUID_EOF > /etc/squid/squid.conf
+# ================== Squid HTTP(S) Proxy ==================
 
-shutdown_lifetime 3 seconds
+shutdown_lifetime 10 seconds
 
 # Bind ONLY to private VPC IP (prevents public access)
 http_port ${NAT_PRIVATE_IP}:${NAT_LISTEN_PORT}
 
 # ---- ACCESS CONTROL (ORDER MATTERS) ----
 acl vpc src ${NAT_VPC_CIDR}
-acl SSL_ports port 443
+acl SSL_ports port 443 8443
+acl Safe_ports port 80 443 8443
 acl CONNECT method CONNECT
 
-http_access allow vpc CONNECT SSL_ports
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow vpc
 http_access deny all
 
 # ---- HARD BACKPRESSURE ----
-acl max_clients maxconn 500
+acl max_clients maxconn 2000
 http_access deny max_clients
-connect_retries 1
+connect_retries 2
 
 # Timeouts to kill abandoned tunnels
-request_timeout 30 seconds
-connect_timeout 5 seconds
-read_timeout 30 seconds
-client_lifetime 5 minutes
-persistent_request_timeout 30 seconds
-half_closed_clients off
+request_timeout 2 minutes
+connect_timeout 15 seconds
+read_timeout 2 minutes
+client_lifetime 30 minutes
+persistent_request_timeout 1 minute
+half_closed_clients on
 
 # Headers / buffers
 request_header_max_size 64 KB
@@ -122,9 +125,8 @@ client_request_buffer_max_size 96 KB
 request_body_max_size 0 KB
 
 # Connection behavior
-server_persistent_connections off
-client_persistent_connections off
-pipeline_prefetch 0
+server_persistent_connections on
+client_persistent_connections on
 
 # Memory safety
 cache deny all
@@ -134,19 +136,20 @@ maximum_object_size_in_memory 32 KB
 
 # FDs
 max_filedescriptors 65535
-workers 1
+workers 2
 
 access_log /var/log/squid/access.log
 cache_log /var/log/squid/cache.log
-EOF
+SQUID_EOF
 
 # restarts squid on OOM failure
-cat <<EOF > /etc/systemd/system/squid.service.d/oom.conf
+mkdir -p /etc/systemd/system/squid.service.d
+cat <<OOM_EOF > /etc/systemd/system/squid.service.d/oom.conf
 [Service]
 OOMScoreAdjust=-900
 Restart=on-failure
 RestartSec=10
-EOF
+OOM_EOF
 
 # adding memory swap
 if ! swapon --show | grep -q /swapfile; then
@@ -166,6 +169,7 @@ squid -k parse
 
 echo "[6/8] Setting up iptables NAT..."
 iptables -t nat -F
+iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A FORWARD -s "$NAT_VPC_CIDR" -j ACCEPT
 iptables -t nat -A POSTROUTING -s "$NAT_VPC_CIDR" -o eth0 -j MASQUERADE
 
@@ -190,6 +194,10 @@ systemctl enable squid
 # success message
 echo "[8/8] Completed!"
 echo ""
-echo "Squid CONNECT proxy active on port: $NAT_LISTEN_PORT"
+echo "Squid proxy active on port: $NAT_LISTEN_PORT"
 echo "Allowed VPC range: $NAT_VPC_CIDR"
+echo "Debug commands:"
+echo "  journalctl -u squid -f"
+echo "  tail -f /var/log/squid/access.log /var/log/squid/cache.log"
+echo "  conntrack -S"
 echo ""
