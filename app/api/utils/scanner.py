@@ -1,6 +1,6 @@
 from .driver import (
     driver_init, quit_driver, 
-    driver_wait , get_data
+    get_data
 )
 from ..models import *
 from .alerter import Alerter
@@ -13,7 +13,7 @@ from .tester import Tester
 from django.core.cache import cache
 from datetime import datetime
 from cursion import settings
-import os, asyncio, uuid, boto3, random, time
+import os, uuid, boto3, random, time
 
 
 
@@ -25,16 +25,16 @@ class Scanner():
     Used to run and build all the 
     components of a new `Scan`
 
-    Expects -> {
+    Args:
         'site'    : object,
         'page'    : object,
         'scan'    : object,
         'type'    : list
-    }
 
     Use self.build_scan() to create a new Scan
 
-    Returns: `Scan` object
+    Returns:
+        `Scan` object
     """
 
 
@@ -655,7 +655,8 @@ def _lighthouse(
         flowrun_id  : str, 
         node_index  : str
     
-    Returns: `Scan` <obj>
+    Returns:
+        `Scan` <obj>
     """
 
     # retrieve scan
