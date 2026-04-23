@@ -513,6 +513,67 @@ class Tester():
 
 
 
+    def delta_security(self) -> dict:
+        # calculate the differences in Security
+        # scores between pre_ and post_ scans
+
+        try:
+            # get pre scores
+            pre_transport = int(self.test.pre_scan.security["scores"]['transport'])
+            pre_browser = int(self.test.pre_scan.security["scores"]['browser'])
+            pre_scripts = int(self.test.pre_scan.security["scores"]['scripts'])
+            pre_forms = int(self.test.pre_scan.security["scores"]['forms'])
+            pre_compliance = int(self.test.pre_scan.security["scores"]['compliance'])
+
+            # get post scores
+            post_transport = int(self.test.post_scan.security["scores"]['transport'])
+            post_browser = int(self.test.post_scan.security["scores"]['browser'])
+            post_scripts = int(self.test.post_scan.security["scores"]['scripts'])
+            post_forms = int(self.test.post_scan.security["scores"]['forms'])
+            post_compliance = int(self.test.post_scan.security["scores"]['compliance'])
+
+            # calculate individual deltas
+            transport_delta = post_transport - pre_transport
+            browser_delta = post_browser - pre_browser
+            scripts_delta = post_scripts - pre_scripts
+            forms_delta = post_forms - pre_forms
+            compliance_delta = post_compliance - pre_compliance
+
+            # calculate averages
+            current_average = (
+                post_transport + post_browser + post_scripts +
+                post_forms + post_compliance
+            ) / 5
+            old_average = (
+                pre_transport + pre_browser + pre_scripts +
+                pre_forms + pre_compliance
+            ) / 5
+            average_delta = current_average - old_average
+        except:
+            transport_delta = None
+            browser_delta = None
+            scripts_delta = None
+            forms_delta = None
+            compliance_delta = None
+            current_average = None
+            average_delta = None
+
+        data = {
+            "scores": {
+                "transport_delta": transport_delta,
+                "browser_delta": browser_delta,
+                "scripts_delta": scripts_delta,
+                "forms_delta": forms_delta,
+                "compliance_delta": compliance_delta,
+                "average_delta": average_delta,
+                "current_average": current_average,
+            }
+        }
+
+        return data
+
+
+
     def get_lh_audits_deltas(self, scores: dict) -> str:
         # finds and records the changes in LH audit data
         # then saves as .json file in s3 and returns 
@@ -620,6 +681,56 @@ class Tester():
         # return uri
         return yl_audit_file_uri
 
+
+
+
+    def get_sec_audits_deltas(self, scores: dict) -> str:
+        # finds and records the changes in Security audit data
+        # then saves as .json file in s3 and returns
+
+        # defaults
+        audits = {
+            "transport": [],
+            "browser": [],
+            "scripts": [],
+            "forms": [],
+            "compliance": [],
+        }
+
+        # get pre & post audits
+        pre_raw = self.test.pre_scan.security.get('audits')
+        post_raw = self.test.post_scan.security.get('audits')
+        pre_scan_audits = requests.get(pre_raw).json() if isinstance(pre_raw, str) else (pre_raw or {})
+        post_scan_audits = requests.get(post_raw).json() if isinstance(post_raw, str) else (post_raw or {})
+
+        # deciding which categories to
+        # compare based on score
+        cats = []
+        for key in scores:
+            if '_delta' in key and 'average' not in key:
+                if scores[key] is not None:
+                    if float(scores[key]) != 0:
+                        cats.append(str(key).split('_delta')[0])
+
+        # compare each audit in each of the
+        # selected categories
+        for cat in cats:
+            for audit in post_scan_audits.get(cat, []):
+                found = False
+                for aud in pre_scan_audits.get(cat, []):
+                    if audit == aud:
+                        found = True
+                        break
+
+                # record post_ audit if not
+                # found in pre_
+                if not found:
+                    audits[cat].append(audit)
+
+        # save data at .json in s3
+        sec_audit_file_uri = self.save_data_to_s3(_data=audits)
+
+        return sec_audit_file_uri
 
 
 
@@ -738,6 +849,7 @@ class Tester():
         num_logs_ratio = 0
         lighthouse_score = 0
         yellowlab_score = 0
+        security_score = 0
         images_score = 0
 
         # default weights
@@ -748,6 +860,7 @@ class Tester():
         num_logs_w = 0
         delta_lh_w = 0
         delta_yl_w = 0
+        delta_sec_w = 0
         images_w = 0
 
         # default data
@@ -756,6 +869,7 @@ class Tester():
         logs_delta_context = None
         lighthouse_data = None
         yellowlab_data = None
+        security_data = None
         images_data = None
 
         # testing html
@@ -870,6 +984,31 @@ class Tester():
                 delta_yl_w = 0
                 print(e)
                 
+        # testing Security
+        if 'security' in self.test.type or 'full' in self.test.type:
+            try:
+                # scores & data
+                security_data = self.delta_security()
+                sec_audits_uri = self.get_sec_audits_deltas(scores=security_data['scores'])
+                security_data['audits'] = sec_audits_uri
+                security_avg = security_data['scores']['average_delta']
+                if security_avg != None and security_avg > -100:
+                    security_score = (100 + security_avg) / 100
+                if security_avg != None and security_avg <= -100:
+                    security_score = 0
+
+                # weights
+                if security_score == None:
+                    delta_sec_w = 0
+                elif security_score > 1:
+                    delta_sec_w = 1
+                    security_score = 1
+                else:
+                    delta_sec_w = 1
+            except Exception as e:
+                delta_sec_w = 0
+                print(e)
+
 
         # testing images
         if 'vrt' in self.test.type or 'full' in self.test.type:
@@ -890,7 +1029,7 @@ class Tester():
         total_w = (
             html_score_w + logs_score_w + num_html_w 
             + num_logs_w + delta_lh_w + micro_diff_w
-            + images_w + delta_yl_w
+            + images_w + delta_yl_w + delta_sec_w
         )
         
         # calculating final weighted average score
@@ -901,6 +1040,7 @@ class Tester():
             (num_html_ratio * num_html_w) +
             (lighthouse_score * delta_lh_w) + 
             (yellowlab_score * delta_yl_w) +
+            (security_score * delta_sec_w) +
             (micro_diff_score * micro_diff_w) +
             (images_score * images_w)
         ) / total_w) * 100), 2)
@@ -910,7 +1050,8 @@ class Tester():
             + str(logs_score*logs_score_w) + " + " + str(num_logs_ratio*num_logs_w) + " + " 
             + str(num_html_ratio*num_html_w) +  " + " + str(lighthouse_score*delta_lh_w) + 
             " + " + str(micro_diff_score*micro_diff_w) + " + " + str(images_score * images_w)+
-            " + " + str(yellowlab_score*delta_yl_w) + ") / " + str(total_w) + ") * 100 ===> " + str(score)
+            " + " + str(yellowlab_score*delta_yl_w) + " + " + str(security_score*delta_sec_w) +
+            ") / " + str(total_w) + ") * 100 ===> " + str(score)
         )
 
         # updating test data
@@ -919,6 +1060,7 @@ class Tester():
         self.test.logs_delta = logs_delta_context
         self.test.lighthouse_delta = lighthouse_data
         self.test.yellowlab_delta = yellowlab_data
+        self.test.security_delta = security_data
         self.test.images_delta = images_data
         self.test.score = score
         self.test.status = 'passed' if score >= self.test.threshold else 'failed'
@@ -926,6 +1068,7 @@ class Tester():
         self.test.component_scores['logs'] = (logs_delta_context['combined_logs_score'] * 100) if num_logs_w != 0 else None
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100) if delta_lh_w != 0 else None
         self.test.component_scores['yellowlab'] = (yellowlab_score * 100) if delta_yl_w != 0 else None
+        self.test.component_scores['security'] = (security_score * 100) if delta_sec_w != 0 else None
         self.test.component_scores['vrt'] = (images_score * 100) if images_w != 0 else None
         self.test.save()
 
@@ -940,9 +1083,6 @@ class Tester():
 
         # returning updated test
         return self.test
-
-
-
 
 
 

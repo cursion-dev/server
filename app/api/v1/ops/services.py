@@ -1712,6 +1712,10 @@ def create_scan(request: object=None, **kwargs) -> object:
         if 'vrt' in types or 'full' in types:
             task_id = f'lock:vrt_bg_{created_scan.id}'
             run_vrt_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
+        
+        if 'security' in types or 'full' in types:
+            task_id = f'lock:security_bg_{created_scan.id}'
+            run_security_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
     
     # returning dynaminc response
     data = {
@@ -1967,6 +1971,9 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
     # get yellowlab scores if exists
     yellowlab = {"scores": scan.yellowlab.get('scores')}
 
+    # get security scores if exists
+    security = {"scores": scan.security.get('scores')}
+
     # format data
     data = {
         "id": str(scan.id),
@@ -1977,6 +1984,7 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
         "time_completed": str(scan.time_completed),
         "lighthouse": lighthouse,
         "yellowlab": yellowlab,
+        "security": security,
     }
 
     # return response
@@ -2202,6 +2210,7 @@ def get_scans_zapier(request: object=None) -> object:
             'images'           :  scan.images,
             'lighthouse'       :  scan.lighthouse,
             'yellowlab'        :  scan.yellowlab,
+            'security'         :  scan.security,
             'configs'          :  scan.configs,
         })
 
@@ -2722,13 +2731,16 @@ def get_test_lean(request: object=None, id: str=None) -> object:
     test = Test.objects.get(id=id)
 
     # get images_delta if exists
-    images_delta = {"average_score": test.images_delta.get('average_score')}
+    images_delta = {"average_score": (test.images_delta or {}).get('average_score')}
 
     # get lighthouse_delta if exists
-    lighthouse_delta = {"scores": test.lighthouse_delta.get('scores')}
+    lighthouse_delta = {"scores": (test.lighthouse_delta or {}).get('scores')}
 
     # get lighthouse_delta if exists
-    yellowlab_delta = {"scores": test.yellowlab_delta['scores']}
+    yellowlab_delta = {"scores": (test.yellowlab_delta or {}).get('scores')}
+
+    # get security_delta if exists
+    security_delta = {"scores": (test.security_delta or {}).get('scores')}
 
     # format data
     data = {
@@ -2743,6 +2755,7 @@ def get_test_lean(request: object=None, id: str=None) -> object:
         "score": test.score,
         "lighthouse_delta": lighthouse_delta,
         "yellowlab_delta": yellowlab_delta,
+        "security_delta": security_delta,
         "images_delta": images_delta,
     }
 

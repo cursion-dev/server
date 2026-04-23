@@ -327,10 +327,12 @@ class Issuer():
         # defaults
         lh        = []
         yl        = []
+        sec       = []
         logs      = []
         vrt       = {}
         lh_audits = ''
         yl_audits = ''
+        sec_audits = ''
 
         # get post_logs_delta
         logs = self.test.logs_delta.get('post_logs_delta') if self.test.logs_delta else []
@@ -340,6 +342,8 @@ class Issuer():
             lh_audits = requests.get(self.test.lighthouse_delta.get('audits')).json() if self.test.lighthouse_delta.get('audits') else ''
         if self.test.yellowlab_delta:
             yl_audits = requests.get(self.test.yellowlab_delta.get('audits')).json() if self.test.yellowlab_delta.get('audits') else ''
+        if self.test.security_delta:
+            sec_audits = requests.get(self.test.security_delta.get('audits')).json() if self.test.security_delta.get('audits') else ''
 
         # record only audits from LH components
         # that had negative scores
@@ -364,6 +368,18 @@ class Issuer():
                             yl.append({
                                 key: yl_audits.get(key)
                             }) 
+
+        # record only audits from Security components
+        # that had negative scores
+        if (self.test.security_delta or {}).get('audits'):
+            if self.test.component_scores.get('security') < self.threshold:
+                for key in self.test.security_delta.get('scores'):
+                    if 'average' not in key:
+                        if self.test.security_delta.get('scores')[key] < 0:
+                            key = key.replace('_delta', '')
+                            sec.append({
+                                key: sec_audits.get(key)
+                            })
 
         # record any information about VRT
         if 'vrt' in self.test.type:
@@ -433,6 +449,12 @@ class Issuer():
             self.data += str(
                 f'\n\n\nAudit data from YellowLab Tools:' +
                 f'\n{yl}'
+            )
+        if len(sec) > 0:
+            self.max_len += 50
+            self.data += str(
+                f'\n\n\nAudit data from Security Scanner:' +
+                f'\n{sec}'
             )
         if len(vrt) > 0:
             self.max_len += 50
@@ -605,6 +627,5 @@ class Issuer():
         return recommendation
 
     
-
 
 

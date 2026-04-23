@@ -299,9 +299,8 @@ TEST_THRESHOLD = 95
 
 
 # Global Scan & Test types
-TYPES = ['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
+TYPES = ['html', 'logs', 'images', 'lighthouse', 'security']
 
 
 # Global max attempts
 MAX_ATTEMPTS = 3
-

@@ -47,6 +47,11 @@ definitions = [
         'key': 'lighthouse_score',
         'value': 'obj.component_scores.get("lighthouse",0)'
     },
+    {
+        'name': 'Security Score',
+        'key': 'security_score',
+        'value': 'obj.component_scores.get("security",0)'
+    },
 
     # high-level scan score
     {
@@ -191,6 +196,38 @@ definitions = [
         'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("serverConfig_delta",0)'
     },
 
+    # Security test data
+    {
+        'name': 'Security Average',
+        'key': 'current_security_average',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("current_average",0)'
+    },
+    {
+        'name': 'Transport Delta',
+        'key': 'transport_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("transport_delta",0)'
+    },
+    {
+        'name': 'Browser Delta',
+        'key': 'browser_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("browser_delta",0)'
+    },
+    {
+        'name': 'Scripts Delta',
+        'key': 'scripts_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("scripts_delta",0)'
+    },
+    {
+        'name': 'Forms Delta',
+        'key': 'forms_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("forms_delta",0)'
+    },
+    {
+        'name': 'Compliance Delta',
+        'key': 'compliance_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("compliance_delta",0)'
+    },
+
     # YL scan data
     {
         'name': 'Yellowlab Average',
@@ -246,6 +283,38 @@ definitions = [
         'name': 'Server Configs',
         'key': 'serverConfig',
         'value': '((obj.yellowlab or {}).get("scores") or {}).get("serverConfig",0)'
+    },
+
+    # Security scan data
+    {
+        'name': 'Security Average',
+        'key': 'security_average',
+        'value': '((obj.security or {}).get("scores") or {}).get("average",0)'
+    },
+    {
+        'name': 'Transport',
+        'key': 'transport',
+        'value': '((obj.security or {}).get("scores") or {}).get("transport",0)'
+    },
+    {
+        'name': 'Browser',
+        'key': 'browser',
+        'value': '((obj.security or {}).get("scores") or {}).get("browser",0)'
+    },
+    {
+        'name': 'Scripts',
+        'key': 'scripts',
+        'value': '((obj.security or {}).get("scores") or {}).get("scripts",0)'
+    },
+    {
+        'name': 'Forms',
+        'key': 'forms',
+        'value': '((obj.security or {}).get("scores") or {}).get("forms",0)'
+    },
+    {
+        'name': 'Compliance',
+        'key': 'compliance',
+        'value': '((obj.security or {}).get("scores") or {}).get("compliance",0)'
     },
 
     # caserun

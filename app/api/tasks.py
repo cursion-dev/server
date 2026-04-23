@@ -13,7 +13,7 @@ from .utils.issuer import Issuer
 from .utils.exporter import create_and_send_report_export
 from .utils.scanner import (
     _html_and_logs, _vrt, _lighthouse, 
-    _yellowlab
+    _yellowlab, _security
 )
 from .utils.alerts import *
 from .utils.updater import update_flowrun
@@ -278,7 +278,7 @@ def redeliver_failed_tasks() -> None:
     scans       = Scan.objects.filter(time_completed=None)
     tests       = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
     flowruns    = FlowRun.objects.filter(time_completed=None)
-    types       = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg']
+    types       = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg', 'security_bg']
 
     # inspect Celery workers
     i = celery.app.control.inspect()
@@ -360,6 +360,8 @@ def redeliver_failed_tasks() -> None:
                 component = scan.images
             if task['component'] == 'html':
                 component = scan.html
+            if task['component'] == 'security':
+                component = scan.security.get('audits', None)
             
             # record components
             components.append(task['component'])
@@ -840,6 +842,8 @@ def update_scan_score(self, scan_id: str) -> None:
         scores.append(scan.lighthouse['scores']['average'])
     if scan.yellowlab['scores']['globalScore'] is not None:
         scores.append(scan.yellowlab['scores']['globalScore'])
+    if scan.security['scores']['average'] is not None:
+        scores.append(scan.security['scores']['average'])
     
     # calc average score
     if len(scores) > 0:
@@ -941,6 +945,20 @@ def scan_page_bg(
             },
             queue=queue,
             task_id=f'lock:vrt_bg_{scan_id}',
+        )
+    if 'security' in scan.type or 'full' in scan.type:
+        apply_async_in_queue(
+            run_security_bg,
+            kwargs={
+                'scan_id'   : scan_id,
+                'test_id'   : test_id,
+                'alert_id'  : alert_id,
+                'flowrun_id': flowrun_id,
+                'node_index': node_index,
+                '_queue'    : queue,
+            },
+            queue=queue,
+            task_id=f'lock:security_bg_{scan_id}',
         )
 
     logger.info('started scan component tasks')
@@ -1507,6 +1525,86 @@ def run_yellowlab_bg(
             _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran yellowlab component')
+    return None
+
+
+
+
+@shared_task(bind=True, base=BaseTaskWithRetry)
+def run_security_bg(
+        self,
+        scan_id: str=None,
+        test_id: str=None,
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None,
+        **kwargs
+    ) -> None:
+    """
+    Runs the security component of the passed `Scan`
+
+    Args:
+        scan_id     : str,
+        test_id     : str,
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str,
+        **kwargs
+
+    Returns: None
+    """
+
+    # get kwargs data if no scan_id
+    if scan_id is None:
+        scan_id = kwargs.get('scan_id')
+        test_id = kwargs.get('test_id')
+        alert_id = kwargs.get('alert_id')
+        flowrun_id = kwargs.get('flowrun_id')
+        node_index = kwargs.get('node_index')
+
+    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
+    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
+        acquired, rank = slot
+        if not acquired:
+            _reschedule_due_to_concurrency(self, rank=rank)
+            return None
+
+        # sleeping random for DB
+        time.sleep(random.uniform(2, 6))
+
+        # check redis task lock
+        lock_name = f"lock:security_bg_{scan_id}"
+        with task_lock(lock_name) as lock_acquired:
+
+            # checking if task is already running
+            if not lock_acquired:
+                logger.info('task is already running, skipping execution.')
+                return None
+
+            # save sys data
+            max_reached = record_task(
+                resource_type='scan',
+                resource_id=str(scan_id),
+                task_id=str(self.request.id),
+                task_method=str(inspect.stack()[0][3]),
+                kwargs={
+                    'scan_id': str(scan_id) if scan_id is not None else None,
+                    'test_id': str(test_id) if test_id is not None else None,
+                    'alert_id': str(alert_id) if alert_id is not None else None,
+                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
+                    'node_index': str(node_index) if node_index is not None else None
+                }
+            )
+
+            # return early if max_attempts reached
+            if max_reached:
+                logger.info('max attempts reach for security component')
+                return None
+
+            # run security component
+            _security(scan_id, test_id, alert_id, flowrun_id, node_index)
+
+    logger.info('ran security component')
     return None
 
 

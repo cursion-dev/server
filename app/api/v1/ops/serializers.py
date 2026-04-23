@@ -107,7 +107,7 @@ class ScanSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Scan
         fields = ['id', 'site', 'page', 'paired_scan', 'time_created',
-        'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 
+        'time_completed', 'html', 'logs', 'lighthouse', 'yellowlab', 'security',
         'images', 'configs', 'tags', 'type', 'score',
         ]
 
@@ -120,6 +120,7 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     paired_scan = serializers.PrimaryKeyRelatedField(source='paired_scan.id',**kwargs)
     lighthouse = serializers.SerializerMethodField()
     yellowlab = serializers.SerializerMethodField()
+    security = serializers.SerializerMethodField()
     id = serializers.PrimaryKeyRelatedField(**kwargs)
 
     def get_lighthouse(self, obj):
@@ -128,10 +129,13 @@ class SmallScanSerializer(serializers.HyperlinkedModelSerializer):
     def get_yellowlab(self, obj):
         return {'scores': obj.yellowlab['scores']}
 
+    def get_security(self, obj):
+        return {'scores': obj.security['scores']}
+
     class Meta:
         model = Scan
         fields = ['id', 'site', 'page', 'paired_scan', 'time_created', 'logs', 
-        'time_completed', 'lighthouse', 'yellowlab', 'configs', 'tags', 'score',
+        'time_completed', 'lighthouse', 'yellowlab', 'security', 'configs', 'tags', 'score',
         ]
 
 
@@ -148,7 +152,7 @@ class TestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'html_delta', 'logs_delta',
-        'lighthouse_delta', 'yellowlab_delta', 'images_delta', 'type', 'threshold',
+        'lighthouse_delta', 'yellowlab_delta', 'security_delta', 'images_delta', 'type', 'threshold',
         'tags', 'pre_scan_configs', 'post_scan_configs', 'component_scores', 'status',
         ]
 
@@ -166,7 +170,7 @@ class SmallTestSerializer(serializers.HyperlinkedModelSerializer):
         model = Test
         fields = ['id', 'site', 'page', 'time_created', 'time_completed',
         'pre_scan', 'post_scan', 'score', 'lighthouse_delta', 
-        'yellowlab_delta', 'tags', 'component_scores', 'threshold', 'status',
+        'yellowlab_delta', 'security_delta', 'tags', 'component_scores', 'threshold', 'status',
         ]
 
 
@@ -321,8 +325,6 @@ class SmallFlowRunSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'user', 'account', 'flow', 'time_created', 'title',
         'status', 'time_completed', 'site', 'configs'
         ]
-
-
 
 
 

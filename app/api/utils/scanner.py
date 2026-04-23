@@ -5,7 +5,8 @@ from .driver import (
 from ..models import *
 from .alerter import Alerter
 from .lighthouse import Lighthouse
-from .yellowlab import Yellowlab
+from .archive.yellowlab import Yellowlab
+from .security import Security
 from .imager import Imager
 from .updater import update_flowrun
 from .manager import record_task
@@ -45,7 +46,7 @@ class Scanner():
             site: object=None, 
             page: object=None,
             scan: object=None, 
-            type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
+            type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab', 'security']
         ):
 
         self.site = site
@@ -75,6 +76,7 @@ class Scanner():
         images = None
         lh_data = None
         yl_data = None
+        sec_data = None
         
         # running scan steps with selenium driver
         driver = driver_init(
@@ -98,6 +100,8 @@ class Scanner():
             lh_data = Lighthouse(scan=self.scan).get_data() 
         if 'yellowlab' in self.scan.type or 'full' in self.scan.type:
             yl_data = Yellowlab(scan=self.scan).get_data()
+        if 'security' in self.scan.type or 'full' in self.scan.type:
+            sec_data = Security(scan=self.scan, driver=driver).get_data()
 
         # quiting selenium instance
         quit_driver(driver)
@@ -113,6 +117,8 @@ class Scanner():
             self.scan.lighthouse = lh_data
         if yl_data is not None:
             self.scan.yellowlab = yl_data
+        if sec_data is not None:
+            self.scan.security = sec_data
 
         # saving scan data
         self.scan.time_completed = datetime.now()
@@ -151,6 +157,8 @@ def update_scan_score(scan: object) -> object:
         scores.append(scan.lighthouse['scores']['average'])
     if scan.yellowlab['scores']['globalScore'] is not None:
         scores.append(scan.yellowlab['scores']['globalScore'])
+    if scan.security['scores']['average'] is not None:
+        scores.append(scan.security['scores']['average'])
     
     # calc average score
     if len(scores) > 0:
@@ -325,6 +333,9 @@ def check_scan_completion(
             
     if 'yellowlab' in scan.type or 'full' in scan.type:
         if scan.yellowlab.get('scores').get('globalScore') == None and scan.yellowlab.get('failed') == None:
+            finished = False
+    if 'security' in scan.type or 'full' in scan.type:
+        if scan.security.get('scores').get('average') == None and scan.security.get('failed') == None:
             finished = False
 
     if 'vrt' in scan.type or 'full' in scan.type:
@@ -788,3 +799,77 @@ def _yellowlab(
     return scan
 
 
+
+
+def _security(
+        scan_id: str=None,
+        test_id: str=None,
+        alert_id: str=None,
+        flowrun_id: str=None,
+        node_index: str=None
+    ) -> object:
+    """
+    Method to run the security component of the scan
+    allowing for multi-threading.
+
+    Args:
+        scan_id     : str,
+        test_id     : str,
+        alert_id    : str,
+        flowrun_id  : str,
+        node_index  : str
+
+    Returns: `Scan` <obj>
+    """
+
+    # retrieve scan
+    scan = Scan.objects.get(id=scan_id)
+
+    # setting defaults
+    message = None
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': f'starting security component for {scan.page.page_url} | scan_id: {scan_id}',
+        })
+
+    try:
+        # running security
+        sec_data = Security(scan=scan).get_data()
+        print(f'SECURITY failure_status -> {sec_data.get('failed')}')
+
+        # updating Scan object
+        scan = Scan.objects.get(id=scan_id)
+        scan.security = sec_data
+        scan.save()
+
+        # setting flowrun log
+        message = f'completed security component for {scan.page.page_url} | scan_id: {scan_id}'
+
+    except Exception as e:
+        scan.security['failed'] = True
+        scan.save()
+        print(e)
+
+        # setting flowrun log
+        message = f'security component failed for {scan.page.page_url} | scan_id: {scan_id}'
+
+    # update flowrun
+    if flowrun_id and flowrun_id != 'None':
+        update_flowrun(**{
+            'flowrun_id': flowrun_id,
+            'node_index': node_index,
+            'message': message
+        })
+
+    # update scan score
+    update_scan_score(scan)
+
+    # checking if scan is done
+    scan = check_scan_completion(scan, 'security', test_id, alert_id, flowrun_id, node_index)
+
+    # returning updated scan
+    return scan

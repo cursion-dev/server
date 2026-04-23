@@ -1,5 +1,4 @@
 from pathlib import Path
-from ..models import Site, Scan
 from .devices import get_device
 from cursion import settings
 import subprocess, json, uuid, boto3, os, requests, ast

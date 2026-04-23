@@ -28,9 +28,9 @@ class Reporter:
     """
 
     VALID_LOOKBACK_DAYS = {1, 7, 30, 90}
-    VALID_TYPES = {"issues", "tests", "caseruns", "performance"}
-    FONT_REGULAR = "Helvetica"
-    FONT_BOLD = "Helvetica-Bold"
+    VALID_TYPES         = {"issues", "tests", "caseruns", "performance"}
+    FONT_REGULAR        = "Helvetica"
+    FONT_BOLD           = "Helvetica-Bold"
 
     def __init__(self, report: object, scan: object = None):
         self.report = report
