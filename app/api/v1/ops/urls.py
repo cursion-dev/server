@@ -29,7 +29,7 @@ urlpatterns = [
     path('case/<uuid:id>', views.CaseDetail.as_view(), name='case-detail'),
     path('case/pre-run', views.CasePreRun.as_view(), name='case-pre-run'),
     path('case/search', views.CasesSearch.as_view(), name='case-search'),
-    path('case/auto', views.AutoCases.as_view(), name='case-auto'),
+    path('case/generate', views.CaseGenerate.as_view(), name='case-generate'),
     path('case/copy', views.CopyCases.as_view(), name='case-copy'),
     path('cases/delete', views.CasesDelete.as_view(), name='cases-delete'),
     path('cases/zapier', views.CasesZapier.as_view(), name='cases-zapier'),
@@ -77,7 +77,5 @@ urlpatterns = [
     path('metrics/site', views.SiteMetrics.as_view(), name='site-metrics'),
     path('metrics/page', views.PageMetrics.as_view(), name='page-metrics'),
     path('metrics/celery', views.CeleryMetrics.as_view(), name='celery-metrics'),
-    path('beta/wordpress/migrate', views.WordPressMigrateSite.as_view(), name='migrate-site'),
-    path('beta/site/screenshot', views.SiteScreenshot.as_view(), name='site-screenshot'), 
     path('beta/report/export', views.ExportReport.as_view(), name='export-report'), 
 ]

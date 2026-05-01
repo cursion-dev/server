@@ -38,6 +38,10 @@ class Crawler():
         # crawl self.url and record any found links 
         # which are within the same self.url domain
 
+        if self.max_urls <= 0:
+            quit_driver(self.driver)
+            return []
+
         follow_urls = []
         crawled_urls = []
         saved_urls = [self.url,]
@@ -146,6 +150,11 @@ class Crawler():
             
             # iterate through existing follow_urls
             for url in follow_urls:
+                if len(saved_urls) >= self.max_urls:
+                    print('max pages reached')
+                    max_reached = True
+                    break
+
                 # pass if already crawled
                 if url not in crawled_urls:
                     if url not in saved_urls:
@@ -179,5 +188,4 @@ class Crawler():
         # quit driver and return
         quit_driver(self.driver)
         return saved_urls
-
 

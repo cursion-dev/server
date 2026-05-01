@@ -209,12 +209,12 @@ class Issuer():
         cats    = []
         comps   = []
         lh      = []
-        yl      = []
+        sc      = []
         logs    = []
 
         # get raw audits
         lh_audits = requests.get(self.scan.lighthouse.get('audits')).json() if self.scan.lighthouse.get('audits') else ''
-        yl_audits = requests.get(self.scan.yellowlab.get('audits')).json() if self.scan.yellowlab.get('audits') else ''
+        sc_audits = requests.get(self.scan.security.get('audits')).json() if self.scan.security.get('audits') else ''
 
         # include logs
         if self.scan.logs:
@@ -246,23 +246,23 @@ class Issuer():
                             key: lh_audits.get(key)
                         })
 
-        # include yellowlab 
-        if self.scan.yellowlab.get('audits'):
-            for key in self.scan.yellowlab.get('scores'):
-                if key != 'globalScore':
-                    if int(self.scan.yellowlab.get('scores')[key]) < self.threshold:
+        # include security 
+        if self.scan.security.get('audits'):
+            for key in self.scan.security.get('scores'):
+                if key != 'average':
+                    if int(self.scan.security.get('scores')[key]) < self.threshold:
                         # include YL categories
                         cats.append({
                             'key'   : key,
-                            'name'  : f"{self.convert_key(key)} (yellowlab)",
-                            'value' : f"{self.scan.yellowlab.get('scores')[key]}%"
+                            'name'  : f"{self.convert_key(key)} (security)",
+                            'value' : f"{self.scan.security.get('scores')[key]}%"
                         })
                         # update str for title
                         if not any('Performance' in i for i in comps):
                             comps.append('& Performance' if 'Console' in comps else 'Performance')
                         # save audits
-                        yl.append({
-                            key: yl_audits.get(key)
+                        sc.append({
+                            key: sc_audits.get(key)
                         })
 
         # build title
@@ -304,11 +304,11 @@ class Issuer():
                 f'\n\n\nAudit data from Google Lighthouse:' +
                 f'\n{lh}'
             )
-        if len(yl) > 0:
+        if len(sc) > 0:
             self.max_len += 50
             self.data += str(
-                f'\n\n\nAudit data from YellowLab Tools:' +
-                f'\n{yl}'
+                f'\n\n\nAudit data from Cursion\'s Security Auditor:' +
+                f'\n{sc}'
             )
         self.data += f'\n\n------------\n\n'
 
@@ -326,13 +326,11 @@ class Issuer():
 
         # defaults
         lh        = []
-        yl        = []
         sec       = []
         logs      = []
-        vrt       = {}
+        images    = {}
         lh_audits = ''
-        yl_audits = ''
-        sec_audits = ''
+        sc_audits = ''
 
         # get post_logs_delta
         logs = self.test.logs_delta.get('post_logs_delta') if self.test.logs_delta else []
@@ -340,10 +338,8 @@ class Issuer():
         # get raw audits
         if self.test.lighthouse_delta:
             lh_audits = requests.get(self.test.lighthouse_delta.get('audits')).json() if self.test.lighthouse_delta.get('audits') else ''
-        if self.test.yellowlab_delta:
-            yl_audits = requests.get(self.test.yellowlab_delta.get('audits')).json() if self.test.yellowlab_delta.get('audits') else ''
         if self.test.security_delta:
-            sec_audits = requests.get(self.test.security_delta.get('audits')).json() if self.test.security_delta.get('audits') else ''
+            sc_audits = requests.get(self.test.security_delta.get('audits')).json() if self.test.security_delta.get('audits') else ''
 
         # record only audits from LH components
         # that had negative scores
@@ -355,19 +351,7 @@ class Issuer():
                             key = key.replace('_delta', '')
                             lh.append({
                                 key: lh_audits.get(key)
-                            }) 
-        
-        # record only audits from YL components
-        # that had negative scores
-        if (self.test.yellowlab_delta or {}).get('audits'):
-            if self.test.component_scores.get('yellowlab') < self.threshold:
-                for key in self.test.yellowlab_delta.get('scores'):
-                    if 'average' not in key:
-                        if self.test.yellowlab_delta.get('scores')[key] < 0:
-                            key = key.replace('_delta', '')
-                            yl.append({
-                                key: yl_audits.get(key)
-                            }) 
+                            })
 
         # record only audits from Security components
         # that had negative scores
@@ -378,14 +362,14 @@ class Issuer():
                         if self.test.security_delta.get('scores')[key] < 0:
                             key = key.replace('_delta', '')
                             sec.append({
-                                key: sec_audits.get(key)
+                                key: sc_audits.get(key)
                             })
 
-        # record any information about VRT
-        if 'vrt' in self.test.type:
-            vrt['similarity_score'] = self.test.component_scores.get('vrt')
-            vrt['summary'] = self.test.images_delta.get('summary')
-            vrt['broken'] = self.test.images_delta.get('broken')
+        # record any information about image regression
+        if 'images' in self.test.type or 'vrt' in self.test.type:
+            images['similarity_score'] = self.test.component_scores.get('images', self.test.component_scores.get('vrt'))
+            images['summary'] = self.test.images_delta.get('summary')
+            images['broken'] = self.test.images_delta.get('broken')
 
         # grabbing component scores
         # which were less than the test.threshold
@@ -403,6 +387,9 @@ class Issuer():
 
         # adjusting component names in table
         comp_str = comp_str.replace(
+                'images',
+                'image regression (images)'
+            ).replace(
                 'vrt', 
                 'visual regression (vrt)'
             ).replace(
@@ -444,23 +431,17 @@ class Issuer():
                 f'\n\n\nAudit data from Google Lighthouse:' +
                 f'\n{lh}'
             )
-        if len(yl) > 0:
-            self.max_len += 50
-            self.data += str(
-                f'\n\n\nAudit data from YellowLab Tools:' +
-                f'\n{yl}'
-            )
         if len(sec) > 0:
             self.max_len += 50
             self.data += str(
                 f'\n\n\nAudit data from Security Scanner:' +
                 f'\n{sec}'
             )
-        if len(vrt) > 0:
+        if len(images) > 0:
             self.max_len += 50
             self.data += str(
-                f'\n\n\nVisual Regression Data:' +
-                f'\n{vrt}'
+                f'\n\n\nImage Regression Data:' +
+                f'\n{images}'
             )
         self.data += f'\n\n------------\n\n'
 
@@ -627,5 +608,4 @@ class Issuer():
         return recommendation
 
     
-
 

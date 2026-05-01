@@ -760,11 +760,11 @@ class Imager():
         Grabs full length screenshots of the website and uploads 
         them to s3.
 
-        Args: {
+        Args:
             'driver': object
-        }
 
-        Returns: self.image_array list
+        Returns:
+            self.image_array list
         """
 
         # initialize driver if not passed as param

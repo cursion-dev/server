@@ -259,6 +259,9 @@ GOOGLE_CRUX_KEY = os.environ.get('GOOGLE_CRUX_KEY')
 
 # OpenAI's GPT API key
 GPT_API_KEY = os.environ.get('GPT_API_KEY')
+GENCASER_MODEL = os.environ.get('GENCASER_MODEL', 'gpt-5-mini')
+GENCASER_MAX_OUTPUT_TOKENS = int(os.environ.get('GENCASER_MAX_OUTPUT_TOKENS', 3000))
+GENCASER_MAX_REPAIR_ATTEMPTS = int(os.environ.get('GENCASER_MAX_REPAIR_ATTEMPTS', 1))
 
 
 # Encryption Key

@@ -65,7 +65,6 @@ class Agent():
         input_string = (
             'BACKGROUND CONTEXT:\n'
             'You are a Software Quality Assurance Engineer.\n'
-            # 'Please reference https://docs.cursion.dev for documentation about the Cursion Platform.\n'
             'If necessary, call Cursion MCP tools to complete the task.\n'
             'If responding with `Site`, `Page`, `Scan`, `Test`, `Case`, `CaseRun`, `Flow`, or `FlowRun` objects, ' 
             'include their URL formatted like so: '

@@ -4,16 +4,15 @@ from cursion import celery
 from .utils.crawler import Crawler
 from .utils.scanner import Scanner as S
 from .utils.tester import Tester as T
-from .utils.reporter import Reporter as R
-from .utils.wordpress import Wordpress as W
+from .utils.reporter import Report as R
 from .utils.alerter import Alerter
 from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
+from .utils.archive.gencaser import GenCaser
 from .utils.issuer import Issuer
 from .utils.exporter import create_and_send_report_export
 from .utils.scanner import (
-    _html_and_logs, _vrt, _lighthouse, 
-    _yellowlab, _security
+    _html_and_logs, _vrt, _lighthouse, _security
 )
 from .utils.alerts import *
 from .utils.updater import update_flowrun
@@ -215,10 +214,16 @@ def add_scan_system_data(scan: object=None, kwargs: dict={}) -> dict:
         "tasks": [
             {
                 "kwargs": kwargs,
-                "task_id": f"lock:html_and_logs_bg_{scan.id}" if t == 'html' else f"lock:{t}_bg_{scan.id}",
+                "task_id": (
+                    f"lock:html_and_logs_bg_{scan.id}" if t == 'html'
+                    else (f"lock:vrt_bg_{scan.id}" if t == 'images' else f"lock:{t}_bg_{scan.id}")
+                ),
                 "attempts": 0,
                 "component": t,
-                "task_method": "run_html_and_logs_bg" if t == 'html' else f"run_{t}_bg"
+                "task_method": (
+                    "run_html_and_logs_bg" if t == 'html'
+                    else ("run_vrt_bg" if t == 'images' else f"run_{t}_bg")
+                )
             }
             for t in scan.type if t != 'logs'
         ]
@@ -278,7 +283,7 @@ def redeliver_failed_tasks() -> None:
     scans       = Scan.objects.filter(time_completed=None)
     tests       = Test.objects.filter(time_completed=None).exclude(post_scan__time_completed=None)
     flowruns    = FlowRun.objects.filter(time_completed=None)
-    types       = ['html_and_logs_bg', 'lighthouse_bg', 'yellowlab_bg', 'vrt_bg', 'security_bg']
+    types       = ['html_and_logs_bg', 'lighthouse_bg', 'vrt_bg', 'security_bg']
 
     # inspect Celery workers
     i = celery.app.control.inspect()
@@ -352,11 +357,9 @@ def redeliver_failed_tasks() -> None:
             task_id = task.get('task_id')
 
             # get scan.{component} data
-            if task['component'] == 'yellowlab':
-                component = scan.yellowlab.get('audits', None)
             if task['component'] == 'lighthouse':
                 component = scan.lighthouse.get('audits', None)
-            if task['component'] == 'vrt':
+            if task['component'] in ['images', 'vrt']:
                 component = scan.images
             if task['component'] == 'html':
                 component = scan.html
@@ -840,8 +843,6 @@ def update_scan_score(self, scan_id: str) -> None:
     # get latest scan scores
     if scan.lighthouse['scores']['average'] is not None:
         scores.append(scan.lighthouse['scores']['average'])
-    if scan.yellowlab['scores']['globalScore'] is not None:
-        scores.append(scan.yellowlab['scores']['globalScore'])
     if scan.security['scores']['average'] is not None:
         scores.append(scan.security['scores']['average'])
     
@@ -918,21 +919,7 @@ def scan_page_bg(
             queue=queue,
             task_id=f'lock:lighthouse_bg_{scan_id}',
         )
-    if 'yellowlab' in scan.type or 'full' in scan.type:
-        apply_async_in_queue(
-            run_yellowlab_bg,
-            kwargs={
-                'scan_id'   : scan_id,
-                'test_id'   : test_id,
-                'alert_id'  : alert_id,
-                'flowrun_id': flowrun_id,
-                'node_index': node_index,
-                '_queue'    : queue,
-            },
-            queue=queue,
-            task_id=f'lock:yellowlab_bg_{scan_id}',
-        )
-    if 'vrt' in scan.type or 'full' in scan.type:
+    if 'images' in scan.type or 'vrt' in scan.type or 'full' in scan.type:
         apply_async_in_queue(
             run_vrt_bg,
             kwargs={
@@ -1445,86 +1432,6 @@ def run_lighthouse_bg(
             _lighthouse(scan_id, test_id, alert_id, flowrun_id, node_index)
 
     logger.info('ran lighthouse component')
-    return None
-
-
-
-
-@shared_task(bind=True, base=BaseTaskWithRetry)
-def run_yellowlab_bg(
-        self, 
-        scan_id: str=None, 
-        test_id: str=None, 
-        alert_id: str=None, 
-        flowrun_id: str=None,
-        node_index: str=None,
-        **kwargs
-    ) -> None:
-    """ 
-    Runs the yellowlab component of the passed `Scan`
-
-    Args:
-        scan_id     : str, 
-        test_id     : str, 
-        alert_id    : str,
-        flowrun_id  : str,
-        node_index  : str,
-        **kwargs
-    
-    Returns: None
-    """
-
-    # get kwargs data if no scan_id
-    if scan_id is None:
-        scan_id = kwargs.get('scan_id')
-        test_id = kwargs.get('test_id')
-        alert_id = kwargs.get('alert_id')
-        flowrun_id = kwargs.get('flowrun_id')
-        node_index = kwargs.get('node_index')
-
-    account_id = _get_account_id_from_scan_id(str(scan_id)) if scan_id else None
-    with (account_concurrency_slot(self, account_id=account_id) if account_id else _always_acquired()) as slot:
-        acquired, rank = slot
-        if not acquired:
-            _reschedule_due_to_concurrency(self, rank=rank)
-            return None
-
-        # sleeping random for DB
-        time.sleep(random.uniform(2, 6))
-        
-        # check redis task lock
-        lock_name = f"lock:yellowlab_bg_{scan_id}"
-        with task_lock(lock_name) as lock_acquired:
-
-            # checking if task is already running
-            if not lock_acquired:
-                logger.info('task is already running, skipping execution.')
-                return None
-    
-            # save sys data
-            max_reached = record_task(
-                resource_type='scan',
-                resource_id=str(scan_id),
-                task_id=str(self.request.id),
-                task_method=str(inspect.stack()[0][3]),
-                kwargs={
-                    'scan_id': str(scan_id) if scan_id is not None else None,
-                    'test_id': str(test_id) if test_id is not None else None, 
-                    'alert_id': str(alert_id) if alert_id is not None else None,
-                    'flowrun_id': str(flowrun_id) if flowrun_id is not None else None,
-                    'node_index': str(node_index) if node_index is not None else None
-                }
-            )
-
-            # return early if max_attempts reached
-            if max_reached:
-                logger.info('max attempts reach for yellowlab component')
-                return None
-
-            # run yellowlab component
-            _yellowlab(scan_id, test_id, alert_id, flowrun_id, node_index)
-
-    logger.info('ran yellowlab component')
     return None
 
 
@@ -2471,27 +2378,32 @@ def create_report_bg(**kwargs) -> None:
 
 
 @shared_task(bind=True, base=BaseTaskWithRetry)
-def create_auto_cases_bg(
+def generate_case_bg(
         self, 
         site_id: str=None,
         process_id: str=None,
         start_url: str=None,
         max_cases: int=4,
         max_layers: int=5,
+        prompt: str=None,
+        external_links: bool=False,
         configs: dict=settings.CONFIGS
     ) -> None:
     """ 
     Generates new `Cases` for the passed site.
 
     Args:
-        site_id    : str,
-        process_id : str,
-        start_url  : str,
-        max_cases  : int,
-        max_layers : int,
-        configs    : dict
+        site_id         : str,
+        process_id      : str,
+        start_url       : str,
+        max_cases       : int,
+        max_layers      : int,
+        prompt          : str,
+        external_links  : bool,
+        configs         : dict
     
-    Returns: None
+    Returns:
+        None
     """
 
     # checking location
@@ -2513,6 +2425,8 @@ def create_auto_cases_bg(
         site=site,
         process=process,
         start_url=start_url,
+        prompt=prompt,
+        external_links=external_links,
         configs=configs,
         max_cases=max_cases,
         max_layers=max_layers,
@@ -4058,78 +3972,3 @@ def send_webhook_bg(
     logger.info('sent webhook message')
     return None
 
-
-
-
-@shared_task
-def migrate_site_bg(
-        login_url: str, 
-        admin_url: str,
-        username: str,
-        password: str,
-        email_address: str,
-        destination_url: str,
-        sftp_address: str,
-        dbname: str,
-        sftp_username: str,
-        sftp_password: str, 
-        plugin_name: str,
-        wait_time: int,
-        process_id: str,
-        driver: str,
-    ) -> None:
-    """ 
-    Runs the WP site migration process.
-
-    Args:
-        login_url: str, 
-        admin_url: str,
-        username: str,
-        password: str,
-        email_address: str,
-        destination_url: str,
-        sftp_address: str,
-        dbname: str,
-        sftp_username: str,
-        sftp_password: str, 
-        plugin_name: str,
-        wait_time: int,
-        process_id: str,
-        driver: str,
-    
-    Returns: None
-    """
-
-    # init wordpress for selenium
-    wp = W(
-        login_url=login_url, 
-        admin_url=admin_url,
-        username=username,
-        password=password,
-        email_address=email_address,
-        destination_url=destination_url,
-        sftp_address=sftp_address,
-        dbname=dbname,
-        sftp_username=sftp_username,
-        sftp_password=sftp_password, 
-        wait_time=wait_time,
-        process_id=process_id,
-
-    )
-
-    # login
-    wp_status = wp.login()
-    # adjust lang
-    wp_status = wp.begin_lang_check()
-    # install plugin
-    wp_status = wp.install_plugin(plugin_name=plugin_name)
-    # launch migration
-    wp_status = wp.launch_migration()
-    # run migration
-    wp_status = wp.run_migration()
-    # re adjust lang
-    # wp_status = wp.end_lang_check()
-    
-
-    logger.info('Finished Migration')
-    return None

@@ -247,6 +247,7 @@ def get_scores_default():
         'lighthouse': None,
         'yellowlab': None,
         'security': None,
+        'images': None,
         'vrt': None
     }
     return scores_default
