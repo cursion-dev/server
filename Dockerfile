@@ -12,10 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV MOZ_NO_REMOTE=1
 ENV MOZ_DISABLE_AUTO_SAFE_MODE=1
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true 
-ENV PHANTOMAS_CHROMIUM_EXECUTABLE=/usr/bin/google-chrome-stable
 ENV PYTHONPATH="$HOME:$PYTHONPATH"
-ENV NODE_OPTIONS="--max-old-space-size=4080"
 ENV DJANGO_ALLOWED_HOSTS="*"
 ENV SECRET_KEY="abcdefghijklmno123456789"
 
@@ -31,22 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     make \
     gfortran \
-    openssl \
     libpq-dev \
+    openssl \
     curl \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    libgl1 \
-    nasm \
-    autoconf \
-    libtool \
-    automake \
-    libjpeg-dev \
-    libglib2.0-0 \
-    libfreetype6 \
     ca-certificates \
-    libfontconfig \
     gnupg
      
 # installing firefox-esr
@@ -73,9 +58,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
 # installing lighthouse & lighthouse-plugin-crux
 RUN npm install -g lighthouse lighthouse-plugin-crux
 
-# installing lodash & yellowlabtools
-RUN npm install -g lodash yellowlabtools
-
 # copying & installing requirements
 COPY ./setup/requirements/requirements.txt /requirements.txt
 RUN python3.12 -m pip install -r /requirements.txt
@@ -90,7 +72,6 @@ RUN mkdir -p .mozilla .cache
 # setting ownership
 RUN chown -R app:app /app
 RUN chown -R app:app /usr/local/bin/lighthouse
-RUN chown -R app:app /usr/local/bin/yellowlabtools
 
 # writing migrations file
 RUN python3.12 manage.py makemigrations --no-input
