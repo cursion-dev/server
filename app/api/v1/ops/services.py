@@ -16,7 +16,7 @@ from cursion import settings
 from .serializers import *
 from ...tasks import *
 from ...models import *
-from ...utils.reporter import Reporter as R
+from ...utils.reporter import Report as R
 from ...utils.devices import devices
 from ...utils.issuer import Issuer
 from datetime import datetime, timedelta
@@ -503,7 +503,7 @@ def create_or_update_site(request: object=None) -> object:
     )
 
     # auto gen Cases using bg_autocase_task
-    create_auto_cases_bg.apply_async(
+    generate_case_bg.apply_async(
         kwargs={
             'site_id': str(site.id),
             'process_id': str(process.id),
@@ -1705,13 +1705,13 @@ def create_scan(request: object=None, **kwargs) -> object:
             task_id = f'lock:lighthouse_bg_{created_scan.id}'
             run_lighthouse_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
         
-        if 'yellowlab' in types or 'full' in types:
-            task_id = f'lock:yellowlab_bg_{created_scan.id}'
-            run_yellowlab_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
-        
-        if 'vrt' in types or 'full' in types:
+        if 'images' in types or 'vrt' in types or 'full' in types:
             task_id = f'lock:vrt_bg_{created_scan.id}'
             run_vrt_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
+        
+        if 'security' in types or 'full' in types:
+            task_id = f'lock:security_bg_{created_scan.id}'
+            run_security_bg.apply_async(kwargs={'scan_id': str(created_scan.id), '_queue': queue}, queue=queue, routing_key=queue, task_id=task_id)
     
     # returning dynaminc response
     data = {
@@ -1963,9 +1963,9 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
 
     # get lighthouse scores if exists
     lighthouse = {"scores": scan.lighthouse.get('scores')}
-    
-    # get yellowlab scores if exists
-    yellowlab = {"scores": scan.yellowlab.get('scores')}
+
+    # get security scores if exists
+    security = {"scores": scan.security.get('scores')}
 
     # format data
     data = {
@@ -1976,7 +1976,7 @@ def get_scan_lean(request: object=None, id: str=None) -> object:
         "time_created": str(scan.time_created),
         "time_completed": str(scan.time_completed),
         "lighthouse": lighthouse,
-        "yellowlab": yellowlab,
+        "security": security,
     }
 
     # return response
@@ -2201,7 +2201,7 @@ def get_scans_zapier(request: object=None) -> object:
             'logs'             :  scan.logs,
             'images'           :  scan.images,
             'lighthouse'       :  scan.lighthouse,
-            'yellowlab'        :  scan.yellowlab,
+            'security'         :  scan.security,
             'configs'          :  scan.configs,
         })
 
@@ -2722,13 +2722,16 @@ def get_test_lean(request: object=None, id: str=None) -> object:
     test = Test.objects.get(id=id)
 
     # get images_delta if exists
-    images_delta = {"average_score": test.images_delta.get('average_score')}
+    images_delta = {"average_score": (test.images_delta or {}).get('average_score')}
 
     # get lighthouse_delta if exists
-    lighthouse_delta = {"scores": test.lighthouse_delta.get('scores')}
+    lighthouse_delta = {"scores": (test.lighthouse_delta or {}).get('scores')}
 
     # get lighthouse_delta if exists
-    yellowlab_delta = {"scores": test.yellowlab_delta['scores']}
+    yellowlab_delta = {"scores": (test.yellowlab_delta or {}).get('scores')}
+
+    # get security_delta if exists
+    security_delta = {"scores": (test.security_delta or {}).get('scores')}
 
     # format data
     data = {
@@ -2743,6 +2746,7 @@ def get_test_lean(request: object=None, id: str=None) -> object:
         "score": test.score,
         "lighthouse_delta": lighthouse_delta,
         "yellowlab_delta": yellowlab_delta,
+        "security_delta": security_delta,
         "images_delta": images_delta,
     }
 
@@ -4666,7 +4670,7 @@ def create_or_update_report(request: object=None) -> object:
     lookback_days = request.data.get('lookback_days')
     text_color = request.data.get('text_color', '#24262d')
     background_color = request.data.get('background_color', '#e1effd')
-    highlight_color = request.data.get('highlight_color', '#4283f8')
+    highlight_color = request.data.get('highlight_color', '#ffffff')
 
     # set defaults
     report = None
@@ -4682,7 +4686,7 @@ def create_or_update_report(request: object=None) -> object:
     action = 'update' if report_id else 'add'
 
     # validate create/update payload shape
-    valid_types = ['issues', 'tests', 'caseruns', 'performance']
+    valid_types = ['issues', 'tests', 'caseruns', 'lighthouse', 'security']
     if not report_id and not site_id:
         data = {'reason': 'site_id is required when report_id is not provided'}
         record_api_call(request, data, '400')
@@ -5417,7 +5421,7 @@ def search_cases(request: object=None) -> object:
 
 
 
-def create_auto_cases(request: object=None) -> object:
+def generate_case(request: object=None) -> object:
     """
     Initiates a new `Case` generation task for the `Site` 
     associated with either the passed "site_url" or "site_id" 
@@ -5440,6 +5444,8 @@ def create_auto_cases(request: object=None) -> object:
     start_url = request.data.get('start_url')
     max_cases = request.data.get('max_cases', 4)
     max_layers = request.data.get('max_layers', 6)
+    prompt = request.data.get('prompt')
+    external_links = request.data.get('external_links', False)
     configs = request.data.get('configs', None)
     
     # get user and account
@@ -5478,7 +5484,7 @@ def create_auto_cases(request: object=None) -> object:
     )
 
     # send data to bg_autocase_task
-    create_auto_cases_bg.apply_async(
+    generate_case_bg.apply_async(
         kwargs={
             'site_id': str(site_id),
             'process_id': str(process.id),
@@ -5486,6 +5492,8 @@ def create_auto_cases(request: object=None) -> object:
             'configs': configs,
             'max_cases': max_cases,
             'max_layers': max_layers,
+            'prompt': prompt,
+            'external_links': external_links
         },
         queue=ON_DEMAND_QUEUE,
         routing_key=ON_DEMAND_QUEUE,
@@ -8163,84 +8171,3 @@ def get_celery_metrics(request: object=None) -> object:
     cache.set("celery_metrics", data, timeout=10)
     return Response(data, status=status.HTTP_200_OK)
 
-
-
-
-### ------ Begin Beta Services ------ ###
-
-
-
-
-def migrate_site(request: object=None) -> object:
-    """
-    Initiate a `Site` migration task in background
-
-    Args:
-        'request': object
-    
-    Returns:
-        HTTP Response object
-    """
-
-    # get request data
-    login_url = request.data.get('login_url', None)
-    admin_url = request.data.get('admin_url', None)
-    plugin_name = request.data.get('plugin_name', 'Cloudways WordPress Migrator')
-    username = request.data.get('username', None)
-    password = request.data.get('password', None)
-    site_id = request.data.get('site_id', None)
-    email_address = request.data.get('email_address', None)
-    destination_url = request.data.get('destination_url', None)
-    sftp_address = request.data.get('sftp_address', None) 
-    dbname = request.data.get('dbname', None)
-    sftp_username = request.data.get('sftp_username', None)
-    sftp_password = request.data.get('sftp_password', None)
-    wait_time = request.data.get('wait_time', 30)
-    driver = request.data.get('driver', 'selenium')
-
-    # checking account and resource 
-    check_data = check_permissions_and_usage(
-        request=request, resource='site', 
-        site_id=site_id
-    )
-    if not check_data['allowed']:
-        data = {'reason': check_data['error']}
-        record_api_call(request, data, check_data['code'])
-        return Response(data, status=check_data['status'])
-    
-    # get site if checks passed
-    site = Site.objects.get(id=site_id)
-
-    # create new Process
-    process = Process.objects.create(
-        site=site,
-        type='migration'
-    )
-
-    # start migrtation task in background
-    migrate_site_bg.apply_async(
-        args=[
-            login_url,
-            admin_url,
-            username,
-            password,
-            email_address,
-            destination_url,
-            sftp_address,
-            dbname,
-            sftp_username,
-            sftp_password,
-            plugin_name,
-            wait_time,
-            str(process.id),
-            driver,
-        ],
-        queue=ON_DEMAND_QUEUE,
-        routing_key=ON_DEMAND_QUEUE,
-    )
-    
-    # serialize and return
-    data = ProcessSerializer(process, context={'request': request}).data
-    record_api_call(request, data, '201')
-    response = Response(data, status=status.HTTP_201_CREATED)
-    return response

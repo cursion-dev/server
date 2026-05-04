@@ -519,12 +519,12 @@ class CaseDetail(APIView):
 
 
 
-class AutoCases(APIView):
+class CaseGenerate(APIView):
     permission_classes = (IsAuthenticated,)
     http_method_names = ['post']
 
     def post(self, request):
-        response = create_auto_cases(request)  
+        response = generate_case(request)  
         return response
 
 
@@ -1047,33 +1047,6 @@ class CeleryMetrics(APIView):
     
     def get(self, request):
         response = get_celery_metrics(request)
-        return response
-
-
-
-
-### ------ Begin Beta Views ------ ###
-
-
-
-
-class WordPressMigrateSite(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-    
-    def post(self, request):
-        response = migrate_site(request)
-        return response
-
-
-
-
-class SiteScreenshot(APIView):
-    permission_classes = (IsAuthenticated,)
-    http_method_names = ['post',]
-    
-    def post(self, request):
-        response = create_site_screenshot(request)
         return response
 
 

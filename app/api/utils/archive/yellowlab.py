@@ -1,6 +1,5 @@
-import subprocess, json, uuid, boto3, os, requests, time
-from ..models import Site, Scan
-from .devices import get_device
+import subprocess, json, uuid, boto3, os, time
+from ..devices import get_device
 from cursion import settings
 
 

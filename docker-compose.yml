@@ -97,21 +97,6 @@ services:
       - db
 
 
-  yellowlab:
-    container_name: yellowlab
-    hostname: yellowlab
-    privileged: true
-    restart: no
-    image: cursiondev/ylt
-    ports:
-      - 8383:8383
-    depends_on:
-      - redis
-      - celery-scheduled
-      - celery-on-demand
-      - server
-      - db
-
 
 volumes:
   pgdata:

@@ -428,88 +428,64 @@ class Tester():
 
 
 
-    def delta_yellowlab(self) -> dict:
-        # calculate the differences in YL 
+    def delta_security(self) -> dict:
+        # calculate the differences in Security
         # scores between pre_ and post_ scans
 
         try:
             # get pre scores
-            pre_globalScore = int(self.test.pre_scan.yellowlab["scores"]['globalScore'])
-            pre_pageWeight = int(self.test.pre_scan.yellowlab["scores"]['pageWeight'])
-            pre_images = int(self.test.pre_scan.yellowlab["scores"]['images'])
-            pre_domComplexity = int(self.test.pre_scan.yellowlab["scores"]['domComplexity'])
-            pre_javascriptComplexity = int(self.test.pre_scan.yellowlab["scores"]['javascriptComplexity'])
-            pre_badJavascript = int(self.test.pre_scan.yellowlab["scores"]['badJavascript'])
-            pre_jQuery = int(self.test.pre_scan.yellowlab["scores"]['jQuery'])
-            pre_cssComplexity = int(self.test.pre_scan.yellowlab["scores"]['cssComplexity'])
-            pre_badCSS = int(self.test.pre_scan.yellowlab["scores"]['badCSS'])
-            pre_fonts = int(self.test.pre_scan.yellowlab["scores"]['fonts'])
-            pre_serverConfig = int(self.test.pre_scan.yellowlab["scores"]['serverConfig'])
-            
+            pre_transport = int(self.test.pre_scan.security["scores"]['transport'])
+            pre_browser = int(self.test.pre_scan.security["scores"]['browser'])
+            pre_scripts = int(self.test.pre_scan.security["scores"]['scripts'])
+            pre_forms = int(self.test.pre_scan.security["scores"]['forms'])
+            pre_compliance = int(self.test.pre_scan.security["scores"]['compliance'])
+
             # get post scores
-            post_globalScore = int(self.test.post_scan.yellowlab["scores"]['globalScore'])
-            post_pageWeight = int(self.test.post_scan.yellowlab["scores"]['pageWeight'])
-            post_images = int(self.test.post_scan.yellowlab["scores"]['images'])
-            post_domComplexity = int(self.test.post_scan.yellowlab["scores"]['domComplexity'])
-            post_javascriptComplexity = int(self.test.post_scan.yellowlab["scores"]['javascriptComplexity'])
-            post_badJavascript = int(self.test.post_scan.yellowlab["scores"]['badJavascript'])
-            post_jQuery = int(self.test.post_scan.yellowlab["scores"]['jQuery'])
-            post_cssComplexity = int(self.test.post_scan.yellowlab["scores"]['cssComplexity'])
-            post_badCSS = int(self.test.post_scan.yellowlab["scores"]['badCSS'])
-            post_fonts = int(self.test.post_scan.yellowlab["scores"]['fonts'])
-            post_serverConfig = int(self.test.post_scan.yellowlab["scores"]['serverConfig'])
+            post_transport = int(self.test.post_scan.security["scores"]['transport'])
+            post_browser = int(self.test.post_scan.security["scores"]['browser'])
+            post_scripts = int(self.test.post_scan.security["scores"]['scripts'])
+            post_forms = int(self.test.post_scan.security["scores"]['forms'])
+            post_compliance = int(self.test.post_scan.security["scores"]['compliance'])
 
             # calculate individual deltas
-            pageWeight_delta = post_pageWeight - pre_pageWeight
-            images_delta = post_images - pre_images
-            domComplexity_delta = post_domComplexity - pre_domComplexity
-            javascriptComplexity_delta = post_javascriptComplexity - pre_javascriptComplexity
-            badJavascript_delta = post_badJavascript - pre_badJavascript
-            jQuery_delta = post_jQuery - pre_jQuery
-            cssComplexity_delta = post_cssComplexity - pre_cssComplexity
-            badCSS_delta = post_badCSS - pre_badCSS
-            fonts_delta = post_fonts - pre_fonts
-            serverConfig_delta = post_serverConfig - pre_serverConfig 
+            transport_delta = post_transport - pre_transport
+            browser_delta = post_browser - pre_browser
+            scripts_delta = post_scripts - pre_scripts
+            forms_delta = post_forms - pre_forms
+            compliance_delta = post_compliance - pre_compliance
 
-            # get current averag and calc average_delta
-            current_average = post_globalScore
-            average_delta = post_globalScore - pre_globalScore 
-            
+            # calculate averages
+            current_average = (
+                post_transport + post_browser + post_scripts +
+                post_forms + post_compliance
+            ) / 5
+            old_average = (
+                pre_transport + pre_browser + pre_scripts +
+                pre_forms + pre_compliance
+            ) / 5
+            average_delta = current_average - old_average
         except:
-            pageWeight_delta = None
-            images_delta = None
-            domComplexity_delta = None
-            javascriptComplexity_delta = None
-            badJavascript_delta = None
-            jQuery_delta = None
-            cssComplexity_delta = None
-            badCSS_delta = None
-            fonts_delta = None
-            serverConfig_delta = None 
+            transport_delta = None
+            browser_delta = None
+            scripts_delta = None
+            forms_delta = None
+            compliance_delta = None
+            current_average = None
             average_delta = None
-            current_average = None,
 
-        # formatting response
         data = {
             "scores": {
-                "pageWeight_delta": pageWeight_delta, 
-                "images_delta": images_delta, 
-                "domComplexity_delta": domComplexity_delta, 
-                "javascriptComplexity_delta": javascriptComplexity_delta,
-                "badJavascript_delta": badJavascript_delta,
-                "jQuery_delta": jQuery_delta,
-                "cssComplexity_delta": cssComplexity_delta,
-                "badCSS_delta": badCSS_delta,
-                "fonts_delta": fonts_delta,
-                "serverConfig_delta": serverConfig_delta,
+                "transport_delta": transport_delta,
+                "browser_delta": browser_delta,
+                "scripts_delta": scripts_delta,
+                "forms_delta": forms_delta,
+                "compliance_delta": compliance_delta,
                 "average_delta": average_delta,
                 "current_average": current_average,
             }
         }
 
-        # returning data
         return data
-
 
 
 
@@ -566,60 +542,53 @@ class Tester():
 
 
 
-    def get_yl_audits_deltas(self, scores: dict) -> str:
-        # finds and records the changes in YL audit data
-        # then saves as .json file in s3 and returns 
+    def get_sec_audits_deltas(self, scores: dict) -> str:
+        # finds and records the changes in Security audit data
+        # then saves as .json file in s3 and returns
 
         # defaults
         audits = {
-            "pageWeight":[],
-            "images": [],
-            "domComplexity": [],
-            "javascriptComplexity": [],
-            "badJavascript": [],
-            "jQuery": [],
-            "cssComplexity": [],
-            "badCSS": [],
-            "fonts": [],
-            "serverConfig": [],
+            "transport": [],
+            "browser": [],
+            "scripts": [],
+            "forms": [],
+            "compliance": [],
         }
 
         # get pre & post audits
-        pre_scan_audits = requests.get(self.test.pre_scan.yellowlab['audits']).json()
-        post_scan_audits = requests.get(self.test.post_scan.yellowlab['audits']).json()
+        pre_raw = self.test.pre_scan.security.get('audits')
+        post_raw = self.test.post_scan.security.get('audits')
+        pre_scan_audits = requests.get(pre_raw).json() if isinstance(pre_raw, str) else (pre_raw or {})
+        post_scan_audits = requests.get(post_raw).json() if isinstance(post_raw, str) else (post_raw or {})
 
-        # deciding which categories to 
+        # deciding which categories to
         # compare based on score
         cats = []
         for key in scores:
-            # checking for a delta score
             if '_delta' in key and 'average' not in key:
-                # check if delta not Zero
                 if scores[key] is not None:
                     if float(scores[key]) != 0:
                         cats.append(str(key).split('_delta')[0])
 
-        # compare each audit in each of the 
+        # compare each audit in each of the
         # selected categories
         for cat in cats:
-            for audit in post_scan_audits[cat]:
+            for audit in post_scan_audits.get(cat, []):
                 found = False
-                for aud in pre_scan_audits[cat]:
+                for aud in pre_scan_audits.get(cat, []):
                     if audit == aud:
                         found = True
                         break
 
-                # record post_ audit if not 
+                # record post_ audit if not
                 # found in pre_
                 if not found:
                     audits[cat].append(audit)
 
         # save data at .json in s3
-        yl_audit_file_uri = self.save_data_to_s3(_data=audits)
+        sec_audit_file_uri = self.save_data_to_s3(_data=audits)
 
-        # return uri
-        return yl_audit_file_uri
-
+        return sec_audit_file_uri
 
 
 
@@ -737,7 +706,7 @@ class Tester():
         logs_score = 0
         num_logs_ratio = 0
         lighthouse_score = 0
-        yellowlab_score = 0
+        security_score = 0
         images_score = 0
 
         # default weights
@@ -747,7 +716,7 @@ class Tester():
         logs_score_w = 0
         num_logs_w = 0
         delta_lh_w = 0
-        delta_yl_w = 0
+        delta_sec_w = 0
         images_w = 0
 
         # default data
@@ -755,7 +724,7 @@ class Tester():
         html_delta_uri = None
         logs_delta_context = None
         lighthouse_data = None
-        yellowlab_data = None
+        security_data = None
         images_data = None
 
         # testing html
@@ -845,34 +814,34 @@ class Tester():
                 print(e)
                 
 
-        # testing YL
-        if 'yellowlab' in self.test.type or 'full' in self.test.type:
+        # testing Security
+        if 'security' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
-                yellowlab_data = self.delta_yellowlab()
-                yl_audits_uri = self.get_yl_audits_deltas(scores=yellowlab_data['scores'])
-                yellowlab_data['audits'] = yl_audits_uri
-                yellowlab_avg = yellowlab_data['scores']['average_delta']
-                if yellowlab_avg != None and yellowlab_avg > -100:
-                    yellowlab_score = (100 + yellowlab_avg)/100
-                if yellowlab_avg != None and yellowlab_avg <= -100:
-                    yellowlab_score = 0
+                security_data = self.delta_security()
+                sec_audits_uri = self.get_sec_audits_deltas(scores=security_data['scores'])
+                security_data['audits'] = sec_audits_uri
+                security_avg = security_data['scores']['average_delta']
+                if security_avg != None and security_avg > -100:
+                    security_score = (100 + security_avg) / 100
+                if security_avg != None and security_avg <= -100:
+                    security_score = 0
 
                 # weights
-                if yellowlab_score == None:
-                    delta_yl_w = 0
-                elif yellowlab_score > 1:
-                    delta_yl_w = 1
-                    yellowlab_score = 1
+                if security_score == None:
+                    delta_sec_w = 0
+                elif security_score > 1:
+                    delta_sec_w = 1
+                    security_score = 1
                 else:
-                    delta_yl_w = 1
+                    delta_sec_w = 1
             except Exception as e:
-                delta_yl_w = 0
+                delta_sec_w = 0
                 print(e)
-                
+
 
         # testing images
-        if 'vrt' in self.test.type or 'full' in self.test.type:
+        if 'images' in self.test.type or 'vrt' in self.test.type or 'full' in self.test.type:
             try:
                 # scores & data
                 images_data = Imager(test=self.test).test_vrt()
@@ -890,7 +859,7 @@ class Tester():
         total_w = (
             html_score_w + logs_score_w + num_html_w 
             + num_logs_w + delta_lh_w + micro_diff_w
-            + images_w + delta_yl_w
+            + images_w + delta_sec_w
         )
         
         # calculating final weighted average score
@@ -900,7 +869,7 @@ class Tester():
             (num_logs_ratio * num_logs_w) + 
             (num_html_ratio * num_html_w) +
             (lighthouse_score * delta_lh_w) + 
-            (yellowlab_score * delta_yl_w) +
+            (security_score * delta_sec_w) +
             (micro_diff_score * micro_diff_w) +
             (images_score * images_w)
         ) / total_w) * 100), 2)
@@ -910,7 +879,8 @@ class Tester():
             + str(logs_score*logs_score_w) + " + " + str(num_logs_ratio*num_logs_w) + " + " 
             + str(num_html_ratio*num_html_w) +  " + " + str(lighthouse_score*delta_lh_w) + 
             " + " + str(micro_diff_score*micro_diff_w) + " + " + str(images_score * images_w)+
-            " + " + str(yellowlab_score*delta_yl_w) + ") / " + str(total_w) + ") * 100 ===> " + str(score)
+            " + " + str(security_score*delta_sec_w) +
+            ") / " + str(total_w) + ") * 100 ===> " + str(score)
         )
 
         # updating test data
@@ -918,15 +888,16 @@ class Tester():
         self.test.html_delta = html_delta_uri
         self.test.logs_delta = logs_delta_context
         self.test.lighthouse_delta = lighthouse_data
-        self.test.yellowlab_delta = yellowlab_data
+        self.test.security_delta = security_data
         self.test.images_delta = images_data
         self.test.score = score
         self.test.status = 'passed' if score >= self.test.threshold else 'failed'
         self.test.component_scores['html'] = (micro_diff_score * 100) if micro_diff_w != 0 else None
         self.test.component_scores['logs'] = (logs_delta_context['combined_logs_score'] * 100) if num_logs_w != 0 else None
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100) if delta_lh_w != 0 else None
-        self.test.component_scores['yellowlab'] = (yellowlab_score * 100) if delta_yl_w != 0 else None
-        self.test.component_scores['vrt'] = (images_score * 100) if images_w != 0 else None
+        self.test.component_scores['security'] = (security_score * 100) if delta_sec_w != 0 else None
+        self.test.component_scores['images'] = (images_score * 100) if images_w != 0 else None
+        self.test.component_scores['vrt'] = self.test.component_scores['images']
         self.test.save()
 
         # updating associated page and site
@@ -940,9 +911,4 @@ class Tester():
 
         # returning updated test
         return self.test
-
-
-
-
-
 

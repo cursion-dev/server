@@ -23,9 +23,14 @@ definitions = [
         'value': 'obj.status'
     },
     {
+        'name': 'Images Score',
+        'key': 'images_score',
+        'value': 'obj.component_scores.get("images", obj.component_scores.get("vrt",0))'
+    },
+    {
         'name': 'VRT Score',
         'key': 'vrt_score',
-        'value': 'obj.component_scores.get("vrt",0)'
+        'value': 'obj.component_scores.get("images", obj.component_scores.get("vrt",0))'
     },
     {
         'name': 'Logs Score',
@@ -46,6 +51,11 @@ definitions = [
         'name': 'Lighthouse Score',
         'key': 'lighthouse_score',
         'value': 'obj.component_scores.get("lighthouse",0)'
+    },
+    {
+        'name': 'Security Score',
+        'key': 'security_score',
+        'value': 'obj.component_scores.get("security",0)'
     },
 
     # high-level scan score
@@ -134,118 +144,68 @@ definitions = [
         'value': '((obj.lighthouse or {}).get("scores") or {}).get("accessibility",0)'
     },
 
-    # YL test data
+    # Security test data
     {
-        'name': 'Yellowlab Average',
-        'key': 'current_yellowlab_average',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("current_average",0)'
+        'name': 'Security Average',
+        'key': 'current_security_average',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("current_average",0)'
     },
     {
-        'name': 'Page Weight Delta',
-        'key': 'pageWeight_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("pageWeight_delta",0)'
+        'name': 'Transport Delta',
+        'key': 'transport_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("transport_delta",0)'
     },
     {
-        'name': 'Images Delta',
-        'key': 'images_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("images_delta",0)'
+        'name': 'Browser Delta',
+        'key': 'browser_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("browser_delta",0)'
     },
     {
-        'name': ' DOM Complexity Delta',
-        'key': 'domComplexity_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("domComplexity_delta",0)'
+        'name': 'Scripts Delta',
+        'key': 'scripts_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("scripts_delta",0)'
     },
     {
-        'name': 'JS Complexity Delta',
-        'key': 'javascriptComplexity_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("javascriptComplexity_delta",0)'
+        'name': 'Forms Delta',
+        'key': 'forms_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("forms_delta",0)'
     },
     {
-        'name': 'Bad JS Delta',
-        'key': 'badJavascript_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("badJavascript_delta",0)'
-    },
-    {
-        'name': 'jQuery Delta',
-        'key': 'jQuery_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("jQuery_delta",0)'
-    },
-    {
-        'name': 'CSS Complexity Delta',
-        'key': 'cssComplexity_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("cssComplexity_delta",0)'
-    },
-    {
-        'name': 'Bad CSS Delta',
-        'key': 'badCSS_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("badCSS_delta",0)'
-    },
-    {
-        'name': 'Fonts Delta',
-        'key': 'fonts_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("fonts_delta",0)'
-    },
-    {
-        'name': 'Server Config Delta',
-        'key': 'serverConfig_delta',
-        'value': '((obj.yellowlab_delta or {}).get("scores") or {}).get("serverConfig_delta",0)'
+        'name': 'Compliance Delta',
+        'key': 'compliance_delta',
+        'value': '((obj.security_delta or {}).get("scores") or {}).get("compliance_delta",0)'
     },
 
-    # YL scan data
+    # Security scan data
     {
-        'name': 'Yellowlab Average',
-        'key': 'yellowlab_average',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("globalScore",0)'
+        'name': 'Security Average',
+        'key': 'security_average',
+        'value': '((obj.security or {}).get("scores") or {}).get("average",0)'
     },
     {
-        'name': 'Page Weight',
-        'key': 'pageWeight',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("pageWeight",0)'
+        'name': 'Transport',
+        'key': 'transport',
+        'value': '((obj.security or {}).get("scores") or {}).get("transport",0)'
     },
     {
-        'name': 'Images',
-        'key': 'images',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("images",0)'
+        'name': 'Browser',
+        'key': 'browser',
+        'value': '((obj.security or {}).get("scores") or {}).get("browser",0)'
     },
     {
-        'name': 'DOM Complexity',
-        'key': 'domComplexity',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("domComplexity",0)'
+        'name': 'Scripts',
+        'key': 'scripts',
+        'value': '((obj.security or {}).get("scores") or {}).get("scripts",0)'
     },
     {
-        'name': 'JS Complexity',
-        'key': 'javascriptComplexity',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("javascriptComplexity",0)'
+        'name': 'Forms',
+        'key': 'forms',
+        'value': '((obj.security or {}).get("scores") or {}).get("forms",0)'
     },
     {
-        'name': 'Bad JS',
-        'key': 'badJavascript',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("badJavascript",0)'
-    },
-    {
-        'name': 'jQuery',
-        'key': 'jQuery',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("jQuery",0)'
-    },
-    {
-        'name': 'CSS Complexity',
-        'key': 'cssComplexity',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("cssComplexity",0)'
-    },
-    {
-        'name': 'Bad CSS',
-        'key': 'badCSS',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("badCSS",0)'
-    },
-    {
-        'name': 'Fonts',
-        'key': 'fonts',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("fonts",0)'
-    },
-    {
-        'name': 'Server Configs',
-        'key': 'serverConfig',
-        'value': '((obj.yellowlab or {}).get("scores") or {}).get("serverConfig",0)'
+        'name': 'Compliance',
+        'key': 'compliance',
+        'value': '((obj.security or {}).get("scores") or {}).get("compliance",0)'
     },
 
     # caserun

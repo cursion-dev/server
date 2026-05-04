@@ -1,4 +1,3 @@
-from asgiref.sync import sync_to_async
 from cryptography.fernet import Fernet
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -28,12 +27,12 @@ class Caser():
         'process'       : object,
         'flowrun_id'    : str,
         'node_index'    : str,
-    }
 
     - Use `Caser.run()` to run Case as CaseRun
     - Use `Caser.pre_run()` to gather element info for a new Case 
 
-    Returns: None
+    Returns:
+        None
     """
 
 
@@ -418,13 +417,11 @@ class Caser():
 
         Args:
             "selector": str, 
-            "xpath": str, 
-        }
+            "xpath": str
 
         Returns:
             'element': object | None,
             'failed': bool
-        }
         """
 
         # defaults
@@ -463,7 +460,6 @@ class Caser():
 
         Args:
             "exception": str
-        }
 
         Returns: str
         """
@@ -483,7 +479,6 @@ class Caser():
 
         Args:
             "element": object (REQUIRED)
-        }
 
         Returns: str (base64 encoded)
         """

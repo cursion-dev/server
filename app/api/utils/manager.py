@@ -43,12 +43,19 @@ def record_task(
 
     # get component based on task_name
     component = task_method.replace('run_', '').replace('_bg', '').replace('_and_logs', '')
+    if component == 'vrt':
+        component = 'images'
 
     # check if task exists
     i = 0
     exists = False
     for task in tasks:
-        if task['component'] == component:
+        task_component = task.get('component')
+        is_images_alias = (
+            (task_component == 'vrt' and component == 'images')
+            or (task_component == 'images' and component == 'vrt')
+        )
+        if task_component == component or is_images_alias:
             # update existing task
             max_attempts_reached   = True if (tasks[i]['attempts'] >= settings.MAX_ATTEMPTS) else False
             tasks[i]['task_id']    = str(task_id)

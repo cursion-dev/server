@@ -1,11 +1,11 @@
 from .driver import (
     driver_init, quit_driver, 
-    driver_wait , get_data
+    get_data
 )
 from ..models import *
 from .alerter import Alerter
 from .lighthouse import Lighthouse
-from .yellowlab import Yellowlab
+from .security import Security
 from .imager import Imager
 from .updater import update_flowrun
 from .manager import record_task
@@ -13,7 +13,7 @@ from .tester import Tester
 from django.core.cache import cache
 from datetime import datetime
 from cursion import settings
-import os, asyncio, uuid, boto3, random, time
+import os, uuid, boto3, random, time
 
 
 
@@ -25,16 +25,16 @@ class Scanner():
     Used to run and build all the 
     components of a new `Scan`
 
-    Expects -> {
+    Args:
         'site'    : object,
         'page'    : object,
         'scan'    : object,
         'type'    : list
-    }
 
     Use self.build_scan() to create a new Scan
 
-    Returns: `Scan` object
+    Returns:
+        `Scan` object
     """
 
 
@@ -45,7 +45,7 @@ class Scanner():
             site: object=None, 
             page: object=None,
             scan: object=None, 
-            type: list=['html', 'logs', 'vrt', 'lighthouse', 'yellowlab']
+            type: list=['html', 'logs', 'images', 'lighthouse', 'security']
         ):
 
         self.site = site
@@ -74,7 +74,7 @@ class Scanner():
         logs = None
         images = None
         lh_data = None
-        yl_data = None
+        sec_data = None
         
         # running scan steps with selenium driver
         driver = driver_init(
@@ -92,12 +92,12 @@ class Scanner():
             html = driver_data['html']
         if 'logs' in self.scan.type or 'full' in self.scan.type:
             logs = driver_data['logs']
-        if 'vrt' in self.scan.type or 'full' in self.scan.type:
+        if 'images' in self.scan.type or 'vrt' in self.scan.type or 'full' in self.scan.type:
             images = Imager(scan=self.scan).scan_vrt(driver=driver)
         if 'lighthouse' in self.scan.type or 'full' in self.scan.type:
             lh_data = Lighthouse(scan=self.scan).get_data() 
-        if 'yellowlab' in self.scan.type or 'full' in self.scan.type:
-            yl_data = Yellowlab(scan=self.scan).get_data()
+        if 'security' in self.scan.type or 'full' in self.scan.type:
+            sec_data = Security(scan=self.scan, driver=driver).get_data()
 
         # quiting selenium instance
         quit_driver(driver)
@@ -111,8 +111,8 @@ class Scanner():
             self.scan.images = images
         if lh_data is not None:
             self.scan.lighthouse = lh_data
-        if yl_data is not None:
-            self.scan.yellowlab = yl_data
+        if sec_data is not None:
+            self.scan.security = sec_data
 
         # saving scan data
         self.scan.time_completed = datetime.now()
@@ -149,8 +149,8 @@ def update_scan_score(scan: object) -> object:
     # get latest scan scores
     if scan.lighthouse['scores']['average'] is not None:
         scores.append(scan.lighthouse['scores']['average'])
-    if scan.yellowlab['scores']['globalScore'] is not None:
-        scores.append(scan.yellowlab['scores']['globalScore'])
+    if scan.security['scores']['average'] is not None:
+        scores.append(scan.security['scores']['average'])
     
     # calc average score
     if len(scores) > 0:
@@ -322,12 +322,12 @@ def check_scan_completion(
     if 'lighthouse' in scan.type or 'full' in scan.type:
         if scan.lighthouse.get('scores').get('average') == None and scan.lighthouse.get('failed') == None:
             finished = False
-            
-    if 'yellowlab' in scan.type or 'full' in scan.type:
-        if scan.yellowlab.get('scores').get('globalScore') == None and scan.yellowlab.get('failed') == None:
+
+    if 'security' in scan.type or 'full' in scan.type:
+        if scan.security.get('scores').get('average') == None and scan.security.get('failed') == None:
             finished = False
 
-    if 'vrt' in scan.type or 'full' in scan.type:
+    if 'images' in scan.type or 'vrt' in scan.type or 'full' in scan.type:
         if scan.images == None or scan.images == '':
             finished = False
 
@@ -593,7 +593,7 @@ def _vrt(
         update_flowrun(**{
             'flowrun_id': flowrun_id,
             'node_index': node_index,
-            'message': f'starting images (vrt) component for {scan.page.page_url} | scan_id: {scan_id}',
+            'message': f'starting images component for {scan.page.page_url} | scan_id: {scan_id}',
         })
     
     try:
@@ -612,7 +612,7 @@ def _vrt(
         scan.save()
 
         # setting flowrun log
-        message = f'completed images (vrt) component for {scan.page.page_url} | scan_id: {scan_id}'
+        message = f'completed images component for {scan.page.page_url} | scan_id: {scan_id}'
 
     except Exception as e:
         print(e)
@@ -629,7 +629,7 @@ def _vrt(
         })
 
     # checking if scan is done
-    scan = check_scan_completion(scan, 'vrt', test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'images', test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
@@ -655,7 +655,8 @@ def _lighthouse(
         flowrun_id  : str, 
         node_index  : str
     
-    Returns: `Scan` <obj>
+    Returns:
+        `Scan` <obj>
     """
 
     # retrieve scan
@@ -713,26 +714,26 @@ def _lighthouse(
 
 
 
-def _yellowlab(
-        scan_id: str=None, 
-        test_id: str=None, 
+def _security(
+        scan_id: str=None,
+        test_id: str=None,
         alert_id: str=None,
-        flowrun_id: str=None, 
+        flowrun_id: str=None,
         node_index: str=None
     ) -> object:
     """
-    Method to run the yellowlab component of the scan 
+    Method to run the security component of the scan
     allowing for multi-threading.
 
     Args:
-        scan_id     : str, 
-        test_id     : str, 
+        scan_id     : str,
+        test_id     : str,
         alert_id    : str,
-        flowrun_id  : str, 
+        flowrun_id  : str,
         node_index  : str
-    
+
     Returns: `Scan` <obj>
-    """ 
+    """
 
     # retrieve scan
     scan = Scan.objects.get(id=scan_id)
@@ -745,29 +746,29 @@ def _yellowlab(
         update_flowrun(**{
             'flowrun_id': flowrun_id,
             'node_index': node_index,
-            'message': f'starting yellowlab component for {scan.page.page_url} | scan_id: {scan_id}',
+            'message': f'starting security component for {scan.page.page_url} | scan_id: {scan_id}',
         })
-    
+
     try:
-        # running yellowlab
-        yl_data = Yellowlab(scan=scan).get_data()
-        print(f'YELLOWLAB failure_status -> {yl_data.get('failed')}')
-        
+        # running security
+        sec_data = Security(scan=scan).get_data()
+        print(f'SECURITY failure_status -> {sec_data.get('failed')}')
+
         # updating Scan object
         scan = Scan.objects.get(id=scan_id)
-        scan.yellowlab = yl_data
+        scan.security = sec_data
         scan.save()
 
         # setting flowrun log
-        message = f'completed yellowlab component for {scan.page.page_url} | scan_id: {scan_id}'
+        message = f'completed security component for {scan.page.page_url} | scan_id: {scan_id}'
 
     except Exception as e:
-        scan.yellowlab['failed'] = True
+        scan.security['failed'] = True
         scan.save()
         print(e)
 
         # setting flowrun log
-        message = f'yellowlab component failed for {scan.page.page_url} | scan_id: {scan_id}'
+        message = f'security component failed for {scan.page.page_url} | scan_id: {scan_id}'
 
     # update flowrun
     if flowrun_id and flowrun_id != 'None':
@@ -776,14 +777,12 @@ def _yellowlab(
             'node_index': node_index,
             'message': message
         })
-    
+
     # update scan score
     update_scan_score(scan)
 
     # checking if scan is done
-    scan = check_scan_completion(scan, 'yellowlab', test_id, alert_id, flowrun_id, node_index)
+    scan = check_scan_completion(scan, 'security', test_id, alert_id, flowrun_id, node_index)
 
     # returning updated scan
     return scan
-
-

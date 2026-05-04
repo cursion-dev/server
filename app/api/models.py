@@ -151,6 +151,40 @@ def get_yl_default():
 
 
 
+def get_security_default():
+    _default = {
+       "scores": {
+            "transport": None, 
+            "browser": None, 
+            "scripts": None,
+            "forms": None, 
+            "compliance": None,
+            "average": None
+       },
+       "audits": None,
+    }
+    return _default
+
+
+
+
+def get_security_delta_default():
+    _default = {
+       "scores": {
+            "transport_delta": None, 
+            "browser_delta": None, 
+            "scripts_delta": None,
+            "forms_delta": None, 
+            "compliance_delta": None,
+            "average_delta": None
+       },
+       "audits": None,
+    }
+    return _default
+
+
+
+
 def get_expressions_default():
     expressions_default = {
        'list': [
@@ -212,6 +246,8 @@ def get_scores_default():
         'logs': None,
         'lighthouse': None,
         'yellowlab': None,
+        'security': None,
+        'images': None,
         'vrt': None
     }
     return scores_default
@@ -491,7 +527,8 @@ class Scan(models.Model):
     images = models.JSONField(serialize=True, null=True, blank=True)
     score = models.FloatField(serialize=True, null=True, blank=True)
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
-    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default)
+    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default) #### TODO; deprecate in ~6 months
+    security = models.JSONField(serialize=True, null=True, blank=True, default=get_security_default) ##### NEW!!!!!
     configs = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
     system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
@@ -518,7 +555,8 @@ class Test(models.Model):
     html_delta = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
-    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)
+    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default) #### TODO; deprecate in ~6 months
+    security_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_security_delta_default) ##### NEW!!!!!
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
     pre_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
@@ -760,4 +798,3 @@ class Coupon(models.Model):
 
     def __str__(self):
         return f'{self.code}'
-

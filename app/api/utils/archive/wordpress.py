@@ -1,8 +1,7 @@
-from .driver import driver_init, driver_wait
-from selenium import webdriver
+from ..driver import driver_init
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
-from ..models import * 
+from ...models import * 
 from datetime import datetime
 import time, uuid
 
