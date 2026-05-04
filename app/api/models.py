@@ -23,27 +23,6 @@ def get_info_default():
                 'time_completed': None,
                 'score': None,
                 'status': None
-            },
-            'lighthouse': {
-                'average': None,
-                'seo': None,
-                'crux': None, 
-                'performance': None, 
-                'accessibility': None, 
-                'best_practices': None,
-            },
-            'yellowlab': {
-                'globalScore': None,
-                'pageWeight': None,
-                'images': None, 
-                'domComplexity': None, 
-                'javascriptComplexity': None,
-                'badJavascript': None,
-                'jQuery': None,
-                'cssComplexity': None,
-                'badCSS': None,
-                'fonts': None,
-                'serverConfig': None, 
             }
         }
     return info_default

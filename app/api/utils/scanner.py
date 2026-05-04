@@ -183,7 +183,6 @@ def update_site_info(scan: object) -> object:
     pages = Page.objects.filter(site=site)
 
     # get latest scan of pages
-    scans = []
     for page in pages:
         if Scan.objects.filter(page=page).exists():
             scan = Scan.objects.filter(page=page).order_by('-time_completed')[0]
