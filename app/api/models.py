@@ -527,7 +527,7 @@ class Scan(models.Model):
     images = models.JSONField(serialize=True, null=True, blank=True)
     score = models.FloatField(serialize=True, null=True, blank=True)
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
-    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default)
+    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default) #### TODO; deprecate in ~6 months
     security = models.JSONField(serialize=True, null=True, blank=True, default=get_security_default) ##### NEW!!!!!
     configs = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
@@ -555,7 +555,7 @@ class Test(models.Model):
     html_delta = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
-    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default)
+    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default) #### TODO; deprecate in ~6 months
     security_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_security_delta_default) ##### NEW!!!!!
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
