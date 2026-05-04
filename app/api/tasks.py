@@ -8,7 +8,6 @@ from .utils.reporter import Report as R
 from .utils.alerter import Alerter
 from .utils.caser import Caser
 from .utils.autocaser import AutoCaser
-from .utils.archive.gencaser import GenCaser
 from .utils.issuer import Issuer
 from .utils.exporter import create_and_send_report_export
 from .utils.scanner import (
