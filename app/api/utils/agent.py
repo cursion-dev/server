@@ -3,6 +3,7 @@ from django.utils import timezone
 from ..models import Chat
 from cursion import settings
 from openai import OpenAI
+import requests
 
 
 
@@ -59,19 +60,23 @@ class Agent():
             history_parts.append(f'[{role.upper()} — {name}]\n{text}')
 
         # concat into string
-        chat_history = '\n\n'.join(history_parts)
+        chat_history = '\n\n'.join(history_parts[-10:])
+
+        # get AGENTS.md from cursion docs
+        cursion_docs = requests.get('https://docs.cursion.dev/AGENTS.md')
         
         # full prompt
         input_string = (
             'BACKGROUND CONTEXT:\n'
             'You are a Software Quality Assurance Engineer.\n'
-            'Please reference https://docs.cursion.dev/AGENTS.md to get context on Cursion.\n'
             'If necessary, call Cursion MCP tools to complete the task.\n'
             'If responding with `Site`, `Page`, `Scan`, `Test`, `Case`, `CaseRun`, `Flow`, or `FlowRun` objects, ' 
             'include their URL formatted like so: '
             f'"{settings.CLIENT_URL_ROOT}/<object>/<object_id>"\n'
             '\n\n'
-            f'CHAT HISTORY:\n{chat_history}'
+            f'CURSION CONTEXT:\n{cursion_docs}'
+            '\n\n'
+            f'CHAT HISTORY (Last 10 messages):\n{chat_history}'
         )
 
         # build mcp url
