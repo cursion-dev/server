@@ -63,7 +63,7 @@ class Agent():
         chat_history = '\n\n'.join(history_parts[-10:])
 
         # get AGENTS.md from cursion docs
-        cursion_docs = requests.get('https://docs.cursion.dev/AGENTS.md')
+        cursion_docs = requests.get('https://docs.cursion.dev/AGENTS.md').text
         
         # full prompt
         input_string = (
