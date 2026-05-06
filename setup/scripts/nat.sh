@@ -14,6 +14,7 @@ set -eu # Treat unset variables as errors, and exit on command failures
 NAT_VPC_CIDR="${1:-}"
 NAT_LISTEN_PORT="${2:-}"
 NAT_PRIVATE_IP="${3:-}"
+POD_CIDR="${4:-}"
 
 if [ -z "$NAT_VPC_CIDR" ]; then
   read -rp "Enter VPC CIDR block (e.g., 10.124.0.0/16): " NAT_VPC_CIDR
@@ -27,10 +28,19 @@ if [ -z "$NAT_PRIVATE_IP" ]; then
   read -rp "Enter NAT Private IP addres (e.g., 10.124.0.29): " NAT_PRIVATE_IP
 fi
 
+if [ -z "$POD_CIDR" ]; then
+  read -rp "Enter Pod CIDR block if needed (optional, e.g., 10.109.0.0/16): " POD_CIDR
+fi
+
 echo ""
 echo "Using NAT_VPC_CIDR: $NAT_VPC_CIDR"
 echo "Using NAT_LISTEN_PORT: $NAT_LISTEN_PORT"
 echo "Using NAT_PRIVATE_IP: $NAT_PRIVATE_IP"
+if [ -n "$POD_CIDR" ]; then
+  echo "Using POD_CIDR: $POD_CIDR"
+else
+  echo "Using POD_CIDR: <not set>"
+fi
 echo ""
 
 # update and install deps
@@ -96,6 +106,15 @@ http_port ${NAT_PRIVATE_IP}:${NAT_LISTEN_PORT}
 
 # ---- ACCESS CONTROL (ORDER MATTERS) ----
 acl vpc src ${NAT_VPC_CIDR}
+SQUID_EOF
+
+if [ -n "$POD_CIDR" ]; then
+cat <<SQUID_POD_ACL_EOF >> /etc/squid/squid.conf
+acl pod_cidr src ${POD_CIDR}
+SQUID_POD_ACL_EOF
+fi
+
+cat <<SQUID_ACCESS_EOF >> /etc/squid/squid.conf
 acl SSL_ports port 443 8443
 acl Safe_ports port 80 443 8443
 acl CONNECT method CONNECT
@@ -103,6 +122,14 @@ acl CONNECT method CONNECT
 http_access deny !Safe_ports
 http_access deny CONNECT !SSL_ports
 http_access allow vpc
+SQUID_ACCESS_EOF
+if [ -n "$POD_CIDR" ]; then
+cat <<SQUID_POD_ALLOW_EOF >> /etc/squid/squid.conf
+http_access allow pod_cidr
+SQUID_POD_ALLOW_EOF
+fi
+
+cat <<SQUID_ACCESS_TAIL_EOF >> /etc/squid/squid.conf
 http_access deny all
 
 # ---- HARD BACKPRESSURE ----
@@ -140,7 +167,7 @@ workers 2
 
 access_log /var/log/squid/access.log
 cache_log /var/log/squid/cache.log
-SQUID_EOF
+SQUID_ACCESS_TAIL_EOF
 
 # restarts squid on OOM failure
 mkdir -p /etc/systemd/system/squid.service.d
@@ -178,6 +205,9 @@ iptables -A INPUT -i lo -j ACCEPT
 iptables -P INPUT DROP
 iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -A INPUT -p tcp --dport $NAT_LISTEN_PORT -s $NAT_VPC_CIDR -j ACCEPT
+if [ -n "$POD_CIDR" ]; then
+  iptables -A INPUT -p tcp --dport $NAT_LISTEN_PORT -s "$POD_CIDR" -j ACCEPT
+fi
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
 netfilter-persistent save
@@ -196,6 +226,9 @@ echo "[8/8] Completed!"
 echo ""
 echo "Squid proxy active on port: $NAT_LISTEN_PORT"
 echo "Allowed VPC range: $NAT_VPC_CIDR"
+if [ -n "$POD_CIDR" ]; then
+  echo "Allowed Pod range: $POD_CIDR"
+fi
 echo "Debug commands:"
 echo "  journalctl -u squid -f"
 echo "  tail -f /var/log/squid/access.log /var/log/squid/cache.log"
