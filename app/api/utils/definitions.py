@@ -25,12 +25,17 @@ definitions = [
     {
         'name': 'Images Score',
         'key': 'images_score',
-        'value': 'obj.component_scores.get("images", obj.component_scores.get("images",0))'
+        'value': 'obj.component_scores.get("images", obj.component_scores.get("vrt",0))'
     },
     {
         'name': 'VRT Score',
         'key': 'vrt_score',
         'value': 'obj.component_scores.get("images", obj.component_scores.get("vrt",0))'
+    },
+    {
+        'name': 'AI Broken',
+        'key': 'ai_broken',
+        'value': 'str(obj.images_delta.get("ai_analysis",{}).get("broken", "none")).lower()'
     },
     {
         'name': 'Logs Score',

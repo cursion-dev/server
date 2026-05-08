@@ -506,8 +506,8 @@ class Scan(models.Model):
     images = models.JSONField(serialize=True, null=True, blank=True)
     score = models.FloatField(serialize=True, null=True, blank=True)
     lighthouse = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_default)
-    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default) #### TODO; deprecate in ~6 months
-    security = models.JSONField(serialize=True, null=True, blank=True, default=get_security_default) ##### NEW!!!!!
+    yellowlab = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_default) #### TODO; deprecate (Aug, 2026)
+    security = models.JSONField(serialize=True, null=True, blank=True, default=get_security_default)
     configs = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
     system = models.JSONField(serialize=True, null=True, blank=True, default=get_system_default)
@@ -534,8 +534,8 @@ class Test(models.Model):
     html_delta = models.CharField(max_length=5000, serialize=True, null=True, blank=True)
     logs_delta = models.JSONField(serialize=True, null=True, blank=True)
     lighthouse_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_lh_delta_default)
-    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default) #### TODO; deprecate in ~6 months
-    security_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_security_delta_default) ##### NEW!!!!!
+    yellowlab_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_yl_delta_default) #### TODO; deprecate (Aug, 2026)
+    security_delta = models.JSONField(serialize=True, null=True, blank=True, default=get_security_delta_default)
     images_delta = models.JSONField(serialize=True, null=True, blank=True)
     tags = models.JSONField(serialize=True, null=True, blank=True, default=get_tags_default)
     pre_scan_configs = models.JSONField(serialize=True, null=True, blank=True)
@@ -715,7 +715,6 @@ class Chat(models.Model):
 
     def __str__(self):
         return f'{self.id}_chat'
-
 
 
 
