@@ -882,7 +882,7 @@ class Imager():
         post_img        = None
         pre_img_diff    = None
         post_img_diff   = None
-        ai_summary      = None
+        summary         = None
         broken          = None
         images_delta    = {
             "average_score": None,
@@ -963,7 +963,7 @@ class Imager():
                     score         = ssim_img_score,
                     highlighted   = False
                 )
-                ai_summary = resp.get('summary')
+                summary = resp.get('summary')
                 broken = resp.get('broken')
 
         except Exception as e:
@@ -974,7 +974,7 @@ class Imager():
             post_img        = None
             pre_img_diff    = None
             post_img_diff   = None
-            ai_summary      = None
+            summary         = None
             broken          = None
             
 
@@ -995,8 +995,10 @@ class Imager():
         images_delta = {
             "average_score" : img_score,
             "images"        : img_test_obj,
-            "ai_summary"    : ai_summary,
-            "broken"        : broken
+            "ai_analysis"   : {
+                "summary"   : summary,
+                "broken"    : broken
+            },
         }
 
         # returning response
