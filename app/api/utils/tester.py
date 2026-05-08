@@ -897,7 +897,7 @@ class Tester():
         self.test.component_scores['lighthouse'] = (lighthouse_score * 100) if delta_lh_w != 0 else None
         self.test.component_scores['security'] = (security_score * 100) if delta_sec_w != 0 else None
         self.test.component_scores['images'] = (images_score * 100) if images_w != 0 else None
-        self.test.component_scores['vrt'] = self.test.component_scores['images']
+        self.test.component_scores['vrt'] = self.test.component_scores['images'] # TODO: depreciate vrt after ~3 months (Aug, 2026)
         self.test.save()
 
         # updating associated page and site

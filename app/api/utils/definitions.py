@@ -25,7 +25,7 @@ definitions = [
     {
         'name': 'Images Score',
         'key': 'images_score',
-        'value': 'obj.component_scores.get("images", obj.component_scores.get("vrt",0))'
+        'value': 'obj.component_scores.get("images", obj.component_scores.get("images",0))'
     },
     {
         'name': 'VRT Score',
