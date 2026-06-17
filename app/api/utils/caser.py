@@ -283,7 +283,7 @@ class Caser():
 
 
     def format_element(self, element: object) -> str:
-        elememt = json.dumps(element).rstrip('"').lstrip('"')
+        element = json.dumps(element).rstrip('"').lstrip('"')
         return str(element)
 
 
