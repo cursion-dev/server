@@ -8,9 +8,8 @@ from sendgrid.helpers.mail import Mail, Subject, Content, From
 from ..models import *
 from cursion import settings
 from .definitions import get_definition, definitions
-from datetime import date
 from cryptography.fernet import Fernet
-import os, json, requests, uuid, re
+import json, requests, uuid, re
 
 
 

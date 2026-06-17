@@ -141,7 +141,6 @@ class Caser():
 
         Args:
             'string' : str (to be transposed)
-        }
 
         Returns: transposed string
         """
@@ -283,7 +282,7 @@ class Caser():
 
 
     def format_element(self, element: object) -> str:
-        elememt = json.dumps(element).rstrip('"').lstrip('"')
+        element = json.dumps(element).rstrip('"').lstrip('"')
         return str(element)
 
 
@@ -1317,7 +1316,7 @@ class Caser():
                         self.steps[i]['action']['img'] = img
 
                     # changing value of element
-                    value = step["action"]["value"]
+                    value = self.transpose_data(step["action"]["value"])
                     element.send_keys(value)
                     time.sleep(int(self.configs.get('min_wait_time', 3)))
 
