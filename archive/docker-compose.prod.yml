@@ -104,6 +104,8 @@ services:
     hostname: nginx-proxy
     image: cursiondev/nginx
     restart: always
+    environment:
+      - ENABLE_HTTP2=false
     ports:
       - 443:443
       - 80:80

@@ -101,6 +101,8 @@ services:
     hostname: nginx-proxy
     build: nginx
     restart: always
+    environment:
+      - ENABLE_HTTP2=false
     ports:
       - 443:443
       - 80:80
