@@ -126,6 +126,8 @@ services:
     image: cursiondev/nginx
     platform: linux/amd64
     restart: always
+    environment:
+      - ENABLE_HTTP2=false
     ports:
       - "443:443"
       - "80:80"
